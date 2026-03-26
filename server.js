@@ -107,8 +107,19 @@ function formatFileSize(bytes) {
   return `${(bytes / 1e3).toFixed(0)} KB`;
 }
 
-function buildStreamUrl(server, itemId, sourceId) {
-  let url = `${server.url}/Videos/${itemId}/stream?api_key=${server.apiKey}&static=true`;
+function detectSourceLabel(source) {
+  const str = ((source.Path || '') + ' ' + (source.Name || '')).toLowerCase();
+  if (str.includes('remux'))                            return 'REMUX';
+  if (str.includes('web-dl') || str.includes('webdl'))  return 'WEB-DL';
+  if (str.includes('webrip'))                           return 'WEB-RIP';
+  if (str.includes('bluray') || str.includes('blu-ray')) return 'BluRay';
+  if (str.includes('hdtv'))                             return 'HDTV';
+  return null;
+}
+
+function buildStreamUrl(server, itemId, sourceId, container) {
+  const ext = container ? `.${container.toLowerCase()}` : '';
+  let url = `${server.url}/Videos/${itemId}/stream${ext}?api_key=${server.apiKey}&Static=true`;
   if (sourceId) url += `&MediaSourceId=${encodeURIComponent(sourceId)}`;
   return url;
 }
@@ -230,24 +241,26 @@ function itemsToStreams(server, items) {
       // ── Bitrate in Mbps ──────────────────────────────────────────────────────
       const bitrateLabel = bitrate ? `${(bitrate / 1e6).toFixed(1)}Mbps` : null;
 
-      // ── Assemble description (Streambridge-style order) ──────────────────────
-      const parts = [
-        resLabel,
-        dimsLabel,
-        hdrLabel,
-        codecLabel,
+      // ── Source label (REMUX, WEB-DL, etc. from filename) ──────────────────────
+      const sourceLabel = detectSourceLabel(source);
+      const container = source.Container ? source.Container.toUpperCase() : null;
+
+      // ── Assemble description (multi-line, Streambridge-style) ─────────────────
+      const descLines = [
+        [resLabel, dimsLabel].filter(Boolean).join(' · '),
+        [hdrLabel, codecLabel].filter(Boolean).join(' · '),
+        sourceLabel,
         audioLabel,
-        source.Container ? source.Container.toUpperCase() : null,
-        bitrateLabel,
-        formatFileSize(sizeBytes),
+        [container, bitrateLabel, formatFileSize(sizeBytes)].filter(Boolean).join(' · '),
       ].filter(Boolean);
 
       streams.push({
-        url: buildStreamUrl(server, item.Id, source.Id),
-        name: server.label,
-        description: parts.join(' · ') || 'Unknown quality',
+        url: buildStreamUrl(server, item.Id, source.Id, source.Container),
+        name: [server.label, resLabel].filter(Boolean).join(' '),
+        description: descLines.join('\n') || 'Unknown quality',
         _sizeBytes: sizeBytes,
         _bitrate: bitrate,
+        _mediaSourceId: source.Id,
       });
     }
   }
@@ -263,7 +276,7 @@ async function queryServerForMovie(server, imdbId) {
     const url = new URL(`${server.url}/Users/${server.userId}/Items`);
     url.searchParams.set('AnyProviderIdEquals', `${prefix}.${imdbId}`);
     url.searchParams.set('IncludeItemTypes', 'Movie');
-    url.searchParams.set('Fields', 'MediaSources,MediaStreams');
+    url.searchParams.set('Fields', 'MediaSources,MediaStreams,Path');
     url.searchParams.set('Recursive', 'true');
     url.searchParams.set('api_key', server.apiKey);
     return url.toString();
@@ -310,7 +323,7 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
     seriesItems.map(async (series) => {
       const epUrl = new URL(`${server.url}/Shows/${series.Id}/Episodes`);
       epUrl.searchParams.set('Season', String(season));
-      epUrl.searchParams.set('Fields', 'MediaSources,MediaStreams');
+      epUrl.searchParams.set('Fields', 'MediaSources,MediaStreams,Path');
       epUrl.searchParams.set('api_key', server.apiKey);
       epUrl.searchParams.set('UserId', server.userId);
 
@@ -339,7 +352,7 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
     const url = new URL(`${server.url}/Users/${server.userId}/Items`);
     url.searchParams.set('AnyProviderIdEquals', `${prefix}.${imdbId}`);
     url.searchParams.set('IncludeItemTypes', 'Episode');
-    url.searchParams.set('Fields', 'MediaSources,MediaStreams');
+    url.searchParams.set('Fields', 'MediaSources,MediaStreams,Path');
     url.searchParams.set('ParentIndexNumber', String(season));
     url.searchParams.set('IndexNumber', String(episode));
     url.searchParams.set('Recursive', 'true');
@@ -371,14 +384,13 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
     }
     const streams = itemsToStreams(server, items);
 
-    // Deduplicate: same server + same file size = same physical file across multiple libraries
-    // Keep the first occurrence (they're identical content, no point showing duplicates)
-    const seenSizes = new Set();
+    // Deduplicate by MediaSource ID — each unique source is a unique physical file.
+    // Size-based dedup was too aggressive (collapsed different files with similar sizes).
+    const seenIds = new Set();
     return streams.filter((s) => {
-      if (!s._sizeBytes) return true; // keep streams with unknown size
-      const key = s._sizeBytes;
-      if (seenSizes.has(key)) return false;
-      seenSizes.add(key);
+      if (!s._mediaSourceId) return true;
+      if (seenIds.has(s._mediaSourceId)) return false;
+      seenIds.add(s._mediaSourceId);
       return true;
     });
   } catch (err) {
@@ -406,7 +418,7 @@ async function getAllStreams(servers, type, imdbId, season, episode) {
   });
 
   // Strip internal sort keys
-  return allStreams.map(({ _sizeBytes, _bitrate, ...stream }) => stream);
+  return allStreams.map(({ _sizeBytes, _bitrate, _mediaSourceId, ...stream }) => stream);
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
