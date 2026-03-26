@@ -257,21 +257,34 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
     return queryServerForEpisodeDirect(server, imdbId, season, episode);
   }
 
-  // Step 2: Fetch episodes for that series + season
-  const seriesId = seriesItems[0].Id;
-  const epUrl = new URL(`${server.url}/Shows/${seriesId}/Episodes`);
-  epUrl.searchParams.set('Season', String(season));
-  epUrl.searchParams.set('Fields', 'MediaSources,MediaStreams');
-  epUrl.searchParams.set('api_key', server.apiKey);
-  epUrl.searchParams.set('UserId', server.userId);
+  // Step 2: Query ALL matching series in parallel — the same show often lives in
+  // multiple libraries (e.g. a 4K library AND an HD library), each as a separate
+  // Series entry. Taking only [0] silently misses every other library.
+  const perSeriesResults = await Promise.allSettled(
+    seriesItems.map(async (series) => {
+      const epUrl = new URL(`${server.url}/Shows/${series.Id}/Episodes`);
+      epUrl.searchParams.set('Season', String(season));
+      epUrl.searchParams.set('Fields', 'MediaSources,MediaStreams');
+      epUrl.searchParams.set('api_key', server.apiKey);
+      epUrl.searchParams.set('UserId', server.userId);
 
-  const epResp = await fetchWithTimeout(epUrl.toString(), 10000, {
-    headers: jellyfinHeaders(server),
-  });
-  const epData = await epResp.json();
-  const episodes = epData.Items || [];
+      const epResp = await fetchWithTimeout(epUrl.toString(), 10000, {
+        headers: jellyfinHeaders(server),
+      });
+      const epData = await epResp.json();
+      return (epData.Items || []).filter((ep) => ep.IndexNumber === episode);
+    })
+  );
 
-  return episodes.filter((ep) => ep.IndexNumber === episode);
+  // Merge and deduplicate by episode Id across all libraries
+  const seen = new Set();
+  return perSeriesResults
+    .flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
+    .filter((ep) => {
+      if (seen.has(ep.Id)) return false;
+      seen.add(ep.Id);
+      return true;
+    });
 }
 
 // Direct episode search (fallback — works if server stores series IMDB on episodes)
