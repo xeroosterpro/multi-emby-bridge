@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "multi-emby-bridge",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "port": 7000
+    }
+  ]
+}

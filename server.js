@@ -159,30 +159,21 @@ function itemsToStreams(server, items) {
   const streams = [];
   for (const item of items) {
     const sources = item.MediaSources || [];
-    // Some Emby/Jellyfin versions put MediaStreams at item level, not inside each source
     const itemLevelStreams = item.MediaStreams || [];
 
     for (const source of sources) {
       const sizeBytes = source.Size || 0;
       const bitrate   = source.Bitrate || 0;
 
-      // Use source-level MediaStreams, falling back to item-level
+      // Prefer source-level MediaStreams, fall back to item-level
       const mediaStreams = (source.MediaStreams && source.MediaStreams.length > 0)
         ? source.MediaStreams
         : itemLevelStreams;
 
       const videoStream = mediaStreams.find((s) => s.Type === 'Video');
-      let codecLabel = null;
-      if (videoStream) {
-        const c = (videoStream.Codec || '').toLowerCase();
-        if (c === 'hevc' || c === 'h265') codecLabel = 'H.265';
-        else if (c === 'h264' || c === 'avc') codecLabel = 'H.264';
-        else if (c === 'av1') codecLabel = 'AV1';
-        else if (c === 'vp9') codecLabel = 'VP9';
-        else if (c) codecLabel = videoStream.Codec.toUpperCase();
-      }
+      const audioStream = mediaStreams.find((s) => s.Type === 'Audio');
 
-      // Resolution label
+      // ── Resolution ──────────────────────────────────────────────────────────
       const resLabel = videoStream && videoStream.Height
         ? (videoStream.Height >= 2160 ? '4K'
           : videoStream.Height >= 1080 ? '1080p'
@@ -190,12 +181,65 @@ function itemsToStreams(server, items) {
           : `${videoStream.Height}p`)
         : null;
 
+      // Actual pixel dimensions (e.g. 3840x1608)
+      const dimsLabel = videoStream && videoStream.Width && videoStream.Height
+        ? `${videoStream.Width}x${videoStream.Height}`
+        : null;
+
+      // ── HDR ─────────────────────────────────────────────────────────────────
+      let hdrLabel = null;
+      if (videoStream) {
+        const rangeType = (videoStream.VideoRangeType || videoStream.VideoRange || '').toUpperCase();
+        if (rangeType === 'DOVI' || rangeType.includes('DOLBY')) hdrLabel = 'DV';
+        else if (rangeType === 'HDR10PLUS' || rangeType === 'HDR10+')      hdrLabel = 'HDR10+';
+        else if (rangeType === 'HDR10')                                     hdrLabel = 'HDR10';
+        else if (rangeType === 'HLG')                                       hdrLabel = 'HLG';
+        else if (rangeType === 'HDR')                                       hdrLabel = 'HDR';
+      }
+
+      // ── Video codec + bit depth ──────────────────────────────────────────────
+      let codecLabel = null;
+      if (videoStream) {
+        const c = (videoStream.Codec || '').toLowerCase();
+        const bitDepth = videoStream.BitDepth ? ` ${videoStream.BitDepth}bit` : '';
+        if (c === 'hevc' || c === 'h265')        codecLabel = `HEVC${bitDepth}`;
+        else if (c === 'h264' || c === 'avc')    codecLabel = `H.264${bitDepth}`;
+        else if (c === 'av1')                    codecLabel = `AV1${bitDepth}`;
+        else if (c === 'vp9')                    codecLabel = `VP9${bitDepth}`;
+        else if (c)                              codecLabel = videoStream.Codec.toUpperCase() + bitDepth;
+      }
+
+      // ── Audio codec + channels ───────────────────────────────────────────────
+      let audioLabel = null;
+      if (audioStream) {
+        const ac = (audioStream.Codec || '').toLowerCase();
+        let codecName = '';
+        if (ac.includes('truehd'))                       codecName = 'TrueHD';
+        else if (ac === 'dts-ma' || ac === 'dtshd')      codecName = 'DTS-MA';
+        else if (ac.includes('dts'))                     codecName = 'DTS';
+        else if (ac === 'eac3')                          codecName = 'DD+';
+        else if (ac === 'ac3')                           codecName = 'DD';
+        else if (ac.includes('aac'))                     codecName = 'AAC';
+        else if (ac)                                     codecName = audioStream.Codec.toUpperCase();
+
+        const ch = audioStream.Channels;
+        const chStr = ch === 8 ? '7.1' : ch === 6 ? '5.1' : ch === 2 ? '2.0' : ch ? `${ch}ch` : '';
+        audioLabel = [codecName, chStr].filter(Boolean).join(' ');
+      }
+
+      // ── Bitrate in Mbps ──────────────────────────────────────────────────────
+      const bitrateLabel = bitrate ? `${(bitrate / 1e6).toFixed(1)}Mbps` : null;
+
+      // ── Assemble description (Streambridge-style order) ──────────────────────
       const parts = [
-        formatFileSize(sizeBytes),
-        source.Container ? source.Container.toUpperCase() : null,
         resLabel,
+        dimsLabel,
+        hdrLabel,
         codecLabel,
-        bitrate ? `${Math.round(bitrate / 1000)} kbps` : null,
+        audioLabel,
+        source.Container ? source.Container.toUpperCase() : null,
+        bitrateLabel,
+        formatFileSize(sizeBytes),
       ].filter(Boolean);
 
       streams.push({
@@ -213,14 +257,15 @@ function itemsToStreams(server, items) {
 // ─── Server queries ───────────────────────────────────────────────────────────
 
 async function queryServerForMovie(server, imdbId) {
+  // /Users/{userId}/Items is the correct user-scoped endpoint — it respects library
+  // permissions and finds content that /Items?UserId=... can silently miss.
   const buildUrl = (prefix) => {
-    const url = new URL(`${server.url}/Items`);
+    const url = new URL(`${server.url}/Users/${server.userId}/Items`);
     url.searchParams.set('AnyProviderIdEquals', `${prefix}.${imdbId}`);
     url.searchParams.set('IncludeItemTypes', 'Movie');
     url.searchParams.set('Fields', 'MediaSources,MediaStreams');
     url.searchParams.set('Recursive', 'true');
     url.searchParams.set('api_key', server.apiKey);
-    url.searchParams.set('UserId', server.userId);
     return url.toString();
   };
 
@@ -234,16 +279,14 @@ async function queryServerForMovie(server, imdbId) {
 }
 
 async function queryServerForEpisode(server, imdbId, season, episode) {
-  // Step 1: Find the Series by its IMDB ID
-  // Limit=5 prevents a pathological number of library matches from causing excessive API calls
+  // Step 1: Find the Series by its IMDB ID — use user-scoped endpoint
   const buildSeriesUrl = (prefix) => {
-    const url = new URL(`${server.url}/Items`);
+    const url = new URL(`${server.url}/Users/${server.userId}/Items`);
     url.searchParams.set('AnyProviderIdEquals', `${prefix}.${imdbId}`);
     url.searchParams.set('IncludeItemTypes', 'Series');
     url.searchParams.set('Recursive', 'true');
     url.searchParams.set('Limit', '5');
     url.searchParams.set('api_key', server.apiKey);
-    url.searchParams.set('UserId', server.userId);
     return url.toString();
   };
 
@@ -293,7 +336,7 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
 // Direct episode search (fallback — works if server stores series IMDB on episodes)
 async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
   const buildUrl = (prefix) => {
-    const url = new URL(`${server.url}/Items`);
+    const url = new URL(`${server.url}/Users/${server.userId}/Items`);
     url.searchParams.set('AnyProviderIdEquals', `${prefix}.${imdbId}`);
     url.searchParams.set('IncludeItemTypes', 'Episode');
     url.searchParams.set('Fields', 'MediaSources,MediaStreams');
@@ -301,7 +344,6 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
     url.searchParams.set('IndexNumber', String(episode));
     url.searchParams.set('Recursive', 'true');
     url.searchParams.set('api_key', server.apiKey);
-    url.searchParams.set('UserId', server.userId);
     return url.toString();
   };
 
