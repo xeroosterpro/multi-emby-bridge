@@ -70,22 +70,43 @@ function itemsToStreams(server, items) {
     const sources = item.MediaSources || [];
     for (const source of sources) {
       const sizeBytes = source.Size || 0;
+      const bitrate  = source.Bitrate || 0;
+
+      // Extract video codec from MediaStreams array (e.g. "hevc" → "H.265")
+      const mediaStreams = source.MediaStreams || [];
+      const videoStream = mediaStreams.find((s) => s.Type === 'Video');
+      let codecLabel = null;
+      if (videoStream) {
+        const c = (videoStream.Codec || '').toLowerCase();
+        if (c === 'hevc' || c === 'h265') codecLabel = 'H.265';
+        else if (c === 'h264' || c === 'avc') codecLabel = 'H.264';
+        else if (c === 'av1') codecLabel = 'AV1';
+        else if (c === 'vp9') codecLabel = 'VP9';
+        else if (c) codecLabel = videoStream.Codec.toUpperCase();
+      }
+
+      // Resolution label
+      const resLabel = videoStream && videoStream.Height
+        ? (videoStream.Height >= 2160 ? '4K'
+          : videoStream.Height >= 1080 ? '1080p'
+          : videoStream.Height >= 720 ? '720p'
+          : `${videoStream.Height}p`)
+        : null;
+
       const parts = [
         formatFileSize(sizeBytes),
         source.Container ? source.Container.toUpperCase() : null,
-        source.VideoType || null,
+        resLabel,
+        codecLabel,
+        bitrate ? `${Math.round(bitrate / 1000)} kbps` : null,
       ].filter(Boolean);
-
-      // Add bitrate if available
-      if (source.Bitrate) {
-        parts.push(`${Math.round(source.Bitrate / 1000)} kbps`);
-      }
 
       streams.push({
         url: buildStreamUrl(server, item.Id, source.Id),
         name: server.label,
         description: parts.join(' · '),
         _sizeBytes: sizeBytes,
+        _bitrate: bitrate,
       });
     }
   }
@@ -98,7 +119,7 @@ async function queryEmbyForMovie(server, imdbId) {
   const url = new URL(`${server.url}/Items`);
   url.searchParams.set('AnyProviderIdEquals', `imdb.${imdbId}`);
   url.searchParams.set('IncludeItemTypes', 'Movie');
-  url.searchParams.set('Fields', 'MediaSources');
+  url.searchParams.set('Fields', 'MediaSources,MediaStreams');
   url.searchParams.set('Recursive', 'true');
   url.searchParams.set('api_key', server.apiKey);
   url.searchParams.set('UserId', server.userId);
@@ -112,7 +133,7 @@ async function queryEmbyForEpisode(server, imdbId, season, episode) {
   const url = new URL(`${server.url}/Items`);
   url.searchParams.set('AnyProviderIdEquals', `imdb.${imdbId}`);
   url.searchParams.set('IncludeItemTypes', 'Episode');
-  url.searchParams.set('Fields', 'MediaSources');
+  url.searchParams.set('Fields', 'MediaSources,MediaStreams');
   url.searchParams.set('ParentIndexNumber', season);
   url.searchParams.set('IndexNumber', episode);
   url.searchParams.set('Recursive', 'true');
@@ -156,11 +177,15 @@ async function getAllStreams(servers, type, imdbId, season, episode) {
     result.status === 'fulfilled' ? result.value : []
   );
 
-  // Sort largest file first
-  allStreams.sort((a, b) => b._sizeBytes - a._sizeBytes);
+  // Sort: biggest file first; fall back to highest bitrate when size is unavailable
+  allStreams.sort((a, b) => {
+    const sizeDiff = (b._sizeBytes || 0) - (a._sizeBytes || 0);
+    if (sizeDiff !== 0) return sizeDiff;
+    return (b._bitrate || 0) - (a._bitrate || 0);
+  });
 
-  // Strip internal sort key
-  return allStreams.map(({ _sizeBytes, ...stream }) => stream);
+  // Strip internal sort keys
+  return allStreams.map(({ _sizeBytes, _bitrate, ...stream }) => stream);
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
