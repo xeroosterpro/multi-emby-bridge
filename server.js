@@ -303,47 +303,60 @@ async function enrichItemsWithPlaybackInfo(server, items) {
 // ─── Server queries ───────────────────────────────────────────────────────────
 
 async function queryServerForMovie(server, imdbId) {
-  // Streambridge uses two strategies: first try the direct ImdbId parameter,
-  // then fall back to AnyProviderIdEquals. The direct param can find items
-  // that AnyProviderIdEquals misses on some Emby configurations.
-  const baseParams = {
-    IncludeItemTypes: 'Movie',
-    Fields: 'MediaSources,MediaStreams,Path',
-    Recursive: 'true',
-    Limit: '50',
-    api_key: server.apiKey,
-  };
+  // Run multiple search strategies in parallel and merge — different strategies
+  // find different items depending on how the server has tagged its content.
+  const commonFields = 'MediaSources,MediaStreams,Path';
 
   if (server.type === 'jellyfin') {
     const buildUrl = (prefix) => {
       const url = new URL(`${server.url}/Users/${server.userId}/Items`);
       url.searchParams.set('AnyProviderIdEquals', `${prefix}.${imdbId}`);
-      for (const [k, v] of Object.entries(baseParams)) url.searchParams.set(k, v);
+      url.searchParams.set('IncludeItemTypes', 'Movie');
+      url.searchParams.set('Fields', commonFields);
+      url.searchParams.set('Recursive', 'true');
+      url.searchParams.set('api_key', server.apiKey);
       return url.toString();
     };
     return jellyfinItems(server, buildUrl);
   }
 
-  // Strategy 1: Direct ImdbId parameter (Emby-specific, finds more results)
-  const directUrl = new URL(`${server.url}/Users/${server.userId}/Items`);
-  directUrl.searchParams.set('ImdbId', imdbId);
-  for (const [k, v] of Object.entries(baseParams)) directUrl.searchParams.set(k, v);
+  // Emby: run three strategies in parallel and dedupe by Item Id
+  const makeUrl = (params) => {
+    const url = new URL(`${server.url}/Users/${server.userId}/Items`);
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+    url.searchParams.set('Fields', commonFields);
+    url.searchParams.set('Recursive', 'true');
+    url.searchParams.set('Limit', '50');
+    url.searchParams.set('api_key', server.apiKey);
+    return url.toString();
+  };
 
-  try {
-    const resp = await fetchWithTimeout(directUrl.toString(), 5000);
-    const data = await resp.json();
-    const items = data.Items || [];
-    if (items.length > 0) return items;
-  } catch { /* fall through to Strategy 2 */ }
+  const strategies = [
+    // Strategy 1: Direct ImdbId parameter
+    makeUrl({ ImdbId: imdbId, IncludeItemTypes: 'Movie' }),
+    // Strategy 2: AnyProviderIdEquals
+    makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}`, IncludeItemTypes: 'Movie' }),
+    // Strategy 3: AnyProviderIdEquals without type filter (catches mis-categorized items)
+    makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
+  ];
 
-  // Strategy 2: AnyProviderIdEquals (fallback)
-  const fallbackUrl = new URL(`${server.url}/Users/${server.userId}/Items`);
-  fallbackUrl.searchParams.set('AnyProviderIdEquals', `imdb.${imdbId}`);
-  for (const [k, v] of Object.entries(baseParams)) fallbackUrl.searchParams.set(k, v);
+  const results = await Promise.allSettled(
+    strategies.map(async (url) => {
+      const resp = await fetchWithTimeout(url, 5000);
+      const data = await resp.json();
+      return data.Items || [];
+    })
+  );
 
-  const resp = await fetchWithTimeout(fallbackUrl.toString(), 5000);
-  const data = await resp.json();
-  return data.Items || [];
+  // Merge and deduplicate by Item Id
+  const seen = new Set();
+  return results
+    .flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
+    .filter((item) => {
+      if (seen.has(item.Id)) return false;
+      seen.add(item.Id);
+      return true;
+    });
 }
 
 async function queryServerForEpisode(server, imdbId, season, episode) {
