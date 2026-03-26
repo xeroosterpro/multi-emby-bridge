@@ -303,23 +303,45 @@ async function enrichItemsWithPlaybackInfo(server, items) {
 // ─── Server queries ───────────────────────────────────────────────────────────
 
 async function queryServerForMovie(server, imdbId) {
-  // /Users/{userId}/Items is the correct user-scoped endpoint — it respects library
-  // permissions and finds content that /Items?UserId=... can silently miss.
-  const buildUrl = (prefix) => {
-    const url = new URL(`${server.url}/Users/${server.userId}/Items`);
-    url.searchParams.set('AnyProviderIdEquals', `${prefix}.${imdbId}`);
-    url.searchParams.set('IncludeItemTypes', 'Movie');
-    url.searchParams.set('Fields', 'MediaSources,MediaStreams,Path');
-    url.searchParams.set('Recursive', 'true');
-    url.searchParams.set('api_key', server.apiKey);
-    return url.toString();
+  // Streambridge uses two strategies: first try the direct ImdbId parameter,
+  // then fall back to AnyProviderIdEquals. The direct param can find items
+  // that AnyProviderIdEquals misses on some Emby configurations.
+  const baseParams = {
+    IncludeItemTypes: 'Movie',
+    Fields: 'MediaSources,MediaStreams,Path',
+    Recursive: 'true',
+    Limit: '50',
+    api_key: server.apiKey,
   };
 
   if (server.type === 'jellyfin') {
+    const buildUrl = (prefix) => {
+      const url = new URL(`${server.url}/Users/${server.userId}/Items`);
+      url.searchParams.set('AnyProviderIdEquals', `${prefix}.${imdbId}`);
+      for (const [k, v] of Object.entries(baseParams)) url.searchParams.set(k, v);
+      return url.toString();
+    };
     return jellyfinItems(server, buildUrl);
   }
 
-  const resp = await fetchWithTimeout(buildUrl('imdb'), 5000);
+  // Strategy 1: Direct ImdbId parameter (Emby-specific, finds more results)
+  const directUrl = new URL(`${server.url}/Users/${server.userId}/Items`);
+  directUrl.searchParams.set('ImdbId', imdbId);
+  for (const [k, v] of Object.entries(baseParams)) directUrl.searchParams.set(k, v);
+
+  try {
+    const resp = await fetchWithTimeout(directUrl.toString(), 5000);
+    const data = await resp.json();
+    const items = data.Items || [];
+    if (items.length > 0) return items;
+  } catch { /* fall through to Strategy 2 */ }
+
+  // Strategy 2: AnyProviderIdEquals (fallback)
+  const fallbackUrl = new URL(`${server.url}/Users/${server.userId}/Items`);
+  fallbackUrl.searchParams.set('AnyProviderIdEquals', `imdb.${imdbId}`);
+  for (const [k, v] of Object.entries(baseParams)) fallbackUrl.searchParams.set(k, v);
+
+  const resp = await fetchWithTimeout(fallbackUrl.toString(), 5000);
   const data = await resp.json();
   return data.Items || [];
 }
