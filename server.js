@@ -254,18 +254,21 @@ async function fetchPlaybackInfo(server, itemId) {
 }
 
 async function enrichItemsWithPlaybackInfo(server, items) {
-  const results = await Promise.allSettled(
-    items.map(async (item) => {
-      try {
-        const sources = await fetchPlaybackInfo(server, item.Id);
-        if (sources.length > 0) {
-          return { ...item, MediaSources: sources };
-        }
-      } catch { /* fall through to original item */ }
-      return item;
-    })
-  );
-  return results.map((r) => (r.status === 'fulfilled' ? r.value : items[0])).filter(Boolean);
+  if (items.length === 0) return items;
+
+  // PlaybackInfo returns ALL MediaSources for a movie server-wide (across all
+  // libraries). We only need to call it ONCE — calling it on every Item would
+  // return the same sources N times, causing massive duplication.
+  // Use the first item; fall back to original items if it fails.
+  try {
+    const sources = await fetchPlaybackInfo(server, items[0].Id);
+    if (sources.length > 0) {
+      return [{ ...items[0], MediaSources: sources }];
+    }
+  } catch { /* fall through */ }
+
+  // Fallback: return original items as-is
+  return items;
 }
 
 // ─── Server queries ───────────────────────────────────────────────────────────
