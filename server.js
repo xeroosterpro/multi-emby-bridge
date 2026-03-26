@@ -124,12 +124,23 @@ function buildStreamUrl(server, itemId, sourceId, container) {
   return url;
 }
 
-// Jellyfin requires an Authorization header — api_key URL param alone is unreliable
-function jellyfinHeaders(server) {
+// Jellyfin requires an Authorization header — api_key URL param can cause 401
+// on newer Jellyfin versions. Emby uses api_key URL param.
+function authHeaders(server) {
   if (server.type === 'jellyfin') {
-    return { 'Authorization': `MediaBrowser Token="${server.apiKey}"` };
+    return {
+      'Authorization': `MediaBrowser Token="${server.apiKey}"`,
+      'X-MediaBrowser-Token': server.apiKey,
+    };
   }
   return {};
+}
+
+// Append api_key to URL only for Emby; Jellyfin uses headers exclusively
+function appendAuth(url, server) {
+  if (server.type !== 'jellyfin') {
+    url.searchParams.set('api_key', server.apiKey);
+  }
 }
 
 
@@ -244,14 +255,14 @@ async function queryServerForMovie(server, imdbId) {
   const commonFields = 'MediaSources,MediaStreams,Path';
 
   // Build strategy URLs — same approach for both Emby and Jellyfin
-  const headers = jellyfinHeaders(server);
+  const headers = authHeaders(server);
   const makeUrl = (params) => {
     const url = new URL(`${server.url}/Users/${server.userId}/Items`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     url.searchParams.set('Fields', commonFields);
     url.searchParams.set('Recursive', 'true');
     url.searchParams.set('Limit', '50');
-    url.searchParams.set('api_key', server.apiKey);
+    appendAuth(url, server);
     return url.toString();
   };
 
@@ -296,14 +307,14 @@ async function queryServerForMovie(server, imdbId) {
 async function queryServerForEpisode(server, imdbId, season, episode) {
   // Step 1: Find the Series by its IMDB ID — use user-scoped endpoint
   // Multi-strategy series lookup — same approach for Emby and Jellyfin
-  const headers = jellyfinHeaders(server);
+  const headers = authHeaders(server);
   const makeSeriesUrl = (params) => {
     const url = new URL(`${server.url}/Users/${server.userId}/Items`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     url.searchParams.set('IncludeItemTypes', 'Series');
     url.searchParams.set('Recursive', 'true');
     url.searchParams.set('Limit', '20');
-    url.searchParams.set('api_key', server.apiKey);
+    appendAuth(url, server);
     return url.toString();
   };
 
@@ -346,11 +357,11 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
       const epUrl = new URL(`${server.url}/Shows/${series.Id}/Episodes`);
       epUrl.searchParams.set('Season', String(season));
       epUrl.searchParams.set('Fields', 'MediaSources,MediaStreams,Path');
-      epUrl.searchParams.set('api_key', server.apiKey);
+      appendAuth(epUrl, server);
       epUrl.searchParams.set('UserId', server.userId);
 
       const epResp = await fetchWithTimeout(epUrl.toString(), 5000, {
-        headers: jellyfinHeaders(server),
+        headers: authHeaders(server),
       });
       const epData = await epResp.json();
       return (epData.Items || []).filter((ep) => ep.IndexNumber === episode);
@@ -370,7 +381,7 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
 
 // Direct episode search (fallback — works if server stores series IMDB on episodes)
 async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
-  const headers = jellyfinHeaders(server);
+  const headers = authHeaders(server);
   const makeUrl = (params) => {
     const url = new URL(`${server.url}/Users/${server.userId}/Items`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
@@ -379,7 +390,7 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
     url.searchParams.set('ParentIndexNumber', String(season));
     url.searchParams.set('IndexNumber', String(episode));
     url.searchParams.set('Recursive', 'true');
-    url.searchParams.set('api_key', server.apiKey);
+    appendAuth(url, server);
     return url.toString();
   };
 
