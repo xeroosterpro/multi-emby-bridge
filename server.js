@@ -235,21 +235,26 @@ function mediaSourcesToStreams(server, itemId, mediaSources) {
       else if (c)                              codecLabel = videoStream.Codec.toUpperCase() + bitDepth;
     }
 
-    // ── Audio codec + channels
+    // ── Audio codec + channels + quality rank
+    // Rank: TrueHD Atmos > TrueHD > DTS-MA > DTS > DD+ > DD > AAC > other
     let audioLabel = null;
+    let audioRank = 99; // lower = better
     if (audioStream) {
       const ac = (audioStream.Codec || '').toLowerCase();
+      const profile = (audioStream.Profile || '').toLowerCase();
       let codecName = '';
-      if (ac.includes('truehd'))                       codecName = 'TrueHD';
-      else if (ac === 'dts-ma' || ac === 'dtshd')      codecName = 'DTS-MA';
-      else if (ac.includes('dts'))                     codecName = 'DTS';
-      else if (ac === 'eac3')                          codecName = 'DD+';
-      else if (ac === 'ac3')                           codecName = 'DD';
-      else if (ac.includes('aac'))                     codecName = 'AAC';
-      else if (ac)                                     codecName = audioStream.Codec.toUpperCase();
+      if (ac.includes('truehd'))                       { codecName = 'TrueHD'; audioRank = profile.includes('atmos') ? 0 : 1; }
+      else if (ac === 'dts-ma' || ac === 'dtshd')      { codecName = 'DTS-MA'; audioRank = 2; }
+      else if (ac.includes('dts'))                     { codecName = 'DTS'; audioRank = 3; }
+      else if (ac === 'eac3')                          { codecName = 'DD+'; audioRank = profile.includes('atmos') ? 0 : 4; }
+      else if (ac === 'ac3')                           { codecName = 'DD'; audioRank = 5; }
+      else if (ac.includes('aac'))                     { codecName = 'AAC'; audioRank = 6; }
+      else if (ac)                                     { codecName = audioStream.Codec.toUpperCase(); audioRank = 7; }
 
       const ch = audioStream.Channels;
       const chStr = ch === 8 ? '7.1' : ch === 6 ? '5.1' : ch === 2 ? '2.0' : ch ? `${ch}ch` : '';
+      // More channels = better (tiebreaker within same codec)
+      audioRank = audioRank * 10 - (ch || 0);
       audioLabel = [codecName, chStr].filter(Boolean).join(' ');
     }
 
@@ -275,6 +280,7 @@ function mediaSourcesToStreams(server, itemId, mediaSources) {
       description: descLines.join('\n') || 'Unknown quality',
       _sizeBytes: sizeBytes,
       _bitrate: bitrate,
+      _audioRank: audioRank,
       _mediaSourceId: source.Id,
     });
   }
@@ -547,15 +553,18 @@ async function getAllStreams(servers, type, imdbId, season, episode) {
     result.status === 'fulfilled' ? result.value : []
   );
 
-  // Sort: biggest file first; fall back to highest bitrate
+  // Sort: biggest file first, then best audio as tiebreaker
   allStreams.sort((a, b) => {
     const sizeDiff = (b._sizeBytes || 0) - (a._sizeBytes || 0);
     if (sizeDiff !== 0) return sizeDiff;
+    // Better audio (lower rank = better: TrueHD Atmos > TrueHD > DTS-MA > DD+ > DD > AAC)
+    const audioDiff = (a._audioRank || 99) - (b._audioRank || 99);
+    if (audioDiff !== 0) return audioDiff;
     return (b._bitrate || 0) - (a._bitrate || 0);
   });
 
   // Strip internal sort keys
-  return allStreams.map(({ _sizeBytes, _bitrate, _mediaSourceId, ...stream }) => stream);
+  return allStreams.map(({ _sizeBytes, _bitrate, _audioRank, _mediaSourceId, ...stream }) => stream);
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
