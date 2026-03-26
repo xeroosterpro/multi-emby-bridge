@@ -166,6 +166,10 @@ async function getAllStreams(servers, type, imdbId, season, episode) {
 
 app.get('/', (req, res) => res.redirect('/configure'));
 
+app.get('/configure', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'configure.html'));
+});
+
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // Credential helper — server-side proxy to avoid CORS issues with local Emby
