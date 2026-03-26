@@ -155,7 +155,9 @@ function isMatchingProviderId(providerIds, imdbId) {
   if (!providerIds || !imdbId) return false;
   const val = providerIds.Imdb || providerIds.imdb || providerIds.IMDB || '';
   if (!val) return false;
-  const normalize = (id) => id.replace(/^tt/i, '').toLowerCase();
+  if (val === imdbId) return true;
+  if (val.toLowerCase() === imdbId.toLowerCase()) return true;
+  const normalize = (id) => id.replace(/^tt0*/i, '');
   return normalize(val) === normalize(imdbId);
 }
 
@@ -271,9 +273,9 @@ const DEFAULT_FIELDS = 'ProviderIds,Name,MediaSources,Path,Id,IndexNumber,Parent
 async function queryServerForMovie(server, imdbId) {
   const headers = authHeaders(server);
 
-  // Strategy 1: /Items with Filters=IsNotFolder (matches Streambridge findMovieItem)
-  const tryStrategy1 = async (params) => {
-    const url = new URL(`${server.url}/Items`);
+  // Helper: query an endpoint with params, validate ProviderIds
+  const queryItems = async (basePath, params) => {
+    const url = new URL(`${server.url}${basePath}`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     url.searchParams.set('Fields', DEFAULT_FIELDS);
     url.searchParams.set('Recursive', 'true');
@@ -283,47 +285,42 @@ async function queryServerForMovie(server, imdbId) {
     appendAuth(url, server);
     const resp = await fetchWithTimeout(url.toString(), 10000, { headers });
     const data = await resp.json();
-    return (data.Items || []).filter(i => isMatchingProviderId(i.ProviderIds, imdbId));
-  };
-
-  // Strategy 2 (fallback): /Users/{userId}/Items with AnyProviderIdEquals
-  const tryStrategy2 = async (params) => {
-    const url = new URL(`${server.url}/Users/${server.userId}/Items`);
-    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-    url.searchParams.set('Fields', DEFAULT_FIELDS);
-    url.searchParams.set('Recursive', 'true');
-    url.searchParams.set('Limit', '10');
-    url.searchParams.set('IncludeItemTypes', 'Movie');
-    appendAuth(url, server);
-    const resp = await fetchWithTimeout(url.toString(), 10000, { headers });
-    const data = await resp.json();
-    return (data.Items || []).filter(i => isMatchingProviderId(i.ProviderIds, imdbId));
+    const rawItems = data.Items || [];
+    const validated = rawItems.filter(i => isMatchingProviderId(i.ProviderIds, imdbId));
+    console.log(`[${server.label}] ${basePath} ${JSON.stringify(params)}: ${rawItems.length} raw → ${validated.length} validated`);
+    if (rawItems.length > 0 && validated.length === 0) {
+      console.log(`[${server.label}] Sample ProviderIds:`, JSON.stringify(rawItems[0].ProviderIds));
+    }
+    return validated;
   };
 
   let items = [];
 
-  // Sequential fallback — try primary first, fall back only if 0 results
-  try {
-    if (server.type === 'jellyfin') {
-      items = await tryStrategy1({ AnyProviderIdEquals: `imdb.${imdbId}` });
-      if (items.length === 0) {
-        items = await tryStrategy1({ AnyProviderIdEquals: `Imdb.${imdbId}` });
-      }
-    } else {
-      items = await tryStrategy1({ ImdbId: imdbId });
-    }
-  } catch (err) {
-    console.error(`[${server.label}] Strategy 1 failed:`, err.message);
-  }
+  // Try strategies sequentially — stop as soon as we find results
+  const strategies = server.type === 'jellyfin'
+    ? [
+        // Jellyfin: /Items with AnyProviderIdEquals (both case variants)
+        () => queryItems('/Items', { AnyProviderIdEquals: `imdb.${imdbId}` }),
+        () => queryItems('/Items', { AnyProviderIdEquals: `Imdb.${imdbId}` }),
+        // Fallback: user-scoped
+        () => queryItems(`/Users/${server.userId}/Items`, { AnyProviderIdEquals: `imdb.${imdbId}` }),
+        () => queryItems(`/Users/${server.userId}/Items`, { AnyProviderIdEquals: `Imdb.${imdbId}` }),
+      ]
+    : [
+        // Emby: /Items with ImdbId
+        () => queryItems('/Items', { ImdbId: imdbId }),
+        // Emby: user-scoped with ImdbId
+        () => queryItems(`/Users/${server.userId}/Items`, { ImdbId: imdbId }),
+        // Emby: user-scoped with AnyProviderIdEquals
+        () => queryItems(`/Users/${server.userId}/Items`, { AnyProviderIdEquals: `imdb.${imdbId}` }),
+      ];
 
-  if (items.length === 0) {
+  for (const tryFn of strategies) {
+    if (items.length > 0) break;
     try {
-      items = await tryStrategy2({ AnyProviderIdEquals: `imdb.${imdbId}` });
-      if (items.length === 0 && server.type === 'jellyfin') {
-        items = await tryStrategy2({ AnyProviderIdEquals: `Imdb.${imdbId}` });
-      }
+      items = await tryFn();
     } catch (err) {
-      console.error(`[${server.label}] Strategy 2 failed:`, err.message);
+      console.error(`[${server.label}] Movie strategy failed:`, err.message);
     }
   }
 
