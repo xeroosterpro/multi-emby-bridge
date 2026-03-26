@@ -99,6 +99,7 @@ async function queryEmbyForMovie(server, imdbId) {
   url.searchParams.set('AnyProviderIdEquals', `imdb.${imdbId}`);
   url.searchParams.set('IncludeItemTypes', 'Movie');
   url.searchParams.set('Fields', 'MediaSources');
+  url.searchParams.set('Recursive', 'true');
   url.searchParams.set('api_key', server.apiKey);
   url.searchParams.set('UserId', server.userId);
 
