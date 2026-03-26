@@ -94,6 +94,29 @@
       letter-spacing: 0.06em;
     }
 
+    select {
+      background: #12121a;
+      border: 1px solid #2e2e42;
+      border-radius: 8px;
+      color: #e2e2e2;
+      font-size: 0.9rem;
+      padding: 0.55rem 0.75rem;
+      width: 100%;
+      transition: border-color 0.15s;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23888' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      padding-right: 2rem;
+    }
+    select:focus { border-color: #7b61ff; }
+    select option { background: #1a1a23; }
+
+    .type-emby   { border-left: 3px solid #00a4dc; }
+    .type-jellyfin { border-left: 3px solid #aa5cc3; }
+
     input[type="text"],
     input[type="password"],
     input[type="url"] {
@@ -329,10 +352,17 @@
           <button class="btn-remove" onclick="removeServer(${id})">Remove</button>
         </div>
 
-        <div class="field-row full">
+        <div class="field-row">
           <div class="field-group">
             <label>Display Name</label>
             <input type="text" class="f-label" placeholder="e.g. Home NAS" />
+          </div>
+          <div class="field-group">
+            <label>Server Type</label>
+            <select class="f-type" onchange="updateBlockStyle(${id})">
+              <option value="emby">Emby</option>
+              <option value="jellyfin">Jellyfin</option>
+            </select>
           </div>
         </div>
 
@@ -373,6 +403,13 @@
         </div>
       `;
       return div;
+    }
+
+    function updateBlockStyle(id) {
+      const block = document.getElementById(`server-${id}`);
+      const type = block.querySelector('.f-type').value;
+      block.classList.remove('type-emby', 'type-jellyfin');
+      block.classList.add(`type-${type}`);
     }
 
     function renumberBlocks() {
@@ -470,6 +507,7 @@
       const servers = [];
       for (const block of blocks) {
         const label  = block.querySelector('.f-label').value.trim();
+        const type   = block.querySelector('.f-type').value;
         const url    = block.querySelector('.f-url').value.trim().replace(/\/$/, '');
         const apiKey = block.querySelector('.f-apikey').value.trim();
         const userId = block.querySelector('.f-userid').value.trim();
@@ -478,7 +516,7 @@
           showError('All fields (Name, URL, API Key, User ID) must be filled for every server. Use "Fetch Credentials" or fill them manually.');
           return;
         }
-        servers.push({ label, url, apiKey, userId });
+        servers.push({ label, type, url, apiKey, userId });
       }
 
       const encoded = encodeConfig({ servers });

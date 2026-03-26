@@ -173,27 +173,29 @@ app.get('/configure', (req, res) => {
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Credential helper — server-side proxy to avoid CORS issues with local Emby
+// Credential helper — server-side proxy to avoid CORS issues with Emby/Jellyfin
 app.post('/api/fetch-credentials', express.json(), async (req, res) => {
   const { url, username, password } = req.body || {};
   if (!url || !username || !password) {
     return res.status(400).json({ error: 'url, username and password are required.' });
   }
 
+  const authHeader = 'MediaBrowser Client="MultiEmbyBridge", Device="Web", DeviceId="meb-setup", Version="1.0.0"';
   const authUrl = `${url.replace(/\/$/, '')}/Users/AuthenticateByName`;
   try {
     const resp = await fetchWithTimeout(authUrl, 10000, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Emby-Authorization':
-          'MediaBrowser Client="MultiEmbyBridge", Device="Web", DeviceId="meb-setup", Version="1.0.0"',
+        // Send both header names — Emby uses X-Emby-Authorization, Jellyfin accepts both
+        'X-Emby-Authorization': authHeader,
+        'Authorization': authHeader,
       },
       body: JSON.stringify({ Username: username, Pw: password }),
     });
     const data = await resp.json();
     if (!data.AccessToken || !data.User?.Id) {
-      return res.status(400).json({ error: 'Unexpected response from Emby — check your credentials.' });
+      return res.status(400).json({ error: 'Unexpected response — check your URL and credentials.' });
     }
     res.json({ apiKey: data.AccessToken, userId: data.User.Id });
   } catch (err) {
