@@ -8,29 +8,38 @@ const app = express();
 const PORT = process.env.PORT || 7000;
 
 // ─── Profile storage ──────────────────────────────────────────────────────────
-// Stored in DATA_DIR/profiles.json (set DATA_DIR env var for Railway volume)
-// Falls back to ./data/profiles.json
+// Persistent: DATA_DIR/profiles.json (set DATA_DIR env var for Railway volume)
+// Falls back to ./data/profiles.json — always cached in memory so even if
+// the filesystem is unavailable, profiles survive until the process restarts.
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const PROFILES_FILE = path.join(DATA_DIR, 'profiles.json');
 
+let profilesCache = null; // in-memory cache — survives failed disk writes
+
 function loadProfiles() {
+  if (profilesCache) return profilesCache;
   try {
-    if (!fs.existsSync(PROFILES_FILE)) return {};
-    return JSON.parse(fs.readFileSync(PROFILES_FILE, 'utf8'));
+    if (fs.existsSync(PROFILES_FILE)) {
+      profilesCache = JSON.parse(fs.readFileSync(PROFILES_FILE, 'utf8'));
+    } else {
+      profilesCache = {};
+    }
   } catch {
-    return {};
+    profilesCache = {};
   }
+  return profilesCache;
 }
 
 function saveProfiles(profiles) {
+  profilesCache = profiles; // always save to memory first
   try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles, null, 2), 'utf8');
     return true;
   } catch (err) {
     console.error('Could not write profiles file:', err.message);
-    return false;
+    return false; // still saved in memory
   }
 }
 
@@ -42,6 +51,8 @@ function hashPassword(password, salt) {
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
 
@@ -63,7 +74,11 @@ async function fetchWithTimeout(url, timeoutMs, options = {}) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const resp = await fetch(url, { ...options, signal: controller.signal });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if (!resp.ok) {
+      const err = new Error(`HTTP ${resp.status}`);
+      err.status = resp.status;
+      throw err;
+    }
     return resp;
   } finally {
     clearTimeout(timer);
@@ -106,12 +121,18 @@ function itemsToStreams(server, items) {
   const streams = [];
   for (const item of items) {
     const sources = item.MediaSources || [];
+    // Some Emby/Jellyfin versions put MediaStreams at item level, not inside each source
+    const itemLevelStreams = item.MediaStreams || [];
+
     for (const source of sources) {
       const sizeBytes = source.Size || 0;
       const bitrate   = source.Bitrate || 0;
 
-      // Extract video codec from MediaStreams array (e.g. "hevc" → "H.265")
-      const mediaStreams = source.MediaStreams || [];
+      // Use source-level MediaStreams, falling back to item-level
+      const mediaStreams = (source.MediaStreams && source.MediaStreams.length > 0)
+        ? source.MediaStreams
+        : itemLevelStreams;
+
       const videoStream = mediaStreams.find((s) => s.Type === 'Video');
       let codecLabel = null;
       if (videoStream) {
@@ -142,7 +163,7 @@ function itemsToStreams(server, items) {
       streams.push({
         url: buildStreamUrl(server, item.Id, source.Id),
         name: server.label,
-        description: parts.join(' · '),
+        description: parts.join(' · ') || 'Unknown quality',
         _sizeBytes: sizeBytes,
         _bitrate: bitrate,
       });
@@ -168,12 +189,48 @@ async function queryServerForMovie(server, imdbId) {
 }
 
 async function queryServerForEpisode(server, imdbId, season, episode) {
+  // Step 1: Find the Series by its IMDB ID
+  // (Episodes don't carry the series' IMDB ID in their own ProviderIds)
+  const seriesUrl = new URL(`${server.url}/Items`);
+  seriesUrl.searchParams.set('AnyProviderIdEquals', providerParam(server, imdbId));
+  seriesUrl.searchParams.set('IncludeItemTypes', 'Series');
+  seriesUrl.searchParams.set('Recursive', 'true');
+  seriesUrl.searchParams.set('api_key', server.apiKey);
+  seriesUrl.searchParams.set('UserId', server.userId);
+
+  const seriesResp = await fetchWithTimeout(seriesUrl.toString(), 10000);
+  const seriesData = await seriesResp.json();
+  const seriesItems = seriesData.Items || [];
+
+  if (seriesItems.length === 0) {
+    // Fallback: try direct episode search (some servers do propagate series IMDB to episodes)
+    return queryServerForEpisodeDirect(server, imdbId, season, episode);
+  }
+
+  // Step 2: Fetch episodes for that series + season
+  const seriesId = seriesItems[0].Id;
+  const epUrl = new URL(`${server.url}/Shows/${seriesId}/Episodes`);
+  epUrl.searchParams.set('Season', String(season));
+  epUrl.searchParams.set('Fields', 'MediaSources,MediaStreams');
+  epUrl.searchParams.set('api_key', server.apiKey);
+  epUrl.searchParams.set('UserId', server.userId);
+
+  const epResp = await fetchWithTimeout(epUrl.toString(), 10000);
+  const epData = await epResp.json();
+  const episodes = epData.Items || [];
+
+  // Filter to exact episode number
+  return episodes.filter((ep) => ep.IndexNumber === episode);
+}
+
+// Direct episode search (fallback — works if server stores series IMDB on episodes)
+async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
   const url = new URL(`${server.url}/Items`);
   url.searchParams.set('AnyProviderIdEquals', providerParam(server, imdbId));
   url.searchParams.set('IncludeItemTypes', 'Episode');
   url.searchParams.set('Fields', 'MediaSources,MediaStreams');
-  url.searchParams.set('ParentIndexNumber', season);
-  url.searchParams.set('IndexNumber', episode);
+  url.searchParams.set('ParentIndexNumber', String(season));
+  url.searchParams.set('IndexNumber', String(episode));
   url.searchParams.set('Recursive', 'true');
   url.searchParams.set('api_key', server.apiKey);
   url.searchParams.set('UserId', server.userId);
@@ -182,7 +239,6 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
   const data = await resp.json();
   const items = data.Items || [];
 
-  // Client-side filter as safety net — some builds ignore the query params
   return items.filter(
     (item) => item.ParentIndexNumber === season && item.IndexNumber === episode
   );
@@ -267,8 +323,13 @@ app.post('/api/profile/save', express.json(), (req, res) => {
     };
   }
 
-  const ok = saveProfiles(profiles);
-  res.json({ ok, message: ok ? 'Profile saved.' : 'Saved in memory only (no persistent storage).' });
+  const persisted = saveProfiles(profiles);
+  res.json({
+    ok: true,
+    message: persisted
+      ? 'Profile saved.'
+      : 'Profile saved in memory (will persist until server restarts).',
+  });
 });
 
 // ─── Profile: load ────────────────────────────────────────────────────────────
@@ -282,7 +343,7 @@ app.post('/api/profile/load', express.json(), (req, res) => {
   const profile = profiles[username.toLowerCase()];
 
   if (!profile) {
-    return res.status(404).json({ error: 'No profile found with that username.' });
+    return res.status(404).json({ error: 'No profile found with that name.' });
   }
 
   const attempt = hashPassword(password, profile.salt);
@@ -303,15 +364,32 @@ app.post('/api/fetch-credentials', express.json(), async (req, res) => {
   const authHeader = 'MediaBrowser Client="MultiEmbyBridge", Device="Web", DeviceId="meb-setup", Version="1.0.0"';
   const authUrl = `${url.replace(/\/$/, '')}/Users/AuthenticateByName`;
   try {
-    const resp = await fetchWithTimeout(authUrl, 10000, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Emby-Authorization': authHeader,
-        'Authorization': authHeader,
-      },
-      body: JSON.stringify({ Username: username, Pw: password }),
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    let resp;
+    try {
+      resp = await fetch(authUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Emby-Authorization': authHeader,
+          'Authorization': authHeader,
+        },
+        body: JSON.stringify({ Username: username, Pw: password }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+
+    // Handle auth failures with a clear message instead of generic "could not reach"
+    if (resp.status === 401 || resp.status === 403) {
+      return res.status(400).json({ error: 'Authentication failed — wrong username or password.' });
+    }
+    if (!resp.ok) {
+      return res.status(400).json({ error: `Server returned HTTP ${resp.status}. Check the URL.` });
+    }
+
     const data = await resp.json();
     if (!data.AccessToken || !data.User?.Id) {
       return res.status(400).json({ error: 'Unexpected response — check your URL and credentials.' });
