@@ -68,7 +68,6 @@ function decodeConfig(encoded) {
 }
 
 // ─── Fetch with timeout ───────────────────────────────────────────────────────
-// 5 s per request — fail fast so the whole result set loads quickly
 
 async function fetchWithTimeout(url, timeoutMs, options = {}) {
   const controller = new AbortController();
@@ -119,6 +118,13 @@ function detectSourceLabel(source) {
 
 function buildStreamUrl(server, itemId, sourceId, container) {
   const ext = container ? `.${container.toLowerCase()}` : '';
+  if (server.type === 'jellyfin') {
+    // Jellyfin: no api_key in URL, use headers only
+    let url = `${server.url}/Videos/${itemId}/stream${ext}?Static=true`;
+    if (sourceId) url += `&MediaSourceId=${encodeURIComponent(sourceId)}`;
+    url += `&api_key=${server.apiKey}`;
+    return url;
+  }
   let url = `${server.url}/Videos/${itemId}/stream${ext}?api_key=${server.apiKey}&Static=true`;
   if (sourceId) url += `&MediaSourceId=${encodeURIComponent(sourceId)}`;
   return url;
@@ -133,7 +139,7 @@ function authHeaders(server) {
       'X-MediaBrowser-Token': server.apiKey,
     };
   }
-  return {};
+  return { 'X-Emby-Token': server.apiKey };
 }
 
 // Append api_key to URL only for Emby; Jellyfin uses headers exclusively
@@ -143,224 +149,250 @@ function appendAuth(url, server) {
   }
 }
 
+// ─── Provider ID validation (matches Streambridge _isMatchingProviderId) ─────
 
-function itemsToStreams(server, items) {
+function isMatchingProviderId(providerIds, imdbId) {
+  if (!providerIds || !imdbId) return false;
+  const val = providerIds.Imdb || providerIds.imdb || providerIds.IMDB || '';
+  if (!val) return false;
+  const normalize = (id) => id.replace(/^tt/i, '').toLowerCase();
+  return normalize(val) === normalize(imdbId);
+}
+
+// ─── PlaybackInfo — get all MediaSources for a single item ───────────────────
+
+async function fetchPlaybackInfo(server, itemId) {
+  const headers = authHeaders(server);
+  const url = new URL(`${server.url}/Items/${itemId}/PlaybackInfo`);
+  appendAuth(url, server);
+  url.searchParams.set('UserId', server.userId);
+  const resp = await fetchWithTimeout(url.toString(), 10000, { headers });
+  const data = await resp.json();
+  return data.MediaSources || [];
+}
+
+// ─── Stream building from PlaybackInfo MediaSources ──────────────────────────
+
+function mediaSourcesToStreams(server, itemId, mediaSources) {
   const streams = [];
-  for (const item of items) {
-    const sources = item.MediaSources || [];
-    const itemLevelStreams = item.MediaStreams || [];
+  for (const source of mediaSources) {
+    const sizeBytes = source.Size || 0;
+    const bitrate   = source.Bitrate || 0;
+    const mediaStreams = source.MediaStreams || [];
 
-    for (const source of sources) {
-      const sizeBytes = source.Size || 0;
-      const bitrate   = source.Bitrate || 0;
+    const videoStream = mediaStreams.find((s) => s.Type === 'Video');
+    const audioStream = mediaStreams.find((s) => s.Type === 'Audio');
 
-      // Prefer source-level MediaStreams, fall back to item-level
-      const mediaStreams = (source.MediaStreams && source.MediaStreams.length > 0)
-        ? source.MediaStreams
-        : itemLevelStreams;
+    // ── Resolution
+    const resLabel = videoStream && videoStream.Height
+      ? (videoStream.Height >= 2160 ? '4K'
+        : videoStream.Height >= 1080 ? '1080p'
+        : videoStream.Height >= 720  ? '720p'
+        : `${videoStream.Height}p`)
+      : null;
 
-      const videoStream = mediaStreams.find((s) => s.Type === 'Video');
-      const audioStream = mediaStreams.find((s) => s.Type === 'Audio');
+    const dimsLabel = videoStream && videoStream.Width && videoStream.Height
+      ? `${videoStream.Width}x${videoStream.Height}`
+      : null;
 
-      // ── Resolution ──────────────────────────────────────────────────────────
-      const resLabel = videoStream && videoStream.Height
-        ? (videoStream.Height >= 2160 ? '4K'
-          : videoStream.Height >= 1080 ? '1080p'
-          : videoStream.Height >= 720  ? '720p'
-          : `${videoStream.Height}p`)
-        : null;
-
-      // Actual pixel dimensions (e.g. 3840x1608)
-      const dimsLabel = videoStream && videoStream.Width && videoStream.Height
-        ? `${videoStream.Width}x${videoStream.Height}`
-        : null;
-
-      // ── HDR ─────────────────────────────────────────────────────────────────
-      let hdrLabel = null;
-      if (videoStream) {
-        const rangeType = (videoStream.VideoRangeType || videoStream.VideoRange || '').toUpperCase();
-        if (rangeType === 'DOVI' || rangeType.includes('DOLBY')) hdrLabel = 'DV';
-        else if (rangeType === 'HDR10PLUS' || rangeType === 'HDR10+')      hdrLabel = 'HDR10+';
-        else if (rangeType === 'HDR10')                                     hdrLabel = 'HDR10';
-        else if (rangeType === 'HLG')                                       hdrLabel = 'HLG';
-        else if (rangeType === 'HDR')                                       hdrLabel = 'HDR';
-      }
-
-      // ── Video codec + bit depth ──────────────────────────────────────────────
-      let codecLabel = null;
-      if (videoStream) {
-        const c = (videoStream.Codec || '').toLowerCase();
-        const bitDepth = videoStream.BitDepth ? ` ${videoStream.BitDepth}bit` : '';
-        if (c === 'hevc' || c === 'h265')        codecLabel = `HEVC${bitDepth}`;
-        else if (c === 'h264' || c === 'avc')    codecLabel = `H.264${bitDepth}`;
-        else if (c === 'av1')                    codecLabel = `AV1${bitDepth}`;
-        else if (c === 'vp9')                    codecLabel = `VP9${bitDepth}`;
-        else if (c)                              codecLabel = videoStream.Codec.toUpperCase() + bitDepth;
-      }
-
-      // ── Audio codec + channels ───────────────────────────────────────────────
-      let audioLabel = null;
-      if (audioStream) {
-        const ac = (audioStream.Codec || '').toLowerCase();
-        let codecName = '';
-        if (ac.includes('truehd'))                       codecName = 'TrueHD';
-        else if (ac === 'dts-ma' || ac === 'dtshd')      codecName = 'DTS-MA';
-        else if (ac.includes('dts'))                     codecName = 'DTS';
-        else if (ac === 'eac3')                          codecName = 'DD+';
-        else if (ac === 'ac3')                           codecName = 'DD';
-        else if (ac.includes('aac'))                     codecName = 'AAC';
-        else if (ac)                                     codecName = audioStream.Codec.toUpperCase();
-
-        const ch = audioStream.Channels;
-        const chStr = ch === 8 ? '7.1' : ch === 6 ? '5.1' : ch === 2 ? '2.0' : ch ? `${ch}ch` : '';
-        audioLabel = [codecName, chStr].filter(Boolean).join(' ');
-      }
-
-      // ── Bitrate in Mbps ──────────────────────────────────────────────────────
-      const bitrateLabel = bitrate ? `${(bitrate / 1e6).toFixed(1)}Mbps` : null;
-
-      // ── Source label (REMUX, WEB-DL, etc. from filename) ──────────────────────
-      const sourceLabel = detectSourceLabel(source);
-      const container = source.Container ? source.Container.toUpperCase() : null;
-
-      // ── Assemble description (multi-line, Streambridge-style) ─────────────────
-      const descLines = [
-        [resLabel, dimsLabel].filter(Boolean).join(' · '),
-        [hdrLabel, codecLabel].filter(Boolean).join(' · '),
-        sourceLabel,
-        audioLabel,
-        [container, bitrateLabel, formatFileSize(sizeBytes)].filter(Boolean).join(' · '),
-      ].filter(Boolean);
-
-      streams.push({
-        url: buildStreamUrl(server, item.Id, source.Id, source.Container),
-        name: [server.label, resLabel].filter(Boolean).join(' '),
-        description: descLines.join('\n') || 'Unknown quality',
-        _sizeBytes: sizeBytes,
-        _bitrate: bitrate,
-        _mediaSourceId: source.Id,
-        _path: source.Path || null,
-      });
+    // ── HDR
+    let hdrLabel = null;
+    if (videoStream) {
+      const rangeType = (videoStream.VideoRangeType || videoStream.VideoRange || '').toUpperCase();
+      if (rangeType === 'DOVI' || rangeType.includes('DOLBY')) hdrLabel = 'DV';
+      else if (rangeType === 'HDR10PLUS' || rangeType === 'HDR10+')      hdrLabel = 'HDR10+';
+      else if (rangeType === 'HDR10')                                     hdrLabel = 'HDR10';
+      else if (rangeType === 'HLG')                                       hdrLabel = 'HLG';
+      else if (rangeType === 'HDR')                                       hdrLabel = 'HDR';
     }
+
+    // ── Video codec + bit depth
+    let codecLabel = null;
+    if (videoStream) {
+      const c = (videoStream.Codec || '').toLowerCase();
+      const bitDepth = videoStream.BitDepth ? ` ${videoStream.BitDepth}bit` : '';
+      if (c === 'hevc' || c === 'h265')        codecLabel = `HEVC${bitDepth}`;
+      else if (c === 'h264' || c === 'avc')    codecLabel = `H.264${bitDepth}`;
+      else if (c === 'av1')                    codecLabel = `AV1${bitDepth}`;
+      else if (c === 'vp9')                    codecLabel = `VP9${bitDepth}`;
+      else if (c)                              codecLabel = videoStream.Codec.toUpperCase() + bitDepth;
+    }
+
+    // ── Audio codec + channels
+    let audioLabel = null;
+    if (audioStream) {
+      const ac = (audioStream.Codec || '').toLowerCase();
+      let codecName = '';
+      if (ac.includes('truehd'))                       codecName = 'TrueHD';
+      else if (ac === 'dts-ma' || ac === 'dtshd')      codecName = 'DTS-MA';
+      else if (ac.includes('dts'))                     codecName = 'DTS';
+      else if (ac === 'eac3')                          codecName = 'DD+';
+      else if (ac === 'ac3')                           codecName = 'DD';
+      else if (ac.includes('aac'))                     codecName = 'AAC';
+      else if (ac)                                     codecName = audioStream.Codec.toUpperCase();
+
+      const ch = audioStream.Channels;
+      const chStr = ch === 8 ? '7.1' : ch === 6 ? '5.1' : ch === 2 ? '2.0' : ch ? `${ch}ch` : '';
+      audioLabel = [codecName, chStr].filter(Boolean).join(' ');
+    }
+
+    // ── Bitrate in Mbps
+    const bitrateLabel = bitrate ? `${(bitrate / 1e6).toFixed(1)}Mbps` : null;
+
+    // ── Source label (REMUX, WEB-DL, etc. from filename)
+    const sourceLabel = detectSourceLabel(source);
+    const container = source.Container ? source.Container.toUpperCase() : null;
+
+    // ── Assemble description (multi-line, Streambridge-style)
+    const descLines = [
+      [resLabel, dimsLabel].filter(Boolean).join(' · '),
+      [hdrLabel, codecLabel].filter(Boolean).join(' · '),
+      sourceLabel,
+      audioLabel,
+      [container, bitrateLabel, formatFileSize(sizeBytes)].filter(Boolean).join(' · '),
+    ].filter(Boolean);
+
+    streams.push({
+      url: buildStreamUrl(server, itemId, source.Id, source.Container),
+      name: [server.label, resLabel].filter(Boolean).join(' '),
+      description: descLines.join('\n') || 'Unknown quality',
+      _sizeBytes: sizeBytes,
+      _bitrate: bitrate,
+      _mediaSourceId: source.Id,
+    });
   }
   return streams;
 }
 
+// ─── Server queries (Streambridge-matching logic) ────────────────────────────
 
-// ─── Server queries ───────────────────────────────────────────────────────────
+const DEFAULT_FIELDS = 'ProviderIds,Name,MediaSources,Path,Id,IndexNumber,ParentIndexNumber,MediaStreams';
 
 async function queryServerForMovie(server, imdbId) {
-  // Run multiple search strategies in parallel and merge — different strategies
-  // find different items depending on how the server has tagged its content.
-  const commonFields = 'MediaSources,MediaStreams,Path';
-
-  // Build strategy URLs — same approach for both Emby and Jellyfin
   const headers = authHeaders(server);
-  const makeUrl = (params) => {
-    const url = new URL(`${server.url}/Users/${server.userId}/Items`);
+
+  // Strategy 1: /Items with Filters=IsNotFolder (matches Streambridge findMovieItem)
+  const tryStrategy1 = async (params) => {
+    const url = new URL(`${server.url}/Items`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-    url.searchParams.set('Fields', commonFields);
+    url.searchParams.set('Fields', DEFAULT_FIELDS);
     url.searchParams.set('Recursive', 'true');
-    url.searchParams.set('Limit', '50');
+    url.searchParams.set('Limit', '10');
+    url.searchParams.set('IncludeItemTypes', 'Movie');
+    url.searchParams.set('Filters', 'IsNotFolder');
     appendAuth(url, server);
-    return url.toString();
+    const resp = await fetchWithTimeout(url.toString(), 10000, { headers });
+    const data = await resp.json();
+    return (data.Items || []).filter(i => isMatchingProviderId(i.ProviderIds, imdbId));
   };
 
-  const strategies = [];
+  // Strategy 2 (fallback): /Users/{userId}/Items with AnyProviderIdEquals
+  const tryStrategy2 = async (params) => {
+    const url = new URL(`${server.url}/Users/${server.userId}/Items`);
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+    url.searchParams.set('Fields', DEFAULT_FIELDS);
+    url.searchParams.set('Recursive', 'true');
+    url.searchParams.set('Limit', '10');
+    url.searchParams.set('IncludeItemTypes', 'Movie');
+    appendAuth(url, server);
+    const resp = await fetchWithTimeout(url.toString(), 10000, { headers });
+    const data = await resp.json();
+    return (data.Items || []).filter(i => isMatchingProviderId(i.ProviderIds, imdbId));
+  };
 
-  if (server.type === 'jellyfin') {
-    // Jellyfin: try both imdb. and Imdb. provider formats, plus without type filter
-    strategies.push(
-      makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}`, IncludeItemTypes: 'Movie' }),
-      makeUrl({ AnyProviderIdEquals: `Imdb.${imdbId}`, IncludeItemTypes: 'Movie' }),
-      makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
-      makeUrl({ AnyProviderIdEquals: `Imdb.${imdbId}` }),
-    );
-  } else {
-    // Emby: ImdbId direct param + AnyProviderIdEquals + untyped
-    strategies.push(
-      makeUrl({ ImdbId: imdbId, IncludeItemTypes: 'Movie' }),
-      makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}`, IncludeItemTypes: 'Movie' }),
-      makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
-    );
+  let items = [];
+
+  // Sequential fallback — try primary first, fall back only if 0 results
+  try {
+    if (server.type === 'jellyfin') {
+      items = await tryStrategy1({ AnyProviderIdEquals: `imdb.${imdbId}` });
+      if (items.length === 0) {
+        items = await tryStrategy1({ AnyProviderIdEquals: `Imdb.${imdbId}` });
+      }
+    } else {
+      items = await tryStrategy1({ ImdbId: imdbId });
+    }
+  } catch (err) {
+    console.error(`[${server.label}] Strategy 1 failed:`, err.message);
   }
 
-  const results = await Promise.allSettled(
-    strategies.map(async (url) => {
-      const resp = await fetchWithTimeout(url, 5000, { headers });
-      const data = await resp.json();
-      return data.Items || [];
-    })
-  );
+  if (items.length === 0) {
+    try {
+      items = await tryStrategy2({ AnyProviderIdEquals: `imdb.${imdbId}` });
+      if (items.length === 0 && server.type === 'jellyfin') {
+        items = await tryStrategy2({ AnyProviderIdEquals: `Imdb.${imdbId}` });
+      }
+    } catch (err) {
+      console.error(`[${server.label}] Strategy 2 failed:`, err.message);
+    }
+  }
 
-  // Merge and deduplicate by Item Id
+  // Deduplicate by Item Id
   const seen = new Set();
-  return results
-    .flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
-    .filter((item) => {
-      if (seen.has(item.Id)) return false;
-      seen.add(item.Id);
-      return true;
-    });
+  return items.filter(item => {
+    if (seen.has(item.Id)) return false;
+    seen.add(item.Id);
+    return true;
+  });
 }
 
 async function queryServerForEpisode(server, imdbId, season, episode) {
-  // Step 1: Find the Series by its IMDB ID — use user-scoped endpoint
-  // Multi-strategy series lookup — same approach for Emby and Jellyfin
   const headers = authHeaders(server);
-  const makeSeriesUrl = (params) => {
-    const url = new URL(`${server.url}/Users/${server.userId}/Items`);
+
+  const findSeries = async (params) => {
+    const url = new URL(`${server.url}/Items`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     url.searchParams.set('IncludeItemTypes', 'Series');
+    url.searchParams.set('Fields', DEFAULT_FIELDS);
     url.searchParams.set('Recursive', 'true');
-    url.searchParams.set('Limit', '20');
+    url.searchParams.set('Limit', '10');
+    url.searchParams.set('Filters', 'IsNotFolder');
     appendAuth(url, server);
-    return url.toString();
+    const resp = await fetchWithTimeout(url.toString(), 10000, { headers });
+    const data = await resp.json();
+    return (data.Items || []).filter(i => isMatchingProviderId(i.ProviderIds, imdbId));
   };
 
-  const seriesStrategies = server.type === 'jellyfin'
-    ? [
-        makeSeriesUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
-        makeSeriesUrl({ AnyProviderIdEquals: `Imdb.${imdbId}` }),
-      ]
-    : [
-        makeSeriesUrl({ ImdbId: imdbId }),
-        makeSeriesUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
-      ];
+  let seriesItems = [];
 
-  const seriesResults = await Promise.allSettled(
-    seriesStrategies.map(async (url) => {
-      const resp = await fetchWithTimeout(url, 5000, { headers });
-      const data = await resp.json();
-      return data.Items || [];
-    })
-  );
-
-  const seenSeries = new Set();
-  const seriesItems = seriesResults
-    .flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
-    .filter((item) => {
-      if (seenSeries.has(item.Id)) return false;
-      seenSeries.add(item.Id);
-      return true;
-    });
+  try {
+    if (server.type === 'jellyfin') {
+      seriesItems = await findSeries({ AnyProviderIdEquals: `imdb.${imdbId}` });
+      if (seriesItems.length === 0) {
+        seriesItems = await findSeries({ AnyProviderIdEquals: `Imdb.${imdbId}` });
+      }
+    } else {
+      seriesItems = await findSeries({ ImdbId: imdbId });
+      if (seriesItems.length === 0) {
+        seriesItems = await findSeries({ AnyProviderIdEquals: `imdb.${imdbId}` });
+      }
+    }
+  } catch (err) {
+    console.error(`[${server.label}] Series search failed:`, err.message);
+  }
 
   if (seriesItems.length === 0) {
     return queryServerForEpisodeDirect(server, imdbId, season, episode);
   }
 
-  // Step 2: Query ALL matching series in parallel — the same show often lives in
-  // multiple libraries (e.g. a 4K library AND an HD library), each as a separate
-  // Series entry. Taking only [0] silently misses every other library.
+  // Deduplicate series by Id
+  const seenSeries = new Set();
+  const uniqueSeries = seriesItems.filter(item => {
+    if (seenSeries.has(item.Id)) return false;
+    seenSeries.add(item.Id);
+    return true;
+  });
+
+  // Query ALL matching series in parallel for episodes
   const perSeriesResults = await Promise.allSettled(
-    seriesItems.map(async (series) => {
+    uniqueSeries.map(async (series) => {
       const epUrl = new URL(`${server.url}/Shows/${series.Id}/Episodes`);
       epUrl.searchParams.set('Season', String(season));
-      epUrl.searchParams.set('Fields', 'MediaSources,MediaStreams,Path');
+      epUrl.searchParams.set('Fields', DEFAULT_FIELDS);
       appendAuth(epUrl, server);
       epUrl.searchParams.set('UserId', server.userId);
 
-      const epResp = await fetchWithTimeout(epUrl.toString(), 5000, {
+      const epResp = await fetchWithTimeout(epUrl.toString(), 10000, {
         headers: authHeaders(server),
       });
       const epData = await epResp.json();
@@ -368,7 +400,6 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
     })
   );
 
-  // Merge and deduplicate by episode Id across all libraries
   const seen = new Set();
   return perSeriesResults
     .flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
@@ -379,14 +410,14 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
     });
 }
 
-// Direct episode search (fallback — works if server stores series IMDB on episodes)
+// Direct episode search (fallback)
 async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
   const headers = authHeaders(server);
   const makeUrl = (params) => {
     const url = new URL(`${server.url}/Users/${server.userId}/Items`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     url.searchParams.set('IncludeItemTypes', 'Episode');
-    url.searchParams.set('Fields', 'MediaSources,MediaStreams,Path');
+    url.searchParams.set('Fields', DEFAULT_FIELDS);
     url.searchParams.set('ParentIndexNumber', String(season));
     url.searchParams.set('IndexNumber', String(episode));
     url.searchParams.set('Recursive', 'true');
@@ -394,36 +425,35 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
     return url.toString();
   };
 
-  const epStrategies = server.type === 'jellyfin'
-    ? [
-        makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
-        makeUrl({ AnyProviderIdEquals: `Imdb.${imdbId}` }),
-      ]
-    : [
-        makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
-      ];
-
-  const results = await Promise.allSettled(
-    epStrategies.map(async (url) => {
-      const resp = await fetchWithTimeout(url, 5000, { headers });
-      const data = await resp.json();
-      return data.Items || [];
-    })
-  );
+  let items = [];
+  try {
+    if (server.type === 'jellyfin') {
+      const resp1 = await fetchWithTimeout(makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }), 10000, { headers });
+      items = (await resp1.json()).Items || [];
+      if (items.length === 0) {
+        const resp2 = await fetchWithTimeout(makeUrl({ AnyProviderIdEquals: `Imdb.${imdbId}` }), 10000, { headers });
+        items = (await resp2.json()).Items || [];
+      }
+    } else {
+      const resp1 = await fetchWithTimeout(makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }), 10000, { headers });
+      items = (await resp1.json()).Items || [];
+    }
+  } catch (err) {
+    console.error(`[${server.label}] Direct episode search failed:`, err.message);
+    return [];
+  }
 
   const seen = new Set();
-  const items = results
-    .flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
+  return items
+    .filter((item) => item.ParentIndexNumber === season && item.IndexNumber === episode)
     .filter((item) => {
       if (seen.has(item.Id)) return false;
       seen.add(item.Id);
       return true;
     });
-
-  return items.filter(
-    (item) => item.ParentIndexNumber === season && item.IndexNumber === episode
-  );
 }
+
+// ─── Main stream collection (Streambridge-matching: PlaybackInfo per item) ───
 
 async function getStreamsFromServer(server, type, imdbId, season, episode) {
   try {
@@ -433,18 +463,34 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
     } else {
       items = await queryServerForEpisode(server, imdbId, season, episode);
     }
-    const streams = itemsToStreams(server, items);
 
-    // Deduplicate by file path (best — same physical file has same path across
-    // different library Items). Falls back to MediaSource ID if path unavailable.
-    const seen = new Set();
-    return streams.filter((s) => {
-      const key = s._path || s._mediaSourceId;
-      if (!key) return true;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    // For EACH validated item, call PlaybackInfo to get ALL MediaSources
+    // This matches Streambridge's getPlaybackStreams() approach
+    const allStreams = [];
+    const playbackResults = await Promise.allSettled(
+      items.map(async (item) => {
+        try {
+          const mediaSources = await fetchPlaybackInfo(server, item.Id);
+          return { itemId: item.Id, mediaSources };
+        } catch (err) {
+          console.error(`[${server.label}] PlaybackInfo failed for ${item.Id}:`, err.message);
+          // Fallback: use MediaSources from the Items query directly
+          return { itemId: item.Id, mediaSources: item.MediaSources || [] };
+        }
+      })
+    );
+
+    for (const result of playbackResults) {
+      if (result.status === 'fulfilled') {
+        const { itemId, mediaSources } = result.value;
+        const streams = mediaSourcesToStreams(server, itemId, mediaSources);
+        allStreams.push(...streams);
+      }
+    }
+
+    // Deduplicate by mediaSourceId via Map (Streambridge's exact approach)
+    const deduped = new Map(allStreams.map(s => [s._mediaSourceId, s]));
+    return [...deduped.values()];
   } catch (err) {
     console.error(`[${server.label}] Query failed:`, err.message);
     return [];
@@ -462,7 +508,7 @@ async function getAllStreams(servers, type, imdbId, season, episode) {
     result.status === 'fulfilled' ? result.value : []
   );
 
-  // Sort: biggest file first; fall back to highest bitrate when size is unavailable
+  // Sort: biggest file first; fall back to highest bitrate
   allStreams.sort((a, b) => {
     const sizeDiff = (b._sizeBytes || 0) - (a._sizeBytes || 0);
     if (sizeDiff !== 0) return sizeDiff;
@@ -470,7 +516,7 @@ async function getAllStreams(servers, type, imdbId, season, episode) {
   });
 
   // Strip internal sort keys
-  return allStreams.map(({ _sizeBytes, _bitrate, _mediaSourceId, _path, ...stream }) => stream);
+  return allStreams.map(({ _sizeBytes, _bitrate, _mediaSourceId, ...stream }) => stream);
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
@@ -496,7 +542,6 @@ app.post('/api/profile/save', express.json(), (req, res) => {
   const profiles = loadProfiles();
   const existing = profiles[username.toLowerCase()];
 
-  // If profile exists, verify password before allowing overwrite
   if (existing) {
     const attempt = hashPassword(password, existing.salt);
     if (attempt !== existing.passwordHash) {
@@ -574,7 +619,6 @@ app.post('/api/fetch-credentials', express.json(), async (req, res) => {
       clearTimeout(timer);
     }
 
-    // Handle auth failures with a clear message instead of generic "could not reach"
     if (resp.status === 401 || resp.status === 403) {
       return res.status(400).json({ error: 'Authentication failed — wrong username or password.' });
     }
@@ -653,7 +697,6 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
 });
 
 // ─── JSON error handler ───────────────────────────────────────────────────────
-// Without this, malformed JSON in POST bodies returns Express's default HTML error
 app.use((err, req, res, _next) => {
   if (err.type === 'entity.parse.failed') {
     return res.status(400).json({ error: 'Invalid JSON in request body.' });
