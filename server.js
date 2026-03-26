@@ -68,6 +68,7 @@ function decodeConfig(encoded) {
 }
 
 // ─── Fetch with timeout ───────────────────────────────────────────────────────
+// 5 s per request — fail fast so the whole result set loads quickly
 
 async function fetchWithTimeout(url, timeoutMs, options = {}) {
   const controller = new AbortController();
@@ -131,13 +132,13 @@ async function jellyfinItems(server, buildUrl) {
   const [lowercase, titlecase] = await Promise.allSettled([
     (async () => {
       const url = buildUrl('imdb');
-      const resp = await fetchWithTimeout(url, 10000, { headers: jellyfinHeaders(server) });
+      const resp = await fetchWithTimeout(url, 5000, { headers: jellyfinHeaders(server) });
       const data = await resp.json();
       return data.Items || [];
     })(),
     (async () => {
       const url = buildUrl('Imdb');
-      const resp = await fetchWithTimeout(url, 10000, { headers: jellyfinHeaders(server) });
+      const resp = await fetchWithTimeout(url, 5000, { headers: jellyfinHeaders(server) });
       const data = await resp.json();
       return data.Items || [];
     })(),
@@ -227,18 +228,20 @@ async function queryServerForMovie(server, imdbId) {
     return jellyfinItems(server, buildUrl);
   }
 
-  const resp = await fetchWithTimeout(buildUrl('imdb'), 10000);
+  const resp = await fetchWithTimeout(buildUrl('imdb'), 5000);
   const data = await resp.json();
   return data.Items || [];
 }
 
 async function queryServerForEpisode(server, imdbId, season, episode) {
   // Step 1: Find the Series by its IMDB ID
+  // Limit=5 prevents a pathological number of library matches from causing excessive API calls
   const buildSeriesUrl = (prefix) => {
     const url = new URL(`${server.url}/Items`);
     url.searchParams.set('AnyProviderIdEquals', `${prefix}.${imdbId}`);
     url.searchParams.set('IncludeItemTypes', 'Series');
     url.searchParams.set('Recursive', 'true');
+    url.searchParams.set('Limit', '5');
     url.searchParams.set('api_key', server.apiKey);
     url.searchParams.set('UserId', server.userId);
     return url.toString();
@@ -248,7 +251,7 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
   if (server.type === 'jellyfin') {
     seriesItems = await jellyfinItems(server, buildSeriesUrl);
   } else {
-    const resp = await fetchWithTimeout(buildSeriesUrl('imdb'), 10000);
+    const resp = await fetchWithTimeout(buildSeriesUrl('imdb'), 5000);
     const data = await resp.json();
     seriesItems = data.Items || [];
   }
@@ -268,7 +271,7 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
       epUrl.searchParams.set('api_key', server.apiKey);
       epUrl.searchParams.set('UserId', server.userId);
 
-      const epResp = await fetchWithTimeout(epUrl.toString(), 10000, {
+      const epResp = await fetchWithTimeout(epUrl.toString(), 5000, {
         headers: jellyfinHeaders(server),
       });
       const epData = await epResp.json();
@@ -306,7 +309,7 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
   if (server.type === 'jellyfin') {
     items = await jellyfinItems(server, buildUrl);
   } else {
-    const resp = await fetchWithTimeout(buildUrl('imdb'), 10000);
+    const resp = await fetchWithTimeout(buildUrl('imdb'), 5000);
     const data = await resp.json();
     items = data.Items || [];
   }
@@ -324,7 +327,18 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
     } else {
       items = await queryServerForEpisode(server, imdbId, season, episode);
     }
-    return itemsToStreams(server, items);
+    const streams = itemsToStreams(server, items);
+
+    // Deduplicate: same server + same file size = same physical file across multiple libraries
+    // Keep the first occurrence (they're identical content, no point showing duplicates)
+    const seenSizes = new Set();
+    return streams.filter((s) => {
+      if (!s._sizeBytes) return true; // keep streams with unknown size
+      const key = s._sizeBytes;
+      if (seenSizes.has(key)) return false;
+      seenSizes.add(key);
+      return true;
+    });
   } catch (err) {
     console.error(`[${server.label}] Query failed:`, err.message);
     return [];
