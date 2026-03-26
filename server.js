@@ -267,6 +267,39 @@ function itemsToStreams(server, items) {
   return streams;
 }
 
+// ─── PlaybackInfo enrichment ─────────────────────────────────────────────────
+// The /Items query may only return a subset of MediaSources per item.
+// /Items/{id}/PlaybackInfo returns ALL versions (REMUX, WEB-DL, etc.) grouped
+// under a single item. Streambridge uses this — it's why they show 9+ streams
+// where we previously showed 2.
+
+async function fetchPlaybackInfo(server, itemId) {
+  const url = new URL(`${server.url}/Items/${itemId}/PlaybackInfo`);
+  url.searchParams.set('UserId', server.userId);
+  url.searchParams.set('api_key', server.apiKey);
+
+  const resp = await fetchWithTimeout(url.toString(), 5000, {
+    headers: jellyfinHeaders(server),
+  });
+  const data = await resp.json();
+  return data.MediaSources || [];
+}
+
+async function enrichItemsWithPlaybackInfo(server, items) {
+  const results = await Promise.allSettled(
+    items.map(async (item) => {
+      try {
+        const sources = await fetchPlaybackInfo(server, item.Id);
+        if (sources.length > 0) {
+          return { ...item, MediaSources: sources };
+        }
+      } catch { /* fall through to original item */ }
+      return item;
+    })
+  );
+  return results.map((r) => (r.status === 'fulfilled' ? r.value : items[0])).filter(Boolean);
+}
+
 // ─── Server queries ───────────────────────────────────────────────────────────
 
 async function queryServerForMovie(server, imdbId) {
@@ -382,7 +415,9 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
     } else {
       items = await queryServerForEpisode(server, imdbId, season, episode);
     }
-    const streams = itemsToStreams(server, items);
+    // Enrich items with PlaybackInfo to get ALL MediaSources (versions/editions)
+    const enriched = await enrichItemsWithPlaybackInfo(server, items);
+    const streams = itemsToStreams(server, enriched);
 
     // Deduplicate by MediaSource ID — each unique source is a unique physical file.
     // Size-based dedup was too aggressive (collapsed different files with similar sizes).
