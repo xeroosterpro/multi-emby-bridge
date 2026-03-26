@@ -235,41 +235,6 @@ function itemsToStreams(server, items) {
   return streams;
 }
 
-// ─── PlaybackInfo enrichment ─────────────────────────────────────────────────
-// The /Items query may only return a subset of MediaSources per item.
-// /Items/{id}/PlaybackInfo returns ALL versions (REMUX, WEB-DL, etc.) grouped
-// under a single item. Streambridge uses this — it's why they show 9+ streams
-// where we previously showed 2.
-
-async function fetchPlaybackInfo(server, itemId) {
-  const url = new URL(`${server.url}/Items/${itemId}/PlaybackInfo`);
-  url.searchParams.set('UserId', server.userId);
-  url.searchParams.set('api_key', server.apiKey);
-
-  const resp = await fetchWithTimeout(url.toString(), 5000, {
-    headers: jellyfinHeaders(server),
-  });
-  const data = await resp.json();
-  return data.MediaSources || [];
-}
-
-async function enrichItemsWithPlaybackInfo(server, items) {
-  if (items.length === 0) return items;
-
-  // PlaybackInfo returns ALL MediaSources for a movie server-wide (across all
-  // libraries). We only need to call it ONCE — calling it on every Item would
-  // return the same sources N times, causing massive duplication.
-  // Use the first item; fall back to original items if it fails.
-  try {
-    const sources = await fetchPlaybackInfo(server, items[0].Id);
-    if (sources.length > 0) {
-      return [{ ...items[0], MediaSources: sources }];
-    }
-  } catch { /* fall through */ }
-
-  // Fallback: return original items as-is
-  return items;
-}
 
 // ─── Server queries ───────────────────────────────────────────────────────────
 
@@ -457,9 +422,7 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
     } else {
       items = await queryServerForEpisode(server, imdbId, season, episode);
     }
-    // Enrich items with PlaybackInfo to get ALL MediaSources (versions/editions)
-    const enriched = await enrichItemsWithPlaybackInfo(server, items);
-    const streams = itemsToStreams(server, enriched);
+    const streams = itemsToStreams(server, items);
 
     // Deduplicate by file path (best — same physical file has same path across
     // different library Items). Falls back to MediaSource ID if path unavailable.
