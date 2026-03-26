@@ -22,7 +22,7 @@
 
     header {
       text-align: center;
-      margin-bottom: 2.5rem;
+      margin-bottom: 2rem;
     }
 
     header h1 {
@@ -37,6 +37,67 @@
       color: #888;
       font-size: 0.95rem;
     }
+
+    /* ── Profile Panel ── */
+    .profile-panel {
+      background: #161620;
+      border: 1px solid #2a2a3a;
+      border-radius: 12px;
+      padding: 1.1rem 1.4rem 1.2rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .profile-panel-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .profile-panel-header span {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #7b61ff;
+    }
+
+    .profile-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .profile-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+    }
+
+    .btn-profile {
+      background: #1e1e2e;
+      border: 1px solid #3a3a58;
+      color: #bbb;
+      border-radius: 8px;
+      padding: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .btn-profile:hover { background: #2a2a45; color: #fff; border-color: #7b61ff; }
+    .btn-profile:disabled { opacity: 0.45; cursor: default; }
+    .btn-profile.save-btn:hover { border-color: #4caf7d; color: #4caf7d; background: #1a2820; }
+
+    .profile-status {
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+      min-height: 1.1em;
+    }
+    .profile-status.success { color: #4caf7d; }
+    .profile-status.error   { color: #e05555; }
+    .profile-status.info    { color: #888; }
 
     /* ── Server Block ── */
     .server-block {
@@ -114,7 +175,7 @@
     select:focus { border-color: #7b61ff; }
     select option { background: #1a1a23; }
 
-    .type-emby   { border-left: 3px solid #00a4dc; }
+    .type-emby     { border-left: 3px solid #00a4dc; }
     .type-jellyfin { border-left: 3px solid #aa5cc3; }
 
     input[type="text"],
@@ -306,8 +367,30 @@
   <div class="container">
     <header>
       <h1>Multi-Emby Bridge</h1>
-      <p>Add up to 5 Emby servers — streams sorted by file size in Stremio</p>
+      <p>Add up to 5 Emby / Jellyfin servers — streams sorted by file size in Stremio</p>
     </header>
+
+    <!-- ── Saved Profile ── -->
+    <div class="profile-panel">
+      <div class="profile-panel-header">
+        <span>💾 Saved Profile</span>
+      </div>
+      <div class="profile-inputs">
+        <div class="field-group">
+          <label>Profile Name</label>
+          <input type="text" id="p-username" placeholder="e.g. MySetup" autocomplete="off" />
+        </div>
+        <div class="field-group">
+          <label>Password</label>
+          <input type="password" id="p-password" placeholder="••••••••" autocomplete="off" />
+        </div>
+      </div>
+      <div class="profile-actions">
+        <button class="btn-profile save-btn" onclick="saveProfile()">Save Config</button>
+        <button class="btn-profile" onclick="loadProfile()">Load Config</button>
+      </div>
+      <div class="profile-status info" id="profile-status">Save your servers so you can reload them anytime.</div>
+    </div>
 
     <div id="servers-container"></div>
 
@@ -418,17 +501,30 @@
         b.querySelector('.server-num-label').textContent = i + 1;
       });
       document.getElementById('btn-add').disabled = blocks.length >= 5;
-      // Only show remove button when there's more than 1 server
       document.querySelectorAll('.btn-remove').forEach(btn => {
         btn.style.display = blocks.length > 1 ? '' : 'none';
       });
     }
 
-    function addServer() {
+    function addServer(data = null) {
       const container = document.getElementById('servers-container');
       if (container.querySelectorAll('.server-block').length >= 5) return;
       const id = nextId++;
-      container.appendChild(buildServerBlock(id));
+      const block = buildServerBlock(id);
+      container.appendChild(block);
+
+      // If pre-populating from a saved profile
+      if (data) {
+        block.querySelector('.f-label').value  = data.label  || '';
+        block.querySelector('.f-url').value    = data.url    || '';
+        block.querySelector('.f-apikey').value = data.apiKey || '';
+        block.querySelector('.f-userid').value = data.userId || '';
+        if (data.type) {
+          block.querySelector('.f-type').value = data.type;
+          updateBlockStyle(id);
+        }
+      }
+
       renumberBlocks();
     }
 
@@ -436,6 +532,117 @@
       const el = document.getElementById(`server-${id}`);
       if (el) el.remove();
       renumberBlocks();
+    }
+
+    // ── Collect config from current form ──────────────────────────────────────
+    function collectConfig(silent = false) {
+      const blocks = document.querySelectorAll('.server-block');
+      if (blocks.length === 0) {
+        if (!silent) showError('Add at least one server.');
+        return null;
+      }
+      const servers = [];
+      for (const block of blocks) {
+        const label  = block.querySelector('.f-label').value.trim();
+        const type   = block.querySelector('.f-type').value;
+        const url    = block.querySelector('.f-url').value.trim().replace(/\/$/, '');
+        const apiKey = block.querySelector('.f-apikey').value.trim();
+        const userId = block.querySelector('.f-userid').value.trim();
+        if (!label || !url || !apiKey || !userId) {
+          if (!silent) showError('All fields (Name, URL, API Key, User ID) must be filled for every server.');
+          return null;
+        }
+        servers.push({ label, type, url, apiKey, userId });
+      }
+      return { servers };
+    }
+
+    // ── Populate form from config ─────────────────────────────────────────────
+    function populateFromConfig(config) {
+      const container = document.getElementById('servers-container');
+      container.innerHTML = '';
+      nextId = 0;
+      for (const server of (config.servers || [])) {
+        addServer(server);
+      }
+    }
+
+    // ── Profile: save ─────────────────────────────────────────────────────────
+    async function saveProfile() {
+      const username = document.getElementById('p-username').value.trim();
+      const password = document.getElementById('p-password').value;
+      const statusEl = document.getElementById('profile-status');
+
+      if (!username) {
+        statusEl.textContent = 'Enter a profile name first.';
+        statusEl.className = 'profile-status error';
+        return;
+      }
+      if (!password) {
+        statusEl.textContent = 'Enter a password to protect your profile.';
+        statusEl.className = 'profile-status error';
+        return;
+      }
+
+      const config = collectConfig();
+      if (!config) return;
+
+      statusEl.textContent = 'Saving…';
+      statusEl.className = 'profile-status info';
+
+      try {
+        const resp = await fetch('/api/profile/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, config }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Unknown error');
+        statusEl.textContent = `✓ ${data.message}`;
+        statusEl.className = 'profile-status success';
+      } catch (err) {
+        statusEl.textContent = `✗ ${err.message}`;
+        statusEl.className = 'profile-status error';
+      }
+    }
+
+    // ── Profile: load ─────────────────────────────────────────────────────────
+    async function loadProfile() {
+      const username = document.getElementById('p-username').value.trim();
+      const password = document.getElementById('p-password').value;
+      const statusEl = document.getElementById('profile-status');
+
+      if (!username) {
+        statusEl.textContent = 'Enter your profile name first.';
+        statusEl.className = 'profile-status error';
+        return;
+      }
+      if (!password) {
+        statusEl.textContent = 'Enter your password.';
+        statusEl.className = 'profile-status error';
+        return;
+      }
+
+      statusEl.textContent = 'Loading…';
+      statusEl.className = 'profile-status info';
+
+      try {
+        const resp = await fetch('/api/profile/load', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Unknown error');
+
+        populateFromConfig(data.config);
+        const ago = data.updatedAt ? ` (last saved ${new Date(data.updatedAt).toLocaleDateString()})` : '';
+        statusEl.textContent = `✓ Profile loaded${ago}`;
+        statusEl.className = 'profile-status success';
+      } catch (err) {
+        statusEl.textContent = `✗ ${err.message}`;
+        statusEl.className = 'profile-status error';
+      }
     }
 
     // ── Credential fetch ──────────────────────────────────────────────────────
@@ -498,28 +705,10 @@
 
     function generateLinks() {
       hideError();
-      const blocks = document.querySelectorAll('.server-block');
-      if (blocks.length === 0) {
-        showError('Add at least one server.');
-        return;
-      }
+      const config = collectConfig();
+      if (!config) return;
 
-      const servers = [];
-      for (const block of blocks) {
-        const label  = block.querySelector('.f-label').value.trim();
-        const type   = block.querySelector('.f-type').value;
-        const url    = block.querySelector('.f-url').value.trim().replace(/\/$/, '');
-        const apiKey = block.querySelector('.f-apikey').value.trim();
-        const userId = block.querySelector('.f-userid').value.trim();
-
-        if (!label || !url || !apiKey || !userId) {
-          showError('All fields (Name, URL, API Key, User ID) must be filled for every server. Use "Fetch Credentials" or fill them manually.');
-          return;
-        }
-        servers.push({ label, type, url, apiKey, userId });
-      }
-
-      const encoded = encodeConfig({ servers });
+      const encoded = encodeConfig(config);
       const { protocol, host } = window.location;
       const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
       const deepLink    = `stremio://${host}/${encoded}/manifest.json`;

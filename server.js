@@ -1,9 +1,42 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
+const crypto = require('crypto');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 7000;
+
+// ─── Profile storage ──────────────────────────────────────────────────────────
+// Stored in DATA_DIR/profiles.json (set DATA_DIR env var for Railway volume)
+// Falls back to ./data/profiles.json
+
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+const PROFILES_FILE = path.join(DATA_DIR, 'profiles.json');
+
+function loadProfiles() {
+  try {
+    if (!fs.existsSync(PROFILES_FILE)) return {};
+    return JSON.parse(fs.readFileSync(PROFILES_FILE, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function saveProfiles(profiles) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.error('Could not write profiles file:', err.message);
+    return false;
+  }
+}
+
+function hashPassword(password, salt) {
+  return crypto.createHmac('sha256', salt).update(password).digest('hex');
+}
 
 // ─── CORS (required by Stremio) ───────────────────────────────────────────────
 app.use((req, res, next) => {
@@ -64,13 +97,18 @@ function buildStreamUrl(server, itemId, sourceId) {
   return url;
 }
 
+// Jellyfin uses titlecase 'Imdb', Emby uses lowercase 'imdb'
+function providerParam(server, imdbId) {
+  return server.type === 'jellyfin' ? `Imdb.${imdbId}` : `imdb.${imdbId}`;
+}
+
 function itemsToStreams(server, items) {
   const streams = [];
   for (const item of items) {
     const sources = item.MediaSources || [];
     for (const source of sources) {
       const sizeBytes = source.Size || 0;
-      const bitrate  = source.Bitrate || 0;
+      const bitrate   = source.Bitrate || 0;
 
       // Extract video codec from MediaStreams array (e.g. "hevc" → "H.265")
       const mediaStreams = source.MediaStreams || [];
@@ -89,7 +127,7 @@ function itemsToStreams(server, items) {
       const resLabel = videoStream && videoStream.Height
         ? (videoStream.Height >= 2160 ? '4K'
           : videoStream.Height >= 1080 ? '1080p'
-          : videoStream.Height >= 720 ? '720p'
+          : videoStream.Height >= 720  ? '720p'
           : `${videoStream.Height}p`)
         : null;
 
@@ -113,11 +151,11 @@ function itemsToStreams(server, items) {
   return streams;
 }
 
-// ─── Emby queries ─────────────────────────────────────────────────────────────
+// ─── Server queries ───────────────────────────────────────────────────────────
 
-async function queryEmbyForMovie(server, imdbId) {
+async function queryServerForMovie(server, imdbId) {
   const url = new URL(`${server.url}/Items`);
-  url.searchParams.set('AnyProviderIdEquals', `imdb.${imdbId}`);
+  url.searchParams.set('AnyProviderIdEquals', providerParam(server, imdbId));
   url.searchParams.set('IncludeItemTypes', 'Movie');
   url.searchParams.set('Fields', 'MediaSources,MediaStreams');
   url.searchParams.set('Recursive', 'true');
@@ -129,9 +167,9 @@ async function queryEmbyForMovie(server, imdbId) {
   return data.Items || [];
 }
 
-async function queryEmbyForEpisode(server, imdbId, season, episode) {
+async function queryServerForEpisode(server, imdbId, season, episode) {
   const url = new URL(`${server.url}/Items`);
-  url.searchParams.set('AnyProviderIdEquals', `imdb.${imdbId}`);
+  url.searchParams.set('AnyProviderIdEquals', providerParam(server, imdbId));
   url.searchParams.set('IncludeItemTypes', 'Episode');
   url.searchParams.set('Fields', 'MediaSources,MediaStreams');
   url.searchParams.set('ParentIndexNumber', season);
@@ -144,10 +182,9 @@ async function queryEmbyForEpisode(server, imdbId, season, episode) {
   const data = await resp.json();
   const items = data.Items || [];
 
-  // Client-side filter as safety net — some Emby builds ignore the query params
+  // Client-side filter as safety net — some builds ignore the query params
   return items.filter(
-    (item) =>
-      item.ParentIndexNumber === season && item.IndexNumber === episode
+    (item) => item.ParentIndexNumber === season && item.IndexNumber === episode
   );
 }
 
@@ -155,9 +192,9 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
   try {
     let items;
     if (type === 'movie') {
-      items = await queryEmbyForMovie(server, imdbId);
+      items = await queryServerForMovie(server, imdbId);
     } else {
-      items = await queryEmbyForEpisode(server, imdbId, season, episode);
+      items = await queryServerForEpisode(server, imdbId, season, episode);
     }
     return itemsToStreams(server, items);
   } catch (err) {
@@ -198,7 +235,65 @@ app.get('/configure', (req, res) => {
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Credential helper — server-side proxy to avoid CORS issues with Emby/Jellyfin
+// ─── Profile: save ────────────────────────────────────────────────────────────
+app.post('/api/profile/save', express.json(), (req, res) => {
+  const { username, password, config } = req.body || {};
+  if (!username || !password || !config) {
+    return res.status(400).json({ error: 'username, password and config are required.' });
+  }
+  if (!/^[a-zA-Z0-9_\-. ]{1,40}$/.test(username)) {
+    return res.status(400).json({ error: 'Username may only contain letters, numbers, spaces, _ - . (max 40 chars).' });
+  }
+
+  const profiles = loadProfiles();
+  const existing = profiles[username.toLowerCase()];
+
+  // If profile exists, verify password before allowing overwrite
+  if (existing) {
+    const attempt = hashPassword(password, existing.salt);
+    if (attempt !== existing.passwordHash) {
+      return res.status(401).json({ error: 'Wrong password for that profile name.' });
+    }
+    existing.config = config;
+    existing.updatedAt = new Date().toISOString();
+  } else {
+    const salt = crypto.randomBytes(16).toString('hex');
+    profiles[username.toLowerCase()] = {
+      displayName: username,
+      salt,
+      passwordHash: hashPassword(password, salt),
+      config,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  const ok = saveProfiles(profiles);
+  res.json({ ok, message: ok ? 'Profile saved.' : 'Saved in memory only (no persistent storage).' });
+});
+
+// ─── Profile: load ────────────────────────────────────────────────────────────
+app.post('/api/profile/load', express.json(), (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    return res.status(400).json({ error: 'username and password are required.' });
+  }
+
+  const profiles = loadProfiles();
+  const profile = profiles[username.toLowerCase()];
+
+  if (!profile) {
+    return res.status(404).json({ error: 'No profile found with that username.' });
+  }
+
+  const attempt = hashPassword(password, profile.salt);
+  if (attempt !== profile.passwordHash) {
+    return res.status(401).json({ error: 'Wrong password.' });
+  }
+
+  res.json({ config: profile.config, updatedAt: profile.updatedAt });
+});
+
+// ─── Credential helper ────────────────────────────────────────────────────────
 app.post('/api/fetch-credentials', express.json(), async (req, res) => {
   const { url, username, password } = req.body || {};
   if (!url || !username || !password) {
@@ -212,7 +307,6 @@ app.post('/api/fetch-credentials', express.json(), async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Send both header names — Emby uses X-Emby-Authorization, Jellyfin accepts both
         'X-Emby-Authorization': authHeader,
         'Authorization': authHeader,
       },
@@ -231,7 +325,7 @@ app.post('/api/fetch-credentials', express.json(), async (req, res) => {
   }
 });
 
-// Manifest
+// ─── Manifest ─────────────────────────────────────────────────────────────────
 app.get('/:config/manifest.json', (req, res) => {
   let cfg;
   try {
@@ -246,7 +340,7 @@ app.get('/:config/manifest.json', (req, res) => {
     id: 'com.multiemby.bridge',
     version: '1.0.0',
     name: 'Multi-Emby Bridge',
-    description: `Streams from: ${names || 'Emby servers'}`,
+    description: `Streams from: ${names || 'configured servers'}`,
     types: ['movie', 'series'],
     catalogs: [],
     resources: ['stream'],
@@ -255,7 +349,7 @@ app.get('/:config/manifest.json', (req, res) => {
   });
 });
 
-// Stream handler
+// ─── Stream handler ───────────────────────────────────────────────────────────
 app.get('/:config/stream/:type/:id.json', async (req, res) => {
   let cfg;
   try {
