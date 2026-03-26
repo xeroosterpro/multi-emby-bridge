@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi-Emby Bridge — Configure</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f13;
+      color: #e2e2e2;
+      min-height: 100vh;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      margin-top: 0.5rem;
+      color: #888;
+      font-size: 0.95rem;
+    }
+
+    /* ── Server Block ── */
+    .server-block {
+      background: #1a1a23;
+      border: 1px solid #2a2a38;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem 1.5rem;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+
+    .server-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .server-number {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #7b61ff;
+    }
+
+    .btn-remove {
+      background: none;
+      border: 1px solid #3a2a2a;
+      color: #e05555;
+      border-radius: 6px;
+      padding: 0.25rem 0.6rem;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-remove:hover { background: #3a1a1a; }
+
+    /* ── Fields ── */
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .field-row.full { grid-template-columns: 1fr; }
+
+    .field-group { display: flex; flex-direction: column; gap: 0.3rem; }
+
+    label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="url"] {
+      background: #12121a;
+      border: 1px solid #2e2e42;
+      border-radius: 8px;
+      color: #e2e2e2;
+      font-size: 0.9rem;
+      padding: 0.55rem 0.75rem;
+      width: 100%;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+    input:focus { border-color: #7b61ff; }
+    input::placeholder { color: #444; }
+
+    /* ── Credential fetch ── */
+    .cred-section {
+      background: #12121a;
+      border: 1px solid #2e2e42;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      margin-top: 0.25rem;
+    }
+
+    .cred-section .cred-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #666;
+      margin-bottom: 0.6rem;
+    }
+
+    .cred-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .btn-fetch {
+      width: 100%;
+      background: #2a2a40;
+      border: 1px solid #3a3a58;
+      color: #bbb;
+      border-radius: 6px;
+      padding: 0.45rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-fetch:hover { background: #33335a; color: #fff; }
+    .btn-fetch:disabled { opacity: 0.5; cursor: default; }
+
+    .cred-status {
+      font-size: 0.78rem;
+      margin-top: 0.4rem;
+      min-height: 1.1em;
+    }
+    .cred-status.success { color: #4caf7d; }
+    .cred-status.error   { color: #e05555; }
+
+    .divider {
+      text-align: center;
+      font-size: 0.72rem;
+      color: #444;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin: 0.6rem 0;
+    }
+
+    /* ── Add server ── */
+    .btn-add {
+      width: 100%;
+      background: transparent;
+      border: 1.5px dashed #2e2e42;
+      color: #666;
+      border-radius: 10px;
+      padding: 0.75rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      margin-bottom: 2rem;
+    }
+    .btn-add:hover:not(:disabled) { border-color: #7b61ff; color: #7b61ff; }
+    .btn-add:disabled { opacity: 0.4; cursor: default; }
+
+    /* ── Generate ── */
+    .btn-generate {
+      width: 100%;
+      background: #7b61ff;
+      border: none;
+      color: #fff;
+      border-radius: 10px;
+      padding: 0.85rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-bottom: 2rem;
+    }
+    .btn-generate:hover { background: #6a50ee; }
+
+    /* ── Result section ── */
+    #result-section {
+      display: none;
+      background: #1a1a23;
+      border: 1px solid #2a2a38;
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+
+    #result-section h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      color: #fff;
+    }
+
+    .url-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .url-row input {
+      flex: 1;
+      font-size: 0.8rem;
+      color: #aaa;
+      cursor: text;
+    }
+
+    .btn-copy {
+      background: #2a2a40;
+      border: 1px solid #3a3a58;
+      color: #bbb;
+      border-radius: 8px;
+      padding: 0 0.85rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .btn-copy:hover { background: #33335a; color: #fff; }
+    .btn-copy.copied { color: #4caf7d; border-color: #4caf7d; }
+
+    .btn-install {
+      display: block;
+      width: 100%;
+      background: #7b61ff;
+      border: none;
+      color: #fff;
+      border-radius: 10px;
+      padding: 0.9rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 0.5rem;
+    }
+    .btn-install:hover { background: #6a50ee; }
+
+    .install-note {
+      text-align: center;
+      font-size: 0.78rem;
+      color: #555;
+      margin-top: 0.75rem;
+    }
+
+    /* ── Global error ── */
+    #global-error {
+      display: none;
+      background: #2a1212;
+      border: 1px solid #5a2222;
+      color: #e05555;
+      border-radius: 8px;
+      padding: 0.7rem 1rem;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Multi-Emby Bridge</h1>
+      <p>Add up to 5 Emby servers — streams sorted by file size in Stremio</p>
+    </header>
+
+    <div id="servers-container"></div>
+
+    <button class="btn-add" id="btn-add" onclick="addServer()">+ Add Another Server</button>
+
+    <div id="global-error"></div>
+
+    <button class="btn-generate" onclick="generateLinks()">Generate Install Link</button>
+
+    <div id="result-section">
+      <h2>Ready to install</h2>
+      <div class="url-row">
+        <input type="text" id="manifest-url" readonly placeholder="Your manifest URL" />
+        <button class="btn-copy" id="btn-copy" onclick="copyUrl()">Copy</button>
+      </div>
+      <a class="btn-install" id="btn-install" href="#">Install in Stremio</a>
+      <p class="install-note">
+        Opens Stremio and installs the addon automatically.<br/>
+        If the button doesn't work, copy the URL above and paste it into Stremio → Add Addon.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // ── State ─────────────────────────────────────────────────────────────────
+    let nextId = 0;
+
+    // ── Config encoding ───────────────────────────────────────────────────────
+    function encodeConfig(obj) {
+      return btoa(unescape(encodeURIComponent(JSON.stringify(obj))))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+
+    // ── Server block builder ─────────────────────────────────────────────────
+    function buildServerBlock(id) {
+      const div = document.createElement('div');
+      div.className = 'server-block';
+      div.id = `server-${id}`;
+      div.innerHTML = `
+        <div class="server-block-header">
+          <span class="server-number">Server <span class="server-num-label"></span></span>
+          <button class="btn-remove" onclick="removeServer(${id})">Remove</button>
+        </div>
+
+        <div class="field-row full">
+          <div class="field-group">
+            <label>Display Name</label>
+            <input type="text" class="f-label" placeholder="e.g. Home NAS" />
+          </div>
+        </div>
+
+        <div class="field-row full">
+          <div class="field-group">
+            <label>Server URL</label>
+            <input type="url" class="f-url" placeholder="http://192.168.1.100:8096" />
+          </div>
+        </div>
+
+        <div class="cred-section">
+          <div class="cred-title">Sign in to fetch credentials automatically</div>
+          <div class="cred-inputs">
+            <div class="field-group">
+              <label>Username</label>
+              <input type="text" class="f-username" placeholder="admin" autocomplete="off" />
+            </div>
+            <div class="field-group">
+              <label>Password</label>
+              <input type="password" class="f-password" placeholder="••••••••" autocomplete="off" />
+            </div>
+          </div>
+          <button class="btn-fetch" onclick="fetchCredentials(${id})">Fetch API Key &amp; User ID</button>
+          <div class="cred-status" id="cred-status-${id}"></div>
+        </div>
+
+        <div class="divider">— or enter manually —</div>
+
+        <div class="field-row">
+          <div class="field-group">
+            <label>API Key</label>
+            <input type="text" class="f-apikey" placeholder="Auto-filled above" autocomplete="off" />
+          </div>
+          <div class="field-group">
+            <label>User ID</label>
+            <input type="text" class="f-userid" placeholder="Auto-filled above" autocomplete="off" />
+          </div>
+        </div>
+      `;
+      return div;
+    }
+
+    function renumberBlocks() {
+      const blocks = document.querySelectorAll('.server-block');
+      blocks.forEach((b, i) => {
+        b.querySelector('.server-num-label').textContent = i + 1;
+      });
+      document.getElementById('btn-add').disabled = blocks.length >= 5;
+      // Only show remove button when there's more than 1 server
+      document.querySelectorAll('.btn-remove').forEach(btn => {
+        btn.style.display = blocks.length > 1 ? '' : 'none';
+      });
+    }
+
+    function addServer() {
+      const container = document.getElementById('servers-container');
+      if (container.querySelectorAll('.server-block').length >= 5) return;
+      const id = nextId++;
+      container.appendChild(buildServerBlock(id));
+      renumberBlocks();
+    }
+
+    function removeServer(id) {
+      const el = document.getElementById(`server-${id}`);
+      if (el) el.remove();
+      renumberBlocks();
+    }
+
+    // ── Credential fetch ──────────────────────────────────────────────────────
+    async function fetchCredentials(id) {
+      const block = document.getElementById(`server-${id}`);
+      const url = block.querySelector('.f-url').value.trim().replace(/\/$/, '');
+      const username = block.querySelector('.f-username').value.trim();
+      const password = block.querySelector('.f-password').value;
+      const statusEl = document.getElementById(`cred-status-${id}`);
+      const btn = block.querySelector('.btn-fetch');
+
+      if (!url) {
+        statusEl.textContent = 'Enter the Server URL first.';
+        statusEl.className = 'cred-status error';
+        return;
+      }
+      if (!username) {
+        statusEl.textContent = 'Enter your username.';
+        statusEl.className = 'cred-status error';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Fetching…';
+      statusEl.textContent = '';
+      statusEl.className = 'cred-status';
+
+      try {
+        const resp = await fetch('/api/fetch-credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, username, password }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Unknown error');
+
+        block.querySelector('.f-apikey').value = data.apiKey;
+        block.querySelector('.f-userid').value = data.userId;
+        statusEl.textContent = '✓ Credentials fetched successfully!';
+        statusEl.className = 'cred-status success';
+      } catch (err) {
+        statusEl.textContent = `✗ ${err.message}`;
+        statusEl.className = 'cred-status error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Fetch API Key & User ID';
+      }
+    }
+
+    // ── Generate links ────────────────────────────────────────────────────────
+    function showError(msg) {
+      const el = document.getElementById('global-error');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function hideError() {
+      document.getElementById('global-error').style.display = 'none';
+    }
+
+    function generateLinks() {
+      hideError();
+      const blocks = document.querySelectorAll('.server-block');
+      if (blocks.length === 0) {
+        showError('Add at least one server.');
+        return;
+      }
+
+      const servers = [];
+      for (const block of blocks) {
+        const label  = block.querySelector('.f-label').value.trim();
+        const url    = block.querySelector('.f-url').value.trim().replace(/\/$/, '');
+        const apiKey = block.querySelector('.f-apikey').value.trim();
+        const userId = block.querySelector('.f-userid').value.trim();
+
+        if (!label || !url || !apiKey || !userId) {
+          showError('All fields (Name, URL, API Key, User ID) must be filled for every server. Use "Fetch Credentials" or fill them manually.');
+          return;
+        }
+        servers.push({ label, url, apiKey, userId });
+      }
+
+      const encoded = encodeConfig({ servers });
+      const { protocol, host } = window.location;
+      const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
+      const deepLink    = `stremio://${host}/${encoded}/manifest.json`;
+
+      document.getElementById('manifest-url').value = manifestUrl;
+      document.getElementById('btn-install').href = deepLink;
+      document.getElementById('result-section').style.display = 'block';
+      document.getElementById('result-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // ── Copy ──────────────────────────────────────────────────────────────────
+    function copyUrl() {
+      const val = document.getElementById('manifest-url').value;
+      navigator.clipboard.writeText(val).then(() => {
+        const btn = document.getElementById('btn-copy');
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'Copy';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    addServer(); // Start with one block
+  </script>
+</body>
+</html>
