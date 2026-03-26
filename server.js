@@ -228,6 +228,7 @@ function itemsToStreams(server, items) {
         _sizeBytes: sizeBytes,
         _bitrate: bitrate,
         _mediaSourceId: source.Id,
+        _path: source.Path || null,
       });
     }
   }
@@ -457,13 +458,14 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
     const enriched = await enrichItemsWithPlaybackInfo(server, items);
     const streams = itemsToStreams(server, enriched);
 
-    // Deduplicate by MediaSource ID — each unique source is a unique physical file.
-    // Size-based dedup was too aggressive (collapsed different files with similar sizes).
-    const seenIds = new Set();
+    // Deduplicate by file path (best — same physical file has same path across
+    // different library Items). Falls back to MediaSource ID if path unavailable.
+    const seen = new Set();
     return streams.filter((s) => {
-      if (!s._mediaSourceId) return true;
-      if (seenIds.has(s._mediaSourceId)) return false;
-      seenIds.add(s._mediaSourceId);
+      const key = s._path || s._mediaSourceId;
+      if (!key) return true;
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
   } catch (err) {
@@ -491,7 +493,7 @@ async function getAllStreams(servers, type, imdbId, season, episode) {
   });
 
   // Strip internal sort keys
-  return allStreams.map(({ _sizeBytes, _bitrate, _mediaSourceId, ...stream }) => stream);
+  return allStreams.map(({ _sizeBytes, _bitrate, _mediaSourceId, _path, ...stream }) => stream);
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
