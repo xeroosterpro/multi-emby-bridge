@@ -132,39 +132,6 @@ function jellyfinHeaders(server) {
   return {};
 }
 
-// Provider ID format varies across Jellyfin versions; Emby always uses lowercase
-// For Jellyfin we query BOTH formats in parallel and merge — see jellyfinItems()
-function providerParam(imdbId, capital = false) {
-  return capital ? `Imdb.${imdbId}` : `imdb.${imdbId}`;
-}
-
-// For Jellyfin: run the same query with both 'imdb.' and 'Imdb.', dedupe by item Id
-async function jellyfinItems(server, buildUrl) {
-  const [lowercase, titlecase] = await Promise.allSettled([
-    (async () => {
-      const url = buildUrl('imdb');
-      const resp = await fetchWithTimeout(url, 5000, { headers: jellyfinHeaders(server) });
-      const data = await resp.json();
-      return data.Items || [];
-    })(),
-    (async () => {
-      const url = buildUrl('Imdb');
-      const resp = await fetchWithTimeout(url, 5000, { headers: jellyfinHeaders(server) });
-      const data = await resp.json();
-      return data.Items || [];
-    })(),
-  ]);
-
-  const seen = new Set();
-  return [
-    ...(lowercase.status === 'fulfilled' ? lowercase.value : []),
-    ...(titlecase.status === 'fulfilled' ? titlecase.value : []),
-  ].filter(item => {
-    if (seen.has(item.Id)) return false;
-    seen.add(item.Id);
-    return true;
-  });
-}
 
 function itemsToStreams(server, items) {
   const streams = [];
@@ -307,20 +274,8 @@ async function queryServerForMovie(server, imdbId) {
   // find different items depending on how the server has tagged its content.
   const commonFields = 'MediaSources,MediaStreams,Path';
 
-  if (server.type === 'jellyfin') {
-    const buildUrl = (prefix) => {
-      const url = new URL(`${server.url}/Users/${server.userId}/Items`);
-      url.searchParams.set('AnyProviderIdEquals', `${prefix}.${imdbId}`);
-      url.searchParams.set('IncludeItemTypes', 'Movie');
-      url.searchParams.set('Fields', commonFields);
-      url.searchParams.set('Recursive', 'true');
-      url.searchParams.set('api_key', server.apiKey);
-      return url.toString();
-    };
-    return jellyfinItems(server, buildUrl);
-  }
-
-  // Emby: run three strategies in parallel and dedupe by Item Id
+  // Build strategy URLs — same approach for both Emby and Jellyfin
+  const headers = jellyfinHeaders(server);
   const makeUrl = (params) => {
     const url = new URL(`${server.url}/Users/${server.userId}/Items`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
@@ -331,18 +286,28 @@ async function queryServerForMovie(server, imdbId) {
     return url.toString();
   };
 
-  const strategies = [
-    // Strategy 1: Direct ImdbId parameter
-    makeUrl({ ImdbId: imdbId, IncludeItemTypes: 'Movie' }),
-    // Strategy 2: AnyProviderIdEquals
-    makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}`, IncludeItemTypes: 'Movie' }),
-    // Strategy 3: AnyProviderIdEquals without type filter (catches mis-categorized items)
-    makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
-  ];
+  const strategies = [];
+
+  if (server.type === 'jellyfin') {
+    // Jellyfin: try both imdb. and Imdb. provider formats, plus without type filter
+    strategies.push(
+      makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}`, IncludeItemTypes: 'Movie' }),
+      makeUrl({ AnyProviderIdEquals: `Imdb.${imdbId}`, IncludeItemTypes: 'Movie' }),
+      makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
+      makeUrl({ AnyProviderIdEquals: `Imdb.${imdbId}` }),
+    );
+  } else {
+    // Emby: ImdbId direct param + AnyProviderIdEquals + untyped
+    strategies.push(
+      makeUrl({ ImdbId: imdbId, IncludeItemTypes: 'Movie' }),
+      makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}`, IncludeItemTypes: 'Movie' }),
+      makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
+    );
+  }
 
   const results = await Promise.allSettled(
     strategies.map(async (url) => {
-      const resp = await fetchWithTimeout(url, 5000);
+      const resp = await fetchWithTimeout(url, 5000, { headers });
       const data = await resp.json();
       return data.Items || [];
     })
@@ -361,24 +326,44 @@ async function queryServerForMovie(server, imdbId) {
 
 async function queryServerForEpisode(server, imdbId, season, episode) {
   // Step 1: Find the Series by its IMDB ID — use user-scoped endpoint
-  const buildSeriesUrl = (prefix) => {
+  // Multi-strategy series lookup — same approach for Emby and Jellyfin
+  const headers = jellyfinHeaders(server);
+  const makeSeriesUrl = (params) => {
     const url = new URL(`${server.url}/Users/${server.userId}/Items`);
-    url.searchParams.set('AnyProviderIdEquals', `${prefix}.${imdbId}`);
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     url.searchParams.set('IncludeItemTypes', 'Series');
     url.searchParams.set('Recursive', 'true');
-    url.searchParams.set('Limit', '5');
+    url.searchParams.set('Limit', '20');
     url.searchParams.set('api_key', server.apiKey);
     return url.toString();
   };
 
-  let seriesItems;
-  if (server.type === 'jellyfin') {
-    seriesItems = await jellyfinItems(server, buildSeriesUrl);
-  } else {
-    const resp = await fetchWithTimeout(buildSeriesUrl('imdb'), 5000);
-    const data = await resp.json();
-    seriesItems = data.Items || [];
-  }
+  const seriesStrategies = server.type === 'jellyfin'
+    ? [
+        makeSeriesUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
+        makeSeriesUrl({ AnyProviderIdEquals: `Imdb.${imdbId}` }),
+      ]
+    : [
+        makeSeriesUrl({ ImdbId: imdbId }),
+        makeSeriesUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
+      ];
+
+  const seriesResults = await Promise.allSettled(
+    seriesStrategies.map(async (url) => {
+      const resp = await fetchWithTimeout(url, 5000, { headers });
+      const data = await resp.json();
+      return data.Items || [];
+    })
+  );
+
+  const seenSeries = new Set();
+  const seriesItems = seriesResults
+    .flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
+    .filter((item) => {
+      if (seenSeries.has(item.Id)) return false;
+      seenSeries.add(item.Id);
+      return true;
+    });
 
   if (seriesItems.length === 0) {
     return queryServerForEpisodeDirect(server, imdbId, season, episode);
@@ -416,9 +401,10 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
 
 // Direct episode search (fallback — works if server stores series IMDB on episodes)
 async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
-  const buildUrl = (prefix) => {
+  const headers = jellyfinHeaders(server);
+  const makeUrl = (params) => {
     const url = new URL(`${server.url}/Users/${server.userId}/Items`);
-    url.searchParams.set('AnyProviderIdEquals', `${prefix}.${imdbId}`);
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     url.searchParams.set('IncludeItemTypes', 'Episode');
     url.searchParams.set('Fields', 'MediaSources,MediaStreams,Path');
     url.searchParams.set('ParentIndexNumber', String(season));
@@ -428,14 +414,31 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
     return url.toString();
   };
 
-  let items;
-  if (server.type === 'jellyfin') {
-    items = await jellyfinItems(server, buildUrl);
-  } else {
-    const resp = await fetchWithTimeout(buildUrl('imdb'), 5000);
-    const data = await resp.json();
-    items = data.Items || [];
-  }
+  const epStrategies = server.type === 'jellyfin'
+    ? [
+        makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
+        makeUrl({ AnyProviderIdEquals: `Imdb.${imdbId}` }),
+      ]
+    : [
+        makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }),
+      ];
+
+  const results = await Promise.allSettled(
+    epStrategies.map(async (url) => {
+      const resp = await fetchWithTimeout(url, 5000, { headers });
+      const data = await resp.json();
+      return data.Items || [];
+    })
+  );
+
+  const seen = new Set();
+  const items = results
+    .flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
+    .filter((item) => {
+      if (seen.has(item.Id)) return false;
+      seen.add(item.Id);
+      return true;
+    });
 
   return items.filter(
     (item) => item.ParentIndexNumber === season && item.IndexNumber === episode
