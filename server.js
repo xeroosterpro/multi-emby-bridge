@@ -460,6 +460,16 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
   }
 });
 
+// ─── JSON error handler ───────────────────────────────────────────────────────
+// Without this, malformed JSON in POST bodies returns Express's default HTML error
+app.use((err, req, res, _next) => {
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Invalid JSON in request body.' });
+  }
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error.' });
+});
+
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {

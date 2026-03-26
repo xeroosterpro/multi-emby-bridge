@@ -545,7 +545,7 @@
       for (const block of blocks) {
         const label  = block.querySelector('.f-label').value.trim();
         const type   = block.querySelector('.f-type').value;
-        const url    = block.querySelector('.f-url').value.trim().replace(/\/$/, '');
+        const url    = block.querySelector('.f-url').value.trim().replace(/\/+$/, '');
         const apiKey = block.querySelector('.f-apikey').value.trim();
         const userId = block.querySelector('.f-userid').value.trim();
         if (!label || !url || !apiKey || !userId) {
@@ -565,6 +565,17 @@
       for (const server of (config.servers || [])) {
         addServer(server);
       }
+    }
+
+    // ── Helper: safe JSON parse from response ──────────────────────────────
+    async function safeJson(resp) {
+      try { return await resp.json(); }
+      catch { return { error: `Server returned non-JSON (HTTP ${resp.status}).` }; }
+    }
+
+    // ── Profile button helpers ────────────────────────────────────────────────
+    function setProfileButtons(disabled) {
+      document.querySelectorAll('.btn-profile').forEach(b => b.disabled = disabled);
     }
 
     // ── Profile: save ─────────────────────────────────────────────────────────
@@ -587,6 +598,7 @@
       const config = collectConfig();
       if (!config) return;
 
+      setProfileButtons(true);
       statusEl.textContent = 'Saving…';
       statusEl.className = 'profile-status info';
 
@@ -596,13 +608,15 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password, config }),
         });
-        const data = await resp.json();
+        const data = await safeJson(resp);
         if (!resp.ok) throw new Error(data.error || 'Unknown error');
         statusEl.textContent = `✓ ${data.message}`;
         statusEl.className = 'profile-status success';
       } catch (err) {
         statusEl.textContent = `✗ ${err.message}`;
         statusEl.className = 'profile-status error';
+      } finally {
+        setProfileButtons(false);
       }
     }
 
@@ -623,6 +637,7 @@
         return;
       }
 
+      setProfileButtons(true);
       statusEl.textContent = 'Loading…';
       statusEl.className = 'profile-status info';
 
@@ -632,7 +647,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password }),
         });
-        const data = await resp.json();
+        const data = await safeJson(resp);
         if (!resp.ok) throw new Error(data.error || 'Unknown error');
 
         populateFromConfig(data.config);
@@ -642,13 +657,15 @@
       } catch (err) {
         statusEl.textContent = `✗ ${err.message}`;
         statusEl.className = 'profile-status error';
+      } finally {
+        setProfileButtons(false);
       }
     }
 
     // ── Credential fetch ──────────────────────────────────────────────────────
     async function fetchCredentials(id) {
       const block = document.getElementById(`server-${id}`);
-      const url = block.querySelector('.f-url').value.trim().replace(/\/$/, '');
+      const url = block.querySelector('.f-url').value.trim().replace(/\/+$/, '');
       const username = block.querySelector('.f-username').value.trim();
       const password = block.querySelector('.f-password').value;
       const statusEl = document.getElementById(`cred-status-${id}`);
@@ -676,7 +693,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url, username, password }),
         });
-        const data = await resp.json();
+        const data = await safeJson(resp);
         if (!resp.ok) throw new Error(data.error || 'Unknown error');
 
         block.querySelector('.f-apikey').value = data.apiKey;
@@ -706,7 +723,10 @@
     function generateLinks() {
       hideError();
       const config = collectConfig();
-      if (!config) return;
+      if (!config) {
+        document.getElementById('result-section').style.display = 'none';
+        return;
+      }
 
       const encoded = encodeConfig(config);
       const { protocol, host } = window.location;
@@ -721,16 +741,28 @@
 
     // ── Copy ──────────────────────────────────────────────────────────────────
     function copyUrl() {
-      const val = document.getElementById('manifest-url').value;
-      navigator.clipboard.writeText(val).then(() => {
-        const btn = document.getElementById('btn-copy');
+      const input = document.getElementById('manifest-url');
+      const val = input.value;
+      const btn = document.getElementById('btn-copy');
+
+      function onSuccess() {
         btn.textContent = 'Copied!';
         btn.classList.add('copied');
-        setTimeout(() => {
-          btn.textContent = 'Copy';
-          btn.classList.remove('copied');
-        }, 2000);
-      });
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(val).then(onSuccess).catch(() => {
+          // Fallback for HTTP or denied clipboard permission
+          input.select();
+          document.execCommand('copy');
+          onSuccess();
+        });
+      } else {
+        input.select();
+        document.execCommand('copy');
+        onSuccess();
+      }
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────
