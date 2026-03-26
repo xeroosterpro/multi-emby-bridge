@@ -149,6 +149,21 @@ function appendAuth(url, server) {
   }
 }
 
+// ─── Resolve IMDB ID → movie/series name via Stremio cinemeta ────────────────
+
+async function resolveImdbName(imdbId, type) {
+  try {
+    const metaType = type === 'series' ? 'series' : 'movie';
+    const resp = await fetchWithTimeout(
+      `https://v3-cinemeta.strem.io/meta/${metaType}/${imdbId}.json`, 8000
+    );
+    const data = await resp.json();
+    return data.meta?.name || null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Provider ID validation (matches Streambridge _isMatchingProviderId) ─────
 
 function isMatchingProviderId(providerIds, imdbId) {
@@ -274,12 +289,12 @@ async function queryServerForMovie(server, imdbId) {
   const headers = authHeaders(server);
 
   // Helper: query an endpoint with params, validate ProviderIds
-  const queryItems = async (basePath, params) => {
+  const queryItems = async (basePath, params, limit = 10) => {
     const url = new URL(`${server.url}${basePath}`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     url.searchParams.set('Fields', DEFAULT_FIELDS);
     url.searchParams.set('Recursive', 'true');
-    url.searchParams.set('Limit', '10');
+    url.searchParams.set('Limit', String(limit));
     url.searchParams.set('IncludeItemTypes', 'Movie');
     url.searchParams.set('Filters', 'IsNotFolder');
     appendAuth(url, server);
@@ -288,39 +303,61 @@ async function queryServerForMovie(server, imdbId) {
     const rawItems = data.Items || [];
     const validated = rawItems.filter(i => isMatchingProviderId(i.ProviderIds, imdbId));
     console.log(`[${server.label}] ${basePath} ${JSON.stringify(params)}: ${rawItems.length} raw → ${validated.length} validated`);
-    if (rawItems.length > 0 && validated.length === 0) {
-      console.log(`[${server.label}] Sample ProviderIds:`, JSON.stringify(rawItems[0].ProviderIds));
-    }
     return validated;
   };
 
   let items = [];
 
-  // Try strategies sequentially — stop as soon as we find results
-  const strategies = server.type === 'jellyfin'
-    ? [
-        // Jellyfin: /Items with AnyProviderIdEquals (both case variants)
-        () => queryItems('/Items', { AnyProviderIdEquals: `imdb.${imdbId}` }),
-        () => queryItems('/Items', { AnyProviderIdEquals: `Imdb.${imdbId}` }),
-        // Fallback: user-scoped
-        () => queryItems(`/Users/${server.userId}/Items`, { AnyProviderIdEquals: `imdb.${imdbId}` }),
-        () => queryItems(`/Users/${server.userId}/Items`, { AnyProviderIdEquals: `Imdb.${imdbId}` }),
-      ]
-    : [
-        // Emby: /Items with ImdbId
-        () => queryItems('/Items', { ImdbId: imdbId }),
-        // Emby: user-scoped with ImdbId
-        () => queryItems(`/Users/${server.userId}/Items`, { ImdbId: imdbId }),
-        // Emby: user-scoped with AnyProviderIdEquals
-        () => queryItems(`/Users/${server.userId}/Items`, { AnyProviderIdEquals: `imdb.${imdbId}` }),
-      ];
-
-  for (const tryFn of strategies) {
-    if (items.length > 0) break;
+  if (server.type === 'jellyfin') {
+    // Jellyfin: AnyProviderIdEquals is broken on many versions — returns all items.
+    // Strategy 1: Try AnyProviderIdEquals anyway (works on some versions)
     try {
-      items = await tryFn();
+      items = await queryItems('/Items', { AnyProviderIdEquals: `imdb.${imdbId}` });
     } catch (err) {
-      console.error(`[${server.label}] Movie strategy failed:`, err.message);
+      console.error(`[${server.label}] Jellyfin strategy 1 failed:`, err.message);
+    }
+
+    // Strategy 2: Name-based search with ProviderIds validation
+    // Resolve IMDB → name via Stremio cinemeta, then search by name
+    if (items.length === 0) {
+      try {
+        const movieName = await resolveImdbName(imdbId, 'movie');
+        if (movieName) {
+          console.log(`[${server.label}] Resolved ${imdbId} → "${movieName}", searching by name`);
+          items = await queryItems('/Items', { SearchTerm: movieName }, 20);
+        }
+      } catch (err) {
+        console.error(`[${server.label}] Jellyfin name search failed:`, err.message);
+      }
+    }
+  } else {
+    // Emby: sequential fallback strategies
+    const strategies = [
+      () => queryItems('/Items', { ImdbId: imdbId }),
+      () => queryItems(`/Users/${server.userId}/Items`, { ImdbId: imdbId }),
+      () => queryItems(`/Users/${server.userId}/Items`, { AnyProviderIdEquals: `imdb.${imdbId}` }),
+    ];
+
+    for (const tryFn of strategies) {
+      if (items.length > 0) break;
+      try {
+        items = await tryFn();
+      } catch (err) {
+        console.error(`[${server.label}] Emby strategy failed:`, err.message);
+      }
+    }
+
+    // Emby fallback: name-based search if provider queries all failed
+    if (items.length === 0) {
+      try {
+        const movieName = await resolveImdbName(imdbId, 'movie');
+        if (movieName) {
+          console.log(`[${server.label}] Resolved ${imdbId} → "${movieName}", searching by name`);
+          items = await queryItems(`/Users/${server.userId}/Items`, { SearchTerm: movieName }, 20);
+        }
+      } catch (err) {
+        console.error(`[${server.label}] Emby name search failed:`, err.message);
+      }
     }
   }
 
@@ -355,8 +392,13 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
   try {
     if (server.type === 'jellyfin') {
       seriesItems = await findSeries({ AnyProviderIdEquals: `imdb.${imdbId}` });
+      // Jellyfin name-based fallback
       if (seriesItems.length === 0) {
-        seriesItems = await findSeries({ AnyProviderIdEquals: `Imdb.${imdbId}` });
+        const seriesName = await resolveImdbName(imdbId, 'series');
+        if (seriesName) {
+          console.log(`[${server.label}] Resolved ${imdbId} → "${seriesName}", searching series by name`);
+          seriesItems = await findSeries({ SearchTerm: seriesName });
+        }
       }
     } else {
       seriesItems = await findSeries({ ImdbId: imdbId });
