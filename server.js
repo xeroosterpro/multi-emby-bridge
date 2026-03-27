@@ -707,7 +707,7 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
     if (result.length === 0) {
       return [{
         name: server.label, description: 'No results found\nFile not in library',
-        url: '#', _noResults: true,
+        url: `${server.url}/no-stream-available`, _noResults: true,
         _sizeBytes: 0, _bitrate: 0, _audioRank: 999, _mediaSourceId: `noresults:${server.label}`,
       }];
     }
@@ -716,7 +716,7 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
     console.error(`[${server.label}] Query failed:`, err.message);
     return [{
       name: server.label, description: 'Server offline or unreachable',
-      url: '#', _noResults: true,
+      url: `${server.url}/no-stream-available`, _noResults: true,
       _sizeBytes: 0, _bitrate: 0, _audioRank: 999, _mediaSourceId: `offline:${server.label}`,
     }];
   }
