@@ -297,7 +297,7 @@ async function fetchPlaybackInfo(server, itemId) {
 
 // ─── Stream building from PlaybackInfo MediaSources ──────────────────────────
 
-function mediaSourcesToStreams(server, itemId, mediaSources) {
+function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset) {
   const streams = [];
   for (const source of mediaSources) {
     const sizeBytes = source.Size || 0;
@@ -369,6 +369,17 @@ function mediaSourcesToStreams(server, itemId, mediaSources) {
       audioLabel = [codecName, chStr].filter(Boolean).join(' ');
     }
 
+    // ── Raw codec ID (for filtering/preference)
+    const rawCodec = videoStream ? (videoStream.Codec || '').toLowerCase() : null;
+    const codecId = rawCodec === 'hevc' || rawCodec === 'h265' ? 'hevc'
+      : rawCodec === 'h264' || rawCodec === 'avc' ? 'h264'
+      : rawCodec === 'av1' ? 'av1'
+      : rawCodec === 'vp9' ? 'vp9'
+      : rawCodec ? 'other' : null;
+
+    // ── Primary audio language (for preference sorting)
+    const audioLangCode = audioStream ? (audioStream.Language || '').toLowerCase().slice(0, 3) || null : null;
+
     // ── Bitrate in Mbps
     const bitrateLabel = bitrate ? `${(bitrate / 1e6).toFixed(1)}Mbps` : null;
 
@@ -376,24 +387,64 @@ function mediaSourcesToStreams(server, itemId, mediaSources) {
     const sourceLabel = detectSourceLabel(source);
     const container = source.Container ? source.Container.toUpperCase() : null;
 
-    // ── Assemble description (multi-line, Streambridge-style)
-    const descLines = [
-      [resLabel, dimsLabel].filter(Boolean).join(' · '),
-      [hdrLabel, codecLabel].filter(Boolean).join(' · '),
-      sourceLabel,
-      audioLabel,
-      [container, bitrateLabel, formatFileSize(sizeBytes)].filter(Boolean).join(' · '),
-    ].filter(Boolean);
+    // ── Build name + description based on label preset
+    const sizeStr = formatFileSize(sizeBytes);
+
+    let streamName, streamDesc;
+    if (labelPreset === 'compact') {
+      // Name: Server · Res · Codec  |  Desc: Audio · Bitrate · Size
+      streamName = [server.label, resLabel, codecLabel].filter(Boolean).join(' · ');
+      streamDesc = [audioLabel, bitrateLabel, sizeStr].filter(Boolean).join(' · ') || 'Unknown quality';
+    } else if (labelPreset === 'cinema') {
+      // Name: Server · Res · HDR  |  Desc: Codec · Source / Audio / Size
+      streamName = [server.label, resLabel, hdrLabel].filter(Boolean).join(' · ');
+      streamDesc = [
+        [codecLabel, sourceLabel].filter(Boolean).join(' · '),
+        audioLabel,
+        sizeStr,
+      ].filter(Boolean).join('\n') || 'Unknown quality';
+    } else if (labelPreset === 'bandwidth') {
+      // Name: Server · Res  |  Desc: Bitrate · Size / Codec · Audio
+      streamName = [server.label, resLabel].filter(Boolean).join(' · ');
+      streamDesc = [
+        [bitrateLabel, sizeStr].filter(Boolean).join(' · '),
+        [codecLabel, audioLabel].filter(Boolean).join(' · '),
+      ].filter(Boolean).join('\n') || 'Unknown quality';
+    } else if (labelPreset === 'audiophile') {
+      // Name: Server · Res · Audio  |  Desc: Codec · HDR / Bitrate · Size
+      streamName = [server.label, resLabel, audioLabel].filter(Boolean).join(' · ');
+      streamDesc = [
+        [codecLabel, hdrLabel].filter(Boolean).join(' · '),
+        [bitrateLabel, sizeStr].filter(Boolean).join(' · '),
+      ].filter(Boolean).join('\n') || 'Unknown quality';
+    } else if (labelPreset === 'minimal') {
+      // Name: Server · Res  |  Desc: Size only
+      streamName = [server.label, resLabel].filter(Boolean).join(' · ');
+      streamDesc = sizeStr || bitrateLabel || 'Unknown quality';
+    } else {
+      // standard (default) — current multi-line behaviour
+      streamName = [server.label, resLabel].filter(Boolean).join(' ');
+      const descLines = [
+        [resLabel, dimsLabel].filter(Boolean).join(' · '),
+        [hdrLabel, codecLabel].filter(Boolean).join(' · '),
+        sourceLabel,
+        audioLabel,
+        [container, bitrateLabel, sizeStr].filter(Boolean).join(' · '),
+      ].filter(Boolean);
+      streamDesc = descLines.join('\n') || 'Unknown quality';
+    }
 
     streams.push({
       url: buildStreamUrl(server, itemId, source.Id, source.Container),
-      name: [server.label, resLabel].filter(Boolean).join(' '),
-      description: descLines.join('\n') || 'Unknown quality',
+      name: streamName,
+      description: streamDesc,
       _sizeBytes: sizeBytes,
       _bitrate: bitrate,
       _audioRank: audioRank,
       _mediaSourceId: source.Id,
       _resLabel: resLabel,
+      _codec: codecId,
+      _audioLang: audioLangCode,
     });
   }
   return streams;
@@ -673,7 +724,7 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
 
 // ─── Main stream collection (Streambridge-matching: PlaybackInfo per item) ───
 
-async function getStreamsFromServer(server, type, imdbId, season, episode) {
+async function getStreamsFromServer(server, type, imdbId, season, episode, labelPreset) {
   try {
     let items;
     if (type === 'movie') {
@@ -701,7 +752,7 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
     for (const result of playbackResults) {
       if (result.status === 'fulfilled') {
         const { itemId, mediaSources } = result.value;
-        const streams = mediaSourcesToStreams(server, itemId, mediaSources);
+        const streams = mediaSourcesToStreams(server, itemId, mediaSources, labelPreset);
         allStreams.push(...streams);
       }
     }
@@ -734,11 +785,13 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
   }
 }
 
-async function getAllStreams(servers, type, imdbId, season, episode, sortOrder, excludeRes, recommend, ping) {
+async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) {
+  const { sortOrder, excludeRes, recommend, ping, audioLang, maxBitrate, prefCodec, codecMode, labelPreset, pingDetail } = opts;
+
   // Pings and stream queries run concurrently — pings add zero extra wall time
   const [pingResults, streamResults] = await Promise.all([
     Promise.all(ping ? servers.map(pingServer) : servers.map(() => null)),
-    Promise.allSettled(servers.map(server => getStreamsFromServer(server, type, imdbId, season, episode))),
+    Promise.allSettled(servers.map(server => getStreamsFromServer(server, type, imdbId, season, episode, labelPreset))),
   ]);
 
   const allStreams = streamResults.flatMap((result, i) => {
@@ -760,8 +813,32 @@ async function getAllStreams(servers, type, imdbId, season, episode, sortOrder, 
     });
   }
 
-  // Sort real streams by user preference
+  // Filter by max bitrate (maxBitrate is in bps)
+  if (maxBitrate) {
+    realStreams = realStreams.filter(s => !s._bitrate || s._bitrate <= maxBitrate);
+  }
+
+  // Filter to ONLY preferred codec — only applied if it wouldn't empty the results
+  if (prefCodec && prefCodec !== 'any' && codecMode === 'only') {
+    const filtered = realStreams.filter(s => s._codec === prefCodec);
+    if (filtered.length > 0) realStreams = filtered;
+  }
+
+  // Sort with audio-language and codec preferences as highest-priority tiers
   realStreams.sort((a, b) => {
+    // Tier 1: preferred audio language
+    if (audioLang && audioLang !== 'any') {
+      const aL = (a._audioLang || '').startsWith(audioLang) ? 0 : 1;
+      const bL = (b._audioLang || '').startsWith(audioLang) ? 0 : 1;
+      if (aL !== bL) return aL - bL;
+    }
+    // Tier 2: preferred codec (in 'prefer' mode)
+    if (prefCodec && prefCodec !== 'any' && codecMode !== 'only') {
+      const aC = a._codec === prefCodec ? 0 : 1;
+      const bC = b._codec === prefCodec ? 0 : 1;
+      if (aC !== bC) return aC - bC;
+    }
+    // Tier 3: primary quality sort
     if (sortOrder === 'audio') {
       const d = (a._audioRank || 99) - (b._audioRank || 99);
       return d !== 0 ? d : (b._sizeBytes || 0) - (a._sizeBytes || 0);
@@ -794,9 +871,16 @@ async function getAllStreams(servers, type, imdbId, season, episode, sortOrder, 
     realStreams[0] = { ...realStreams[0], name: `★ ${realStreams[0].name}` };
   }
 
+  // Add ping RTT to description if pingDetail enabled
+  if (ping && pingDetail) {
+    realStreams = realStreams.map(s =>
+      s._pingMs != null ? { ...s, description: `${s.description}\n📡 ${s._pingMs}ms` } : s
+    );
+  }
+
   // No-results/offline placeholders always at the bottom
   return [...realStreams, ...noResStreams]
-    .map(({ _sizeBytes, _bitrate, _audioRank, _mediaSourceId, _noResults, _resLabel, _pingMs, ...stream }) => stream);
+    .map(({ _sizeBytes, _bitrate, _audioRank, _mediaSourceId, _noResults, _resLabel, _pingMs, _codec, _audioLang, ...stream }) => stream);
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
@@ -962,6 +1046,33 @@ app.post('/api/ping-servers', express.json(), async (req, res) => {
   res.json({ results });
 });
 
+// ─── Library stats ────────────────────────────────────────────────────────────
+app.post('/api/library-stats', express.json(), async (req, res) => {
+  const { url, type, apiKey, userId } = req.body || {};
+  if (!url || !apiKey || !userId) {
+    return res.status(400).json({ error: 'url, apiKey, userId required' });
+  }
+  const server = { url: url.replace(/\/$/, ''), type: type || 'emby', apiKey, userId, label: '' };
+  try {
+    const statsUrl = new URL(`${server.url}/Items/Counts`);
+    statsUrl.searchParams.set('UserId', userId);
+    appendAuth(statsUrl, server);
+    const resp = await fetchWithTimeout(statsUrl.toString(), 8000, { headers: authHeaders(server) });
+    const data = await resp.json();
+    res.json({
+      movies:   data.MovieCount   || 0,
+      shows:    data.SeriesCount  || 0,
+      episodes: data.EpisodeCount || 0,
+    });
+  } catch (err) {
+    if (err.status === 401 || err.status === 403)
+      return res.json({ error: 'Authentication failed' });
+    if (err.name === 'AbortError')
+      return res.json({ error: 'Connection timed out' });
+    res.json({ error: err.message });
+  }
+});
+
 // ─── Manifest ─────────────────────────────────────────────────────────────────
 app.get('/:config/manifest.json', (req, res) => {
   let cfg;
@@ -1012,7 +1123,18 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
   }
 
   try {
-    const streams = await getAllStreams(servers, type, imdbId, season, episode, cfg.sortOrder, cfg.excludeRes, cfg.recommend, cfg.ping);
+    const streams = await getAllStreams(servers, type, imdbId, season, episode, {
+      sortOrder:   cfg.sortOrder,
+      excludeRes:  cfg.excludeRes,
+      recommend:   cfg.recommend,
+      ping:        cfg.ping,
+      audioLang:   cfg.audioLang,
+      maxBitrate:  cfg.maxBitrate,
+      prefCodec:   cfg.prefCodec,
+      codecMode:   cfg.codecMode,
+      labelPreset: cfg.labelPreset,
+      pingDetail:  cfg.pingDetail,
+    });
     res.json({ streams });
   } catch (err) {
     console.error('Stream handler error:', err);

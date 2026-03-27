@@ -241,6 +241,27 @@
       margin-top: 0.2rem; flex-shrink: 0;
     }
 
+    /* ── Library stats ── */
+    .btn-stats {
+      width: 100%; background: #1a1a2a; border: 1px solid #2e2e42; color: #777;
+      border-radius: 6px; padding: 0.45rem; font-size: 0.82rem;
+      cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
+      margin-top: 0.5rem;
+    }
+    .btn-stats:hover { background: #1a2a2a; color: #4ccd9a; border-color: #2a5a4a; }
+    .btn-stats:disabled { opacity: 0.5; cursor: default; }
+    .stats-display {
+      font-size: 0.8rem; margin-top: 0.4rem; min-height: 1.1em; color: #4ccd9a;
+      display: flex; gap: 1rem; flex-wrap: wrap;
+    }
+    .stats-display.error { color: #e05555; }
+    .stats-badge { display: flex; align-items: center; gap: 0.3rem; }
+    .stats-badge span:first-child { color: #666; }
+
+    /* ── Options inline row with two selects ── */
+    .sort-row-dual { display: flex; gap: 0.5rem; }
+    .sort-row-dual select { flex: 1; font-size: 0.85rem; }
+
     /* ── Ping Test Panel ── */
     .ping-panel {
       background: #161620; border: 1px solid #2a2a3a;
@@ -428,6 +449,83 @@
           <div class="option-desc">Pings each server during the request and marks streams from the fastest responding one. Measured from the addon server, not your device.</div>
         </div>
       </label>
+
+      <label class="option-item">
+        <input type="checkbox" id="ping-detail" />
+        <div>
+          <div class="option-title">📡 Show ping RTT in stream details</div>
+          <div class="option-desc">Adds the measured latency (e.g. 📡 42ms) to each stream's description. Requires ⚡ Mark fastest server to be enabled.</div>
+        </div>
+      </label>
+
+      <div class="options-divider"></div>
+
+      <div class="sort-row">
+        <span class="sort-row-label">Prefer audio language</span>
+        <select id="audio-lang">
+          <option value="any">Any language</option>
+          <option value="eng">🇺🇸 English</option>
+          <option value="fre">🇫🇷 French</option>
+          <option value="spa">🇪🇸 Spanish</option>
+          <option value="ger">🇩🇪 German</option>
+          <option value="jpn">🇯🇵 Japanese</option>
+          <option value="kor">🇰🇷 Korean</option>
+          <option value="por">🇧🇷 Portuguese</option>
+          <option value="ita">🇮🇹 Italian</option>
+          <option value="zho">🇨🇳 Chinese</option>
+          <option value="rus">🇷🇺 Russian</option>
+          <option value="ara">🇸🇦 Arabic</option>
+          <option value="hin">🇮🇳 Hindi</option>
+        </select>
+      </div>
+
+      <div class="sort-row">
+        <span class="sort-row-label">Prefer codec</span>
+        <div class="sort-row-dual">
+          <select id="pref-codec">
+            <option value="any">No preference</option>
+            <option value="h264">H.264 / AVC</option>
+            <option value="hevc">H.265 / HEVC</option>
+            <option value="av1">AV1</option>
+            <option value="vp9">VP9</option>
+          </select>
+          <select id="codec-mode" title="Prefer = sort to top. Only = hide other codecs.">
+            <option value="prefer">Prefer (sort up)</option>
+            <option value="only">Only (hide others)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sort-row">
+        <span class="sort-row-label">Max bitrate</span>
+        <select id="max-bitrate">
+          <option value="">No limit</option>
+          <option value="5000000">5 Mbps</option>
+          <option value="10000000">10 Mbps</option>
+          <option value="15000000">15 Mbps</option>
+          <option value="20000000">20 Mbps</option>
+          <option value="30000000">30 Mbps</option>
+          <option value="40000000">40 Mbps</option>
+          <option value="60000000">60 Mbps</option>
+          <option value="80000000">80 Mbps</option>
+          <option value="100000000">100 Mbps</option>
+        </select>
+      </div>
+
+      <div class="options-divider"></div>
+
+      <div class="sort-row">
+        <span class="sort-row-label">Stream label format</span>
+        <select id="label-preset" onchange="updateLabelPreview()">
+          <option value="standard">Standard — full details</option>
+          <option value="compact">Compact — codec in name, 1-line desc</option>
+          <option value="cinema">Cinema — HDR in name</option>
+          <option value="bandwidth">Bandwidth — size/bitrate first</option>
+          <option value="audiophile">Audiophile — audio in name</option>
+          <option value="minimal">Minimal — size only</option>
+        </select>
+      </div>
+      <div id="label-preview" style="margin:0.3rem 0.75rem 0.4rem;padding:0.6rem 0.75rem;background:#0f0f13;border-radius:6px;font-size:0.78rem;line-height:1.6;color:#777;"></div>
     </div>
 
     <!-- ── Ping Test Panel ── -->
@@ -535,6 +633,8 @@
 
         <button class="btn-test" onclick="testConnection(${id})">Test Connection</button>
         <div class="test-status" id="test-status-${id}"></div>
+        <button class="btn-stats" onclick="loadLibraryStats(${id})">📚 Library Stats</button>
+        <div class="stats-display" id="stats-${id}"></div>
       `;
       return div;
     }
@@ -741,6 +841,54 @@
       } finally { btn.disabled = false; btn.textContent = 'Test Connection'; }
     }
 
+    // ── Library stats ─────────────────────────────────────────────────────────
+    async function loadLibraryStats(id) {
+      const block    = document.getElementById(`server-${id}`);
+      const url      = block.querySelector('.f-url').value.trim().replace(/\/+$/, '');
+      const type     = block.querySelector('.f-type').value;
+      const apiKey   = block.querySelector('.f-apikey').value.trim();
+      const userId   = block.querySelector('.f-userid').value.trim();
+      const statsEl  = document.getElementById(`stats-${id}`);
+      const btn      = block.querySelector('.btn-stats');
+      if (!url)              { statsEl.textContent = 'Enter Server URL first.';   statsEl.className = 'stats-display error'; return; }
+      if (!apiKey || !userId){ statsEl.textContent = 'Enter API Key + User ID first.'; statsEl.className = 'stats-display error'; return; }
+      btn.disabled = true; btn.textContent = 'Loading…';
+      statsEl.textContent = ''; statsEl.className = 'stats-display';
+      try {
+        const resp = await fetch('/api/library-stats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, type, apiKey, userId }) });
+        const data = await safeJson(resp);
+        if (data.error) { statsEl.textContent = `✗ ${data.error}`; statsEl.className = 'stats-display error'; }
+        else {
+          statsEl.className = 'stats-display';
+          statsEl.innerHTML = `
+            <span class="stats-badge"><span>🎬</span><span>${data.movies.toLocaleString()} movies</span></span>
+            <span class="stats-badge"><span>📺</span><span>${data.shows.toLocaleString()} shows</span></span>
+            <span class="stats-badge"><span>🎞</span><span>${data.episodes.toLocaleString()} episodes</span></span>`;
+        }
+      } catch (err) {
+        statsEl.textContent = `✗ ${err.message}`; statsEl.className = 'stats-display error';
+      } finally { btn.disabled = false; btn.textContent = '📚 Library Stats'; }
+    }
+
+    // ── Label preview ─────────────────────────────────────────────────────────
+    function updateLabelPreview() {
+      const preset = document.getElementById('label-preset').value;
+      const previewEl = document.getElementById('label-preview');
+      const previews = {
+        standard:    { name: 'MyServer 4K',              desc: '4K · 3840x2160\nDV · HEVC 10bit\nREMUX\nTrueHD 7.1\nMKV · 85.2Mbps · 58.32 GB' },
+        compact:     { name: 'MyServer · 4K · HEVC 10bit', desc: 'TrueHD 7.1 · 85.2Mbps · 58.32 GB' },
+        cinema:      { name: 'MyServer · 4K · DV',        desc: 'HEVC 10bit · REMUX\nTrueHD 7.1\n58.32 GB' },
+        bandwidth:   { name: 'MyServer · 4K',             desc: '85.2Mbps · 58.32 GB\nHEVC 10bit · TrueHD 7.1' },
+        audiophile:  { name: 'MyServer · 4K · TrueHD 7.1', desc: 'HEVC 10bit · DV\n85.2Mbps · 58.32 GB' },
+        minimal:     { name: 'MyServer · 4K',             desc: '58.32 GB' },
+      };
+      const p = previews[preset] || previews.standard;
+      const nameLines = p.name.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const descLines = p.desc.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n')
+        .map(l => `<span style="color:#555">${l}</span>`).join('<br>');
+      previewEl.innerHTML = `<span style="color:#d0d0d0;font-weight:600;">${nameLines}</span><br>${descLines}`;
+    }
+
     // ── Performance mode ──────────────────────────────────────────────────────
     function onModeChange() {
       const mode = document.querySelector('input[name="perf-mode"]:checked').value;
@@ -766,6 +914,12 @@
       const excludeRes = [...document.querySelectorAll('.res-cb:checked')].map(cb => cb.value);
       const recommend  = document.getElementById('show-recommend').checked;
       const showPing   = document.getElementById('show-ping').checked;
+      const pingDetail  = document.getElementById('ping-detail').checked;
+      const audioLang   = document.getElementById('audio-lang').value;
+      const prefCodec   = document.getElementById('pref-codec').value;
+      const codecMode   = document.getElementById('codec-mode').value;
+      const maxBitrate  = document.getElementById('max-bitrate').value;
+      const labelPreset = document.getElementById('label-preset').value;
       const { protocol, host } = window.location;
       const section   = document.getElementById('result-section');
 
@@ -776,6 +930,11 @@
           if (excludeRes.length > 0)   sc.excludeRes = excludeRes;
           if (recommend)               sc.recommend  = true;
           if (showPing)                sc.ping       = true;
+          if (pingDetail)              sc.pingDetail = true;
+          if (audioLang !== 'any')     sc.audioLang  = audioLang;
+          if (maxBitrate)              sc.maxBitrate = parseInt(maxBitrate, 10);
+          if (prefCodec !== 'any')   { sc.prefCodec  = prefCodec; sc.codecMode = codecMode; }
+          if (labelPreset !== 'standard') sc.labelPreset = labelPreset;
           const encoded = encodeConfig(sc);
           return {
             label:       server.label,
@@ -805,6 +964,11 @@
         if (excludeRes.length > 0) config.excludeRes = excludeRes;
         if (recommend)             config.recommend  = true;
         if (showPing)              config.ping       = true;
+        if (pingDetail)            config.pingDetail = true;
+        if (audioLang !== 'any')   config.audioLang  = audioLang;
+        if (maxBitrate)            config.maxBitrate = parseInt(maxBitrate, 10);
+        if (prefCodec !== 'any') { config.prefCodec  = prefCodec; config.codecMode = codecMode; }
+        if (labelPreset !== 'standard') config.labelPreset = labelPreset;
 
         const encoded     = encodeConfig(config);
         const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
@@ -899,6 +1063,7 @@
 
     // ── Init ──────────────────────────────────────────────────────────────────
     addServer();
+    updateLabelPreview();
   </script>
 </body>
 </html>
