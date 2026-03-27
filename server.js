@@ -1134,7 +1134,7 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
     return res.json({ streams: [] });
   }
 
-  const timeoutMs = (cfg.timeout && cfg.timeout >= 3000 && cfg.timeout <= 10000) ? cfg.timeout : 10000;
+  const timeoutMs = (cfg.timeout && cfg.timeout >= 2000 && cfg.timeout <= 10000) ? cfg.timeout : 10000;
   const servers = (cfg.servers || [])
     .filter(s => s.url && s.apiKey && s.userId)
     .map(s => ({ ...s, _timeout: timeoutMs }));
