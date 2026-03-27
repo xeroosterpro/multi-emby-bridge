@@ -315,25 +315,24 @@ async function queryServerForMovie(server, imdbId) {
   let items = [];
 
   if (server.type === 'jellyfin') {
-    // Jellyfin: AnyProviderIdEquals is broken on many versions — returns all items.
-    // Strategy 1: Try AnyProviderIdEquals anyway (works on some versions)
+    // Jellyfin: AnyProviderIdEquals is broken on most versions — returns all items.
+    // Strategy 1: Name-based search with ProviderIds validation (most reliable)
     try {
-      items = await queryItems('/Items', { AnyProviderIdEquals: `imdb.${imdbId}` });
+      const movieName = await resolveImdbName(imdbId, 'movie');
+      if (movieName) {
+        console.log(`[${server.label}] Jellyfin: searching movie by name "${movieName}"`);
+        items = await queryItems('/Items', { SearchTerm: movieName }, 20);
+      }
     } catch (err) {
-      console.error(`[${server.label}] Jellyfin strategy 1 failed:`, err.message);
+      console.error(`[${server.label}] Jellyfin name search failed:`, err.message);
     }
 
-    // Strategy 2: Name-based search with ProviderIds validation
-    // Resolve IMDB → name via Stremio cinemeta, then search by name
+    // Strategy 2 (fallback): Try AnyProviderIdEquals in case name lookup failed
     if (items.length === 0) {
       try {
-        const movieName = await resolveImdbName(imdbId, 'movie');
-        if (movieName) {
-          console.log(`[${server.label}] Resolved ${imdbId} → "${movieName}", searching by name`);
-          items = await queryItems('/Items', { SearchTerm: movieName }, 20);
-        }
+        items = await queryItems('/Items', { AnyProviderIdEquals: `imdb.${imdbId}` });
       } catch (err) {
-        console.error(`[${server.label}] Jellyfin name search failed:`, err.message);
+        console.error(`[${server.label}] Jellyfin AnyProviderIdEquals failed:`, err.message);
       }
     }
   } else {
@@ -386,25 +385,29 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
     url.searchParams.set('Fields', DEFAULT_FIELDS);
     url.searchParams.set('Recursive', 'true');
     url.searchParams.set('Limit', '10');
-    url.searchParams.set('Filters', 'IsNotFolder');
+    // NOTE: Do NOT use Filters=IsNotFolder here — Series items ARE folders!
     appendAuth(url, server);
     const resp = await fetchWithTimeout(url.toString(), 10000, { headers });
     const data = await resp.json();
-    return (data.Items || []).filter(i => isMatchingProviderId(i.ProviderIds, imdbId));
+    const validated = (data.Items || []).filter(i => isMatchingProviderId(i.ProviderIds, imdbId));
+    console.log(`[${server.label}] findSeries ${JSON.stringify(params)}: ${(data.Items||[]).length} raw → ${validated.length} validated`);
+    return validated;
   };
 
   let seriesItems = [];
 
   try {
     if (server.type === 'jellyfin') {
-      seriesItems = await findSeries({ AnyProviderIdEquals: `imdb.${imdbId}` });
-      // Jellyfin name-based fallback
+      // Jellyfin: AnyProviderIdEquals is broken on most versions — skip it.
+      // Go straight to name-based search with ProviderIds validation.
+      const seriesName = await resolveImdbName(imdbId, 'series');
+      if (seriesName) {
+        console.log(`[${server.label}] Jellyfin: searching series by name "${seriesName}"`);
+        seriesItems = await findSeries({ SearchTerm: seriesName });
+      }
+      // Fallback: try AnyProviderIdEquals in case name lookup failed
       if (seriesItems.length === 0) {
-        const seriesName = await resolveImdbName(imdbId, 'series');
-        if (seriesName) {
-          console.log(`[${server.label}] Resolved ${imdbId} → "${seriesName}", searching series by name`);
-          seriesItems = await findSeries({ SearchTerm: seriesName });
-        }
+        seriesItems = await findSeries({ AnyProviderIdEquals: `imdb.${imdbId}` });
       }
     } else {
       seriesItems = await findSeries({ ImdbId: imdbId });
@@ -455,7 +458,7 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
     });
 }
 
-// Direct episode search (fallback)
+// Direct episode search (fallback — only used when series-based search fails)
 async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
   const headers = authHeaders(server);
   const makeUrl = (params) => {
@@ -466,6 +469,7 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
     url.searchParams.set('ParentIndexNumber', String(season));
     url.searchParams.set('IndexNumber', String(episode));
     url.searchParams.set('Recursive', 'true');
+    url.searchParams.set('Limit', '50');
     appendAuth(url, server);
     return url.toString();
   };
@@ -473,11 +477,13 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
   let items = [];
   try {
     if (server.type === 'jellyfin') {
-      const resp1 = await fetchWithTimeout(makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }), 10000, { headers });
-      items = (await resp1.json()).Items || [];
-      if (items.length === 0) {
-        const resp2 = await fetchWithTimeout(makeUrl({ AnyProviderIdEquals: `Imdb.${imdbId}` }), 10000, { headers });
-        items = (await resp2.json()).Items || [];
+      // Jellyfin: AnyProviderIdEquals is broken on most versions — skip it.
+      // Instead, search by series name via cinemeta, find matching episodes.
+      const seriesName = await resolveImdbName(imdbId, 'series');
+      if (seriesName) {
+        console.log(`[${server.label}] Direct episode fallback: searching episodes by name "${seriesName}"`);
+        const resp = await fetchWithTimeout(makeUrl({ SearchTerm: seriesName }), 10000, { headers });
+        items = (await resp.json()).Items || [];
       }
     } else {
       const resp1 = await fetchWithTimeout(makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }), 10000, { headers });
@@ -488,14 +494,28 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
     return [];
   }
 
+  // Filter by correct season + episode AND validate ProviderIds on the series
+  // For episodes, check the episode's own or parent's ProviderIds
   const seen = new Set();
-  return items
+  const filtered = items
     .filter((item) => item.ParentIndexNumber === season && item.IndexNumber === episode)
+    .filter((item) => {
+      // Validate ProviderIds if available (episode or its series parent)
+      const providerIds = item.ProviderIds || item.SeriesProviderIds;
+      if (providerIds) {
+        return isMatchingProviderId(providerIds, imdbId);
+      }
+      // If no ProviderIds available, accept (name search already narrowed it)
+      return true;
+    })
     .filter((item) => {
       if (seen.has(item.Id)) return false;
       seen.add(item.Id);
       return true;
     });
+
+  console.log(`[${server.label}] Direct episode fallback: ${items.length} raw → ${filtered.length} after validation`);
+  return filtered;
 }
 
 // ─── Main stream collection (Streambridge-matching: PlaybackInfo per item) ───
