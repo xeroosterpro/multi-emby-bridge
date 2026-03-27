@@ -786,12 +786,23 @@ async function getStreamsFromServer(server, type, imdbId, season, episode, label
 }
 
 async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) {
-  const { sortOrder, excludeRes, recommend, ping, audioLang, maxBitrate, prefCodec, codecMode, labelPreset, pingDetail } = opts;
+  const { sortOrder, excludeRes, recommend, ping, audioLang, maxBitrate, prefCodec, codecMode, labelPreset, pingDetail, autoSelect } = opts;
 
   // Pings and stream queries run concurrently — pings add zero extra wall time
   const [pingResults, streamResults] = await Promise.all([
     Promise.all(ping ? servers.map(pingServer) : servers.map(() => null)),
-    Promise.allSettled(servers.map(server => getStreamsFromServer(server, type, imdbId, season, episode, labelPreset))),
+    Promise.allSettled(servers.map(server => {
+      const query = getStreamsFromServer(server, type, imdbId, season, episode, labelPreset);
+      // When fast timeout is set, race the ENTIRE per-server pipeline against a hard cutoff
+      // This fixes the bug where individual API call timeouts still allow multiple sequential
+      // strategies (each with their own timeout) to add up to much longer total time
+      const cutoff = server._timeout && server._timeout < 10000 ? server._timeout : 0;
+      if (!cutoff) return query;
+      return Promise.race([
+        query,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('cutoff')), cutoff)),
+      ]);
+    })),
   ]);
 
   const allStreams = streamResults.flatMap((result, i) => {
@@ -876,6 +887,11 @@ async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) 
     realStreams = realStreams.map(s =>
       s._pingMs != null ? { ...s, description: `${s.description}\n📡 ${s._pingMs}ms` } : s
     );
+  }
+
+  // Auto-select: return only the single best stream
+  if (autoSelect && realStreams.length > 0) {
+    realStreams = [realStreams[0]];
   }
 
   // No-results/offline placeholders always at the bottom
@@ -1134,6 +1150,7 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
       codecMode:   cfg.codecMode,
       labelPreset: cfg.labelPreset,
       pingDetail:  cfg.pingDetail,
+      autoSelect:  cfg.autoSelect,
     });
     res.json({ streams });
   } catch (err) {

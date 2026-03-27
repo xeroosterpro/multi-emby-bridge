@@ -450,6 +450,16 @@
         </div>
       </label>
 
+      <div class="options-divider"></div>
+
+      <label class="option-item">
+        <input type="checkbox" id="auto-select" />
+        <div>
+          <div class="option-title">🎯 Auto-select best stream</div>
+          <div class="option-desc">Only shows the single best result in Stremio. Picks automatically based on your sort order, language, codec, and filter preferences — no manual choosing needed.</div>
+        </div>
+      </label>
+
       <label class="option-item">
         <input type="checkbox" id="ping-detail" />
         <div>
@@ -919,6 +929,7 @@
       const prefCodec   = document.getElementById('pref-codec').value;
       const codecMode   = document.getElementById('codec-mode').value;
       const maxBitrate  = document.getElementById('max-bitrate').value;
+      const autoSelect  = document.getElementById('auto-select').checked;
       const labelPreset = document.getElementById('label-preset').value;
       const { protocol, host } = window.location;
       const section   = document.getElementById('result-section');
@@ -935,6 +946,7 @@
           if (maxBitrate)              sc.maxBitrate = parseInt(maxBitrate, 10);
           if (prefCodec !== 'any')   { sc.prefCodec  = prefCodec; sc.codecMode = codecMode; }
           if (labelPreset !== 'standard') sc.labelPreset = labelPreset;
+          if (autoSelect)              sc.autoSelect  = true;
           const encoded = encodeConfig(sc);
           return {
             label:       server.label,
@@ -969,6 +981,7 @@
         if (maxBitrate)            config.maxBitrate = parseInt(maxBitrate, 10);
         if (prefCodec !== 'any') { config.prefCodec  = prefCodec; config.codecMode = codecMode; }
         if (labelPreset !== 'standard') config.labelPreset = labelPreset;
+        if (autoSelect)              config.autoSelect  = true;
 
         const encoded     = encodeConfig(config);
         const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
