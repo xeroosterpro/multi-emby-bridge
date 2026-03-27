@@ -149,19 +149,30 @@ function appendAuth(url, server) {
   }
 }
 
-// ─── Resolve IMDB ID → movie/series name via Stremio cinemeta ────────────────
+// ─── Resolve IMDB ID → movie/series name via multiple metadata sources ───────
 
 async function resolveImdbName(imdbId, type) {
+  // Strategy 1: Stremio cinemeta meta endpoint
   try {
     const metaType = type === 'series' ? 'series' : 'movie';
     const resp = await fetchWithTimeout(
-      `https://v3-cinemeta.strem.io/meta/${metaType}/${imdbId}.json`, 8000
+      `https://v3-cinemeta.strem.io/meta/${metaType}/${imdbId}.json`, 6000
     );
     const data = await resp.json();
-    return data.meta?.name || null;
-  } catch {
-    return null;
-  }
+    if (data.meta?.name) return data.meta.name;
+  } catch { /* continue to next strategy */ }
+
+  // Strategy 2: IMDB suggestions API (free, no key needed)
+  try {
+    const resp = await fetchWithTimeout(
+      `https://v3.sg.media-imdb.com/suggestion/x/${imdbId}.json`, 5000
+    );
+    const data = await resp.json();
+    const match = (data.d || []).find(d => d.id === imdbId);
+    if (match?.l) return match.l;
+  } catch { /* continue */ }
+
+  return null;
 }
 
 // ─── Provider ID validation (matches Streambridge _isMatchingProviderId) ─────
@@ -420,7 +431,36 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
   }
 
   if (seriesItems.length === 0) {
-    return queryServerForEpisodeDirect(server, imdbId, season, episode);
+    // Last resort: search by name without strict IMDB validation
+    // Handles cases where Stremio's IMDB ID differs from the server's
+    try {
+      const seriesName = await resolveImdbName(imdbId, 'series');
+      if (seriesName) {
+        console.log(`[${server.label}] Last-resort series search by name "${seriesName}"`);
+        const url = new URL(`${server.url}/Items`);
+        url.searchParams.set('SearchTerm', seriesName);
+        url.searchParams.set('IncludeItemTypes', 'Series');
+        url.searchParams.set('Fields', DEFAULT_FIELDS);
+        url.searchParams.set('Recursive', 'true');
+        url.searchParams.set('Limit', '5');
+        appendAuth(url, server);
+        const resp = await fetchWithTimeout(url.toString(), 10000, { headers });
+        const data = await resp.json();
+        // Accept name-matched results without IMDB validation (IDs may differ)
+        seriesItems = (data.Items || []).filter(i => {
+          const serverName = (i.Name || '').toLowerCase().trim();
+          const searchName = seriesName.toLowerCase().trim();
+          return serverName === searchName || serverName.includes(searchName) || searchName.includes(serverName);
+        });
+        console.log(`[${server.label}] Name-based series search: ${(data.Items||[]).length} raw → ${seriesItems.length} name-matched`);
+      }
+    } catch (err) {
+      console.error(`[${server.label}] Last-resort name search failed:`, err.message);
+    }
+
+    if (seriesItems.length === 0) {
+      return queryServerForEpisodeDirect(server, imdbId, season, episode);
+    }
   }
 
   // Deduplicate series by Id
@@ -477,8 +517,7 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
   let items = [];
   try {
     if (server.type === 'jellyfin') {
-      // Jellyfin: AnyProviderIdEquals is broken on most versions — skip it.
-      // Instead, search by series name via cinemeta, find matching episodes.
+      // Jellyfin: AnyProviderIdEquals is broken — search by name instead
       const seriesName = await resolveImdbName(imdbId, 'series');
       if (seriesName) {
         console.log(`[${server.label}] Direct episode fallback: searching episodes by name "${seriesName}"`);
@@ -486,28 +525,29 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
         items = (await resp.json()).Items || [];
       }
     } else {
+      // Emby: try AnyProviderIdEquals first
       const resp1 = await fetchWithTimeout(makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }), 10000, { headers });
       items = (await resp1.json()).Items || [];
+
+      // If AnyProviderIdEquals returned 0, try name-based search
+      if (items.length === 0) {
+        const seriesName = await resolveImdbName(imdbId, 'series');
+        if (seriesName) {
+          console.log(`[${server.label}] Direct episode fallback: searching Emby episodes by name "${seriesName}"`);
+          const resp2 = await fetchWithTimeout(makeUrl({ SearchTerm: seriesName }), 10000, { headers });
+          items = (await resp2.json()).Items || [];
+        }
+      }
     }
   } catch (err) {
     console.error(`[${server.label}] Direct episode search failed:`, err.message);
     return [];
   }
 
-  // Filter by correct season + episode AND validate ProviderIds on the series
-  // For episodes, check the episode's own or parent's ProviderIds
+  // Filter by correct season + episode
   const seen = new Set();
   const filtered = items
     .filter((item) => item.ParentIndexNumber === season && item.IndexNumber === episode)
-    .filter((item) => {
-      // Validate ProviderIds if available (episode or its series parent)
-      const providerIds = item.ProviderIds || item.SeriesProviderIds;
-      if (providerIds) {
-        return isMatchingProviderId(providerIds, imdbId);
-      }
-      // If no ProviderIds available, accept (name search already narrowed it)
-      return true;
-    })
     .filter((item) => {
       if (seen.has(item.Id)) return false;
       seen.add(item.Id);
