@@ -1109,8 +1109,13 @@ app.get('/:config/manifest.json', (req, res) => {
     catalogs: [],
     resources: ['stream'],
     idPrefixes: ['tt'],
-    behaviorHints: { configurable: false },
+    behaviorHints: { configurable: true, configurationRequired: false },
   });
+});
+
+// Clicking the gear icon in Stremio opens the addon base URL in a browser
+app.get('/:config/configure', (req, res) => {
+  res.redirect('/configure');
 });
 
 // ─── Stream handler ───────────────────────────────────────────────────────────
