@@ -241,6 +241,42 @@
       margin-top: 0.2rem; flex-shrink: 0;
     }
 
+    /* ── Ping Test Panel ── */
+    .ping-panel {
+      background: #161620; border: 1px solid #2a2a3a;
+      border-radius: 12px; padding: 1.1rem 1.4rem 1.2rem; margin-bottom: 1.75rem;
+    }
+    .ping-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;
+    }
+    .ping-panel-header > span {
+      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #7b61ff;
+    }
+    .ping-controls { display: flex; gap: 0.5rem; align-items: center; }
+    .ping-controls select { width: auto; font-size: 0.82rem; }
+    .btn-ping-test {
+      background: #2a2a40; border: 1px solid #3a3a58; color: #bbb;
+      border-radius: 6px; padding: 0.4rem 0.85rem; font-size: 0.82rem;
+      cursor: pointer; transition: background 0.15s, color 0.15s; white-space: nowrap;
+    }
+    .btn-ping-test:hover { background: #33335a; color: #fff; }
+    .btn-ping-test:disabled { opacity: 0.5; cursor: default; }
+    .ping-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.35rem 0; border-bottom: 1px solid #1e1e2a;
+    }
+    .ping-row:last-child { border-bottom: none; }
+    .ping-label { font-size: 0.85rem; color: #ccc; }
+    .ping-value { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 70px; text-align: right; }
+    .ping-value.waiting { color: #444; }
+    .ping-value.fast    { color: #4caf7d; }
+    .ping-value.ok      { color: #f0a500; }
+    .ping-value.slow    { color: #e05555; }
+    .ping-value.timeout { color: #555; }
+    .ping-note { font-size: 0.75rem; color: #444; margin-top: 0.6rem; }
+
     /* ── Generate ── */
     .btn-generate {
       width: 100%; background: #7b61ff; border: none; color: #fff;
@@ -392,6 +428,21 @@
           <div class="option-desc">Pings each server during the request and marks streams from the fastest responding one. Measured from the addon server, not your device.</div>
         </div>
       </label>
+    </div>
+
+    <!-- ── Ping Test Panel ── -->
+    <div class="ping-panel">
+      <div class="ping-panel-header">
+        <span>🔌 Ping Test</span>
+        <div class="ping-controls">
+          <select id="ping-origin">
+            <option value="browser">Your browser</option>
+            <option value="server">Addon server</option>
+          </select>
+          <button class="btn-ping-test" onclick="runPingTest()">Run Ping Test</button>
+        </div>
+      </div>
+      <div id="ping-results"></div>
     </div>
 
     <div id="global-error"></div>
@@ -792,6 +843,58 @@
       const ta = document.createElement('textarea');
       ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
       document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    }
+
+    // ── Ping Test ─────────────────────────────────────────────────────────────
+    async function browserPing(url) {
+      const t0 = Date.now();
+      try {
+        await fetch(`${url}/System/Ping`, { mode: 'no-cors', cache: 'no-store' });
+        return Date.now() - t0;
+      } catch { return null; }
+    }
+
+    async function runPingTest() {
+      const resultsEl = document.getElementById('ping-results');
+      const config = collectConfig(true);
+      if (!config) {
+        resultsEl.innerHTML = '<div style="color:#888;font-size:0.82rem;padding:0.25rem 0;">Add and fill in at least one server first.</div>';
+        return;
+      }
+
+      const origin  = document.getElementById('ping-origin').value;
+      const servers = config.servers;
+
+      resultsEl.innerHTML = servers.map(s =>
+        `<div class="ping-row"><span class="ping-label">${escHtml(s.label)}</span><span class="ping-value" style="color:#555">testing…</span></div>`
+      ).join('');
+
+      if (origin === 'browser') {
+        await Promise.all(servers.map(async (s, i) => {
+          const ms    = await browserPing(s.url);
+          const valEl = resultsEl.querySelectorAll('.ping-row')[i]?.querySelector('.ping-value');
+          if (!valEl) return;
+          if (ms === null) { valEl.textContent = 'timeout'; valEl.className = 'ping-value timeout'; }
+          else { const cls = ms < 100 ? 'fast' : ms < 300 ? 'ok' : 'slow'; valEl.textContent = `${ms} ms`; valEl.className = `ping-value ${cls}`; }
+        }));
+      } else {
+        try {
+          const resp = await fetch('/api/ping-servers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ servers: servers.map(s => ({ url: s.url, label: s.label })) }),
+          });
+          const data = await resp.json();
+          data.results.forEach((r, i) => {
+            const valEl = resultsEl.querySelectorAll('.ping-row')[i]?.querySelector('.ping-value');
+            if (!valEl) return;
+            if (r.ms === null) { valEl.textContent = 'timeout'; valEl.className = 'ping-value timeout'; }
+            else { const cls = r.ms < 100 ? 'fast' : r.ms < 300 ? 'ok' : 'slow'; valEl.textContent = `${r.ms} ms`; valEl.className = `ping-value ${cls}`; }
+          });
+        } catch {
+          resultsEl.innerHTML = '<div style="color:#e05555;font-size:0.82rem;padding:0.25rem 0;">Could not reach addon server.</div>';
+        }
+      }
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────

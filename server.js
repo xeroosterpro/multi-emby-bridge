@@ -943,6 +943,25 @@ app.post('/api/test-connection', express.json(), async (req, res) => {
   }
 });
 
+// ─── Ping servers ─────────────────────────────────────────────────────────────
+app.post('/api/ping-servers', express.json(), async (req, res) => {
+  const { servers } = req.body || {};
+  if (!Array.isArray(servers)) return res.status(400).json({ error: 'servers array required' });
+  const results = await Promise.all(servers.map(async s => {
+    const t0 = Date.now();
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      try { await fetch(`${s.url}/System/Ping`, { signal: controller.signal }); }
+      finally { clearTimeout(timer); }
+      return { label: s.label, ms: Date.now() - t0 };
+    } catch {
+      return { label: s.label, ms: null };
+    }
+  }));
+  res.json({ results });
+});
+
 // ─── Manifest ─────────────────────────────────────────────────────────────────
 app.get('/:config/manifest.json', (req, res) => {
   let cfg;
