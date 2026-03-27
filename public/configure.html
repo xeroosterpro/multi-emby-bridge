@@ -515,10 +515,12 @@
 
       // If pre-populating from a saved profile
       if (data) {
-        block.querySelector('.f-label').value  = data.label  || '';
-        block.querySelector('.f-url').value    = data.url    || '';
-        block.querySelector('.f-apikey').value = data.apiKey || '';
-        block.querySelector('.f-userid').value = data.userId || '';
+        block.querySelector('.f-label').value    = data.label    || '';
+        block.querySelector('.f-url').value      = data.url      || '';
+        block.querySelector('.f-apikey').value   = data.apiKey   || '';
+        block.querySelector('.f-userid').value   = data.userId   || '';
+        block.querySelector('.f-username').value = data.username || '';
+        block.querySelector('.f-password').value = data.password || '';
         if (data.type) {
           block.querySelector('.f-type').value = data.type;
           updateBlockStyle(id);
@@ -546,13 +548,18 @@
         const label  = block.querySelector('.f-label').value.trim();
         const type   = block.querySelector('.f-type').value;
         const url    = block.querySelector('.f-url').value.trim().replace(/\/+$/, '');
-        const apiKey = block.querySelector('.f-apikey').value.trim();
-        const userId = block.querySelector('.f-userid').value.trim();
+        const apiKey    = block.querySelector('.f-apikey').value.trim();
+        const userId    = block.querySelector('.f-userid').value.trim();
+        const username  = block.querySelector('.f-username').value.trim();
+        const password  = block.querySelector('.f-password').value;
         if (!label || !url || !apiKey || !userId) {
           if (!silent) showError('All fields (Name, URL, API Key, User ID) must be filled for every server.');
           return null;
         }
-        servers.push({ label, type, url, apiKey, userId });
+        const entry = { label, type, url, apiKey, userId };
+        // Store credentials for auto API key renewal (optional but recommended)
+        if (username && password) { entry.username = username; entry.password = password; }
+        servers.push(entry);
       }
       return { servers };
     }

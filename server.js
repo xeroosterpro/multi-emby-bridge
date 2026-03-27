@@ -116,36 +116,103 @@ function detectSourceLabel(source) {
   return null;
 }
 
+// ─── Auto-renewing API key cache ─────────────────────────────────────────────
+// When a server returns 401, we re-authenticate using stored credentials and
+// cache the fresh token. All subsequent requests use the cached token.
+// The config URL never needs updating — renewal is fully automatic.
+
+const tokenCache = new Map(); // serverUrl → fresh apiKey string
+
+function getEffectiveApiKey(server) {
+  return tokenCache.get(server.url) || server.apiKey;
+}
+
+async function reauthenticate(server) {
+  if (!server.username || !server.password) return false;
+  console.log(`[${server.label}] API key expired — re-authenticating automatically...`);
+  try {
+    const authHeader = 'MediaBrowser Client="MultiEmbyBridge", Device="Web", DeviceId="meb-auto-auth", Version="1.0.0"';
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    let resp;
+    try {
+      resp = await fetch(`${server.url}/Users/AuthenticateByName`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authHeader,
+          'X-Emby-Authorization': authHeader,
+        },
+        body: JSON.stringify({ Username: server.username, Pw: server.password }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!resp.ok) {
+      console.error(`[${server.label}] Re-auth failed: HTTP ${resp.status}`);
+      return false;
+    }
+    const data = await resp.json();
+    if (data.AccessToken) {
+      tokenCache.set(server.url, data.AccessToken);
+      console.log(`[${server.label}] Re-authenticated successfully ✓`);
+      return true;
+    }
+  } catch (err) {
+    console.error(`[${server.label}] Re-auth error:`, err.message);
+  }
+  return false;
+}
+
+// ─── Server-aware fetch with auto-retry on 401 ───────────────────────────────
+
+async function apiFetch(server, buildUrl, timeoutMs = 10000) {
+  // buildUrl: () => URL object (called fresh on each attempt so new key is applied)
+  const attempt = async () => {
+    const url = buildUrl();
+    appendAuth(url, server);
+    const headers = authHeaders(server);
+    return fetchWithTimeout(url.toString(), timeoutMs, { headers });
+  };
+  try {
+    return await attempt();
+  } catch (err) {
+    if (err.status === 401 && await reauthenticate(server)) {
+      return await attempt(); // retry with fresh cached key
+    }
+    throw err;
+  }
+}
+
 function buildStreamUrl(server, itemId, sourceId, container) {
   const ext = container ? `.${container.toLowerCase()}` : '';
+  const key = getEffectiveApiKey(server);
   if (server.type === 'jellyfin') {
-    // Jellyfin: no api_key in URL, use headers only
     let url = `${server.url}/Videos/${itemId}/stream${ext}?Static=true`;
     if (sourceId) url += `&MediaSourceId=${encodeURIComponent(sourceId)}`;
-    url += `&api_key=${server.apiKey}`;
+    url += `&api_key=${key}`;
     return url;
   }
-  let url = `${server.url}/Videos/${itemId}/stream${ext}?api_key=${server.apiKey}&Static=true`;
+  let url = `${server.url}/Videos/${itemId}/stream${ext}?api_key=${key}&Static=true`;
   if (sourceId) url += `&MediaSourceId=${encodeURIComponent(sourceId)}`;
   return url;
 }
 
-// Jellyfin requires an Authorization header — api_key URL param can cause 401
-// on newer Jellyfin versions. Emby uses api_key URL param.
 function authHeaders(server) {
+  const key = getEffectiveApiKey(server);
   if (server.type === 'jellyfin') {
     return {
-      'Authorization': `MediaBrowser Token="${server.apiKey}"`,
-      'X-MediaBrowser-Token': server.apiKey,
+      'Authorization': `MediaBrowser Token="${key}"`,
+      'X-MediaBrowser-Token': key,
     };
   }
-  return { 'X-Emby-Token': server.apiKey };
+  return { 'X-Emby-Token': key };
 }
 
-// Append api_key to URL only for Emby; Jellyfin uses headers exclusively
 function appendAuth(url, server) {
   if (server.type !== 'jellyfin') {
-    url.searchParams.set('api_key', server.apiKey);
+    url.searchParams.set('api_key', getEffectiveApiKey(server));
   }
 }
 
@@ -208,11 +275,11 @@ function isMatchingProviderId(providerIds, imdbId) {
 // ─── PlaybackInfo — get all MediaSources for a single item ───────────────────
 
 async function fetchPlaybackInfo(server, itemId) {
-  const headers = authHeaders(server);
-  const url = new URL(`${server.url}/Items/${itemId}/PlaybackInfo`);
-  appendAuth(url, server);
-  url.searchParams.set('UserId', server.userId);
-  const resp = await fetchWithTimeout(url.toString(), 10000, { headers });
+  const resp = await apiFetch(server, () => {
+    const url = new URL(`${server.url}/Items/${itemId}/PlaybackInfo`);
+    url.searchParams.set('UserId', server.userId);
+    return url;
+  }, 10000);
   const data = await resp.json();
   return data.MediaSources || [];
 }
@@ -325,19 +392,18 @@ function mediaSourcesToStreams(server, itemId, mediaSources) {
 const DEFAULT_FIELDS = 'ProviderIds,Name,MediaSources,Path,Id,IndexNumber,ParentIndexNumber,MediaStreams';
 
 async function queryServerForMovie(server, imdbId) {
-  const headers = authHeaders(server);
-
   // Helper: query an endpoint with params, validate ProviderIds
   const queryItems = async (basePath, params, limit = 10) => {
-    const url = new URL(`${server.url}${basePath}`);
-    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-    url.searchParams.set('Fields', DEFAULT_FIELDS);
-    url.searchParams.set('Recursive', 'true');
-    url.searchParams.set('Limit', String(limit));
-    url.searchParams.set('IncludeItemTypes', 'Movie');
-    url.searchParams.set('Filters', 'IsNotFolder');
-    appendAuth(url, server);
-    const resp = await fetchWithTimeout(url.toString(), 10000, { headers });
+    const resp = await apiFetch(server, () => {
+      const url = new URL(`${server.url}${basePath}`);
+      for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+      url.searchParams.set('Fields', DEFAULT_FIELDS);
+      url.searchParams.set('Recursive', 'true');
+      url.searchParams.set('Limit', String(limit));
+      url.searchParams.set('IncludeItemTypes', 'Movie');
+      url.searchParams.set('Filters', 'IsNotFolder');
+      return url;
+    }, 10000);
     const data = await resp.json();
     const rawItems = data.Items || [];
     const validated = rawItems.filter(i => isMatchingProviderId(i.ProviderIds, imdbId));
@@ -364,15 +430,16 @@ async function queryServerForMovie(server, imdbId) {
         if (movieName) {
           console.log(`[${server.label}] Jellyfin: searching movie by name "${movieName}"`);
           // Name search — skip ProviderIds check since IDs may legitimately differ
-          const url = new URL(`${server.url}/Users/${server.userId}/Items`);
-          url.searchParams.set('SearchTerm', movieName);
-          url.searchParams.set('Fields', DEFAULT_FIELDS);
-          url.searchParams.set('Recursive', 'true');
-          url.searchParams.set('Limit', '10');
-          url.searchParams.set('IncludeItemTypes', 'Movie');
-          url.searchParams.set('Filters', 'IsNotFolder');
-          appendAuth(url, server);
-          const resp = await fetchWithTimeout(url.toString(), 10000, { headers });
+          const resp = await apiFetch(server, () => {
+            const url = new URL(`${server.url}/Users/${server.userId}/Items`);
+            url.searchParams.set('SearchTerm', movieName);
+            url.searchParams.set('Fields', DEFAULT_FIELDS);
+            url.searchParams.set('Recursive', 'true');
+            url.searchParams.set('Limit', '10');
+            url.searchParams.set('IncludeItemTypes', 'Movie');
+            url.searchParams.set('Filters', 'IsNotFolder');
+            return url;
+          }, 10000);
           const data = await resp.json();
           // Accept exact name matches only
           items = (data.Items || []).filter(i => {
@@ -427,19 +494,19 @@ async function queryServerForMovie(server, imdbId) {
 }
 
 async function queryServerForEpisode(server, imdbId, season, episode) {
-  const headers = authHeaders(server);
   const numericImdbId = imdbId.replace(/^tt0*/i, ''); // "tt14588078" → "14588078"
 
   // findSeriesById: uses provider ID param + validates ProviderIds in response
   const findSeriesById = async (params) => {
-    const url = new URL(`${server.url}/Users/${server.userId}/Items`);
-    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-    url.searchParams.set('IncludeItemTypes', 'Series');
-    url.searchParams.set('Fields', DEFAULT_FIELDS);
-    url.searchParams.set('Recursive', 'true');
-    url.searchParams.set('Limit', '10');
-    appendAuth(url, server);
-    const resp = await fetchWithTimeout(url.toString(), 10000, { headers });
+    const resp = await apiFetch(server, () => {
+      const url = new URL(`${server.url}/Users/${server.userId}/Items`);
+      for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+      url.searchParams.set('IncludeItemTypes', 'Series');
+      url.searchParams.set('Fields', DEFAULT_FIELDS);
+      url.searchParams.set('Recursive', 'true');
+      url.searchParams.set('Limit', '10');
+      return url;
+    }, 10000);
     const data = await resp.json();
     const validated = (data.Items || []).filter(i => isMatchingProviderId(i.ProviderIds, imdbId));
     console.log(`[${server.label}] findSeriesById ${JSON.stringify(params)}: ${(data.Items||[]).length} raw → ${validated.length} validated`);
@@ -449,14 +516,15 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
   // findSeriesByName: name search — NO ProviderIds validation (name is the filter)
   // Used when IMDB IDs differ between Stremio catalog and server metadata
   const findSeriesByName = async (name) => {
-    const url = new URL(`${server.url}/Users/${server.userId}/Items`);
-    url.searchParams.set('SearchTerm', name);
-    url.searchParams.set('IncludeItemTypes', 'Series');
-    url.searchParams.set('Fields', DEFAULT_FIELDS);
-    url.searchParams.set('Recursive', 'true');
-    url.searchParams.set('Limit', '5');
-    appendAuth(url, server);
-    const resp = await fetchWithTimeout(url.toString(), 10000, { headers });
+    const resp = await apiFetch(server, () => {
+      const url = new URL(`${server.url}/Users/${server.userId}/Items`);
+      url.searchParams.set('SearchTerm', name);
+      url.searchParams.set('IncludeItemTypes', 'Series');
+      url.searchParams.set('Fields', DEFAULT_FIELDS);
+      url.searchParams.set('Recursive', 'true');
+      url.searchParams.set('Limit', '5');
+      return url;
+    }, 10000);
     const data = await resp.json();
     // Accept only exact or near-exact name matches (not just any partial match)
     const results = (data.Items || []).filter(i => {
@@ -510,15 +578,13 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
   // Query ALL matching series in parallel for episodes
   const perSeriesResults = await Promise.allSettled(
     uniqueSeries.map(async (series) => {
-      const epUrl = new URL(`${server.url}/Shows/${series.Id}/Episodes`);
-      epUrl.searchParams.set('Season', String(season));
-      epUrl.searchParams.set('Fields', DEFAULT_FIELDS);
-      appendAuth(epUrl, server);
-      epUrl.searchParams.set('UserId', server.userId);
-
-      const epResp = await fetchWithTimeout(epUrl.toString(), 10000, {
-        headers: authHeaders(server),
-      });
+      const epResp = await apiFetch(server, () => {
+        const epUrl = new URL(`${server.url}/Shows/${series.Id}/Episodes`);
+        epUrl.searchParams.set('Season', String(season));
+        epUrl.searchParams.set('Fields', DEFAULT_FIELDS);
+        epUrl.searchParams.set('UserId', server.userId);
+        return epUrl;
+      }, 10000);
       const epData = await epResp.json();
       return (epData.Items || []).filter((ep) => ep.IndexNumber === episode);
     })
@@ -536,7 +602,6 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
 
 // Direct episode search (fallback — only used when series-based search fails)
 async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
-  const headers = authHeaders(server);
   const makeUrl = (params) => {
     const url = new URL(`${server.url}/Users/${server.userId}/Items`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
@@ -546,8 +611,7 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
     url.searchParams.set('IndexNumber', String(episode));
     url.searchParams.set('Recursive', 'true');
     url.searchParams.set('Limit', '50');
-    appendAuth(url, server);
-    return url.toString();
+    return url; // apiFetch will call appendAuth
   };
 
   let items = [];
@@ -557,12 +621,12 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
       const seriesName = await resolveImdbName(imdbId, 'series');
       if (seriesName) {
         console.log(`[${server.label}] Direct episode fallback: searching episodes by name "${seriesName}"`);
-        const resp = await fetchWithTimeout(makeUrl({ SearchTerm: seriesName }), 10000, { headers });
+        const resp = await apiFetch(server, () => makeUrl({ SearchTerm: seriesName }), 10000);
         items = (await resp.json()).Items || [];
       }
     } else {
       // Emby: try AnyProviderIdEquals first
-      const resp1 = await fetchWithTimeout(makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }), 10000, { headers });
+      const resp1 = await apiFetch(server, () => makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }), 10000);
       items = (await resp1.json()).Items || [];
 
       // If AnyProviderIdEquals returned 0, try name-based search
@@ -570,7 +634,7 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
         const seriesName = await resolveImdbName(imdbId, 'series');
         if (seriesName) {
           console.log(`[${server.label}] Direct episode fallback: searching Emby episodes by name "${seriesName}"`);
-          const resp2 = await fetchWithTimeout(makeUrl({ SearchTerm: seriesName }), 10000, { headers });
+          const resp2 = await apiFetch(server, () => makeUrl({ SearchTerm: seriesName }), 10000);
           items = (await resp2.json()).Items || [];
         }
       }
