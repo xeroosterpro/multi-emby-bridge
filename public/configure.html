@@ -384,6 +384,14 @@
           <div class="option-desc">Adds a ★ to the top result based on your sort preference.</div>
         </div>
       </label>
+
+      <label class="option-item">
+        <input type="checkbox" id="show-ping" checked />
+        <div>
+          <div class="option-title">⚡ Mark fastest server</div>
+          <div class="option-desc">Pings each server during the request and marks streams from the fastest responding one. Measured from the addon server, not your device.</div>
+        </div>
+      </label>
     </div>
 
     <div id="global-error"></div>
@@ -706,6 +714,7 @@
       const sortOrder  = document.getElementById('sort-order').value;
       const excludeRes = [...document.querySelectorAll('.res-cb:checked')].map(cb => cb.value);
       const recommend  = document.getElementById('show-recommend').checked;
+      const showPing   = document.getElementById('show-ping').checked;
       const { protocol, host } = window.location;
       const section   = document.getElementById('result-section');
 
@@ -715,6 +724,7 @@
           if (sortOrder !== 'size')    sc.sortOrder  = sortOrder;
           if (excludeRes.length > 0)   sc.excludeRes = excludeRes;
           if (recommend)               sc.recommend  = true;
+          if (showPing)                sc.ping       = true;
           const encoded = encodeConfig(sc);
           return {
             label:       server.label,
@@ -743,6 +753,7 @@
         if (sortOrder !== 'size')  config.sortOrder  = sortOrder;
         if (excludeRes.length > 0) config.excludeRes = excludeRes;
         if (recommend)             config.recommend  = true;
+        if (showPing)              config.ping       = true;
 
         const encoded     = encodeConfig(config);
         const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;

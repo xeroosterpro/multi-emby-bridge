@@ -185,6 +185,17 @@ async function apiFetch(server, buildUrl, timeoutMs = server._timeout || 10000) 
   }
 }
 
+async function pingServer(server) {
+  const t0 = Date.now();
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try { await fetch(`${server.url}/System/Ping`, { signal: controller.signal }); }
+    finally { clearTimeout(timer); }
+    return Date.now() - t0;
+  } catch { return null; }
+}
+
 function buildStreamUrl(server, itemId, sourceId, container) {
   const ext = container ? `.${container.toLowerCase()}` : '';
   const key = getEffectiveApiKey(server);
@@ -723,16 +734,17 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
   }
 }
 
-async function getAllStreams(servers, type, imdbId, season, episode, sortOrder, excludeRes, recommend) {
-  const results = await Promise.allSettled(
-    servers.map((server) =>
-      getStreamsFromServer(server, type, imdbId, season, episode)
-    )
-  );
+async function getAllStreams(servers, type, imdbId, season, episode, sortOrder, excludeRes, recommend, ping) {
+  // Pings and stream queries run concurrently — pings add zero extra wall time
+  const [pingResults, streamResults] = await Promise.all([
+    Promise.all(ping ? servers.map(pingServer) : servers.map(() => null)),
+    Promise.allSettled(servers.map(server => getStreamsFromServer(server, type, imdbId, season, episode))),
+  ]);
 
-  const allStreams = results.flatMap((result) =>
-    result.status === 'fulfilled' ? result.value : []
-  );
+  const allStreams = streamResults.flatMap((result, i) => {
+    const streams = result.status === 'fulfilled' ? result.value : [];
+    return streams.map(s => ({ ...s, _pingMs: pingResults[i] }));
+  });
 
   // Separate real streams from no-results/offline placeholders
   let realStreams = allStreams.filter(s => !s._noResults);
@@ -766,14 +778,25 @@ async function getAllStreams(servers, type, imdbId, season, episode, sortOrder, 
     return (b._bitrate || 0) - (a._bitrate || 0);
   });
 
-  // Mark top result as recommended
+  // Mark streams from the fastest server (⚡) — only when there's a clear winner
+  if (ping) {
+    const distinctPings = [...new Set(realStreams.map(s => s._pingMs).filter(p => p != null))];
+    if (distinctPings.length > 1) {
+      const minPing = Math.min(...distinctPings);
+      realStreams = realStreams.map(s =>
+        s._pingMs === minPing ? { ...s, name: `⚡ ${s.name}` } : s
+      );
+    }
+  }
+
+  // Mark top result as recommended (★) — applied after ⚡ so order is ★ ⚡ Name
   if (recommend && realStreams.length > 0) {
     realStreams[0] = { ...realStreams[0], name: `★ ${realStreams[0].name}` };
   }
 
   // No-results/offline placeholders always at the bottom
   return [...realStreams, ...noResStreams]
-    .map(({ _sizeBytes, _bitrate, _audioRank, _mediaSourceId, _noResults, _resLabel, ...stream }) => stream);
+    .map(({ _sizeBytes, _bitrate, _audioRank, _mediaSourceId, _noResults, _resLabel, _pingMs, ...stream }) => stream);
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
@@ -970,7 +993,7 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
   }
 
   try {
-    const streams = await getAllStreams(servers, type, imdbId, season, episode, cfg.sortOrder, cfg.excludeRes, cfg.recommend);
+    const streams = await getAllStreams(servers, type, imdbId, season, episode, cfg.sortOrder, cfg.excludeRes, cfg.recommend, cfg.ping);
     res.json({ streams });
   } catch (err) {
     console.error('Stream handler error:', err);
