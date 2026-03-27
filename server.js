@@ -167,7 +167,7 @@ async function reauthenticate(server) {
 
 // ─── Server-aware fetch with auto-retry on 401 ───────────────────────────────
 
-async function apiFetch(server, buildUrl, timeoutMs = 10000) {
+async function apiFetch(server, buildUrl, timeoutMs = server._timeout || 10000) {
   // buildUrl: () => URL object (called fresh on each attempt so new key is applied)
   const attempt = async () => {
     const url = buildUrl();
@@ -279,7 +279,7 @@ async function fetchPlaybackInfo(server, itemId) {
     const url = new URL(`${server.url}/Items/${itemId}/PlaybackInfo`);
     url.searchParams.set('UserId', server.userId);
     return url;
-  }, 10000);
+  });
   const data = await resp.json();
   return data.MediaSources || [];
 }
@@ -403,7 +403,7 @@ async function queryServerForMovie(server, imdbId) {
       url.searchParams.set('IncludeItemTypes', 'Movie');
       url.searchParams.set('Filters', 'IsNotFolder');
       return url;
-    }, 10000);
+    });
     const data = await resp.json();
     const rawItems = data.Items || [];
     const validated = rawItems.filter(i => isMatchingProviderId(i.ProviderIds, imdbId));
@@ -439,7 +439,7 @@ async function queryServerForMovie(server, imdbId) {
             url.searchParams.set('IncludeItemTypes', 'Movie');
             url.searchParams.set('Filters', 'IsNotFolder');
             return url;
-          }, 10000);
+          });
           const data = await resp.json();
           // Accept exact name matches only
           items = (data.Items || []).filter(i => {
@@ -506,7 +506,7 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
       url.searchParams.set('Recursive', 'true');
       url.searchParams.set('Limit', '10');
       return url;
-    }, 10000);
+    });
     const data = await resp.json();
     const validated = (data.Items || []).filter(i => isMatchingProviderId(i.ProviderIds, imdbId));
     console.log(`[${server.label}] findSeriesById ${JSON.stringify(params)}: ${(data.Items||[]).length} raw → ${validated.length} validated`);
@@ -524,7 +524,7 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
       url.searchParams.set('Recursive', 'true');
       url.searchParams.set('Limit', '5');
       return url;
-    }, 10000);
+    });
     const data = await resp.json();
     // Accept only exact or near-exact name matches (not just any partial match)
     const results = (data.Items || []).filter(i => {
@@ -550,6 +550,7 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
         if (seriesItems.length > 0) break;
       }
     }
+
     // Strategy 3: Name-based search — skips ProviderIds validation
     // Handles mismatched IMDB IDs between Stremio catalog and server
     if (seriesItems.length === 0) {
@@ -584,7 +585,7 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
         epUrl.searchParams.set('Fields', DEFAULT_FIELDS);
         epUrl.searchParams.set('UserId', server.userId);
         return epUrl;
-      }, 10000);
+      });
       const epData = await epResp.json();
       return (epData.Items || []).filter((ep) => ep.IndexNumber === episode);
     })
@@ -697,19 +698,31 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
     const deduped = new Map(allStreams.map(s => [s._mediaSourceId, s]));
     // Per-server spec dedup: same description = same size + specs = same file indexed in multiple libraries
     const specSeen = new Set();
-    return [...deduped.values()].filter(s => {
+    const result = [...deduped.values()].filter(s => {
       const key = s.description;
       if (specSeen.has(key)) return false;
       specSeen.add(key);
       return true;
     });
+    if (result.length === 0) {
+      return [{
+        name: server.label, description: 'No results found\nFile not in library',
+        url: '#', _noResults: true,
+        _sizeBytes: 0, _bitrate: 0, _audioRank: 999, _mediaSourceId: `noresults:${server.label}`,
+      }];
+    }
+    return result;
   } catch (err) {
     console.error(`[${server.label}] Query failed:`, err.message);
-    return [];
+    return [{
+      name: server.label, description: 'Server offline or unreachable',
+      url: '#', _noResults: true,
+      _sizeBytes: 0, _bitrate: 0, _audioRank: 999, _mediaSourceId: `offline:${server.label}`,
+    }];
   }
 }
 
-async function getAllStreams(servers, type, imdbId, season, episode) {
+async function getAllStreams(servers, type, imdbId, season, episode, sortOrder) {
   const results = await Promise.allSettled(
     servers.map((server) =>
       getStreamsFromServer(server, type, imdbId, season, episode)
@@ -720,18 +733,31 @@ async function getAllStreams(servers, type, imdbId, season, episode) {
     result.status === 'fulfilled' ? result.value : []
   );
 
-  // Sort: biggest file first, then best audio as tiebreaker
-  allStreams.sort((a, b) => {
+  // Separate real streams from no-results/offline placeholders
+  const realStreams = allStreams.filter(s => !s._noResults);
+  const noResStreams = allStreams.filter(s => s._noResults);
+
+  // Sort real streams by user preference
+  realStreams.sort((a, b) => {
+    if (sortOrder === 'audio') {
+      const d = (a._audioRank || 99) - (b._audioRank || 99);
+      return d !== 0 ? d : (b._sizeBytes || 0) - (a._sizeBytes || 0);
+    }
+    if (sortOrder === 'bitrate') {
+      const d = (b._bitrate || 0) - (a._bitrate || 0);
+      return d !== 0 ? d : (b._sizeBytes || 0) - (a._sizeBytes || 0);
+    }
+    // Default: size first
     const sizeDiff = (b._sizeBytes || 0) - (a._sizeBytes || 0);
     if (sizeDiff !== 0) return sizeDiff;
-    // Better audio (lower rank = better: TrueHD Atmos > TrueHD > DTS-MA > DD+ > DD > AAC)
     const audioDiff = (a._audioRank || 99) - (b._audioRank || 99);
     if (audioDiff !== 0) return audioDiff;
     return (b._bitrate || 0) - (a._bitrate || 0);
   });
 
-  // Strip internal sort keys
-  return allStreams.map(({ _sizeBytes, _bitrate, _audioRank, _mediaSourceId, ...stream }) => stream);
+  // No-results/offline placeholders always at the bottom
+  return [...realStreams, ...noResStreams]
+    .map(({ _sizeBytes, _bitrate, _audioRank, _mediaSourceId, _noResults, ...stream }) => stream);
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
@@ -854,6 +880,30 @@ app.post('/api/fetch-credentials', express.json(), async (req, res) => {
   }
 });
 
+// ─── Test connection ──────────────────────────────────────────────────────────
+app.post('/api/test-connection', express.json(), async (req, res) => {
+  const { url, type, apiKey, userId } = req.body || {};
+  if (!url || !apiKey || !userId) {
+    return res.status(400).json({ error: 'url, apiKey and userId are required.' });
+  }
+  const server = { url: url.replace(/\/$/, ''), type: type || 'emby', apiKey, userId };
+  try {
+    const infoUrl = new URL(`${server.url}/System/Info`);
+    appendAuth(infoUrl, server);
+    const resp = await fetchWithTimeout(infoUrl.toString(), 8000, { headers: authHeaders(server) });
+    const data = await resp.json();
+    const name    = data.ServerName || data.ProductName || (type === 'jellyfin' ? 'Jellyfin' : 'Emby');
+    const version = data.Version ? ` v${data.Version}` : '';
+    res.json({ ok: true, message: `Connected — ${name}${version}` });
+  } catch (err) {
+    if (err.status === 401 || err.status === 403)
+      return res.json({ ok: false, error: 'Authentication failed — check your API key.' });
+    if (err.name === 'AbortError')
+      return res.json({ ok: false, error: 'Connection timed out — check the server URL.' });
+    res.json({ ok: false, error: `Could not connect: ${err.message}` });
+  }
+});
+
 // ─── Manifest ─────────────────────────────────────────────────────────────────
 app.get('/:config/manifest.json', (req, res) => {
   let cfg;
@@ -894,16 +944,17 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
     return res.json({ streams: [] });
   }
 
-  const servers = (cfg.servers || []).filter(
-    (s) => s.url && s.apiKey && s.userId
-  );
+  const timeoutMs = (cfg.timeout && cfg.timeout >= 3000 && cfg.timeout <= 10000) ? cfg.timeout : 10000;
+  const servers = (cfg.servers || [])
+    .filter(s => s.url && s.apiKey && s.userId)
+    .map(s => ({ ...s, _timeout: timeoutMs }));
 
   if (servers.length === 0) {
     return res.json({ streams: [] });
   }
 
   try {
-    const streams = await getAllStreams(servers, type, imdbId, season, episode);
+    const streams = await getAllStreams(servers, type, imdbId, season, episode, cfg.sortOrder);
     res.json({ streams });
   } catch (err) {
     console.error('Stream handler error:', err);

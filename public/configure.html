@@ -15,28 +15,11 @@
       padding: 2rem 1rem 4rem;
     }
 
-    .container {
-      max-width: 680px;
-      margin: 0 auto;
-    }
+    .container { max-width: 680px; margin: 0 auto; }
 
-    header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-
-    header h1 {
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: -0.5px;
-    }
-
-    header p {
-      margin-top: 0.5rem;
-      color: #888;
-      font-size: 0.95rem;
-    }
+    header { text-align: center; margin-bottom: 2rem; }
+    header h1 { font-size: 1.8rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+    header p  { margin-top: 0.5rem; color: #888; font-size: 0.95rem; }
 
     /* ── Profile Panel ── */
     .profile-panel {
@@ -46,131 +29,101 @@
       padding: 1.1rem 1.4rem 1.2rem;
       margin-bottom: 1.75rem;
     }
-
-    .profile-panel-header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 0.85rem;
-    }
-
+    .profile-panel-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.85rem; }
     .profile-panel-header span {
-      font-size: 0.78rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #7b61ff;
+      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #7b61ff;
     }
-
-    .profile-inputs {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.65rem;
-      margin-bottom: 0.65rem;
-    }
-
-    .profile-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.65rem;
-    }
-
+    .profile-inputs  { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin-bottom: 0.65rem; }
+    .profile-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; }
     .btn-profile {
-      background: #1e1e2e;
-      border: 1px solid #3a3a58;
-      color: #bbb;
-      border-radius: 8px;
-      padding: 0.5rem;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      background: #1e1e2e; border: 1px solid #3a3a58; color: #bbb;
+      border-radius: 8px; padding: 0.5rem; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
     .btn-profile:hover { background: #2a2a45; color: #fff; border-color: #7b61ff; }
     .btn-profile:disabled { opacity: 0.45; cursor: default; }
     .btn-profile.save-btn:hover { border-color: #4caf7d; color: #4caf7d; background: #1a2820; }
-
-    .profile-status {
-      font-size: 0.8rem;
-      margin-top: 0.5rem;
-      min-height: 1.1em;
-    }
+    .profile-status { font-size: 0.8rem; margin-top: 0.5rem; min-height: 1.1em; }
     .profile-status.success { color: #4caf7d; }
     .profile-status.error   { color: #e05555; }
     .profile-status.info    { color: #888; }
 
     /* ── Server Block ── */
     .server-block {
-      background: #1a1a23;
-      border: 1px solid #2a2a38;
-      border-radius: 12px;
-      padding: 1.25rem 1.5rem 1.5rem;
-      margin-bottom: 1rem;
-      position: relative;
+      background: #1a1a23; border: 1px solid #2a2a38; border-radius: 12px;
+      padding: 1.25rem 1.5rem 1.5rem; margin-bottom: 1rem;
+      position: relative; transition: opacity 0.2s;
     }
-
+    .server-block.disabled { opacity: 0.45; }
     .server-block-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1rem;
+      display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 1rem;
+    }
+    .server-header-left  { display: flex; align-items: center; gap: 0.55rem; }
+    .server-header-right { display: flex; align-items: center; gap: 0.35rem; }
+    .server-number {
+      font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #7b61ff;
     }
 
-    .server-number {
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #7b61ff;
+    /* ── Toggle switch ── */
+    label.toggle-switch {
+      position: relative; display: inline-block; width: 32px; height: 17px;
+      flex-shrink: 0; cursor: pointer; margin: 0;
+      /* override global label styles */
+      font-size: inherit; font-weight: inherit; color: inherit;
+      text-transform: none; letter-spacing: normal;
     }
+    .toggle-switch input { display: none; }
+    .toggle-slider {
+      position: absolute; inset: 0; background: #2a2a3a;
+      border-radius: 8.5px; transition: background 0.2s;
+    }
+    .toggle-slider::after {
+      content: ''; position: absolute; width: 13px; height: 13px;
+      background: #555; border-radius: 50%; top: 2px; left: 2px;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: #1e3a28; }
+    .toggle-switch input:checked + .toggle-slider::after {
+      background: #4caf7d; transform: translateX(15px);
+    }
+
+    /* ── Reorder buttons ── */
+    .btn-reorder {
+      background: none; border: 1px solid #2a2a3a; color: #555;
+      border-radius: 5px; width: 24px; height: 24px; font-size: 0.6rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s; padding: 0; line-height: 1;
+    }
+    .btn-reorder:hover:not(:disabled) { background: #2a2a3a; color: #aaa; }
+    .btn-reorder:disabled { opacity: 0.2; cursor: default; }
 
     .btn-remove {
-      background: none;
-      border: 1px solid #3a2a2a;
-      color: #e05555;
-      border-radius: 6px;
-      padding: 0.25rem 0.6rem;
-      font-size: 0.78rem;
-      cursor: pointer;
-      transition: background 0.15s;
+      background: none; border: 1px solid #3a2a2a; color: #e05555;
+      border-radius: 6px; padding: 0.25rem 0.6rem; font-size: 0.78rem;
+      cursor: pointer; transition: background 0.15s;
     }
     .btn-remove:hover { background: #3a1a1a; }
 
     /* ── Fields ── */
-    .field-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.75rem;
-      margin-bottom: 0.75rem;
-    }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
     .field-row.full { grid-template-columns: 1fr; }
-
     .field-group { display: flex; flex-direction: column; gap: 0.3rem; }
 
     label {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: #aaa;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
+      font-size: 0.78rem; font-weight: 600; color: #aaa;
+      text-transform: uppercase; letter-spacing: 0.06em;
     }
 
     select {
-      background: #12121a;
-      border: 1px solid #2e2e42;
-      border-radius: 8px;
-      color: #e2e2e2;
-      font-size: 0.9rem;
-      padding: 0.55rem 0.75rem;
-      width: 100%;
-      transition: border-color 0.15s;
-      outline: none;
-      cursor: pointer;
+      background: #12121a; border: 1px solid #2e2e42; border-radius: 8px;
+      color: #e2e2e2; font-size: 0.9rem; padding: 0.55rem 0.75rem;
+      width: 100%; transition: border-color 0.15s; outline: none; cursor: pointer;
       appearance: none;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23888' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 0.75rem center;
-      padding-right: 2rem;
+      background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2rem;
     }
     select:focus { border-color: #7b61ff; }
     select option { background: #1a1a23; }
@@ -178,188 +131,141 @@
     .type-emby     { border-left: 3px solid #00a4dc; }
     .type-jellyfin { border-left: 3px solid #aa5cc3; }
 
-    input[type="text"],
-    input[type="password"],
-    input[type="url"] {
-      background: #12121a;
-      border: 1px solid #2e2e42;
-      border-radius: 8px;
-      color: #e2e2e2;
-      font-size: 0.9rem;
-      padding: 0.55rem 0.75rem;
-      width: 100%;
-      transition: border-color 0.15s;
-      outline: none;
+    input[type="text"], input[type="password"], input[type="url"] {
+      background: #12121a; border: 1px solid #2e2e42; border-radius: 8px;
+      color: #e2e2e2; font-size: 0.9rem; padding: 0.55rem 0.75rem;
+      width: 100%; transition: border-color 0.15s; outline: none;
     }
     input:focus { border-color: #7b61ff; }
     input::placeholder { color: #444; }
 
     /* ── Credential fetch ── */
     .cred-section {
-      background: #12121a;
-      border: 1px solid #2e2e42;
-      border-radius: 8px;
-      padding: 0.85rem 1rem;
-      margin-top: 0.25rem;
+      background: #12121a; border: 1px solid #2e2e42;
+      border-radius: 8px; padding: 0.85rem 1rem; margin-top: 0.25rem;
     }
-
     .cred-section .cred-title {
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: #666;
-      margin-bottom: 0.6rem;
+      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.07em; color: #666; margin-bottom: 0.6rem;
     }
-
-    .cred-inputs {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.6rem;
-      margin-bottom: 0.6rem;
-    }
-
+    .cred-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.6rem; }
     .btn-fetch {
-      width: 100%;
-      background: #2a2a40;
-      border: 1px solid #3a3a58;
-      color: #bbb;
-      border-radius: 6px;
-      padding: 0.45rem;
-      font-size: 0.82rem;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s;
+      width: 100%; background: #2a2a40; border: 1px solid #3a3a58; color: #bbb;
+      border-radius: 6px; padding: 0.45rem; font-size: 0.82rem;
+      cursor: pointer; transition: background 0.15s, color 0.15s;
     }
     .btn-fetch:hover { background: #33335a; color: #fff; }
     .btn-fetch:disabled { opacity: 0.5; cursor: default; }
-
-    .cred-status {
-      font-size: 0.78rem;
-      margin-top: 0.4rem;
-      min-height: 1.1em;
-    }
+    .cred-status { font-size: 0.78rem; margin-top: 0.4rem; min-height: 1.1em; }
     .cred-status.success { color: #4caf7d; }
     .cred-status.error   { color: #e05555; }
 
+    /* ── Test connection ── */
+    .btn-test {
+      width: 100%; background: #1a1a2a; border: 1px solid #2e2e42; color: #777;
+      border-radius: 6px; padding: 0.45rem; font-size: 0.82rem;
+      cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
+      margin-top: 0.6rem;
+    }
+    .btn-test:hover { background: #22223a; color: #bbb; border-color: #4a4a6a; }
+    .btn-test:disabled { opacity: 0.5; cursor: default; }
+    .test-status { font-size: 0.78rem; margin-top: 0.4rem; min-height: 1.1em; }
+    .test-status.success { color: #4caf7d; }
+    .test-status.error   { color: #e05555; }
+
     .divider {
-      text-align: center;
-      font-size: 0.72rem;
-      color: #444;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin: 0.6rem 0;
+      text-align: center; font-size: 0.72rem; color: #444;
+      text-transform: uppercase; letter-spacing: 0.1em; margin: 0.6rem 0;
     }
 
     /* ── Add server ── */
     .btn-add {
-      width: 100%;
-      background: transparent;
-      border: 1.5px dashed #2e2e42;
-      color: #666;
-      border-radius: 10px;
-      padding: 0.75rem;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: border-color 0.15s, color 0.15s;
-      margin-bottom: 2rem;
+      width: 100%; background: transparent; border: 1.5px dashed #2e2e42;
+      color: #666; border-radius: 10px; padding: 0.75rem; font-size: 0.9rem;
+      cursor: pointer; transition: border-color 0.15s, color 0.15s; margin-bottom: 1.5rem;
     }
     .btn-add:hover:not(:disabled) { border-color: #7b61ff; color: #7b61ff; }
     .btn-add:disabled { opacity: 0.4; cursor: default; }
 
+    /* ── Options Panel ── */
+    .options-panel {
+      background: #161620; border: 1px solid #2a2a3a;
+      border-radius: 12px; padding: 1.1rem 1.4rem 1.2rem; margin-bottom: 1.75rem;
+    }
+    .options-panel-header {
+      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #7b61ff; margin-bottom: 0.75rem;
+    }
+    /* Override global label styles for option items */
+    .options-panel label.option-item {
+      font-size: inherit; font-weight: normal; color: #e2e2e2;
+      text-transform: none; letter-spacing: normal;
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer;
+      transition: background 0.15s; margin-bottom: 0.2rem;
+    }
+    .options-panel label.option-item:hover { background: #1e1e2e; }
+    .options-panel input[type="radio"] {
+      margin-top: 0.2rem; accent-color: #7b61ff; flex-shrink: 0; cursor: pointer;
+    }
+    .option-title  { font-size: 0.88rem; font-weight: 600; color: #e2e2e2; margin-bottom: 0.15rem; }
+    .option-desc   { font-size: 0.78rem; color: #666; line-height: 1.4; }
+
+    .timeout-select-row { display: none; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+    .timeout-select-row.visible { display: flex; }
+    .timeout-select-row span   { font-size: 0.82rem; color: #888; }
+    .timeout-select-row select { width: auto; }
+
+    .options-divider { border-top: 1px solid #2a2a3a; margin: 0.75rem 0; }
+
+    .sort-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.3rem 0.75rem;
+    }
+    .sort-row-label { font-size: 0.82rem; color: #888; }
+    .sort-row select { width: auto; font-size: 0.85rem; }
+
     /* ── Generate ── */
     .btn-generate {
-      width: 100%;
-      background: #7b61ff;
-      border: none;
-      color: #fff;
-      border-radius: 10px;
-      padding: 0.85rem;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s;
-      margin-bottom: 2rem;
+      width: 100%; background: #7b61ff; border: none; color: #fff;
+      border-radius: 10px; padding: 0.85rem; font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: background 0.15s; margin-bottom: 2rem;
     }
     .btn-generate:hover { background: #6a50ee; }
 
     /* ── Result section ── */
     #result-section {
-      display: none;
-      background: #1a1a23;
-      border: 1px solid #2a2a38;
-      border-radius: 12px;
-      padding: 1.5rem;
+      display: none; background: #1a1a23; border: 1px solid #2a2a38;
+      border-radius: 12px; padding: 1.5rem;
     }
+    #result-section h2 { font-size: 1rem; font-weight: 700; margin-bottom: 1.25rem; color: #fff; }
 
-    #result-section h2 {
-      font-size: 1rem;
-      font-weight: 700;
-      margin-bottom: 1.25rem;
-      color: #fff;
-    }
-
-    .url-row {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-
-    .url-row input {
-      flex: 1;
-      font-size: 0.8rem;
-      color: #aaa;
-      cursor: text;
-    }
+    .url-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .url-row input { flex: 1; font-size: 0.8rem; color: #aaa; cursor: text; }
 
     .btn-copy {
-      background: #2a2a40;
-      border: 1px solid #3a3a58;
-      color: #bbb;
-      border-radius: 8px;
-      padding: 0 0.85rem;
-      font-size: 0.82rem;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background 0.15s;
+      background: #2a2a40; border: 1px solid #3a3a58; color: #bbb;
+      border-radius: 8px; padding: 0 0.85rem; font-size: 0.82rem;
+      cursor: pointer; white-space: nowrap; transition: background 0.15s;
     }
-    .btn-copy:hover { background: #33335a; color: #fff; }
+    .btn-copy:hover  { background: #33335a; color: #fff; }
     .btn-copy.copied { color: #4caf7d; border-color: #4caf7d; }
 
     .btn-install {
-      display: block;
-      width: 100%;
-      background: #7b61ff;
-      border: none;
-      color: #fff;
-      border-radius: 10px;
-      padding: 0.9rem;
-      font-size: 1.05rem;
-      font-weight: 700;
-      text-align: center;
-      text-decoration: none;
-      cursor: pointer;
-      transition: background 0.15s;
-      margin-top: 0.5rem;
+      display: block; width: 100%; background: #7b61ff; border: none; color: #fff;
+      border-radius: 10px; padding: 0.9rem; font-size: 1.05rem; font-weight: 700;
+      text-align: center; text-decoration: none; cursor: pointer;
+      transition: background 0.15s; margin-top: 0.5rem; margin-bottom: 0.5rem;
     }
     .btn-install:hover { background: #6a50ee; }
 
-    .install-note {
-      text-align: center;
-      font-size: 0.78rem;
-      color: #555;
-      margin-top: 0.75rem;
-    }
+    .install-note { text-align: center; font-size: 0.78rem; color: #555; margin-top: 0.75rem; }
 
     /* ── Global error ── */
     #global-error {
-      display: none;
-      background: #2a1212;
-      border: 1px solid #5a2222;
-      color: #e05555;
-      border-radius: 8px;
-      padding: 0.7rem 1rem;
-      font-size: 0.85rem;
-      margin-bottom: 1rem;
+      display: none; background: #2a1212; border: 1px solid #5a2222;
+      color: #e05555; border-radius: 8px; padding: 0.7rem 1rem;
+      font-size: 0.85rem; margin-bottom: 1rem;
     }
   </style>
 </head>
@@ -372,9 +278,7 @@
 
     <!-- ── Saved Profile ── -->
     <div class="profile-panel">
-      <div class="profile-panel-header">
-        <span>💾 Saved Profile</span>
-      </div>
+      <div class="profile-panel-header"><span>💾 Saved Profile</span></div>
       <div class="profile-inputs">
         <div class="field-group">
           <label>Profile Name</label>
@@ -396,22 +300,59 @@
 
     <button class="btn-add" id="btn-add" onclick="addServer()">+ Add Another Server</button>
 
+    <!-- ── Options Panel ── -->
+    <div class="options-panel">
+      <div class="options-panel-header">⚡ Options</div>
+
+      <label class="option-item">
+        <input type="radio" name="perf-mode" value="normal" checked onchange="onModeChange()" />
+        <div>
+          <div class="option-title">Normal</div>
+          <div class="option-desc">All servers in one addon. Default behaviour.</div>
+        </div>
+      </label>
+
+      <label class="option-item">
+        <input type="radio" name="perf-mode" value="split" onchange="onModeChange()" />
+        <div>
+          <div class="option-title">Split per server</div>
+          <div class="option-desc">Generates a separate install link per server. Stremio loads them independently and shows results as each one responds.</div>
+        </div>
+      </label>
+
+      <label class="option-item">
+        <input type="radio" name="perf-mode" value="timeout" onchange="onModeChange()" />
+        <div>
+          <div class="option-title">Fast timeout</div>
+          <div class="option-desc">Cut off slow servers sooner so results appear faster.</div>
+          <div class="timeout-select-row" id="timeout-row">
+            <span>Cut off after:</span>
+            <select id="timeout-value">
+              <option value="3000">3 seconds</option>
+              <option value="5000" selected>5 seconds</option>
+              <option value="7000">7 seconds</option>
+            </select>
+          </div>
+        </div>
+      </label>
+
+      <div class="options-divider"></div>
+
+      <div class="sort-row">
+        <span class="sort-row-label">Sort streams by</span>
+        <select id="sort-order">
+          <option value="size">File size (largest first)</option>
+          <option value="audio">Audio quality (best first)</option>
+          <option value="bitrate">Bitrate (highest first)</option>
+        </select>
+      </div>
+    </div>
+
     <div id="global-error"></div>
 
     <button class="btn-generate" onclick="generateLinks()">Generate Install Link</button>
 
-    <div id="result-section">
-      <h2>Ready to install</h2>
-      <div class="url-row">
-        <input type="text" id="manifest-url" readonly placeholder="Your manifest URL" />
-        <button class="btn-copy" id="btn-copy" onclick="copyUrl()">Copy</button>
-      </div>
-      <a class="btn-install" id="btn-install" href="#">Install in Stremio</a>
-      <p class="install-note">
-        Opens Stremio and installs the addon automatically.<br/>
-        If the button doesn't work, copy the URL above and paste it into Stremio → Add Addon.
-      </p>
-    </div>
+    <div id="result-section"></div>
   </div>
 
   <script>
@@ -431,8 +372,18 @@
       div.id = `server-${id}`;
       div.innerHTML = `
         <div class="server-block-header">
-          <span class="server-number">Server <span class="server-num-label"></span></span>
-          <button class="btn-remove" onclick="removeServer(${id})">Remove</button>
+          <div class="server-header-left">
+            <label class="toggle-switch" title="Enable / disable this server">
+              <input type="checkbox" class="f-enabled" checked onchange="updateToggle(${id})" />
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="server-number">Server <span class="server-num-label"></span></span>
+          </div>
+          <div class="server-header-right">
+            <button class="btn-reorder btn-up"   onclick="moveServer(${id}, -1)" title="Move up">▲</button>
+            <button class="btn-reorder btn-down" onclick="moveServer(${id},  1)" title="Move down">▼</button>
+            <button class="btn-remove" onclick="removeServer(${id})">Remove</button>
+          </div>
         </div>
 
         <div class="field-row">
@@ -484,6 +435,9 @@
             <input type="text" class="f-userid" placeholder="Auto-filled above" autocomplete="off" />
           </div>
         </div>
+
+        <button class="btn-test" onclick="testConnection(${id})">Test Connection</button>
+        <div class="test-status" id="test-status-${id}"></div>
       `;
       return div;
     }
@@ -495,10 +449,29 @@
       block.classList.add(`type-${type}`);
     }
 
+    function updateToggle(id) {
+      const block = document.getElementById(`server-${id}`);
+      block.classList.toggle('disabled', !block.querySelector('.f-enabled').checked);
+    }
+
+    function moveServer(id, dir) {
+      const block     = document.getElementById(`server-${id}`);
+      const container = document.getElementById('servers-container');
+      const blocks    = [...container.querySelectorAll('.server-block')];
+      const idx       = blocks.indexOf(block);
+      const target    = blocks[idx + dir];
+      if (!target) return;
+      if (dir === -1) container.insertBefore(block, target);
+      else            container.insertBefore(target, block);
+      renumberBlocks();
+    }
+
     function renumberBlocks() {
       const blocks = document.querySelectorAll('.server-block');
       blocks.forEach((b, i) => {
-        b.querySelector('.server-num-label').textContent = i + 1;
+        b.querySelector('.server-num-label').textContent  = i + 1;
+        b.querySelector('.btn-up').disabled               = i === 0;
+        b.querySelector('.btn-down').disabled             = i === blocks.length - 1;
       });
       document.getElementById('btn-add').disabled = blocks.length >= 5;
       document.querySelectorAll('.btn-remove').forEach(btn => {
@@ -509,11 +482,10 @@
     function addServer(data = null) {
       const container = document.getElementById('servers-container');
       if (container.querySelectorAll('.server-block').length >= 5) return;
-      const id = nextId++;
+      const id    = nextId++;
       const block = buildServerBlock(id);
       container.appendChild(block);
 
-      // If pre-populating from a saved profile
       if (data) {
         block.querySelector('.f-label').value    = data.label    || '';
         block.querySelector('.f-url').value      = data.url      || '';
@@ -526,7 +498,6 @@
           updateBlockStyle(id);
         }
       }
-
       renumberBlocks();
     }
 
@@ -536,7 +507,7 @@
       renumberBlocks();
     }
 
-    // ── Collect config from current form ──────────────────────────────────────
+    // ── Collect config ────────────────────────────────────────────────────────
     function collectConfig(silent = false) {
       const blocks = document.querySelectorAll('.server-block');
       if (blocks.length === 0) {
@@ -545,235 +516,231 @@
       }
       const servers = [];
       for (const block of blocks) {
-        const label  = block.querySelector('.f-label').value.trim();
-        const type   = block.querySelector('.f-type').value;
-        const url    = block.querySelector('.f-url').value.trim().replace(/\/+$/, '');
-        const apiKey    = block.querySelector('.f-apikey').value.trim();
-        const userId    = block.querySelector('.f-userid').value.trim();
-        const username  = block.querySelector('.f-username').value.trim();
-        const password  = block.querySelector('.f-password').value;
+        if (!block.querySelector('.f-enabled').checked) continue;
+        const label    = block.querySelector('.f-label').value.trim();
+        const type     = block.querySelector('.f-type').value;
+        const url      = block.querySelector('.f-url').value.trim().replace(/\/+$/, '');
+        const apiKey   = block.querySelector('.f-apikey').value.trim();
+        const userId   = block.querySelector('.f-userid').value.trim();
+        const username = block.querySelector('.f-username').value.trim();
+        const password = block.querySelector('.f-password').value;
         if (!label || !url || !apiKey || !userId) {
-          if (!silent) showError('All fields (Name, URL, API Key, User ID) must be filled for every server.');
+          if (!silent) showError('All fields (Name, URL, API Key, User ID) must be filled for every enabled server.');
           return null;
         }
         const entry = { label, type, url, apiKey, userId };
-        // Store credentials for auto API key renewal (optional but recommended)
         if (username && password) { entry.username = username; entry.password = password; }
         servers.push(entry);
+      }
+      if (servers.length === 0) {
+        if (!silent) showError('At least one server must be enabled.');
+        return null;
       }
       return { servers };
     }
 
     // ── Populate form from config ─────────────────────────────────────────────
     function populateFromConfig(config) {
-      const container = document.getElementById('servers-container');
-      container.innerHTML = '';
+      document.getElementById('servers-container').innerHTML = '';
       nextId = 0;
-      for (const server of (config.servers || [])) {
-        addServer(server);
-      }
+      for (const server of (config.servers || [])) addServer(server);
     }
 
-    // ── Helper: safe JSON parse from response ──────────────────────────────
+    // ── Safe JSON parse ───────────────────────────────────────────────────────
     async function safeJson(resp) {
       try { return await resp.json(); }
       catch { return { error: `Server returned non-JSON (HTTP ${resp.status}).` }; }
     }
 
-    // ── Profile button helpers ────────────────────────────────────────────────
+    // ── Profile helpers ───────────────────────────────────────────────────────
     function setProfileButtons(disabled) {
       document.querySelectorAll('.btn-profile').forEach(b => b.disabled = disabled);
     }
 
-    // ── Profile: save ─────────────────────────────────────────────────────────
     async function saveProfile() {
       const username = document.getElementById('p-username').value.trim();
       const password = document.getElementById('p-password').value;
       const statusEl = document.getElementById('profile-status');
-
-      if (!username) {
-        statusEl.textContent = 'Enter a profile name first.';
-        statusEl.className = 'profile-status error';
-        return;
-      }
-      if (!password) {
-        statusEl.textContent = 'Enter a password to protect your profile.';
-        statusEl.className = 'profile-status error';
-        return;
-      }
-
+      if (!username) { statusEl.textContent = 'Enter a profile name first.'; statusEl.className = 'profile-status error'; return; }
+      if (!password) { statusEl.textContent = 'Enter a password to protect your profile.'; statusEl.className = 'profile-status error'; return; }
       const config = collectConfig();
       if (!config) return;
-
       setProfileButtons(true);
-      statusEl.textContent = 'Saving…';
-      statusEl.className = 'profile-status info';
-
+      statusEl.textContent = 'Saving…'; statusEl.className = 'profile-status info';
       try {
-        const resp = await fetch('/api/profile/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password, config }),
-        });
+        const resp = await fetch('/api/profile/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, config }) });
         const data = await safeJson(resp);
         if (!resp.ok) throw new Error(data.error || 'Unknown error');
-        statusEl.textContent = `✓ ${data.message}`;
-        statusEl.className = 'profile-status success';
+        statusEl.textContent = `✓ ${data.message}`; statusEl.className = 'profile-status success';
       } catch (err) {
-        statusEl.textContent = `✗ ${err.message}`;
-        statusEl.className = 'profile-status error';
-      } finally {
-        setProfileButtons(false);
-      }
+        statusEl.textContent = `✗ ${err.message}`; statusEl.className = 'profile-status error';
+      } finally { setProfileButtons(false); }
     }
 
-    // ── Profile: load ─────────────────────────────────────────────────────────
     async function loadProfile() {
       const username = document.getElementById('p-username').value.trim();
       const password = document.getElementById('p-password').value;
       const statusEl = document.getElementById('profile-status');
-
-      if (!username) {
-        statusEl.textContent = 'Enter your profile name first.';
-        statusEl.className = 'profile-status error';
-        return;
-      }
-      if (!password) {
-        statusEl.textContent = 'Enter your password.';
-        statusEl.className = 'profile-status error';
-        return;
-      }
-
+      if (!username) { statusEl.textContent = 'Enter your profile name first.'; statusEl.className = 'profile-status error'; return; }
+      if (!password) { statusEl.textContent = 'Enter your password.'; statusEl.className = 'profile-status error'; return; }
       setProfileButtons(true);
-      statusEl.textContent = 'Loading…';
-      statusEl.className = 'profile-status info';
-
+      statusEl.textContent = 'Loading…'; statusEl.className = 'profile-status info';
       try {
-        const resp = await fetch('/api/profile/load', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password }),
-        });
+        const resp = await fetch('/api/profile/load', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
         const data = await safeJson(resp);
         if (!resp.ok) throw new Error(data.error || 'Unknown error');
-
         populateFromConfig(data.config);
         const ago = data.updatedAt ? ` (last saved ${new Date(data.updatedAt).toLocaleDateString()})` : '';
-        statusEl.textContent = `✓ Profile loaded${ago}`;
-        statusEl.className = 'profile-status success';
+        statusEl.textContent = `✓ Profile loaded${ago}`; statusEl.className = 'profile-status success';
       } catch (err) {
-        statusEl.textContent = `✗ ${err.message}`;
-        statusEl.className = 'profile-status error';
-      } finally {
-        setProfileButtons(false);
-      }
+        statusEl.textContent = `✗ ${err.message}`; statusEl.className = 'profile-status error';
+      } finally { setProfileButtons(false); }
     }
 
     // ── Credential fetch ──────────────────────────────────────────────────────
     async function fetchCredentials(id) {
-      const block = document.getElementById(`server-${id}`);
-      const url = block.querySelector('.f-url').value.trim().replace(/\/+$/, '');
+      const block    = document.getElementById(`server-${id}`);
+      const url      = block.querySelector('.f-url').value.trim().replace(/\/+$/, '');
       const username = block.querySelector('.f-username').value.trim();
       const password = block.querySelector('.f-password').value;
       const statusEl = document.getElementById(`cred-status-${id}`);
-      const btn = block.querySelector('.btn-fetch');
-
-      if (!url) {
-        statusEl.textContent = 'Enter the Server URL first.';
-        statusEl.className = 'cred-status error';
-        return;
-      }
-      if (!username) {
-        statusEl.textContent = 'Enter your username.';
-        statusEl.className = 'cred-status error';
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = 'Fetching…';
-      statusEl.textContent = '';
-      statusEl.className = 'cred-status';
-
+      const btn      = block.querySelector('.btn-fetch');
+      if (!url)      { statusEl.textContent = 'Enter the Server URL first.'; statusEl.className = 'cred-status error'; return; }
+      if (!username) { statusEl.textContent = 'Enter your username.';        statusEl.className = 'cred-status error'; return; }
+      btn.disabled = true; btn.textContent = 'Fetching…';
+      statusEl.textContent = ''; statusEl.className = 'cred-status';
       try {
-        const resp = await fetch('/api/fetch-credentials', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, username, password }),
-        });
+        const resp = await fetch('/api/fetch-credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, username, password }) });
         const data = await safeJson(resp);
         if (!resp.ok) throw new Error(data.error || 'Unknown error');
-
         block.querySelector('.f-apikey').value = data.apiKey;
         block.querySelector('.f-userid').value = data.userId;
-        statusEl.textContent = '✓ Credentials fetched successfully!';
-        statusEl.className = 'cred-status success';
+        statusEl.textContent = '✓ Credentials fetched successfully!'; statusEl.className = 'cred-status success';
       } catch (err) {
-        statusEl.textContent = `✗ ${err.message}`;
-        statusEl.className = 'cred-status error';
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Fetch API Key & User ID';
-      }
+        statusEl.textContent = `✗ ${err.message}`; statusEl.className = 'cred-status error';
+      } finally { btn.disabled = false; btn.textContent = 'Fetch API Key & User ID'; }
+    }
+
+    // ── Test connection ───────────────────────────────────────────────────────
+    async function testConnection(id) {
+      const block    = document.getElementById(`server-${id}`);
+      const url      = block.querySelector('.f-url').value.trim().replace(/\/+$/, '');
+      const type     = block.querySelector('.f-type').value;
+      const apiKey   = block.querySelector('.f-apikey').value.trim();
+      const userId   = block.querySelector('.f-userid').value.trim();
+      const statusEl = document.getElementById(`test-status-${id}`);
+      const btn      = block.querySelector('.btn-test');
+      if (!url)             { statusEl.textContent = 'Enter the Server URL first.';                          statusEl.className = 'test-status error'; return; }
+      if (!apiKey || !userId) { statusEl.textContent = 'Enter API Key and User ID first (or use Fetch above).'; statusEl.className = 'test-status error'; return; }
+      btn.disabled = true; btn.textContent = 'Testing…';
+      statusEl.textContent = ''; statusEl.className = 'test-status';
+      try {
+        const resp = await fetch('/api/test-connection', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, type, apiKey, userId }) });
+        const data = await safeJson(resp);
+        if (data.ok) { statusEl.textContent = `✓ ${data.message}`; statusEl.className = 'test-status success'; }
+        else         { statusEl.textContent = `✗ ${data.error}`;   statusEl.className = 'test-status error';   }
+      } catch (err) {
+        statusEl.textContent = `✗ ${err.message}`; statusEl.className = 'test-status error';
+      } finally { btn.disabled = false; btn.textContent = 'Test Connection'; }
+    }
+
+    // ── Performance mode ──────────────────────────────────────────────────────
+    function onModeChange() {
+      const mode = document.querySelector('input[name="perf-mode"]:checked').value;
+      document.getElementById('timeout-row').classList.toggle('visible', mode === 'timeout');
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function showError(msg) { const e = document.getElementById('global-error'); e.textContent = msg; e.style.display = 'block'; }
+    function hideError()    { document.getElementById('global-error').style.display = 'none'; }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
     // ── Generate links ────────────────────────────────────────────────────────
-    function showError(msg) {
-      const el = document.getElementById('global-error');
-      el.textContent = msg;
-      el.style.display = 'block';
-    }
-
-    function hideError() {
-      document.getElementById('global-error').style.display = 'none';
-    }
-
     function generateLinks() {
       hideError();
       const config = collectConfig();
-      if (!config) {
-        document.getElementById('result-section').style.display = 'none';
-        return;
+      if (!config) { document.getElementById('result-section').style.display = 'none'; return; }
+
+      const mode      = document.querySelector('input[name="perf-mode"]:checked').value;
+      const sortOrder = document.getElementById('sort-order').value;
+      const { protocol, host } = window.location;
+      const section   = document.getElementById('result-section');
+
+      if (mode === 'split') {
+        const rows = config.servers.map(server => {
+          const sc = { servers: [server] };
+          if (sortOrder !== 'size') sc.sortOrder = sortOrder;
+          const encoded = encodeConfig(sc);
+          return {
+            label:       server.label,
+            manifestUrl: `${protocol}//${host}/${encoded}/manifest.json`,
+            deepLink:    `stremio://${host}/${encoded}/manifest.json`,
+          };
+        });
+
+        let html = '<h2>Ready to install — Split Mode</h2>';
+        html += '<p style="font-size:0.82rem;color:#666;margin:0 0 1.25rem;line-height:1.5;">Each server is a separate addon. Stremio shows results from each as they arrive.</p>';
+        rows.forEach((row, i) => {
+          if (i > 0) html += '<hr style="border:none;border-top:1px solid #2a2a38;margin:1.1rem 0;">';
+          html += `
+            <div>
+              <div style="font-size:0.75rem;font-weight:700;color:#7b61ff;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5rem;">${escHtml(row.label)}</div>
+              <div class="url-row">
+                <input type="text" readonly value="${escHtml(row.manifestUrl)}" />
+                <button class="btn-copy" data-url="${escHtml(row.manifestUrl)}" onclick="copySpecific(this)">Copy</button>
+              </div>
+              <a class="btn-install" href="${escHtml(row.deepLink)}">Install "${escHtml(row.label)}" in Stremio</a>
+            </div>`;
+        });
+        section.innerHTML = html;
+      } else {
+        if (mode === 'timeout') config.timeout = parseInt(document.getElementById('timeout-value').value, 10);
+        if (sortOrder !== 'size') config.sortOrder = sortOrder;
+
+        const encoded     = encodeConfig(config);
+        const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
+        const deepLink    = `stremio://${host}/${encoded}/manifest.json`;
+
+        section.innerHTML = `
+          <h2>Ready to install${mode === 'timeout' ? ' — Fast Timeout' : ''}</h2>
+          <div class="url-row">
+            <input type="text" readonly value="${escHtml(manifestUrl)}" />
+            <button class="btn-copy" data-url="${escHtml(manifestUrl)}" onclick="copySpecific(this)">Copy</button>
+          </div>
+          <a class="btn-install" href="${escHtml(deepLink)}">Install in Stremio</a>
+          <p class="install-note">
+            Opens Stremio and installs the addon automatically.<br/>
+            If the button doesn't work, copy the URL above and paste it into Stremio → Add Addon.
+          </p>`;
       }
 
-      const encoded = encodeConfig(config);
-      const { protocol, host } = window.location;
-      const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
-      const deepLink    = `stremio://${host}/${encoded}/manifest.json`;
-
-      document.getElementById('manifest-url').value = manifestUrl;
-      document.getElementById('btn-install').href = deepLink;
-      document.getElementById('result-section').style.display = 'block';
-      document.getElementById('result-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      section.style.display = 'block';
+      section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     // ── Copy ──────────────────────────────────────────────────────────────────
-    function copyUrl() {
-      const input = document.getElementById('manifest-url');
-      const val = input.value;
-      const btn = document.getElementById('btn-copy');
-
+    function copySpecific(btn) {
+      const url = btn.dataset.url;
       function onSuccess() {
-        btn.textContent = 'Copied!';
-        btn.classList.add('copied');
+        btn.textContent = 'Copied!'; btn.classList.add('copied');
         setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
       }
-
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(val).then(onSuccess).catch(() => {
-          // Fallback for HTTP or denied clipboard permission
-          input.select();
-          document.execCommand('copy');
-          onSuccess();
-        });
-      } else {
-        input.select();
-        document.execCommand('copy');
-        onSuccess();
-      }
+        navigator.clipboard.writeText(url).then(onSuccess).catch(() => { fallbackCopy(url); onSuccess(); });
+      } else { fallbackCopy(url); onSuccess(); }
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────
-    addServer(); // Start with one block
+    addServer();
   </script>
 </body>
 </html>
