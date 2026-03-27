@@ -230,11 +230,15 @@ function mediaSourcesToStreams(server, itemId, mediaSources) {
     const audioStream = mediaStreams.find((s) => s.Type === 'Audio');
 
     // ── Resolution
-    const resLabel = videoStream && videoStream.Height
-      ? (videoStream.Height >= 2160 ? '4K'
-        : videoStream.Height >= 1080 ? '1080p'
-        : videoStream.Height >= 720  ? '720p'
-        : `${videoStream.Height}p`)
+    // Use both width AND height for resolution detection.
+    // Many films use 2.39:1 scope aspect — 3840×2152 is still 4K, not 1080p.
+    const resW = videoStream?.Width  || 0;
+    const resH = videoStream?.Height || 0;
+    const resLabel = resH
+      ? (resH >= 2160 || resW >= 3840 ? '4K'
+        : resH >= 1080 || resW >= 1920 ? '1080p'
+        : resH >= 720  || resW >= 1280 ? '720p'
+        : `${resH}p`)
       : null;
 
     const dimsLabel = videoStream && videoStream.Width && videoStream.Height
