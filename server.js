@@ -695,7 +695,14 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
 
     // Deduplicate by mediaSourceId via Map (Streambridge's exact approach)
     const deduped = new Map(allStreams.map(s => [s._mediaSourceId, s]));
-    return [...deduped.values()];
+    // Per-server spec dedup: same description = same size + specs = same file indexed in multiple libraries
+    const specSeen = new Set();
+    return [...deduped.values()].filter(s => {
+      const key = s.description;
+      if (specSeen.has(key)) return false;
+      specSeen.add(key);
+      return true;
+    });
   } catch (err) {
     console.error(`[${server.label}] Query failed:`, err.message);
     return [];
