@@ -225,6 +225,22 @@
     .sort-row-label { font-size: 0.82rem; color: #888; }
     .sort-row select { width: auto; font-size: 0.85rem; }
 
+    .exclude-res-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.3rem 0.75rem; flex-wrap: wrap; gap: 0.5rem;
+    }
+    .res-checkboxes { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .options-panel label.res-check {
+      font-size: 0.82rem; font-weight: normal; color: #ccc;
+      text-transform: none; letter-spacing: normal;
+      display: flex; align-items: center; gap: 0.35rem; cursor: pointer; margin: 0;
+    }
+    .options-panel label.res-check:hover { color: #fff; }
+    .options-panel input[type="checkbox"] { accent-color: #7b61ff; cursor: pointer; }
+    .options-panel label.option-item input[type="checkbox"] {
+      margin-top: 0.2rem; flex-shrink: 0;
+    }
+
     /* ── Generate ── */
     .btn-generate {
       width: 100%; background: #7b61ff; border: none; color: #fff;
@@ -346,6 +362,28 @@
           <option value="bitrate">Bitrate (highest first)</option>
         </select>
       </div>
+
+      <div class="options-divider"></div>
+
+      <div class="exclude-res-row">
+        <span class="sort-row-label">Exclude resolutions</span>
+        <div class="res-checkboxes">
+          <label class="res-check"><input type="checkbox" class="res-cb" value="4K" /> 4K</label>
+          <label class="res-check"><input type="checkbox" class="res-cb" value="1080p" /> 1080p</label>
+          <label class="res-check"><input type="checkbox" class="res-cb" value="720p" /> 720p</label>
+          <label class="res-check"><input type="checkbox" class="res-cb" value="SD" /> SD</label>
+        </div>
+      </div>
+
+      <div class="options-divider"></div>
+
+      <label class="option-item">
+        <input type="checkbox" id="show-recommend" checked />
+        <div>
+          <div class="option-title">★ Mark recommended stream</div>
+          <div class="option-desc">Adds a ★ to the top result based on your sort preference.</div>
+        </div>
+      </label>
     </div>
 
     <div id="global-error"></div>
@@ -664,15 +702,19 @@
       const config = collectConfig();
       if (!config) { document.getElementById('result-section').style.display = 'none'; return; }
 
-      const mode      = document.querySelector('input[name="perf-mode"]:checked').value;
-      const sortOrder = document.getElementById('sort-order').value;
+      const mode       = document.querySelector('input[name="perf-mode"]:checked').value;
+      const sortOrder  = document.getElementById('sort-order').value;
+      const excludeRes = [...document.querySelectorAll('.res-cb:checked')].map(cb => cb.value);
+      const recommend  = document.getElementById('show-recommend').checked;
       const { protocol, host } = window.location;
       const section   = document.getElementById('result-section');
 
       if (mode === 'split') {
         const rows = config.servers.map(server => {
           const sc = { servers: [server] };
-          if (sortOrder !== 'size') sc.sortOrder = sortOrder;
+          if (sortOrder !== 'size')    sc.sortOrder  = sortOrder;
+          if (excludeRes.length > 0)   sc.excludeRes = excludeRes;
+          if (recommend)               sc.recommend  = true;
           const encoded = encodeConfig(sc);
           return {
             label:       server.label,
@@ -697,8 +739,10 @@
         });
         section.innerHTML = html;
       } else {
-        if (mode === 'timeout') config.timeout = parseInt(document.getElementById('timeout-value').value, 10);
-        if (sortOrder !== 'size') config.sortOrder = sortOrder;
+        if (mode === 'timeout')    config.timeout    = parseInt(document.getElementById('timeout-value').value, 10);
+        if (sortOrder !== 'size')  config.sortOrder  = sortOrder;
+        if (excludeRes.length > 0) config.excludeRes = excludeRes;
+        if (recommend)             config.recommend  = true;
 
         const encoded     = encodeConfig(config);
         const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;

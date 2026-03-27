@@ -382,6 +382,7 @@ function mediaSourcesToStreams(server, itemId, mediaSources) {
       _bitrate: bitrate,
       _audioRank: audioRank,
       _mediaSourceId: source.Id,
+      _resLabel: resLabel,
     });
   }
   return streams;
@@ -722,7 +723,7 @@ async function getStreamsFromServer(server, type, imdbId, season, episode) {
   }
 }
 
-async function getAllStreams(servers, type, imdbId, season, episode, sortOrder) {
+async function getAllStreams(servers, type, imdbId, season, episode, sortOrder, excludeRes, recommend) {
   const results = await Promise.allSettled(
     servers.map((server) =>
       getStreamsFromServer(server, type, imdbId, season, episode)
@@ -734,8 +735,18 @@ async function getAllStreams(servers, type, imdbId, season, episode, sortOrder) 
   );
 
   // Separate real streams from no-results/offline placeholders
-  const realStreams = allStreams.filter(s => !s._noResults);
+  let realStreams = allStreams.filter(s => !s._noResults);
   const noResStreams = allStreams.filter(s => s._noResults);
+
+  // Filter excluded resolutions
+  if (excludeRes && excludeRes.length > 0) {
+    realStreams = realStreams.filter(s => {
+      const r = s._resLabel;
+      if (excludeRes.includes('SD') && r !== '4K' && r !== '1080p' && r !== '720p') return false;
+      if (r && excludeRes.includes(r)) return false;
+      return true;
+    });
+  }
 
   // Sort real streams by user preference
   realStreams.sort((a, b) => {
@@ -755,9 +766,14 @@ async function getAllStreams(servers, type, imdbId, season, episode, sortOrder) 
     return (b._bitrate || 0) - (a._bitrate || 0);
   });
 
+  // Mark top result as recommended
+  if (recommend && realStreams.length > 0) {
+    realStreams[0] = { ...realStreams[0], name: `★ ${realStreams[0].name}` };
+  }
+
   // No-results/offline placeholders always at the bottom
   return [...realStreams, ...noResStreams]
-    .map(({ _sizeBytes, _bitrate, _audioRank, _mediaSourceId, _noResults, ...stream }) => stream);
+    .map(({ _sizeBytes, _bitrate, _audioRank, _mediaSourceId, _noResults, _resLabel, ...stream }) => stream);
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
@@ -954,7 +970,7 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
   }
 
   try {
-    const streams = await getAllStreams(servers, type, imdbId, season, episode, cfg.sortOrder);
+    const streams = await getAllStreams(servers, type, imdbId, season, episode, cfg.sortOrder, cfg.excludeRes, cfg.recommend);
     res.json({ streams });
   } catch (err) {
     console.error('Stream handler error:', err);
