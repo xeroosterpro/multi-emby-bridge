@@ -478,21 +478,29 @@ async function queryServerForMovie(server, imdbId) {
 
   const numericImdbId = imdbId.replace(/^tt0*/i, '');
 
+  // Helper: race multiple query fns in parallel, return first with results
+  const raceQueries = (fns) =>
+    Promise.any(fns.map(fn =>
+      fn().then(r => { if (r.length === 0) throw new Error('empty'); return r; })
+    )).catch(() => []);
+
   if (server.type === 'jellyfin') {
-    // Jellyfin: ImdbId= and AnyProviderIdEquals= are broken on most versions.
-    // Strategy 1: AnyProviderIdEquals with multiple formats (sometimes works)
-    for (const val of [`imdb.${imdbId}`, `imdb.${numericImdbId}`, `Imdb.${imdbId}`]) {
-      if (items.length > 0) break;
-      try { items = await queryItems(`/Users/${server.userId}/Items`, { AnyProviderIdEquals: val }); }
-      catch (err) { console.error(`[${server.label}] Jellyfin ${val} failed:`, err.message); }
-    }
-    // Strategy 2: Name-based search — no ProviderIds validation needed (name is the filter)
+    // Pre-fetch the name in parallel — ready if provider ID strategies fail
+    const namePromise = resolveImdbName(imdbId, 'movie');
+
+    // Strategy: all AnyProviderIdEquals formats in parallel
+    items = await raceQueries(
+      [`imdb.${imdbId}`, `imdb.${numericImdbId}`, `Imdb.${imdbId}`].map(val =>
+        () => queryItems(`/Users/${server.userId}/Items`, { AnyProviderIdEquals: val }).catch(() => [])
+      )
+    );
+
+    // Fallback: name-based search (name already being fetched above)
     if (items.length === 0) {
       try {
-        const movieName = await resolveImdbName(imdbId, 'movie');
+        const movieName = await namePromise;
         if (movieName) {
           console.log(`[${server.label}] Jellyfin: searching movie by name "${movieName}"`);
-          // Name search — skip ProviderIds check since IDs may legitimately differ
           const resp = await apiFetch(server, () => {
             const url = new URL(`${server.url}/Users/${server.userId}/Items`);
             url.searchParams.set('SearchTerm', movieName);
@@ -504,7 +512,6 @@ async function queryServerForMovie(server, imdbId) {
             return url;
           });
           const data = await resp.json();
-          // Accept exact name matches only
           items = (data.Items || []).filter(i => {
             const sn = (i.Name || '').toLowerCase().trim();
             const qn = movieName.toLowerCase().trim();
@@ -517,26 +524,20 @@ async function queryServerForMovie(server, imdbId) {
       }
     }
   } else {
-    // Emby: sequential fallback strategies
-    const strategies = [
+    // Emby: pre-fetch name in parallel while provider ID strategies run
+    const namePromise = resolveImdbName(imdbId, 'movie');
+
+    // All provider ID strategies fire simultaneously
+    items = await raceQueries([
       () => queryItems('/Items', { ImdbId: imdbId }),
       () => queryItems(`/Users/${server.userId}/Items`, { ImdbId: imdbId }),
       () => queryItems(`/Users/${server.userId}/Items`, { AnyProviderIdEquals: `imdb.${imdbId}` }),
-    ];
+    ]);
 
-    for (const tryFn of strategies) {
-      if (items.length > 0) break;
-      try {
-        items = await tryFn();
-      } catch (err) {
-        console.error(`[${server.label}] Emby strategy failed:`, err.message);
-      }
-    }
-
-    // Emby fallback: name-based search if provider queries all failed
+    // Fallback: name-based search (name already being fetched above)
     if (items.length === 0) {
       try {
-        const movieName = await resolveImdbName(imdbId, 'movie');
+        const movieName = await namePromise;
         if (movieName) {
           console.log(`[${server.label}] Resolved ${imdbId} → "${movieName}", searching by name`);
           items = await queryItems(`/Users/${server.userId}/Items`, { SearchTerm: movieName }, 20);
@@ -602,22 +603,25 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
   let seriesItems = [];
 
   try {
-    // Strategy 1: ImdbId= param (works on well-configured servers)
-    if (seriesItems.length === 0) {
-      seriesItems = await findSeriesById({ ImdbId: imdbId });
-    }
-    // Strategy 2: AnyProviderIdEquals with multiple formats (Streambridge approach)
-    if (seriesItems.length === 0) {
-      for (const val of [`imdb.${imdbId}`, `imdb.${numericImdbId}`, `Imdb.${imdbId}`]) {
-        seriesItems = await findSeriesById({ AnyProviderIdEquals: val });
-        if (seriesItems.length > 0) break;
-      }
-    }
+    // Pre-fetch series name in parallel — ready if provider ID strategies all fail
+    const namePromise = resolveImdbName(imdbId, 'series');
 
-    // Strategy 3: Name-based search — skips ProviderIds validation
+    // Race all provider ID strategies simultaneously
+    const raceSeriesQueries = (fns) =>
+      Promise.any(fns.map(fn =>
+        fn().then(r => { if (r.length === 0) throw new Error('empty'); return r; })
+      )).catch(() => []);
+
+    seriesItems = await raceSeriesQueries([
+      () => findSeriesById({ ImdbId: imdbId }),
+      ...[ `imdb.${imdbId}`, `imdb.${numericImdbId}`, `Imdb.${imdbId}` ]
+          .map(val => () => findSeriesById({ AnyProviderIdEquals: val })),
+    ]);
+
+    // Strategy 3: Name-based search — uses pre-fetched name (already in flight above)
     // Handles mismatched IMDB IDs between Stremio catalog and server
     if (seriesItems.length === 0) {
-      const seriesName = await resolveImdbName(imdbId, 'series');
+      const seriesName = await namePromise;
       if (seriesName) {
         console.log(`[${server.label}] Name-based series search: "${seriesName}"`);
         seriesItems = await findSeriesByName(seriesName);
@@ -680,27 +684,31 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
 
   let items = [];
   try {
+    // Pre-fetch name in parallel — ready immediately if provider ID search fails
+    const namePromise = resolveImdbName(imdbId, 'series');
+
     if (server.type === 'jellyfin') {
-      // Jellyfin: AnyProviderIdEquals is broken — search by name instead
-      const seriesName = await resolveImdbName(imdbId, 'series');
+      // Jellyfin: AnyProviderIdEquals is broken — search by name
+      const seriesName = await namePromise;
       if (seriesName) {
         console.log(`[${server.label}] Direct episode fallback: searching episodes by name "${seriesName}"`);
-        const resp = await apiFetch(server, () => makeUrl({ SearchTerm: seriesName }), 10000);
+        const resp = await apiFetch(server, () => makeUrl({ SearchTerm: seriesName }));
         items = (await resp.json()).Items || [];
       }
     } else {
-      // Emby: try AnyProviderIdEquals first
-      const resp1 = await apiFetch(server, () => makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }), 10000);
-      items = (await resp1.json()).Items || [];
+      // Emby: run AnyProviderIdEquals and name fetch in parallel
+      const [providerItems, seriesName] = await Promise.all([
+        apiFetch(server, () => makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }))
+          .then(r => r.json()).then(d => d.Items || []).catch(() => []),
+        namePromise,
+      ]);
 
-      // If AnyProviderIdEquals returned 0, try name-based search
-      if (items.length === 0) {
-        const seriesName = await resolveImdbName(imdbId, 'series');
-        if (seriesName) {
-          console.log(`[${server.label}] Direct episode fallback: searching Emby episodes by name "${seriesName}"`);
-          const resp2 = await apiFetch(server, () => makeUrl({ SearchTerm: seriesName }), 10000);
-          items = (await resp2.json()).Items || [];
-        }
+      if (providerItems.length > 0) {
+        items = providerItems;
+      } else if (seriesName) {
+        console.log(`[${server.label}] Direct episode fallback: searching Emby episodes by name "${seriesName}"`);
+        const resp2 = await apiFetch(server, () => makeUrl({ SearchTerm: seriesName }));
+        items = (await resp2.json()).Items || [];
       }
     }
   } catch (err) {
