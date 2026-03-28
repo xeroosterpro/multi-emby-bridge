@@ -615,12 +615,14 @@
       <div class="sort-row">
         <span class="sort-row-label">Stream label format</span>
         <select id="label-preset" onchange="updateLabelPreview()">
-          <option value="standard">Standard — full details</option>
-          <option value="compact">Compact — codec in name, 1-line desc</option>
-          <option value="cinema">Cinema — HDR in name</option>
-          <option value="bandwidth">Bandwidth — size/bitrate first</option>
-          <option value="audiophile">Audiophile — audio in name</option>
-          <option value="minimal">Minimal — size only</option>
+          <option value="standard">Standard — res · HDR in name, full desc</option>
+          <option value="compact">Compact — res · HDR · codec in name, 1-line desc</option>
+          <option value="detailed">Detailed — HDR in name, multi-audio + subs in desc</option>
+          <option value="cinema">Cinema — res · HDR · source in name</option>
+          <option value="bandwidth">Bandwidth — res · bitrate in name</option>
+          <option value="audiophile">Audiophile — audio codec in name</option>
+          <option value="source">Source Focus — source type in name (REMUX / WEB-DL)</option>
+          <option value="minimal">Minimal — res only, size in desc</option>
         </select>
       </div>
       <div id="label-preview" style="margin:0.2rem 0 0.1rem;padding:0.55rem 0.65rem;background:#0f0f13;border-radius:6px;font-size:0.77rem;line-height:1.6;color:#666;"></div>
@@ -1228,19 +1230,59 @@
     function updateLabelPreview() {
       const preset = document.getElementById('label-preset').value;
       const previewEl = document.getElementById('label-preview');
+
+      // Realistic sample data for a 4K DV REMUX
       const previews = {
-        standard:    { name: 'MyServer 4K',              desc: '4K · 3840x2160\nDV · HEVC 10bit\nREMUX\nTrueHD 7.1\nMKV · 85.2Mbps · 58.32 GB' },
-        compact:     { name: 'MyServer · 4K · HEVC 10bit', desc: 'TrueHD 7.1 · 85.2Mbps · 58.32 GB' },
-        cinema:      { name: 'MyServer · 4K · DV',        desc: 'HEVC 10bit · REMUX\nTrueHD 7.1\n58.32 GB' },
-        bandwidth:   { name: 'MyServer · 4K',             desc: '85.2Mbps · 58.32 GB\nHEVC 10bit · TrueHD 7.1' },
-        audiophile:  { name: 'MyServer · 4K · TrueHD 7.1', desc: 'HEVC 10bit · DV\n85.2Mbps · 58.32 GB' },
-        minimal:     { name: 'MyServer · 4K',             desc: '58.32 GB' },
+        standard:   {
+          name: 'Home NAS · 4K · DV',
+          desc: 'HEVC 10bit · REMUX\nTrueHD 7.1\nMKV · 85.2Mbps · 58.32 GB',
+        },
+        compact:    {
+          name: 'Home NAS · 4K · DV · HEVC 10bit',
+          desc: 'TrueHD 7.1 · 85.2Mbps · 58.32 GB',
+        },
+        detailed:   {
+          name: 'Home NAS · 4K · DV',
+          desc: 'HEVC 10bit · REMUX\nENG TrueHD 7.1 · FRE DD+ 5.1 · SPA AAC 2.0\nSubs: EN · FR · ES · DE\n3840×2160 · 85.2Mbps · 58.32 GB',
+        },
+        cinema:     {
+          name: 'Home NAS · 4K · DV · REMUX',
+          desc: 'HEVC 10bit\nTrueHD 7.1\nSubs: EN · FR · ES\n58.32 GB',
+        },
+        bandwidth:  {
+          name: 'Home NAS · 4K · 85.2Mbps',
+          desc: 'HEVC 10bit · DV\nTrueHD 7.1\n58.32 GB',
+        },
+        audiophile: {
+          name: 'Home NAS · 4K · TrueHD 7.1',
+          desc: 'HEVC 10bit · DV · REMUX\nENG TrueHD 7.1 · FRE DD+ 5.1\n85.2Mbps · 58.32 GB',
+        },
+        source:     {
+          name: 'Home NAS · 4K · REMUX',
+          desc: 'DV · HEVC 10bit\nENG TrueHD 7.1 · FRE DD+ 5.1\n85.2Mbps · 58.32 GB',
+        },
+        minimal:    {
+          name: 'Home NAS · 4K',
+          desc: '58.32 GB',
+        },
       };
+
       const p = previews[preset] || previews.standard;
-      const nameLines = p.name.replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      const descLines = p.desc.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n')
-        .map(l => `<span style="color:#555">${l}</span>`).join('<br>');
-      previewEl.innerHTML = `<span style="color:#d0d0d0;font-weight:600;">${nameLines}</span><br>${descLines}`;
+      const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+      // Render as a Stremio-style stream row
+      const descHtml = esc(p.desc).split('\n')
+        .map(l => `<div style="color:#555;font-size:0.73rem;line-height:1.5">${l}</div>`)
+        .join('');
+
+      previewEl.innerHTML = `
+        <div style="display:flex;align-items:flex-start;gap:0.65rem;padding:0.1rem 0">
+          <div style="flex-shrink:0;width:28px;height:28px;background:#1e1e2e;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:#555;margin-top:0.1rem">▶</div>
+          <div style="min-width:0">
+            <div style="color:#d8d0ff;font-weight:600;font-size:0.83rem;line-height:1.4;margin-bottom:0.15rem">${esc(p.name)}</div>
+            ${descHtml}
+          </div>
+        </div>`;
     }
 
     // ── Performance mode ──────────────────────────────────────────────────────

@@ -504,45 +504,69 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset) {
 
     let streamName, streamDesc;
     if (labelPreset === 'compact') {
-      // Name: Server · Res · Codec  |  Desc: Audio · Bitrate · Size
-      streamName = [server.label, resLabel, codecLabel].filter(Boolean).join(' · ');
+      // Name: Server · Res · HDR · Codec  |  Desc: Audio · Bitrate · Size (one line)
+      streamName = [server.label, resLabel, hdrLabel, codecLabel].filter(Boolean).join(' · ');
       streamDesc = [audioLabel, bitrateLabel, sizeStr].filter(Boolean).join(' · ') || 'Unknown quality';
-    } else if (labelPreset === 'cinema') {
-      // Name: Server · Res · HDR  |  Desc: Codec · Source / Audio / Subs / Size
+
+    } else if (labelPreset === 'detailed') {
+      // Name: Server · Res · HDR  |  Desc: Codec · Source / all audio tracks / subs / size
       streamName = [server.label, resLabel, hdrLabel].filter(Boolean).join(' · ');
       streamDesc = [
         [codecLabel, sourceLabel].filter(Boolean).join(' · '),
         allAudioLabel || audioLabel,
         subsLabel,
+        [dimsLabel, bitrateLabel, sizeStr].filter(Boolean).join(' · '),
+      ].filter(Boolean).join('\n') || 'Unknown quality';
+
+    } else if (labelPreset === 'cinema') {
+      // Name: Server · Res · HDR · Source  |  Desc: Codec / Audio / Subs / Size
+      streamName = [server.label, resLabel, hdrLabel, sourceLabel].filter(Boolean).join(' · ');
+      streamDesc = [
+        codecLabel,
+        allAudioLabel || audioLabel,
+        subsLabel,
         sizeStr,
       ].filter(Boolean).join('\n') || 'Unknown quality';
+
     } else if (labelPreset === 'bandwidth') {
-      // Name: Server · Res  |  Desc: Bitrate · Size / Codec · Audio
-      streamName = [server.label, resLabel].filter(Boolean).join(' · ');
-      streamDesc = [
-        [bitrateLabel, sizeStr].filter(Boolean).join(' · '),
-        [codecLabel, audioLabel].filter(Boolean).join(' · '),
-      ].filter(Boolean).join('\n') || 'Unknown quality';
-    } else if (labelPreset === 'audiophile') {
-      // Name: Server · Res · Audio  |  Desc: Codec · HDR / All Audio / Subs / Bitrate · Size
-      streamName = [server.label, resLabel, audioLabel].filter(Boolean).join(' · ');
+      // Name: Server · Res · Bitrate  |  Desc: Codec · HDR / Audio / Size
+      streamName = [server.label, resLabel, bitrateLabel].filter(Boolean).join(' · ');
       streamDesc = [
         [codecLabel, hdrLabel].filter(Boolean).join(' · '),
+        audioLabel,
+        sizeStr,
+      ].filter(Boolean).join('\n') || 'Unknown quality';
+
+    } else if (labelPreset === 'audiophile') {
+      // Name: Server · Res · Audio  |  Desc: Codec · HDR · Source / all audio / subs / size
+      streamName = [server.label, resLabel, audioLabel].filter(Boolean).join(' · ');
+      streamDesc = [
+        [codecLabel, hdrLabel, sourceLabel].filter(Boolean).join(' · '),
         allAudioLabel,
         subsLabel,
         [bitrateLabel, sizeStr].filter(Boolean).join(' · '),
       ].filter(Boolean).join('\n') || 'Unknown quality';
+
+    } else if (labelPreset === 'source') {
+      // Name: Server · Res · Source  |  Desc: HDR · Codec / Audio / Size
+      streamName = [server.label, resLabel, sourceLabel || 'Unknown'].filter(Boolean).join(' · ');
+      streamDesc = [
+        [hdrLabel, codecLabel].filter(Boolean).join(' · '),
+        allAudioLabel || audioLabel,
+        [bitrateLabel, sizeStr].filter(Boolean).join(' · '),
+      ].filter(Boolean).join('\n') || 'Unknown quality';
+
     } else if (labelPreset === 'minimal') {
       // Name: Server · Res  |  Desc: Size only
       streamName = [server.label, resLabel].filter(Boolean).join(' · ');
       streamDesc = sizeStr || bitrateLabel || 'Unknown quality';
+
     } else {
-      // standard (default) — full multi-line with HDR, subs, all-audio
+      // standard (default) — name has HDR, desc has codec+source / audio / subs / size
+      // Dims line removed (redundant — res already in name)
       streamName = [server.label, resLabel, hdrLabel].filter(Boolean).join(' · ');
       const descLines = [
-        [resLabel, dimsLabel].filter(Boolean).join(' · '),
-        [hdrLabel, codecLabel].filter(Boolean).join(' · '),
-        sourceLabel,
+        [codecLabel, sourceLabel].filter(Boolean).join(' · '),
         allAudioLabel || audioLabel,
         subsLabel,
         [container, bitrateLabel, sizeStr].filter(Boolean).join(' · '),
