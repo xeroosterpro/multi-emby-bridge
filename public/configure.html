@@ -7,6 +7,16 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* ── Auto-save indicator ── */
+    #autosave-indicator {
+      position: fixed; bottom: 1.2rem; right: 1.2rem;
+      background: #1e3a28; border: 1px solid #4caf7d; color: #4caf7d;
+      font-size: 0.75rem; font-weight: 600; padding: 0.35rem 0.75rem;
+      border-radius: 20px; opacity: 0; pointer-events: none;
+      transition: opacity 0.3s; z-index: 999;
+    }
+    #autosave-indicator.visible { opacity: 1; }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #0f0f13;
@@ -558,7 +568,8 @@
       <div id="ping-results"></div>
     </div>
 
-    <div id="global-error"></div>
+    <div id="autosave-indicator">✓ Settings saved</div>
+  <div id="global-error"></div>
 
     <button class="btn-generate" onclick="generateLinks()">Generate Install Link</button>
 
@@ -676,6 +687,7 @@
       if (dir === -1) container.insertBefore(block, target);
       else            container.insertBefore(target, block);
       renumberBlocks();
+      autoSave();
     }
 
     function renumberBlocks() {
@@ -717,6 +729,7 @@
       const el = document.getElementById(`server-${id}`);
       if (el) el.remove();
       renumberBlocks();
+      autoSave();
     }
 
     // ── Collect config ────────────────────────────────────────────────────────
@@ -1079,9 +1092,117 @@
       }
     }
 
+    // ── Auto-save to localStorage ─────────────────────────────────────────────
+    const LS_KEY = 'meb_config_v1';
+    let saveTimer = null;
+
+    function collectFormState() {
+      const mode = document.querySelector('input[name="perf-mode"]:checked')?.value || 'normal';
+      const state = {
+        mode,
+        timeoutValue: document.getElementById('timeout-value')?.value,
+        sortOrder:    document.getElementById('sort-order')?.value,
+        excludeRes:   [...document.querySelectorAll('.res-cb')].map(cb => cb.checked),
+        recommend:    document.getElementById('show-recommend')?.checked,
+        showPing:     document.getElementById('show-ping')?.checked,
+        pingDetail:   document.getElementById('ping-detail')?.checked,
+        audioLang:    document.getElementById('audio-lang')?.value,
+        prefCodec:    document.getElementById('pref-codec')?.value,
+        codecMode:    document.getElementById('codec-mode')?.value,
+        maxBitrate:   document.getElementById('max-bitrate')?.value,
+        autoSelect:   document.getElementById('auto-select')?.checked,
+        labelPreset:  document.getElementById('label-preset')?.value,
+        pingOrigin:   document.getElementById('ping-origin')?.value,
+        servers: [],
+      };
+      document.querySelectorAll('.server-block').forEach(block => {
+        state.servers.push({
+          label:    block.querySelector('.f-label')?.value    || '',
+          type:     block.querySelector('.f-type')?.value     || 'emby',
+          url:      block.querySelector('.f-url')?.value      || '',
+          apiKey:   block.querySelector('.f-apikey')?.value   || '',
+          userId:   block.querySelector('.f-userid')?.value   || '',
+          username: block.querySelector('.f-username')?.value || '',
+          password: block.querySelector('.f-password')?.value || '',
+          enabled:  block.querySelector('.f-enabled')?.checked ?? true,
+        });
+      });
+      return state;
+    }
+
+    function saveToLocalStorage() {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(collectFormState())); } catch {}
+      const ind = document.getElementById('autosave-indicator');
+      if (ind) { ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(() => ind.classList.remove('visible'), 1800); }
+    }
+
+    function autoSave() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveToLocalStorage, 600);
+    }
+
+    function restoreFromLocalStorage() {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) return false;
+        const state = JSON.parse(raw);
+
+        // Restore servers
+        if (state.servers && state.servers.length > 0) {
+          document.getElementById('servers-container').innerHTML = '';
+          nextId = 0;
+          state.servers.forEach(s => {
+            const id = nextId;
+            addServer(s);
+            // Restore enabled state (addServer defaults to checked)
+            if (s.enabled === false) {
+              const block = document.getElementById(`server-${id}`);
+              if (block) {
+                block.querySelector('.f-enabled').checked = false;
+                block.classList.add('disabled');
+              }
+            }
+          });
+        }
+
+        // Restore mode radio
+        if (state.mode) {
+          const radio = document.querySelector(`input[name="perf-mode"][value="${state.mode}"]`);
+          if (radio) { radio.checked = true; onModeChange(); }
+        }
+
+        // Restore selects & inputs
+        const setVal = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
+        const setChk = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined) el.checked = v; };
+        setVal('timeout-value', state.timeoutValue);
+        setVal('sort-order',    state.sortOrder);
+        setVal('audio-lang',    state.audioLang);
+        setVal('pref-codec',    state.prefCodec);
+        setVal('codec-mode',    state.codecMode);
+        setVal('max-bitrate',   state.maxBitrate);
+        setVal('label-preset',  state.labelPreset);
+        setVal('ping-origin',   state.pingOrigin);
+        setChk('show-recommend', state.recommend);
+        setChk('show-ping',      state.showPing);
+        setChk('ping-detail',    state.pingDetail);
+        setChk('auto-select',    state.autoSelect);
+
+        // Restore resolution checkboxes
+        if (Array.isArray(state.excludeRes)) {
+          document.querySelectorAll('.res-cb').forEach((cb, i) => {
+            if (i < state.excludeRes.length) cb.checked = state.excludeRes[i];
+          });
+        }
+
+        return true;
+      } catch { return false; }
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────────
-    addServer();
+    if (!restoreFromLocalStorage()) addServer();
     updateLabelPreview();
+    document.addEventListener('input',  autoSave);
+    document.addEventListener('change', autoSave);
   </script>
 </body>
 </html>
