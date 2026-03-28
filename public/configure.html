@@ -66,16 +66,50 @@
       position: relative; transition: opacity 0.2s;
     }
     .server-block.disabled { opacity: 0.45; }
+    .server-block.collapsed { padding-bottom: 1.25rem; }
     .server-block-header {
       display: flex; align-items: center;
       justify-content: space-between; margin-bottom: 1rem;
     }
+    .server-block.collapsed .server-block-header { margin-bottom: 0; }
     .server-header-left  { display: flex; align-items: center; gap: 0.55rem; }
     .server-header-right { display: flex; align-items: center; gap: 0.35rem; }
     .server-number {
       font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
       letter-spacing: 0.08em; color: #7b61ff;
     }
+
+    /* ── Collapse ── */
+    .btn-collapse {
+      background: none; border: none; color: #555; cursor: pointer;
+      font-size: 0.65rem; padding: 0.15rem 0.3rem; line-height: 1;
+      transition: color 0.15s; user-select: none;
+    }
+    .btn-collapse:hover { color: #aaa; }
+    .server-body { display: block; }
+    .server-block.collapsed .server-body { display: none; }
+    .server-summary {
+      display: none; font-size: 0.8rem; color: #666;
+      margin-top: 0.25rem; white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .server-block.collapsed .server-summary { display: block; }
+    .server-summary .sum-name { color: #999; font-weight: 600; }
+    .server-summary .sum-sep  { color: #444; margin: 0 0.3rem; }
+    .server-summary .sum-type { color: #555; }
+    .server-summary .sum-url  { color: #444; font-size: 0.75rem; }
+
+    /* ── Collapse-all toolbar ── */
+    .servers-toolbar {
+      display: flex; justify-content: flex-end; gap: 0.5rem;
+      margin-bottom: 0.6rem;
+    }
+    .btn-collapse-all {
+      background: #1a1a23; border: 1px solid #2a2a38; color: #666;
+      border-radius: 6px; padding: 0.3rem 0.65rem; font-size: 0.75rem;
+      font-weight: 600; cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .btn-collapse-all:hover { background: #22222e; color: #aaa; }
 
     /* ── Toggle switch ── */
     label.toggle-switch {
@@ -379,6 +413,11 @@
       <div class="profile-status info" id="profile-status">Save your servers so you can reload them anytime.</div>
     </div>
 
+    <div class="servers-toolbar">
+      <button class="btn-collapse-all" onclick="collapseAll()">Collapse All</button>
+      <button class="btn-collapse-all" onclick="expandAll()">Expand All</button>
+    </div>
+
     <div id="servers-container"></div>
 
     <button class="btn-add" id="btn-add" onclick="addServer()">+ Add Another Server</button>
@@ -599,6 +638,7 @@
               <span class="toggle-slider"></span>
             </label>
             <span class="server-number">Server <span class="server-num-label"></span></span>
+            <button class="btn-collapse" onclick="toggleCollapse(${id})" title="Collapse / expand">▼</button>
           </div>
           <div class="server-header-right">
             <button class="btn-reorder btn-up"   onclick="moveServer(${id}, -1)" title="Move up">▲</button>
@@ -606,7 +646,11 @@
             <button class="btn-remove" onclick="removeServer(${id})">Remove</button>
           </div>
         </div>
+        <div class="server-summary">
+          <span class="sum-name"></span><span class="sum-sep">·</span><span class="sum-type"></span><span class="sum-sep">·</span><span class="sum-url"></span>
+        </div>
 
+        <div class="server-body">
         <div class="field-row">
           <div class="field-group">
             <label>Display Name</label>
@@ -661,8 +705,47 @@
         <div class="test-status" id="test-status-${id}"></div>
         <button class="btn-stats" onclick="loadLibraryStats(${id})">📚 Library Stats</button>
         <div class="stats-display" id="stats-${id}"></div>
+        </div>
       `;
       return div;
+    }
+
+    // ── Collapse ──────────────────────────────────────────────────────────────
+    function updateSummary(id) {
+      const block   = document.getElementById(`server-${id}`);
+      const name    = block.querySelector('.f-label')?.value.trim() || 'Unnamed';
+      const type    = block.querySelector('.f-type')?.value || 'emby';
+      const url     = block.querySelector('.f-url')?.value.trim() || '';
+      const urlShort = url.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+      block.querySelector('.sum-name').textContent = name;
+      block.querySelector('.sum-type').textContent = type === 'jellyfin' ? 'Jellyfin' : 'Emby';
+      block.querySelector('.sum-url').textContent  = urlShort;
+    }
+
+    function toggleCollapse(id) {
+      const block = document.getElementById(`server-${id}`);
+      const collapsed = block.classList.toggle('collapsed');
+      block.querySelector('.btn-collapse').textContent = collapsed ? '▶' : '▼';
+      if (collapsed) updateSummary(id);
+      autoSave();
+    }
+
+    function collapseAll() {
+      document.querySelectorAll('.server-block').forEach(block => {
+        const id = parseInt(block.id.replace('server-', ''), 10);
+        block.classList.add('collapsed');
+        block.querySelector('.btn-collapse').textContent = '▶';
+        updateSummary(id);
+      });
+      autoSave();
+    }
+
+    function expandAll() {
+      document.querySelectorAll('.server-block').forEach(block => {
+        block.classList.remove('collapsed');
+        block.querySelector('.btn-collapse').textContent = '▼';
+      });
+      autoSave();
     }
 
     function updateBlockStyle(id) {
@@ -670,6 +753,7 @@
       const type = block.querySelector('.f-type').value;
       block.classList.remove('type-emby', 'type-jellyfin');
       block.classList.add(`type-${type}`);
+      if (block.classList.contains('collapsed')) updateSummary(id);
     }
 
     function updateToggle(id) {
@@ -1117,14 +1201,15 @@
       };
       document.querySelectorAll('.server-block').forEach(block => {
         state.servers.push({
-          label:    block.querySelector('.f-label')?.value    || '',
-          type:     block.querySelector('.f-type')?.value     || 'emby',
-          url:      block.querySelector('.f-url')?.value      || '',
-          apiKey:   block.querySelector('.f-apikey')?.value   || '',
-          userId:   block.querySelector('.f-userid')?.value   || '',
-          username: block.querySelector('.f-username')?.value || '',
-          password: block.querySelector('.f-password')?.value || '',
-          enabled:  block.querySelector('.f-enabled')?.checked ?? true,
+          label:     block.querySelector('.f-label')?.value    || '',
+          type:      block.querySelector('.f-type')?.value     || 'emby',
+          url:       block.querySelector('.f-url')?.value      || '',
+          apiKey:    block.querySelector('.f-apikey')?.value   || '',
+          userId:    block.querySelector('.f-userid')?.value   || '',
+          username:  block.querySelector('.f-username')?.value || '',
+          password:  block.querySelector('.f-password')?.value || '',
+          enabled:   block.querySelector('.f-enabled')?.checked ?? true,
+          collapsed: block.classList.contains('collapsed'),
         });
       });
       return state;
@@ -1154,13 +1239,18 @@
           state.servers.forEach(s => {
             const id = nextId;
             addServer(s);
-            // Restore enabled state (addServer defaults to checked)
+            const block = document.getElementById(`server-${id}`);
+            if (!block) return;
+            // Restore enabled state
             if (s.enabled === false) {
-              const block = document.getElementById(`server-${id}`);
-              if (block) {
-                block.querySelector('.f-enabled').checked = false;
-                block.classList.add('disabled');
-              }
+              block.querySelector('.f-enabled').checked = false;
+              block.classList.add('disabled');
+            }
+            // Restore collapsed state
+            if (s.collapsed) {
+              block.classList.add('collapsed');
+              block.querySelector('.btn-collapse').textContent = '▶';
+              updateSummary(id);
             }
           });
         }
