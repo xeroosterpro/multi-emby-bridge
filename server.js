@@ -857,6 +857,9 @@ async function getStreamsFromServer(server, type, imdbId, season, episode, label
       items = await queryServerForEpisode(server, imdbId, season, episode);
     }
 
+    // Capture the content name from the first matched item
+    const itemName = items[0]?.Name || null;
+
     // For EACH validated item, call PlaybackInfo to get ALL MediaSources
     // This matches Streambridge's getPlaybackStreams() approach
     const allStreams = [];
@@ -894,17 +897,20 @@ async function getStreamsFromServer(server, type, imdbId, season, episode, label
     if (result.length === 0) {
       return [{
         name: server.label, description: 'No results found\nFile not in library',
-        url: `${server.url}/no-stream-available`, _noResults: true,
+        url: `${server.url}/no-stream-available`, _noResults: true, _noResultsType: 'not_found',
         _sizeBytes: 0, _bitrate: 0, _audioRank: 999, _mediaSourceId: `noresults:${server.label}`,
+        _serverLabel: server.label, _itemName: null,
       }];
     }
-    return result;
+    // Tag every real stream with its server label and content name for log metadata
+    return result.map(s => ({ ...s, _serverLabel: server.label, _itemName: itemName }));
   } catch (err) {
     console.error(`[${server.label}] Query failed:`, err.message);
     return [{
       name: server.label, description: 'Server offline or unreachable',
-      url: `${server.url}/no-stream-available`, _noResults: true,
+      url: `${server.url}/no-stream-available`, _noResults: true, _noResultsType: 'offline',
       _sizeBytes: 0, _bitrate: 0, _audioRank: 999, _mediaSourceId: `offline:${server.label}`,
+      _serverLabel: server.label, _itemName: null,
     }];
   }
 }
@@ -1018,9 +1024,43 @@ async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) 
     realStreams = [realStreams[0]];
   }
 
+  // ── Build log metadata BEFORE stripping internal fields ─────────────────────
+  // Content name: first non-null _itemName from real streams, or from no-results
+  const contentName = allStreams.map(s => s._itemName).find(n => n != null) || null;
+
+  // Best server: the top real stream after all sorting/filtering
+  const bestStream = realStreams[0] || null;
+  const bestServer = bestStream ? {
+    label:   bestStream._serverLabel,
+    size:    bestStream._sizeBytes,
+    bitrate: bestStream._bitrate,
+  } : null;
+
+  // Per-server status breakdown
+  const serverStatus = servers.map(srv => {
+    const srvStreams = allStreams.filter(s => s._serverLabel === srv.label);
+    if (!srvStreams.length) return { label: srv.label, status: 'timeout' };
+    const placeholder = srvStreams.find(s => s._noResults);
+    if (placeholder) return { label: srv.label, status: placeholder._noResultsType || 'not_found' };
+    // Sort real streams the same way to find this server's best file
+    const real = srvStreams.filter(s => !s._noResults);
+    const best = real[0];
+    return {
+      label:   srv.label,
+      status:  'found',
+      count:   real.length,
+      size:    best?._sizeBytes || 0,
+      bitrate: best?._bitrate || 0,
+    };
+  });
+
+  const meta = { contentName, bestServer, serverStatus };
+
   // No-results/offline placeholders always at the bottom
-  return [...realStreams, ...noResStreams]
-    .map(({ _sizeBytes, _bitrate, _audioRank, _mediaSourceId, _noResults, _resLabel, _pingMs, _codec, _audioLang, ...stream }) => stream);
+  const finalStreams = [...realStreams, ...noResStreams]
+    .map(({ _sizeBytes, _bitrate, _audioRank, _mediaSourceId, _noResults, _noResultsType, _resLabel, _pingMs, _codec, _audioLang, _serverLabel, _itemName, ...stream }) => stream);
+
+  return { streams: finalStreams, meta };
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
@@ -1316,7 +1356,7 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
 
   const _t0 = Date.now();
   try {
-    const streams = await getAllStreams(servers, type, imdbId, season, episode, {
+    const { streams, meta } = await getAllStreams(servers, type, imdbId, season, episode, {
       sortOrder:   cfg.sortOrder,
       excludeRes:  cfg.excludeRes,
       recommend:   cfg.recommend,
@@ -1330,15 +1370,16 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
       autoSelect:  cfg.autoSelect,
     });
     addLogEntry({
-      ts:      new Date().toISOString(),
+      ts:           new Date().toISOString(),
       type,
       imdbId,
-      season:  season  || null,
-      episode: episode || null,
-      servers: servers.map(s => s.label),
-      found:   streams.some(s => !s.name?.includes('No results') && !s.name?.includes('offline')),
-      count:   streams.length,
-      ms:      Date.now() - _t0,
+      season:       season  || null,
+      episode:      episode || null,
+      contentName:  meta.contentName,
+      bestServer:   meta.bestServer,
+      serverStatus: meta.serverStatus,
+      found:        (meta.serverStatus || []).some(s => s.status === 'found'),
+      ms:           Date.now() - _t0,
     });
     res.json({ streams });
   } catch (err) {

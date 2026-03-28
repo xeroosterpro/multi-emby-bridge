@@ -654,6 +654,13 @@
     let nextId = 0;
 
     // ── Request Log ───────────────────────────────────────────────────────────
+    function fmtBytes(b) {
+      if (!b) return null;
+      if (b >= 1e9) return `${(b/1e9).toFixed(1)}GB`;
+      if (b >= 1e6) return `${(b/1e6).toFixed(0)}MB`;
+      return `${Math.round(b/1e3)}KB`;
+    }
+
     async function refreshLog() {
       try {
         const data = await fetch('/api/request-log').then(r => r.json());
@@ -663,26 +670,49 @@
           return;
         }
         const rows = data.map(e => {
-          const t = new Date(e.ts).toLocaleTimeString();
-          const d = new Date(e.ts).toLocaleDateString();
-          const label = e.type === 'series'
-            ? `S${String(e.season||0).padStart(2,'0')}E${String(e.episode||0).padStart(2,'0')}`
-            : 'Movie';
-          const foundCls = e.found ? 'log-found' : 'log-miss';
-          const foundTxt = e.found ? '✓ Found' : '✗ Miss';
-          const ms = e.ms < 1000 ? `${e.ms}ms` : `${(e.ms/1000).toFixed(1)}s`;
+          const t   = new Date(e.ts).toLocaleTimeString();
+          const d   = new Date(e.ts).toLocaleDateString();
+          const ep  = e.type === 'series'
+            ? ` S${String(e.season||0).padStart(2,'0')}E${String(e.episode||0).padStart(2,'0')}` : '';
+          const title  = e.contentName ? `<strong style="color:#c0b8ff">${escHtml(e.contentName)}</strong>${ep}` : `<span class="log-id">${e.imdbId}</span>${ep}`;
+          const ms     = e.ms < 1000 ? `${e.ms}ms` : `${(e.ms/1000).toFixed(1)}s`;
+
+          // Best server pill
+          let bestHtml = '—';
+          if (e.bestServer) {
+            const size = fmtBytes(e.bestServer.size);
+            const mbps = e.bestServer.bitrate ? `${(e.bestServer.bitrate/1e6).toFixed(1)}Mbps` : null;
+            const detail = [size, mbps].filter(Boolean).join(' · ');
+            bestHtml = `<span style="color:#4caf7d;font-weight:700">${escHtml(e.bestServer.label)}</span>${detail ? `<br><span style="font-size:0.7rem;color:#4a6a55">${detail}</span>` : ''}`;
+          }
+
+          // Per-server status pills
+          let serversHtml = '—';
+          if (e.serverStatus?.length) {
+            serversHtml = e.serverStatus.map(s => {
+              if (s.status === 'found') {
+                const size = fmtBytes(s.size);
+                const mbps = s.bitrate ? `${(s.bitrate/1e6).toFixed(1)}Mbps` : null;
+                const det  = [size, mbps].filter(Boolean).join(' / ');
+                return `<div style="margin-bottom:0.2rem"><span style="color:#4caf7d">✓</span> <span style="color:#888">${escHtml(s.label)}</span>${det ? ` <span style="color:#444;font-size:0.7rem">${det}</span>` : ''}</div>`;
+              }
+              if (s.status === 'offline')   return `<div><span style="color:#e05555">✗</span> <span style="color:#555">${escHtml(s.label)}</span> <span style="color:#444;font-size:0.7rem">offline</span></div>`;
+              if (s.status === 'not_found') return `<div><span style="color:#c06000">–</span> <span style="color:#555">${escHtml(s.label)}</span> <span style="color:#444;font-size:0.7rem">not in library</span></div>`;
+              return `<div><span style="color:#444">?</span> <span style="color:#444">${escHtml(s.label)}</span></div>`;
+            }).join('');
+          }
+
           return `<tr>
             <td class="log-time">${d}<br>${t}</td>
-            <td class="log-id">${e.imdbId}</td>
-            <td>${label}</td>
-            <td class="${foundCls}">${foundTxt}</td>
+            <td>${title}</td>
             <td class="log-ms">${ms}</td>
-            <td>${e.servers?.join(', ') || '—'}</td>
+            <td>${bestHtml}</td>
+            <td>${serversHtml}</td>
           </tr>`;
         }).join('');
         wrap.innerHTML = `<table class="log-table">
           <thead><tr>
-            <th>Time</th><th>IMDB ID</th><th>Type</th><th>Result</th><th>Time</th><th>Servers</th>
+            <th>Time</th><th>Content</th><th>Duration</th><th>Best File</th><th>Server Results</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
