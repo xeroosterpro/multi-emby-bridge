@@ -56,6 +56,56 @@ function hashPassword(password, salt) {
   return crypto.createHmac('sha256', salt).update(password).digest('hex');
 }
 
+// ─── Gumroad license verification ────────────────────────────────────────────
+// Set GUMROAD_PRODUCT env var to your product permalink to enable the paywall.
+// Leave unset to run without any license gate (e.g. personal / private use).
+
+const GUMROAD_PRODUCT = process.env.GUMROAD_PRODUCT || null;
+const licenseCache    = new Map(); // licenseKey → { valid, email, name, expires }
+const LICENSE_TTL_MS  = 24 * 60 * 60 * 1000; // re-verify every 24 hours
+
+async function verifyGumroadLicense(licenseKey) {
+  if (!GUMROAD_PRODUCT) return { valid: true }; // paywall disabled
+  if (!licenseKey)      return { valid: false, error: 'No license key provided' };
+
+  const cached = licenseCache.get(licenseKey);
+  if (cached && cached.expires > Date.now()) return cached;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 9000);
+  try {
+    const resp = await fetch('https://api.gumroad.com/v2/licenses/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        product_permalink:    GUMROAD_PRODUCT,
+        license_key:          licenseKey,
+        increment_uses_count: 'false',
+      }).toString(),
+      signal: controller.signal,
+    });
+    const data = await resp.json();
+    if (data.success && data.purchase && !data.purchase.refunded && !data.purchase.chargebacked) {
+      const result = {
+        valid:   true,
+        email:   data.purchase.email   || null,
+        name:    data.purchase.full_name || null,
+        expires: Date.now() + LICENSE_TTL_MS,
+      };
+      licenseCache.set(licenseKey, result);
+      return result;
+    }
+    return { valid: false, error: data.message || 'License key invalid or refunded' };
+  } catch (err) {
+    // Network error — if previously cached as valid, allow grace period
+    const stale = licenseCache.get(licenseKey);
+    if (stale?.valid) return { ...stale, expires: Date.now() + 60 * 60 * 1000 };
+    return { valid: false, error: 'Could not reach Gumroad — try again shortly' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ─── Health monitoring state ──────────────────────────────────────────────────
 const HEALTH_SERVERS_FILE = path.join(DATA_DIR, 'health-servers.json');
 const HEALTH_HISTORY_FILE = path.join(DATA_DIR, 'health-history.json');
@@ -1097,6 +1147,21 @@ app.get('/configure', (req, res) => {
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// ─── Paywall ──────────────────────────────────────────────────────────────────
+app.get('/api/paywall', (req, res) => {
+  res.json({ enabled: !!GUMROAD_PRODUCT });
+});
+
+app.post('/api/verify-license', express.json(), async (req, res) => {
+  const { licenseKey } = req.body || {};
+  const result = await verifyGumroadLicense(licenseKey);
+  if (result.valid) {
+    res.json({ ok: true, email: result.email || null, name: result.name || null });
+  } else {
+    res.status(403).json({ ok: false, error: result.error });
+  }
+});
+
 // ─── Server info (ping origin label) ─────────────────────────────────────────
 // Railway exposes RAILWAY_REGION (e.g. "us-west2"), RAILWAY_SERVICE_NAME, etc.
 app.get('/api/server-info', (req, res) => {
@@ -1379,6 +1444,18 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
 
   if (!imdbId || !imdbId.startsWith('tt')) {
     return res.json({ streams: [] });
+  }
+
+  // ── License check ─────────────────────────────────────────────────────────
+  if (GUMROAD_PRODUCT) {
+    const license = await verifyGumroadLicense(cfg.licenseKey);
+    if (!license.valid) {
+      return res.json({ streams: [{
+        name: '🔑 License Required',
+        description: `${license.error || 'Invalid license key'}\nVisit the configure page to enter your access key.`,
+        url: `${req.protocol}://${req.hostname}/configure`,
+      }] });
+    }
   }
 
   const timeoutMs = (cfg.timeout && cfg.timeout >= 2000 && cfg.timeout <= 10000) ? cfg.timeout : 10000;
