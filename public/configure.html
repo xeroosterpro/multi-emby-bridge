@@ -1213,6 +1213,27 @@
 
       section.style.display = 'block';
       section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      // ── Save config key for health page auto-load ──────────────────────────
+      // Store in localStorage so /servers page can auto-populate without user input
+      try {
+        if (mode !== 'split') {
+          const encoded = encodeConfig(config);
+          localStorage.setItem('meb-last-config', encoded);
+        }
+      } catch {}
+
+      // ── Register servers for 24/7 backend health monitoring ────────────────
+      // Only send URL + label + type — no API keys stored on backend
+      try {
+        const healthServers = (config.servers || []).map(s => ({
+          url: s.url, label: s.label, type: s.type || 'emby',
+        }));
+        fetch('/api/health/register', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ servers: healthServers }),
+        }).catch(() => {});
+      } catch {}
     }
 
     // ── Copy ──────────────────────────────────────────────────────────────────

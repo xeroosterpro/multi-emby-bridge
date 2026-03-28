@@ -15,10 +15,11 @@ function addLogEntry(entry) {
   if (REQUEST_LOG.length > MAX_LOG) REQUEST_LOG.pop();
 }
 
-// ─── Profile storage ──────────────────────────────────────────────────────────
-// Persistent: DATA_DIR/profiles.json (set DATA_DIR env var for Railway volume)
-// Falls back to ./data/profiles.json — always cached in memory so even if
-// the filesystem is unavailable, profiles survive until the process restarts.
+// ─── Health monitoring ────────────────────────────────────────────────────────
+// Runs 24/7 in the backend — no API key needed, just pings /System/Ping.
+// Servers registered via POST /api/health/register (called when generating link).
+// History persisted to DATA_DIR/health-history.json + DATA_DIR/health-servers.json
+// Max 2016 entries per server (~1 week at 5-min intervals).
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const PROFILES_FILE = path.join(DATA_DIR, 'profiles.json');
@@ -54,6 +55,86 @@ function saveProfiles(profiles) {
 function hashPassword(password, salt) {
   return crypto.createHmac('sha256', salt).update(password).digest('hex');
 }
+
+// ─── Health monitoring state ──────────────────────────────────────────────────
+const HEALTH_SERVERS_FILE = path.join(DATA_DIR, 'health-servers.json');
+const HEALTH_HISTORY_FILE = path.join(DATA_DIR, 'health-history.json');
+const MAX_HEALTH_ENTRIES  = 2016; // ~1 week at 5-min intervals
+const HEALTH_INTERVAL_MS  = 5 * 60 * 1000; // 5 minutes
+
+let healthServers = [];  // [{ url, label, type }]
+let healthHistory = {};  // { [url]: [{ ts, up, ms }] }
+
+function loadHealthData() {
+  try {
+    if (fs.existsSync(HEALTH_SERVERS_FILE))
+      healthServers = JSON.parse(fs.readFileSync(HEALTH_SERVERS_FILE, 'utf8'));
+  } catch { healthServers = []; }
+  try {
+    if (fs.existsSync(HEALTH_HISTORY_FILE))
+      healthHistory = JSON.parse(fs.readFileSync(HEALTH_HISTORY_FILE, 'utf8'));
+  } catch { healthHistory = {}; }
+}
+
+function saveHealthData() {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(HEALTH_SERVERS_FILE, JSON.stringify(healthServers), 'utf8');
+    fs.writeFileSync(HEALTH_HISTORY_FILE, JSON.stringify(healthHistory), 'utf8');
+  } catch (err) {
+    console.error('Health save error:', err.message);
+  }
+}
+
+function registerHealthServers(servers) {
+  // servers = [{ url, label, type }] — no API keys stored
+  let changed = false;
+  for (const s of servers) {
+    if (!s.url) continue;
+    const url = s.url.replace(/\/+$/, '');
+    if (!healthServers.find(h => h.url === url)) {
+      healthServers.push({ url, label: s.label || url, type: s.type || 'emby' });
+      changed = true;
+    } else {
+      // Update label/type if changed
+      const existing = healthServers.find(h => h.url === url);
+      if (existing.label !== s.label || existing.type !== s.type) {
+        existing.label = s.label || url;
+        existing.type  = s.type || 'emby';
+        changed = true;
+      }
+    }
+  }
+  if (changed) saveHealthData();
+}
+
+async function pingHealthServers() {
+  if (healthServers.length === 0) return;
+  await Promise.all(healthServers.map(async (server) => {
+    const t0 = Date.now();
+    let up = false, ms = null;
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6000);
+      try {
+        await fetch(`${server.url}/System/Ping`, { signal: controller.signal });
+        up = true;
+        ms = Date.now() - t0;
+      } finally { clearTimeout(timer); }
+    } catch { /* offline */ }
+    if (!healthHistory[server.url]) healthHistory[server.url] = [];
+    healthHistory[server.url].unshift({ ts: Date.now(), up, ms, label: server.label });
+    if (healthHistory[server.url].length > MAX_HEALTH_ENTRIES)
+      healthHistory[server.url] = healthHistory[server.url].slice(0, MAX_HEALTH_ENTRIES);
+  }));
+  saveHealthData();
+}
+
+// Boot: load persisted data then start background pinger
+loadHealthData();
+setInterval(pingHealthServers, HEALTH_INTERVAL_MS);
+// Ping immediately on startup (after 10s to let server settle)
+setTimeout(pingHealthServers, 10000);
 
 // ─── CORS (required by Stremio) ───────────────────────────────────────────────
 app.use((req, res, next) => {
@@ -958,6 +1039,36 @@ app.get('/servers', (req, res) => {
 });
 app.get('/:config/servers', (req, res) => {
   res.redirect(`/servers?cfg=${encodeURIComponent(req.params.config)}`);
+});
+
+// Register servers for 24/7 health monitoring (no API keys — URL+label+type only)
+app.post('/api/health/register', express.json(), (req, res) => {
+  const { servers } = req.body || {};
+  if (!Array.isArray(servers)) return res.status(400).json({ error: 'servers must be array' });
+  registerHealthServers(servers);
+  res.json({ ok: true, monitoring: healthServers.length });
+});
+
+// Return full history for all monitored servers
+app.get('/api/health/history', (req, res) => {
+  const result = healthServers.map(s => ({
+    url:     s.url,
+    label:   s.label,
+    type:    s.type,
+    history: (healthHistory[s.url] || []),
+  }));
+  res.json(result);
+});
+
+// Trigger an immediate ping of all registered servers
+app.post('/api/health/ping-now', async (req, res) => {
+  await pingHealthServers();
+  const result = healthServers.map(s => ({
+    url:    s.url,
+    label:  s.label,
+    latest: (healthHistory[s.url] || [])[0] || null,
+  }));
+  res.json(result);
 });
 
 // ─── Request log routes ───────────────────────────────────────────────────────
