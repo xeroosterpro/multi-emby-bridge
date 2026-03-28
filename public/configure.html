@@ -342,6 +342,25 @@
     .ping-value.timeout { color: #555; }
     .ping-note { font-size: 0.75rem; color: #444; margin-top: 0.6rem; }
 
+    /* ── Request Log ── */
+    .log-panel { background: #161620; border: 1px solid #2a2a3a; border-radius: 12px; padding: 1.1rem 1.4rem 1.2rem; margin-bottom: 1.75rem; }
+    .log-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem; }
+    .log-panel-header span { font-size: 0.82rem; font-weight: 700; color: #9a8aee; }
+    .btn-log { background: #1e1e2e; border: 1px solid #2e2e45; color: #777; border-radius: 7px; padding: 0.3rem 0.75rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: background 0.15s, color 0.15s; }
+    .btn-log:hover { background: #252535; color: #aaa; }
+    .btn-log.danger:hover { color: #e05555; border-color: #e05555; }
+    .log-table-wrap { overflow-x: auto; }
+    .log-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .log-table th { text-align: left; color: #555; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; padding: 0 0.5rem 0.5rem; border-bottom: 1px solid #1e1e2a; }
+    .log-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #1a1a22; color: #888; vertical-align: top; }
+    .log-table tr:last-child td { border-bottom: none; }
+    .log-table .log-time { color: #555; white-space: nowrap; }
+    .log-table .log-found { color: #4caf7d; font-weight: 700; }
+    .log-table .log-miss  { color: #e05555; }
+    .log-table .log-id    { color: #7b61ff; font-family: monospace; }
+    .log-table .log-ms    { color: #666; white-space: nowrap; }
+    .log-empty { font-size: 0.8rem; color: #444; text-align: center; padding: 1.5rem 0; }
+
     /* ── Generate ── */
     .btn-generate {
       width: 100%; background: #7b61ff; border: none; color: #fff;
@@ -607,8 +626,23 @@
       <div id="ping-results"></div>
     </div>
 
+    <!-- ── Request History Log ── -->
+    <div class="log-panel">
+      <div class="log-panel-header">
+        <span>📋 Request History</span>
+        <div style="display:flex;gap:0.5rem;align-items:center">
+          <a href="/servers" target="_blank" class="btn-log">🖥️ Server Health →</a>
+          <button class="btn-log" onclick="refreshLog()">Refresh</button>
+          <button class="btn-log danger" onclick="clearLog()">Clear</button>
+        </div>
+      </div>
+      <div class="log-table-wrap" id="log-table-wrap">
+        <div class="log-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>
+      </div>
+    </div>
+
     <div id="autosave-indicator">✓ Settings saved</div>
-  <div id="global-error"></div>
+    <div id="global-error"></div>
 
     <button class="btn-generate" onclick="generateLinks()">Generate Install Link</button>
 
@@ -618,6 +652,80 @@
   <script>
     // ── State ─────────────────────────────────────────────────────────────────
     let nextId = 0;
+
+    // ── Request Log ───────────────────────────────────────────────────────────
+    async function refreshLog() {
+      try {
+        const data = await fetch('/api/request-log').then(r => r.json());
+        const wrap = document.getElementById('log-table-wrap');
+        if (!data.length) {
+          wrap.innerHTML = '<div class="log-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>';
+          return;
+        }
+        const rows = data.map(e => {
+          const t = new Date(e.ts).toLocaleTimeString();
+          const d = new Date(e.ts).toLocaleDateString();
+          const label = e.type === 'series'
+            ? `S${String(e.season||0).padStart(2,'0')}E${String(e.episode||0).padStart(2,'0')}`
+            : 'Movie';
+          const foundCls = e.found ? 'log-found' : 'log-miss';
+          const foundTxt = e.found ? '✓ Found' : '✗ Miss';
+          const ms = e.ms < 1000 ? `${e.ms}ms` : `${(e.ms/1000).toFixed(1)}s`;
+          return `<tr>
+            <td class="log-time">${d}<br>${t}</td>
+            <td class="log-id">${e.imdbId}</td>
+            <td>${label}</td>
+            <td class="${foundCls}">${foundTxt}</td>
+            <td class="log-ms">${ms}</td>
+            <td>${e.servers?.join(', ') || '—'}</td>
+          </tr>`;
+        }).join('');
+        wrap.innerHTML = `<table class="log-table">
+          <thead><tr>
+            <th>Time</th><th>IMDB ID</th><th>Type</th><th>Result</th><th>Time</th><th>Servers</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+      } catch { /* ignore */ }
+    }
+
+    async function clearLog() {
+      if (!confirm('Clear request history?')) return;
+      await fetch('/api/clear-request-log', { method: 'POST' });
+      refreshLog();
+    }
+
+    // Auto-refresh log every 30s while page is open
+    refreshLog();
+    setInterval(refreshLog, 30000);
+
+    // ── Auto-generate server name ─────────────────────────────────────────────
+    async function autoNameServer(id) {
+      const block   = document.getElementById(`server-${id}`);
+      if (!block) return;
+      const labelEl = block.querySelector('.f-label');
+      const urlEl   = block.querySelector('.f-url');
+      const typeEl  = block.querySelector('.f-type');
+      if (!urlEl || !labelEl) return;
+      const url = (urlEl.value || '').trim().replace(/\/+$/, '');
+      if (!url || labelEl.value.trim()) return; // don't overwrite existing name
+      try {
+        const resp = await fetch('/api/test-connection', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, type: typeEl?.value || 'emby', apiKey: '', userId: '' }),
+        });
+        const data = await resp.json();
+        // Extract just the server name from "Connected — ServerName v1.2.3"
+        if (data.message) {
+          const match = data.message.match(/Connected — (.+?)(?:\s+v[\d.]+)?$/);
+          if (match && match[1]) {
+            labelEl.value = match[1];
+            if (block.classList.contains('collapsed')) updateSummary(id);
+            autoSave();
+          }
+        }
+      } catch { /* silent — user can type name manually */ }
+    }
 
     // ── Config encoding ───────────────────────────────────────────────────────
     function encodeConfig(obj) {
@@ -668,7 +776,8 @@
         <div class="field-row full">
           <div class="field-group">
             <label>Server URL</label>
-            <input type="url" class="f-url" placeholder="http://192.168.1.100:8096" />
+            <input type="url" class="f-url" placeholder="http://192.168.1.100:8096"
+              onblur="autoNameServer(${id})" oninput="autoSave()" />
           </div>
         </div>
 

@@ -7,6 +7,14 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 7000;
 
+// ─── Request History Log ─────────────────────────────────────────────────────
+const REQUEST_LOG = [];
+const MAX_LOG = 200;
+function addLogEntry(entry) {
+  REQUEST_LOG.unshift(entry);
+  if (REQUEST_LOG.length > MAX_LOG) REQUEST_LOG.pop();
+}
+
 // ─── Profile storage ──────────────────────────────────────────────────────────
 // Persistent: DATA_DIR/profiles.json (set DATA_DIR env var for Railway volume)
 // Falls back to ./data/profiles.json — always cached in memory so even if
@@ -304,8 +312,10 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset) {
     const bitrate   = source.Bitrate || 0;
     const mediaStreams = source.MediaStreams || [];
 
-    const videoStream = mediaStreams.find((s) => s.Type === 'Video');
-    const audioStream = mediaStreams.find((s) => s.Type === 'Audio');
+    const videoStream  = mediaStreams.find((s) => s.Type === 'Video');
+    const audioStream  = mediaStreams.find((s) => s.Type === 'Audio');
+    const audioStreams = mediaStreams.filter((s) => s.Type === 'Audio');
+    const subStreams   = mediaStreams.filter((s) => s.Type === 'Subtitle');
 
     // ── Resolution
     // Use both width AND height for resolution detection.
@@ -369,6 +379,27 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset) {
       audioLabel = [codecName, chStr].filter(Boolean).join(' ');
     }
 
+    // ── All audio tracks (shown when > 1 track exists)
+    const allAudioLabel = audioStreams.length > 1
+      ? audioStreams.map(s => {
+          const ac = (s.Codec || '').toLowerCase();
+          const ch = s.Channels;
+          const chStr = ch === 8 ? '7.1' : ch === 6 ? '5.1' : ch === 2 ? '2.0' : ch ? `${ch}ch` : '';
+          let name = ac.includes('truehd') ? 'TrueHD' : (ac === 'dts-ma' || ac === 'dtshd') ? 'DTS-MA'
+            : ac.includes('dts') ? 'DTS' : ac === 'eac3' ? 'DD+' : ac === 'ac3' ? 'DD'
+            : ac.includes('aac') ? 'AAC' : (s.Codec || '').toUpperCase();
+          const lang = s.Language ? s.Language.toUpperCase().slice(0, 3) : '';
+          return [lang, name, chStr].filter(Boolean).join(' ');
+        }).join(' · ')
+      : null;
+
+    // ── Subtitle tracks (unique languages)
+    const subsLabel = subStreams.length > 0
+      ? 'Subs: ' + [...new Set(
+          subStreams.map(s => (s.Language || s.DisplayTitle || '?').slice(0, 3).toUpperCase())
+        )].join(' · ')
+      : null;
+
     // ── Raw codec ID (for filtering/preference)
     const rawCodec = videoStream ? (videoStream.Codec || '').toLowerCase() : null;
     const codecId = rawCodec === 'hevc' || rawCodec === 'h265' ? 'hevc'
@@ -396,11 +427,12 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset) {
       streamName = [server.label, resLabel, codecLabel].filter(Boolean).join(' · ');
       streamDesc = [audioLabel, bitrateLabel, sizeStr].filter(Boolean).join(' · ') || 'Unknown quality';
     } else if (labelPreset === 'cinema') {
-      // Name: Server · Res · HDR  |  Desc: Codec · Source / Audio / Size
+      // Name: Server · Res · HDR  |  Desc: Codec · Source / Audio / Subs / Size
       streamName = [server.label, resLabel, hdrLabel].filter(Boolean).join(' · ');
       streamDesc = [
         [codecLabel, sourceLabel].filter(Boolean).join(' · '),
-        audioLabel,
+        allAudioLabel || audioLabel,
+        subsLabel,
         sizeStr,
       ].filter(Boolean).join('\n') || 'Unknown quality';
     } else if (labelPreset === 'bandwidth') {
@@ -411,10 +443,12 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset) {
         [codecLabel, audioLabel].filter(Boolean).join(' · '),
       ].filter(Boolean).join('\n') || 'Unknown quality';
     } else if (labelPreset === 'audiophile') {
-      // Name: Server · Res · Audio  |  Desc: Codec · HDR / Bitrate · Size
+      // Name: Server · Res · Audio  |  Desc: Codec · HDR / All Audio / Subs / Bitrate · Size
       streamName = [server.label, resLabel, audioLabel].filter(Boolean).join(' · ');
       streamDesc = [
         [codecLabel, hdrLabel].filter(Boolean).join(' · '),
+        allAudioLabel,
+        subsLabel,
         [bitrateLabel, sizeStr].filter(Boolean).join(' · '),
       ].filter(Boolean).join('\n') || 'Unknown quality';
     } else if (labelPreset === 'minimal') {
@@ -422,13 +456,14 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset) {
       streamName = [server.label, resLabel].filter(Boolean).join(' · ');
       streamDesc = sizeStr || bitrateLabel || 'Unknown quality';
     } else {
-      // standard (default) — current multi-line behaviour
-      streamName = [server.label, resLabel].filter(Boolean).join(' ');
+      // standard (default) — full multi-line with HDR, subs, all-audio
+      streamName = [server.label, resLabel, hdrLabel].filter(Boolean).join(' · ');
       const descLines = [
         [resLabel, dimsLabel].filter(Boolean).join(' · '),
         [hdrLabel, codecLabel].filter(Boolean).join(' · '),
         sourceLabel,
-        audioLabel,
+        allAudioLabel || audioLabel,
+        subsLabel,
         [container, bitrateLabel, sizeStr].filter(Boolean).join(' · '),
       ].filter(Boolean);
       streamDesc = descLines.join('\n') || 'Unknown quality';
@@ -917,6 +952,23 @@ app.get('/configure', (req, res) => {
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// ─── Server health dashboard ──────────────────────────────────────────────────
+app.get('/servers', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'servers.html'));
+});
+app.get('/:config/servers', (req, res) => {
+  res.redirect(`/servers?cfg=${encodeURIComponent(req.params.config)}`);
+});
+
+// ─── Request log routes ───────────────────────────────────────────────────────
+app.get('/api/request-log', (req, res) => {
+  res.json(REQUEST_LOG);
+});
+app.post('/api/clear-request-log', (req, res) => {
+  REQUEST_LOG.length = 0;
+  res.json({ ok: true });
+});
+
 // ─── Profile: save ────────────────────────────────────────────────────────────
 app.post('/api/profile/save', express.json(), (req, res) => {
   const { username, password, config } = req.body || {};
@@ -1151,6 +1203,7 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
     return res.json({ streams: [] });
   }
 
+  const _t0 = Date.now();
   try {
     const streams = await getAllStreams(servers, type, imdbId, season, episode, {
       sortOrder:   cfg.sortOrder,
@@ -1164,6 +1217,17 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
       labelPreset: cfg.labelPreset,
       pingDetail:  cfg.pingDetail,
       autoSelect:  cfg.autoSelect,
+    });
+    addLogEntry({
+      ts:      new Date().toISOString(),
+      type,
+      imdbId,
+      season:  season  || null,
+      episode: episode || null,
+      servers: servers.map(s => s.label),
+      found:   streams.some(s => !s.name?.includes('No results') && !s.name?.includes('offline')),
+      count:   streams.length,
+      ms:      Date.now() - _t0,
     });
     res.json({ streams });
   } catch (err) {
