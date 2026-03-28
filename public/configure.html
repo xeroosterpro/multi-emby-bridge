@@ -31,19 +31,31 @@
     header h1 { font-size: 1.8rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
     header p  { margin-top: 0.5rem; color: #888; font-size: 0.95rem; }
 
+    /* ── Unified collapsible panel ── */
+    .panel {
+      background: #161620; border: 1px solid #2a2a3a; border-radius: 12px;
+      margin-bottom: 0.85rem; overflow: hidden;
+    }
+    .panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 1.1rem; cursor: pointer; user-select: none;
+      transition: background 0.15s;
+    }
+    .panel-header:hover { background: #1a1a28; }
+    .panel-header-left { display: flex; align-items: center; gap: 0.55rem; }
+    .panel-title {
+      font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #9a8aff;
+    }
+    .panel-subtitle { font-size: 0.72rem; color: #444; margin-left: 0.25rem; }
+    .panel-chevron {
+      font-size: 0.6rem; color: #444; transition: transform 0.2s; flex-shrink: 0;
+    }
+    .panel.collapsed .panel-chevron { transform: rotate(-90deg); }
+    .panel-body { padding: 0 1.1rem 1rem; }
+    .panel.collapsed .panel-body { display: none; }
+
     /* ── Profile Panel ── */
-    .profile-panel {
-      background: #161620;
-      border: 1px solid #2a2a3a;
-      border-radius: 12px;
-      padding: 1.1rem 1.4rem 1.2rem;
-      margin-bottom: 1.75rem;
-    }
-    .profile-panel-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.85rem; }
-    .profile-panel-header span {
-      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #7b61ff;
-    }
     .profile-inputs  { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin-bottom: 0.65rem; }
     .profile-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; }
     .btn-profile {
@@ -232,14 +244,7 @@
     .btn-add:disabled { opacity: 0.4; cursor: default; }
 
     /* ── Options Panel ── */
-    .options-panel {
-      background: #161620; border: 1px solid #2a2a3a;
-      border-radius: 12px; padding: 1.1rem 1.4rem 1.2rem; margin-bottom: 1.75rem;
-    }
-    .options-panel-header {
-      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #7b61ff; margin-bottom: 0.75rem;
-    }
+    /* Options panel now uses .panel — keep content-specific styles only */
     /* Override global label styles for option items */
     .options-panel label.option-item {
       font-size: inherit; font-weight: normal; color: #e2e2e2;
@@ -306,20 +311,8 @@
     .sort-row-dual { display: flex; gap: 0.5rem; }
     .sort-row-dual select { flex: 1; font-size: 0.85rem; }
 
-    /* ── Ping Test Panel ── */
-    .ping-panel {
-      background: #161620; border: 1px solid #2a2a3a;
-      border-radius: 12px; padding: 1.1rem 1.4rem 1.2rem; margin-bottom: 1.75rem;
-    }
-    .ping-panel-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;
-    }
-    .ping-panel-header > span {
-      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #7b61ff;
-    }
-    .ping-controls { display: flex; gap: 0.5rem; align-items: center; }
+    /* ── Ping controls (inside panel-body) ── */
+    .ping-controls { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
     .ping-controls select { width: auto; font-size: 0.82rem; }
     .btn-ping-test {
       background: #2a2a40; border: 1px solid #3a3a58; color: #bbb;
@@ -342,24 +335,20 @@
     .ping-value.timeout { color: #555; }
     .ping-note { font-size: 0.75rem; color: #444; margin-top: 0.6rem; }
 
-    /* ── Request Log ── */
-    .log-panel { background: #161620; border: 1px solid #2a2a3a; border-radius: 12px; padding: 1.1rem 1.4rem 1.2rem; margin-bottom: 1.75rem; }
-    .log-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem; }
-    .log-panel-header span { font-size: 0.82rem; font-weight: 700; color: #9a8aee; }
-    .btn-log { background: #1e1e2e; border: 1px solid #2e2e45; color: #777; border-radius: 7px; padding: 0.3rem 0.75rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: background 0.15s, color 0.15s; }
+    /* ── Request Log (inside panel-body) ── */
+    .log-actions { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .btn-log { background: #1e1e2e; border: 1px solid #2e2e45; color: #666; border-radius: 7px; padding: 0.28rem 0.65rem; font-size: 0.73rem; font-weight: 600; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; text-decoration: none; display: inline-block; }
     .btn-log:hover { background: #252535; color: #aaa; }
     .btn-log.danger:hover { color: #e05555; border-color: #e05555; }
     .log-table-wrap { overflow-x: auto; }
-    .log-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-    .log-table th { text-align: left; color: #555; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; padding: 0 0.5rem 0.5rem; border-bottom: 1px solid #1e1e2a; }
-    .log-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #1a1a22; color: #888; vertical-align: top; }
+    .log-table { width: 100%; border-collapse: collapse; font-size: 0.77rem; }
+    .log-table th { text-align: left; color: #444; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; padding: 0 0.5rem 0.45rem; border-bottom: 1px solid #1e1e2a; white-space: nowrap; }
+    .log-table td { padding: 0.38rem 0.5rem; border-bottom: 1px solid #181820; color: #777; vertical-align: top; }
     .log-table tr:last-child td { border-bottom: none; }
-    .log-table .log-time { color: #555; white-space: nowrap; }
-    .log-table .log-found { color: #4caf7d; font-weight: 700; }
-    .log-table .log-miss  { color: #e05555; }
-    .log-table .log-id    { color: #7b61ff; font-family: monospace; }
-    .log-table .log-ms    { color: #666; white-space: nowrap; }
-    .log-empty { font-size: 0.8rem; color: #444; text-align: center; padding: 1.5rem 0; }
+    .log-table .log-time { color: #454560; white-space: nowrap; font-size: 0.71rem; }
+    .log-table .log-id   { color: #7b61ff; font-family: monospace; }
+    .log-table .log-ms   { color: #555; white-space: nowrap; }
+    .log-empty { font-size: 0.8rem; color: #383850; text-align: center; padding: 1.25rem 0; }
 
     /* ── Generate ── */
     .btn-generate {
@@ -413,8 +402,14 @@
     </header>
 
     <!-- ── Saved Profile ── -->
-    <div class="profile-panel">
-      <div class="profile-panel-header"><span>💾 Saved Profile</span></div>
+    <div class="panel collapsed" id="panel-profile">
+      <div class="panel-header" onclick="togglePanel('panel-profile')">
+        <div class="panel-header-left">
+          <span class="panel-title">💾 Saved Profile</span>
+        </div>
+        <span class="panel-chevron">▼</span>
+      </div>
+      <div class="panel-body">
       <div class="profile-inputs">
         <div class="field-group">
           <label>Profile Name</label>
@@ -430,7 +425,8 @@
         <button class="btn-profile" onclick="loadProfile()">Load Config</button>
       </div>
       <div class="profile-status info" id="profile-status">Save your servers so you can reload them anytime.</div>
-    </div>
+      </div><!-- /.panel-body -->
+    </div><!-- /#panel-profile -->
 
     <div class="servers-toolbar">
       <button class="btn-collapse-all" onclick="collapseAll()">Collapse All</button>
@@ -442,8 +438,14 @@
     <button class="btn-add" id="btn-add" onclick="addServer()">+ Add Another Server</button>
 
     <!-- ── Options Panel ── -->
-    <div class="options-panel">
-      <div class="options-panel-header">⚡ Options</div>
+    <div class="panel options-panel" id="panel-options">
+      <div class="panel-header" onclick="togglePanel('panel-options')">
+        <div class="panel-header-left">
+          <span class="panel-title">⚡ Options</span>
+        </div>
+        <span class="panel-chevron">▼</span>
+      </div>
+      <div class="panel-body">
 
       <label class="option-item">
         <input type="radio" name="perf-mode" value="normal" checked onchange="onModeChange()" />
@@ -608,13 +610,20 @@
           <option value="minimal">Minimal — size only</option>
         </select>
       </div>
-      <div id="label-preview" style="margin:0.3rem 0.75rem 0.4rem;padding:0.6rem 0.75rem;background:#0f0f13;border-radius:6px;font-size:0.78rem;line-height:1.6;color:#777;"></div>
-    </div>
+      <div id="label-preview" style="margin:0.2rem 0 0.1rem;padding:0.55rem 0.65rem;background:#0f0f13;border-radius:6px;font-size:0.77rem;line-height:1.6;color:#666;"></div>
+      </div><!-- /.panel-body -->
+    </div><!-- /#panel-options -->
 
     <!-- ── Ping Test Panel ── -->
-    <div class="ping-panel">
-      <div class="ping-panel-header">
-        <span>🔌 Ping Test</span>
+    <div class="panel collapsed" id="panel-ping">
+      <div class="panel-header" onclick="togglePanel('panel-ping')">
+        <div class="panel-header-left">
+          <span class="panel-title">🔌 Ping Test</span>
+          <span class="panel-subtitle">measure latency to each server</span>
+        </div>
+        <span class="panel-chevron">▼</span>
+      </div>
+      <div class="panel-body">
         <div class="ping-controls">
           <select id="ping-origin">
             <option value="browser">Your browser</option>
@@ -622,22 +631,28 @@
           </select>
           <button class="btn-ping-test" onclick="runPingTest()">Run Ping Test</button>
         </div>
+        <div id="ping-results"></div>
       </div>
-      <div id="ping-results"></div>
     </div>
 
     <!-- ── Request History Log ── -->
-    <div class="log-panel">
-      <div class="log-panel-header">
-        <span>📋 Request History</span>
-        <div style="display:flex;gap:0.5rem;align-items:center">
+    <div class="panel collapsed" id="panel-log">
+      <div class="panel-header" onclick="togglePanel('panel-log')">
+        <div class="panel-header-left">
+          <span class="panel-title">📋 Request History</span>
+          <span class="panel-subtitle" id="log-count-badge"></span>
+        </div>
+        <span class="panel-chevron">▼</span>
+      </div>
+      <div class="panel-body">
+        <div class="log-actions">
           <a href="/servers" target="_blank" class="btn-log">🖥️ Server Health →</a>
           <button class="btn-log" onclick="refreshLog()">Refresh</button>
           <button class="btn-log danger" onclick="clearLog()">Clear</button>
         </div>
-      </div>
-      <div class="log-table-wrap" id="log-table-wrap">
-        <div class="log-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>
+        <div class="log-table-wrap" id="log-table-wrap">
+          <div class="log-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>
+        </div>
       </div>
     </div>
 
@@ -653,6 +668,34 @@
     // ── State ─────────────────────────────────────────────────────────────────
     let nextId = 0;
 
+    // ── Panel collapse ────────────────────────────────────────────────────────
+    function togglePanel(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle('collapsed');
+      // Persist per-panel state
+      try {
+        const states = JSON.parse(localStorage.getItem('meb-panels') || '{}');
+        states[id] = el.classList.contains('collapsed');
+        localStorage.setItem('meb-panels', JSON.stringify(states));
+      } catch {}
+    }
+
+    function restorePanelStates() {
+      try {
+        const states = JSON.parse(localStorage.getItem('meb-panels') || '{}');
+        // Defaults: options open, others closed
+        const defaults = { 'panel-profile': true, 'panel-options': false, 'panel-ping': true, 'panel-log': true };
+        const merged = { ...defaults, ...states };
+        for (const [id, collapsed] of Object.entries(merged)) {
+          const el = document.getElementById(id);
+          if (!el) continue;
+          el.classList.toggle('collapsed', collapsed);
+        }
+      } catch {}
+    }
+    restorePanelStates();
+
     // ── Request Log ───────────────────────────────────────────────────────────
     function fmtBytes(b) {
       if (!b) return null;
@@ -664,7 +707,9 @@
     async function refreshLog() {
       try {
         const data = await fetch('/api/request-log').then(r => r.json());
-        const wrap = document.getElementById('log-table-wrap');
+        const wrap  = document.getElementById('log-table-wrap');
+        const badge = document.getElementById('log-count-badge');
+        if (badge) badge.textContent = data.length ? `${data.length} entries` : '';
         if (!data.length) {
           wrap.innerHTML = '<div class="log-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>';
           return;
