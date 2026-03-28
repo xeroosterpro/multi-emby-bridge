@@ -349,6 +349,21 @@
     .log-table .log-id   { color: #7b61ff; font-family: monospace; }
     .log-table .log-ms   { color: #555; white-space: nowrap; }
     .log-empty { font-size: 0.8rem; color: #383850; text-align: center; padding: 1.25rem 0; }
+    .log-pagination {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.6rem 0 0; margin-top: 0.35rem; border-top: 1px solid #181820;
+      flex-wrap: wrap; gap: 0.4rem;
+    }
+    .log-page-info { font-size: 0.72rem; color: #444; }
+    .log-page-btns { display: flex; gap: 0.3rem; }
+    .btn-page {
+      background: #1a1a28; border: 1px solid #2a2a3a; color: #555;
+      border-radius: 5px; padding: 0.22rem 0.55rem; font-size: 0.72rem;
+      font-weight: 600; cursor: pointer; transition: background 0.12s, color 0.12s;
+    }
+    .btn-page:hover:not(:disabled) { background: #22222e; color: #aaa; border-color: #3a3a55; }
+    .btn-page:disabled { opacity: 0.3; cursor: default; }
+    .btn-page.active { background: #2a2240; border-color: #7b61ff; color: #9a80ff; }
 
     /* ── Generate ── */
     .btn-generate {
@@ -702,69 +717,114 @@
       return `${Math.round(b/1e3)}KB`;
     }
 
-    async function refreshLog() {
-      try {
-        const data = await fetch('/api/request-log').then(r => r.json());
-        const wrap  = document.getElementById('log-table-wrap');
-        const badge = document.getElementById('log-count-badge');
-        if (badge) badge.textContent = data.length ? `${data.length} entries` : '';
-        if (!data.length) {
-          wrap.innerHTML = '<div class="log-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>';
-          return;
+    const LOG_PAGE_SIZE = 15;
+    let logData = [];
+    let logPage = 0;
+
+    function renderLogPage() {
+      const wrap  = document.getElementById('log-table-wrap');
+      if (!wrap) return;
+      if (!logData.length) {
+        wrap.innerHTML = '<div class="log-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>';
+        return;
+      }
+
+      const totalPages = Math.ceil(logData.length / LOG_PAGE_SIZE);
+      if (logPage >= totalPages) logPage = totalPages - 1;
+      const slice = logData.slice(logPage * LOG_PAGE_SIZE, (logPage + 1) * LOG_PAGE_SIZE);
+
+      const rows = slice.map(e => {
+        const t  = new Date(e.ts).toLocaleTimeString();
+        const d  = new Date(e.ts).toLocaleDateString();
+        const ep = e.type === 'series'
+          ? ` S${String(e.season||0).padStart(2,'0')}E${String(e.episode||0).padStart(2,'0')}` : '';
+        const title = e.contentName
+          ? `<strong style="color:#c0b8ff">${escHtml(e.contentName)}</strong>${ep}`
+          : `<span class="log-id">${e.imdbId}</span>${ep}`;
+        const ms = e.ms < 1000 ? `${e.ms}ms` : `${(e.ms/1000).toFixed(1)}s`;
+
+        let bestHtml = '—';
+        if (e.bestServer) {
+          const size   = fmtBytes(e.bestServer.size);
+          const mbps   = e.bestServer.bitrate ? `${(e.bestServer.bitrate/1e6).toFixed(1)}Mbps` : null;
+          const detail = [size, mbps].filter(Boolean).join(' · ');
+          bestHtml = `<span style="color:#4caf7d;font-weight:700">${escHtml(e.bestServer.label)}</span>${detail ? `<br><span style="font-size:0.7rem;color:#4a6a55">${detail}</span>` : ''}`;
         }
-        const rows = data.map(e => {
-          const t   = new Date(e.ts).toLocaleTimeString();
-          const d   = new Date(e.ts).toLocaleDateString();
-          const ep  = e.type === 'series'
-            ? ` S${String(e.season||0).padStart(2,'0')}E${String(e.episode||0).padStart(2,'0')}` : '';
-          const title  = e.contentName ? `<strong style="color:#c0b8ff">${escHtml(e.contentName)}</strong>${ep}` : `<span class="log-id">${e.imdbId}</span>${ep}`;
-          const ms     = e.ms < 1000 ? `${e.ms}ms` : `${(e.ms/1000).toFixed(1)}s`;
 
-          // Best server pill
-          let bestHtml = '—';
-          if (e.bestServer) {
-            const size = fmtBytes(e.bestServer.size);
-            const mbps = e.bestServer.bitrate ? `${(e.bestServer.bitrate/1e6).toFixed(1)}Mbps` : null;
-            const detail = [size, mbps].filter(Boolean).join(' · ');
-            bestHtml = `<span style="color:#4caf7d;font-weight:700">${escHtml(e.bestServer.label)}</span>${detail ? `<br><span style="font-size:0.7rem;color:#4a6a55">${detail}</span>` : ''}`;
-          }
+        let serversHtml = '—';
+        if (e.serverStatus?.length) {
+          serversHtml = e.serverStatus.map(s => {
+            if (s.status === 'found') {
+              const size = fmtBytes(s.size);
+              const mbps = s.bitrate ? `${(s.bitrate/1e6).toFixed(1)}Mbps` : null;
+              const det  = [size, mbps].filter(Boolean).join(' / ');
+              return `<div style="margin-bottom:0.2rem"><span style="color:#4caf7d">✓</span> <span style="color:#888">${escHtml(s.label)}</span>${det ? ` <span style="color:#444;font-size:0.7rem">${det}</span>` : ''}</div>`;
+            }
+            if (s.status === 'offline')   return `<div><span style="color:#e05555">✗</span> <span style="color:#555">${escHtml(s.label)}</span> <span style="color:#444;font-size:0.7rem">offline</span></div>`;
+            if (s.status === 'not_found') return `<div><span style="color:#c06000">–</span> <span style="color:#555">${escHtml(s.label)}</span> <span style="color:#444;font-size:0.7rem">not in library</span></div>`;
+            return `<div><span style="color:#444">?</span> <span style="color:#444">${escHtml(s.label)}</span></div>`;
+          }).join('');
+        }
 
-          // Per-server status pills
-          let serversHtml = '—';
-          if (e.serverStatus?.length) {
-            serversHtml = e.serverStatus.map(s => {
-              if (s.status === 'found') {
-                const size = fmtBytes(s.size);
-                const mbps = s.bitrate ? `${(s.bitrate/1e6).toFixed(1)}Mbps` : null;
-                const det  = [size, mbps].filter(Boolean).join(' / ');
-                return `<div style="margin-bottom:0.2rem"><span style="color:#4caf7d">✓</span> <span style="color:#888">${escHtml(s.label)}</span>${det ? ` <span style="color:#444;font-size:0.7rem">${det}</span>` : ''}</div>`;
-              }
-              if (s.status === 'offline')   return `<div><span style="color:#e05555">✗</span> <span style="color:#555">${escHtml(s.label)}</span> <span style="color:#444;font-size:0.7rem">offline</span></div>`;
-              if (s.status === 'not_found') return `<div><span style="color:#c06000">–</span> <span style="color:#555">${escHtml(s.label)}</span> <span style="color:#444;font-size:0.7rem">not in library</span></div>`;
-              return `<div><span style="color:#444">?</span> <span style="color:#444">${escHtml(s.label)}</span></div>`;
-            }).join('');
-          }
+        return `<tr>
+          <td class="log-time">${d}<br>${t}</td>
+          <td>${title}</td>
+          <td class="log-ms">${ms}</td>
+          <td>${bestHtml}</td>
+          <td>${serversHtml}</td>
+        </tr>`;
+      }).join('');
 
-          return `<tr>
-            <td class="log-time">${d}<br>${t}</td>
-            <td>${title}</td>
-            <td class="log-ms">${ms}</td>
-            <td>${bestHtml}</td>
-            <td>${serversHtml}</td>
-          </tr>`;
-        }).join('');
-        wrap.innerHTML = `<table class="log-table">
+      // Page number buttons (show up to 7, with current page highlighted)
+      let pageButtons = '';
+      const maxBtns = 7;
+      let start = Math.max(0, logPage - Math.floor(maxBtns / 2));
+      let end   = Math.min(totalPages, start + maxBtns);
+      if (end - start < maxBtns) start = Math.max(0, end - maxBtns);
+      for (let i = start; i < end; i++) {
+        pageButtons += `<button class="btn-page${i === logPage ? ' active' : ''}" onclick="goLogPage(${i})">${i + 1}</button>`;
+      }
+
+      wrap.innerHTML = `
+        <table class="log-table">
           <thead><tr>
             <th>Time</th><th>Content</th><th>Duration</th><th>Best File</th><th>Server Results</th>
           </tr></thead>
           <tbody>${rows}</tbody>
-        </table>`;
+        </table>
+        <div class="log-pagination">
+          <span class="log-page-info">
+            ${logPage * LOG_PAGE_SIZE + 1}–${Math.min((logPage + 1) * LOG_PAGE_SIZE, logData.length)} of ${logData.length}
+          </span>
+          <div class="log-page-btns">
+            <button class="btn-page" onclick="goLogPage(${logPage - 1})" ${logPage === 0 ? 'disabled' : ''}>‹</button>
+            ${pageButtons}
+            <button class="btn-page" onclick="goLogPage(${logPage + 1})" ${logPage >= totalPages - 1 ? 'disabled' : ''}>›</button>
+          </div>
+        </div>`;
+    }
+
+    function goLogPage(p) {
+      const totalPages = Math.ceil(logData.length / LOG_PAGE_SIZE);
+      logPage = Math.max(0, Math.min(p, totalPages - 1));
+      renderLogPage();
+    }
+
+    async function refreshLog() {
+      try {
+        const data  = await fetch('/api/request-log').then(r => r.json());
+        const badge = document.getElementById('log-count-badge');
+        if (badge) badge.textContent = data.length ? `${data.length} entries` : '';
+        logData = data;
+        // Stay on current page if refreshing, go to page 0 on first load
+        renderLogPage();
       } catch { /* ignore */ }
     }
 
     async function clearLog() {
       if (!confirm('Clear request history?')) return;
       await fetch('/api/clear-request-log', { method: 'POST' });
+      logData = []; logPage = 0;
       refreshLog();
     }
 
