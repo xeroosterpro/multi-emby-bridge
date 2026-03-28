@@ -117,6 +117,21 @@
     }
     .notice a { color: #7b61ff; }
 
+    /* ── Ping origin label ── */
+    .ping-origin-bar {
+      max-width: 880px; margin: 0 auto 1.1rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .ping-origin-label {
+      font-size: 0.73rem; color: #3a3a55;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .ping-origin-pill {
+      background: #1a1a28; border: 1px solid #2a2a3a; border-radius: 20px;
+      padding: 0.18rem 0.65rem; font-size: 0.72rem; color: #6a60aa;
+      font-weight: 600; letter-spacing: 0.02em;
+    }
+
     /* ── Refresh info ── */
     .refresh-bar {
       max-width: 880px; margin: 1.1rem auto 0;
@@ -134,6 +149,13 @@
   <div class="header-actions">
     <button class="btn primary" onclick="pingNow()">Ping Now</button>
     <a href="/configure" class="btn">← Configure</a>
+  </div>
+</div>
+
+<div class="ping-origin-bar">
+  <div class="ping-origin-label">
+    📡 Pings sent from:
+    <span class="ping-origin-pill" id="ping-origin-pill">Addon Server</span>
   </div>
 </div>
 
@@ -283,7 +305,19 @@
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  // ── Load ping origin label ────────────────────────────────────────────────
+  async function loadServerInfo() {
+    try {
+      const info = await fetch('/api/server-info').then(r => r.json());
+      const pill = document.getElementById('ping-origin-pill');
+      if (!pill) return;
+      const region = info.region || null;
+      pill.textContent = region ? `Addon Server · ${region}` : 'Addon Server (Railway)';
+    } catch {}
+  }
+
   // ── Init ──────────────────────────────────────────────────────────────────
+  loadServerInfo();
   loadHistory().then(() => startCountdown());
 </script>
 </body>

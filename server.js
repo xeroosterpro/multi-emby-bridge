@@ -1073,6 +1073,18 @@ app.get('/configure', (req, res) => {
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+// ─── Server info (ping origin label) ─────────────────────────────────────────
+// Railway exposes RAILWAY_REGION (e.g. "us-west2"), RAILWAY_SERVICE_NAME, etc.
+app.get('/api/server-info', (req, res) => {
+  const region = process.env.RAILWAY_REGION || process.env.FLY_REGION || null;
+  const service = process.env.RAILWAY_SERVICE_NAME || null;
+  res.json({
+    region:  region  || null,
+    service: service || null,
+    host:    req.hostname || null,
+  });
+});
+
 // ─── Server health dashboard ──────────────────────────────────────────────────
 app.get('/servers', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'servers.html'));
