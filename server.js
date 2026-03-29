@@ -1216,9 +1216,9 @@ async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) 
   const serverStatus = servers.map((srv, i) => {
     const pingMs = pingResults[i] ?? null;
     const srvStreams = allStreams.filter(s => s._serverLabel === srv.label);
-    if (!srvStreams.length) return { label: srv.label, emoji: srv.emoji || null, status: 'timeout', pingMs };
+    if (!srvStreams.length) return { label: srv.label, emoji: srv.emoji || null, type: srv.type || 'emby', status: 'timeout', pingMs };
     const placeholder = srvStreams.find(s => s._noResults);
-    if (placeholder) return { label: srv.label, emoji: srv.emoji || null, status: placeholder._noResultsType || 'not_found', pingMs };
+    if (placeholder) return { label: srv.label, emoji: srv.emoji || null, type: srv.type || 'emby', status: placeholder._noResultsType || 'not_found', pingMs };
     const real = srvStreams.filter(s => !s._noResults);
     const best = real[0];
     const resLabels = [...new Set(real.map(s => s._resLabel).filter(Boolean))];
@@ -1228,6 +1228,7 @@ async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) 
     return {
       label:     srv.label,
       emoji:     srv.emoji || null,
+      type:      srv.type || 'emby',
       status:    'found',
       count:     real.length,
       size:      best?._sizeBytes || 0,
@@ -1724,11 +1725,23 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
         });
 
       } else if (style === 'breakdown') {
-        // "19 Total on 5 Servers"  per-server: "✅ ARCTV: [5] Streams"
-        summaryName = `${total} Total on ${meta.serverStatus.length} Servers`;
+        // Name: "19 total · 5 servers\n14 Emby\n5 Jellyfin"
+        // Lines: "✅ ARCTV: [5] Total Streams"
+        // Tally found-stream counts per server type for name sub-lines
+        const typeCount = {};
+        meta.serverStatus.forEach(s => {
+          if (s.status === 'found') {
+            const t = s.type === 'jellyfin' ? 'Jellyfin' : 'Emby';
+            typeCount[t] = (typeCount[t] || 0) + s.count;
+          }
+        });
+        const typeLines = Object.entries(typeCount)
+          .map(([t, n]) => `${n} ${t}`)
+          .join('\n');
+        summaryName = `${total} total · ${meta.serverStatus.length} servers${typeLines ? '\n' + typeLines : ''}`;
         lines = meta.serverStatus.map(s => {
-          const l = eLabel(s, 9);          // 9 chars keeps line ≤24 chars
-          if (s.status === 'found')    return `✅ ${l}: [${s.count}] Streams`;
+          const l = eLabel(s, 9);
+          if (s.status === 'found')     return `✅ ${l}: [${s.count}] Total Streams`;
           if (s.status === 'not_found') return `❌ ${l}`;
           if (s.status === 'timeout')   return `⏱ ${l}`;
           return                               `🔴 ${l}`;

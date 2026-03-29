@@ -1416,9 +1416,9 @@
     }
 
     const PREVIEW_SERVERS = [
-      { label: 'ARCTV',   emoji: '🏠', status: 'found',     count: 5, resLabels: ['4K','1080p'], resCounts: {'4K':2,'1080p':3}, pingMs: 12  },
-      { label: 'STREAMER',emoji: '⚡', status: 'found',     count: 2, resLabels: ['1080p'],      resCounts: {'1080p':2},        pingMs: 28  },
-      { label: 'BACKUP',  emoji: '💾', status: 'not_found', count: 0, resLabels: [],             resCounts: {},                 pingMs: null},
+      { label: 'ARCTV',   emoji: '🏠', type: 'emby',      status: 'found',     count: 5, resLabels: ['4K','1080p'], resCounts: {'4K':2,'1080p':3}, pingMs: 12  },
+      { label: 'STREAMER',emoji: '⚡', type: 'emby',      status: 'found',     count: 2, resLabels: ['1080p'],      resCounts: {'1080p':2},        pingMs: 28  },
+      { label: 'BACKUP',  emoji: '💾', type: 'jellyfin',  status: 'not_found', count: 0, resLabels: [],             resCounts: {},                 pingMs: null},
     ];
 
     function updateSummaryPreview() {
@@ -1505,10 +1505,18 @@
           return `○ ${l}  none`;
         });
       } else if (style === 'breakdown') {
-        name = `${total} Total on ${servers.length} Servers`;
+        const typeCount = {};
+        servers.forEach(s => {
+          if (s.status === 'found') {
+            const t = s.type === 'jellyfin' ? 'Jellyfin' : 'Emby';
+            typeCount[t] = (typeCount[t] || 0) + s.count;
+          }
+        });
+        const typeLines = Object.entries(typeCount).map(([t,n]) => `${n} ${t}`).join('\n');
+        name = `${total} total · ${servers.length} servers${typeLines ? '\n' + typeLines : ''}`;
         lines = servers.map(s => {
           const l = eLabel(s, 9);
-          if (s.status === 'found')     return `✅ ${l}: [${s.count}] Streams`;
+          if (s.status === 'found')     return `✅ ${l}: [${s.count}] Total Streams`;
           if (s.status === 'not_found') return `❌ ${l}`;
           return `⏱ ${l}`;
         });
