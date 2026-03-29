@@ -542,7 +542,8 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
             : ac.includes('aac') ? 'AAC' : (s.Codec || '').toUpperCase();
           const rawLang = s.Language ? s.Language.toUpperCase().slice(0, 3) : '';
           const flag = langFlag(s.Language);
-          const lang = flagEmojiStyle === 'flag' ? (flag || rawLang)
+          const lang = flagEmojiStyle === 'none' ? ''
+                     : flagEmojiStyle === 'flag' ? (flag || rawLang)
                      : flagEmojiStyle === 'both' ? (flag ? flag + rawLang : rawLang)
                      : rawLang;
           return [lang, name, chStr].filter(Boolean).join(' ');
