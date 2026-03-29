@@ -574,9 +574,11 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
     // ── Primary audio language (for preference sorting)
     const audioLangCode = audioStream ? (audioStream.Language || '').toLowerCase().slice(0, 3) || null : null;
 
-    // ── Bitrate in Mbps (with optional visual bar)
+    // ── Bitrate in Mbps (with optional visual bar, or hidden)
     let bitrateLabel = bitrate ? `${(bitrate / 1e6).toFixed(1)}Mbps` : null;
-    if (bitrateBarStyle && bitrate) {
+    if (bitrateBarStyle === 'none') {
+      bitrateLabel = null; // user chose to hide bitrate entirely
+    } else if (bitrateBarStyle && bitrate) {
       const bar = buildBitrateBar(bitrate, bitrateBarStyle);
       bitrateLabel = bitrateBarStyle === 'bar_only' ? bar : `${bar} ${bitrateLabel}`;
     }
