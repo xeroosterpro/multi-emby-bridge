@@ -1737,15 +1737,15 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
             typeCount[t] = (typeCount[t] || 0) + s.count;
           }
         });
-        const typeSummary = Object.entries(typeCount).map(([t, n]) => `${n} ${t}`).join(' · ');
+        const typeSummary = Object.entries(typeCount).map(([t, n]) => `${n} ${t}`).join('  ·  ');
         lines = [];
         if (typeSummary) lines.push(typeSummary);
         meta.serverStatus.forEach(s => {
-          const l = eLabel(s, 9);
-          if (s.status === 'found')     lines.push(`✅ ${l}: [${s.count}] Total`);
-          else if (s.status === 'not_found') lines.push(`❌ ${l}`);
-          else if (s.status === 'timeout')   lines.push(`⏱ ${l}`);
-          else                               lines.push(`🔴 ${l}`);
+          const l = eLabel(s, 10);
+          if (s.status === 'found')          lines.push(`✓ ${l}  ×${s.count}`);
+          else if (s.status === 'not_found') lines.push(`✗ ${l}`);
+          else if (s.status === 'timeout')   lines.push(`⌛ ${l}`);
+          else                               lines.push(`✗ ${l}  offline`);
         });
 
       } else {
