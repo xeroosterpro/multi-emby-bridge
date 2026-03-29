@@ -798,7 +798,7 @@ async function queryServerForMovie(server, imdbId) {
           items = (data.Items || []).filter(i => {
             const sn = (i.Name || '').toLowerCase().trim();
             const qn = movieName.toLowerCase().trim();
-            return sn === qn || sn.includes(qn) || qn.includes(sn);
+            return sn === qn || sn.includes(qn);
           });
           console.log(`[${server.label}] Jellyfin name movie search "${movieName}": ${(data.Items||[]).length} raw → ${items.length} name-matched`);
         }
@@ -840,7 +840,7 @@ async function queryServerForMovie(server, imdbId) {
           items = (data.Items || []).filter(i => {
             const sn = (i.Name || '').toLowerCase().trim();
             const qn = movieName.toLowerCase().trim();
-            return sn === qn || sn.includes(qn) || qn.includes(sn);
+            return sn === qn || sn.includes(qn);
           });
           console.log(`[${server.label}] Emby name movie search "${movieName}": ${(data.Items||[]).length} raw → ${items.length} name-matched`);
         }
@@ -892,11 +892,12 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
       return url;
     });
     const data = await resp.json();
-    // Accept only exact or near-exact name matches (not just any partial match)
+    // Strict match: server name must equal or fully contain the query name.
+    // Do NOT use qn.includes(sn) — that lets "Star Trek" match "Star Trek: Strange New Worlds"
     const results = (data.Items || []).filter(i => {
       const sn = (i.Name || '').toLowerCase().trim();
       const qn = name.toLowerCase().trim();
-      return sn === qn || sn.includes(qn) || qn.includes(sn);
+      return sn === qn || sn.includes(qn);
     });
     console.log(`[${server.label}] findSeriesByName "${name}": ${(data.Items||[]).length} raw → ${results.length} name-matched`);
     return results;
