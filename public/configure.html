@@ -634,12 +634,14 @@
     </div><!-- /#panel-options -->
 
     <!-- ── Appearance & Emojis Panel ── -->
-    <div class="panel collapsed" id="panel-appearance">
+    <div class="panel options-panel collapsed" id="panel-appearance">
       <div class="panel-header" onclick="togglePanel('panel-appearance')">
-        <span>🎨 Appearance &amp; Emojis</span>
-        <span class="panel-arrow">▶</span>
+        <div class="panel-header-left">
+          <span class="panel-title">🎨 Appearance &amp; Emojis</span>
+        </div>
+        <span class="panel-chevron">▼</span>
       </div>
-      <div class="panel-body">
+      <div class="panel-body" style="padding-top:0.65rem">
 
         <!-- 📋 Results Summary -->
         <label class="option-item">
@@ -650,7 +652,7 @@
           </div>
         </label>
 
-        <div id="summary-options" style="display:none;flex-direction:column;gap:0.5rem;margin:0.25rem 0 0.1rem">
+        <div id="summary-options" style="display:none;flex-direction:column;gap:0.6rem;margin:0.5rem 0 0.25rem;padding:0.75rem;background:#111118;border-radius:8px;border:1px solid #1e1e2e">
           <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
             <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">Summary style</span>
             <select id="summary-style" onchange="updateSummaryPreview();autoSave()">
@@ -667,7 +669,7 @@
             </select>
           </div>
           <!-- Live preview -->
-          <div id="summary-preview" style="background:#0f0f13;border-radius:8px;padding:0.6rem 0.75rem;margin-top:0.2rem"></div>
+          <div id="summary-preview" style="background:#0a0a10;border:1px solid #1a1a28;border-radius:8px;padding:0.7rem 0.85rem;margin-top:0.1rem"></div>
         </div>
 
         <div class="options-divider"></div>
@@ -1511,14 +1513,19 @@
         });
       }
 
+      // Stremio-style mock card: name on left, description lines on right
+      const linesHtml = lines.map(l =>
+        `<div style="font-size:0.75rem;color:#666;line-height:1.65;white-space:pre;font-family:monospace">${escHtml(l)}</div>`
+      ).join('');
+
       el.innerHTML = `
-        <div style="font-size:0.7rem;color:#555;margin-bottom:0.4rem;letter-spacing:0.05em;text-transform:uppercase">Preview (example data)</div>
-        <div style="display:flex;gap:0.75rem;align-items:flex-start">
-          <div style="flex:0 0 auto;max-width:120px">
-            <div style="font-size:0.78rem;font-weight:600;color:#c9c9e0;line-height:1.4;word-break:break-word">${escHtml(name)}</div>
+        <div style="font-size:0.67rem;color:#3a3a4a;letter-spacing:0.07em;text-transform:uppercase;margin-bottom:0.55rem;font-weight:600">Stremio preview · example data</div>
+        <div style="display:flex;gap:0;align-items:stretch;background:#111118;border-radius:6px;overflow:hidden;border:1px solid #1c1c28">
+          <div style="flex:0 0 38%;padding:0.6rem 0.7rem;border-right:1px solid #1c1c28;display:flex;align-items:center">
+            <div style="font-size:0.8rem;font-weight:700;color:#d0c8ff;line-height:1.4;word-break:break-word">${escHtml(name)}</div>
           </div>
-          <div style="flex:1;border-left:1px solid #2a2a38;padding-left:0.75rem">
-            <div style="font-family:monospace;font-size:0.76rem;color:#888;line-height:1.7;white-space:pre">${lines.map(escHtml).join('\n')}</div>
+          <div style="flex:1;padding:0.55rem 0.7rem;display:flex;flex-direction:column;justify-content:center">
+            ${linesHtml}
           </div>
         </div>`;
     }
