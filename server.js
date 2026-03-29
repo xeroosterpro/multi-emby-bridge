@@ -445,6 +445,7 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
   const flagEmojiStyle    = streamOpts.flagEmoji    || null;
   const bitrateBarStyle   = streamOpts.bitrateBar   || null;
   const subsStyle         = streamOpts.subsStyle     || 'full';
+  const displayLabel = server.emoji ? `${server.emoji} ${server.label}` : server.label;
   const streams = [];
   for (const source of mediaSources) {
     const sizeBytes = source.Size || 0;
@@ -587,12 +588,12 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
     let streamName, streamDesc;
     if (labelPreset === 'compact') {
       // Name: Server · Res · HDR · Codec  |  Desc: Audio · Bitrate · Size (one line)
-      streamName = [server.label, resLabel, hdrLabel, codecLabel].filter(Boolean).join(' · ');
+      streamName = [displayLabel, resLabel, hdrLabel, codecLabel].filter(Boolean).join(' · ');
       streamDesc = [audioLabel, bitrateLabel, sizeStr].filter(Boolean).join(' · ') || 'Unknown quality';
 
     } else if (labelPreset === 'detailed') {
       // Name: Server · Res · HDR  |  Desc: Codec · Source / all audio tracks / subs / size
-      streamName = [server.label, resLabel, hdrLabel].filter(Boolean).join(' · ');
+      streamName = [displayLabel, resLabel, hdrLabel].filter(Boolean).join(' · ');
       streamDesc = [
         [codecLabel, sourceLabel].filter(Boolean).join(' · '),
         allAudioLabel || audioLabel,
@@ -602,7 +603,7 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
 
     } else if (labelPreset === 'cinema') {
       // Name: Server · Res · HDR · Source  |  Desc: Codec / Audio / Subs / Size
-      streamName = [server.label, resLabel, hdrLabel, sourceLabel].filter(Boolean).join(' · ');
+      streamName = [displayLabel, resLabel, hdrLabel, sourceLabel].filter(Boolean).join(' · ');
       streamDesc = [
         codecLabel,
         allAudioLabel || audioLabel,
@@ -612,7 +613,7 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
 
     } else if (labelPreset === 'bandwidth') {
       // Name: Server · Res · Bitrate  |  Desc: Codec · HDR / Audio / Size
-      streamName = [server.label, resLabel, bitrateLabel].filter(Boolean).join(' · ');
+      streamName = [displayLabel, resLabel, bitrateLabel].filter(Boolean).join(' · ');
       streamDesc = [
         [codecLabel, hdrLabel].filter(Boolean).join(' · '),
         audioLabel,
@@ -621,7 +622,7 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
 
     } else if (labelPreset === 'audiophile') {
       // Name: Server · Res · Audio  |  Desc: Codec · HDR · Source / all audio / subs / size
-      streamName = [server.label, resLabel, audioLabel].filter(Boolean).join(' · ');
+      streamName = [displayLabel, resLabel, audioLabel].filter(Boolean).join(' · ');
       streamDesc = [
         [codecLabel, hdrLabel, sourceLabel].filter(Boolean).join(' · '),
         allAudioLabel,
@@ -631,7 +632,7 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
 
     } else if (labelPreset === 'source') {
       // Name: Server · Res · Source  |  Desc: HDR · Codec / Audio / Size
-      streamName = [server.label, resLabel, sourceLabel || 'Unknown'].filter(Boolean).join(' · ');
+      streamName = [displayLabel, resLabel, sourceLabel || 'Unknown'].filter(Boolean).join(' · ');
       streamDesc = [
         [hdrLabel, codecLabel].filter(Boolean).join(' · '),
         allAudioLabel || audioLabel,
@@ -640,13 +641,13 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
 
     } else if (labelPreset === 'minimal') {
       // Name: Server · Res  |  Desc: Size only
-      streamName = [server.label, resLabel].filter(Boolean).join(' · ');
+      streamName = [displayLabel, resLabel].filter(Boolean).join(' · ');
       streamDesc = sizeStr || bitrateLabel || 'Unknown quality';
 
     } else {
       // standard (default) — name has HDR, desc has codec+source / audio / subs / size
       // Dims line removed (redundant — res already in name)
-      streamName = [server.label, resLabel, hdrLabel].filter(Boolean).join(' · ');
+      streamName = [displayLabel, resLabel, hdrLabel].filter(Boolean).join(' · ');
       const descLines = [
         [codecLabel, sourceLabel].filter(Boolean).join(' · '),
         allAudioLabel || audioLabel,
@@ -1214,14 +1215,15 @@ async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) 
   // Per-server status breakdown
   const serverStatus = servers.map(srv => {
     const srvStreams = allStreams.filter(s => s._serverLabel === srv.label);
-    if (!srvStreams.length) return { label: srv.label, status: 'timeout' };
+    if (!srvStreams.length) return { label: srv.label, emoji: srv.emoji || null, status: 'timeout' };
     const placeholder = srvStreams.find(s => s._noResults);
-    if (placeholder) return { label: srv.label, status: placeholder._noResultsType || 'not_found' };
+    if (placeholder) return { label: srv.label, emoji: srv.emoji || null, status: placeholder._noResultsType || 'not_found' };
     const real = srvStreams.filter(s => !s._noResults);
     const best = real[0];
     const resLabels = [...new Set(real.map(s => s._resLabel).filter(Boolean))];
     return {
       label:     srv.label,
+      emoji:     srv.emoji || null,
       status:    'found',
       count:     real.length,
       size:      best?._sizeBytes || 0,
@@ -1567,16 +1569,19 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
       const found = meta.serverStatus.filter(s => s.status === 'found');
       const total = found.reduce((n, s) => n + (s.count || 0), 0);
       const style = cfg.summaryStyle || 'compact';
-      // Truncate label to fit Stremio's narrow description column
+      // Truncate label; if server has emoji (2 chars + space), reduce available text width
       const trunc = (str, n) => str.length > n ? str.slice(0, n - 1) + '…' : str;
+      const eLabel = (s, maxLen) => {
+        const prefix = s.emoji ? s.emoji + ' ' : '';
+        return prefix + trunc(s.label, maxLen - prefix.length);
+      };
 
       let summaryName, lines;
 
       if (style === 'detailed') {
-        // ✅ Label — N · 4K·1080p  /  ❌ Label — none
         summaryName = `📊 ${total} streams · ${found.length} found`;
         lines = meta.serverStatus.map(s => {
-          const l = trunc(s.label, 10);
+          const l = eLabel(s, 14);
           if (s.status === 'found') {
             const res = s.resLabels?.length ? ' · ' + s.resLabels.join('·') : '';
             return `✅ ${l} — ${s.count}${res}`;
@@ -1587,10 +1592,9 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
         });
 
       } else if (style === 'minimal') {
-        // Label: N (4K)   — no emoji, clean text only
         summaryName = `${total} streams · ${found.length} servers`;
         lines = meta.serverStatus.map(s => {
-          const l = trunc(s.label, 13);
+          const l = eLabel(s, 14);
           if (s.status === 'found') {
             const res = s.resLabels?.length ? ` (${s.resLabels[0]})` : '';
             return `${l}: ${s.count}${res}`;
@@ -1601,11 +1605,10 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
         });
 
       } else if (style === 'bar') {
-        // Label ████ 4   — bar scales to highest count
         summaryName = `📊 Results · ${total} streams`;
         const maxCount = Math.max(...found.map(s => s.count), 1);
         lines = meta.serverStatus.map(s => {
-          const l = trunc(s.label, 8);
+          const l = eLabel(s, 10);
           if (s.status === 'found') {
             const filled = Math.max(1, Math.round((s.count / maxCount) * 4));
             const bar = '█'.repeat(filled) + '░'.repeat(4 - filled);
@@ -1617,12 +1620,11 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
         });
 
       } else if (style === 'scoreboard') {
-        // ① Label  4 · 4K  — found servers ranked, others below
         summaryName = `📊 ${total} streams · ${found.length} servers`;
         const circled = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
         let rank = 0;
         lines = meta.serverStatus.map(s => {
-          const l = trunc(s.label, 10);
+          const l = eLabel(s, 12);
           if (s.status === 'found') {
             const num = circled[rank++] || `${rank}.`;
             const res = s.resLabels?.length ? ' · ' + s.resLabels[0] : '';
@@ -1633,11 +1635,93 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
           return                               `🔴  ${l}`;
         });
 
+      } else if (style === 'trophy') {
+        // 🏆🥈🥉 ranking — found servers ranked by count, rest below
+        summaryName = `🏆 ${total} streams · ${found.length} found`;
+        const medals = ['🏆','🥈','🥉','🎖️','🎖️'];
+        const sorted = [...meta.serverStatus].sort((a, b) => {
+          if (a.status === 'found' && b.status !== 'found') return -1;
+          if (b.status === 'found' && a.status !== 'found') return 1;
+          return (b.count || 0) - (a.count || 0);
+        });
+        let mi = 0;
+        lines = sorted.map(s => {
+          const l = eLabel(s, 11);
+          if (s.status === 'found') {
+            const medal = medals[mi++] || '·';
+            const res = s.resLabels?.length ? ' · ' + s.resLabels[0] : '';
+            return `${medal} ${l} ${s.count}${res}`;
+          }
+          if (s.status === 'not_found') return `  ✗ ${l}`;
+          if (s.status === 'timeout')   return `  ⏱ ${l}`;
+          return                               `  🔴 ${l}`;
+        });
+
+      } else if (style === 'pulse') {
+        // 🟢🟡🔴 health monitoring style
+        summaryName = `⬤ Live · ${found.length} of ${meta.serverStatus.length} online`;
+        lines = meta.serverStatus.map(s => {
+          const l = eLabel(s, 13);
+          if (s.status === 'found') {
+            const res = s.resLabels?.length ? ' · ' + s.resLabels[0] : '';
+            return `🟢 ${l} · ${s.count}${res}`;
+          }
+          if (s.status === 'not_found') return `🟡 ${l} · none`;
+          if (s.status === 'timeout')   return `🟠 ${l} · slow`;
+          return                               `🔴 ${l} · down`;
+        });
+
+      } else if (style === 'report') {
+        // ARCTV: 4× 4K·HD  breakdown style
+        summaryName = `📋 ${total} streams · ${found.length} servers`;
+        lines = meta.serverStatus.map(s => {
+          const l = eLabel(s, 11);
+          if (s.status === 'found') {
+            const res = s.resLabels?.length ? '  ' + s.resLabels.join('·') : '';
+            return `${l}: ${s.count}×${res}`;
+          }
+          if (s.status === 'not_found') return `${l}: none`;
+          if (s.status === 'timeout')   return `${l}: timed out`;
+          return                               `${l}: offline`;
+        });
+
+      } else if (style === 'spark') {
+        // Single sparkline char per server ▁▂▃▄▅▆▇█
+        summaryName = `▇ ${total} streams · ${found.length} found`;
+        const sparks = ' ▁▂▃▄▅▆▇█';
+        const maxCount = Math.max(...found.map(s => s.count), 1);
+        lines = meta.serverStatus.map(s => {
+          const l = eLabel(s, 13);
+          if (s.status === 'found') {
+            const idx = Math.max(1, Math.min(8, Math.round((s.count / maxCount) * 8)));
+            const spark = sparks[idx];
+            const res = s.resLabels?.length ? ' ' + s.resLabels[0] : '';
+            return `${spark} ${l}  ${s.count}${res}`;
+          }
+          if (s.status === 'not_found') return `▁ ${l}  ✗`;
+          if (s.status === 'timeout')   return `▁ ${l}  ⏱`;
+          return                               `▁ ${l}  🔴`;
+        });
+
+      } else if (style === 'dot') {
+        // ●/○ minimal clean dots
+        summaryName = `● ${total} streams · ${found.length} live`;
+        lines = meta.serverStatus.map(s => {
+          const l = eLabel(s, 14);
+          if (s.status === 'found') {
+            const res = s.resLabels?.length ? ' · ' + s.resLabels[0] : '';
+            return `● ${l}  ${s.count}${res}`;
+          }
+          if (s.status === 'not_found') return `○ ${l}  none`;
+          if (s.status === 'timeout')   return `○ ${l}  ⏱`;
+          return                               `○ ${l}  🔴`;
+        });
+
       } else {
         // compact (default) — ✅ Label · N · 4K
         summaryName = `📊 ${total} streams · ${found.length} servers`;
         lines = meta.serverStatus.map(s => {
-          const l = trunc(s.label, 12);
+          const l = eLabel(s, 14);
           if (s.status === 'found') {
             const res = s.resLabels?.length ? ' · ' + s.resLabels.join('·') : '';
             return `✅ ${l} · ${s.count}${res}`;

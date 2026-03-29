@@ -614,27 +614,6 @@
 
       <div class="options-divider"></div>
 
-      <label class="option-item">
-        <input type="checkbox" id="show-summary" onchange="document.getElementById('summary-style-row').style.display=this.checked?'flex':'none'" />
-        <div>
-          <div class="option-title">📋 Show results summary</div>
-          <div class="option-desc">Pins a summary card at the top of the stream list showing how many streams each server found, with quality breakdown.</div>
-        </div>
-      </label>
-
-      <div class="sort-row" id="summary-style-row" style="display:none">
-        <span class="sort-row-label">Summary style</span>
-        <select id="summary-style">
-          <option value="compact">Compact — ✅ Label · 4 · 4K</option>
-          <option value="detailed">Detailed — ✅ Label — 4 · 4K·1080p</option>
-          <option value="minimal">Minimal — Label: 4 (4K) no icons</option>
-          <option value="bar">Bar chart — Label ████ 4</option>
-          <option value="scoreboard">Scoreboard — ① Label  4 · 4K</option>
-        </select>
-      </div>
-
-      <div class="options-divider"></div>
-
       <div class="sort-row">
         <span class="sort-row-label">Stream label format</span>
         <select id="label-preset" onchange="updateLabelPreview()">
@@ -650,65 +629,106 @@
       </div>
       <div id="label-preview" style="margin:0.2rem 0 0.1rem;padding:0.55rem 0.65rem;background:#0f0f13;border-radius:6px;font-size:0.77rem;line-height:1.6;color:#666;"></div>
 
-      <div class="options-divider"></div>
-
-      <!-- 💎 Quality badges -->
-      <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
-        <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">💎 Quality badges in stream name</span>
-        <span class="option-desc" style="margin-bottom:0.3rem">Prefixes or suffixes the stream name with tier badges: 💎 REMUX · 🎬 4K · 🌈 Dolby Vision · ✨ HDR · 🔊 Atmos · 🎵 TrueHD.</span>
-        <select id="quality-badge" onchange="autoSave()">
-          <option value="">Off — no badges</option>
-          <option value="emoji">Emoji — 💎🎬✨🔊 before name</option>
-          <option value="minimal">Minimal — single top badge only</option>
-          <option value="tags">Tags — [REMUX][4K][HDR] before name</option>
-          <option value="suffix">Suffix — name then  💎🎬✨</option>
-        </select>
-      </div>
-
-      <div class="options-divider"></div>
-
-      <!-- 🌍 Language display -->
-      <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
-        <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">🌍 Language display style</span>
-        <span class="option-desc" style="margin-bottom:0.3rem">Controls how audio language codes appear in track descriptions.</span>
-        <select id="flag-emoji" onchange="autoSave()">
-          <option value="">Codes — ENG DD 5.1 · RUS DD</option>
-          <option value="flag">Flags — 🇺🇸 DD 5.1 · 🇷🇺 DD</option>
-          <option value="both">Both — 🇺🇸 ENG DD · 🇷🇺 RUS DD</option>
-        </select>
-      </div>
-
-      <div class="options-divider"></div>
-
-      <!-- 📊 Bitrate display -->
-      <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
-        <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">📊 Bitrate display style</span>
-        <span class="option-desc" style="margin-bottom:0.3rem">How the file bitrate is shown in stream descriptions.</span>
-        <select id="bitrate-bar" onchange="autoSave()">
-          <option value="">Mbps only — 12.7Mbps</option>
-          <option value="blocks">Blocks — ████░ 12.7Mbps</option>
-          <option value="segments">Segments — ▰▰▰▰▱ 12.7Mbps</option>
-          <option value="dots">Dots — ●●●●○ 12.7Mbps</option>
-          <option value="bar_only">Bar only — ████░</option>
-        </select>
-      </div>
-
-      <div class="options-divider"></div>
-
-      <!-- 💬 Subtitle display -->
-      <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
-        <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">💬 Subtitle track display</span>
-        <span class="option-desc" style="margin-bottom:0.3rem">Controls how subtitle tracks appear in stream descriptions.</span>
-        <select id="subs-style" onchange="autoSave()">
-          <option value="full">Full list — Subs: ENG · SPA · FRE</option>
-          <option value="count">Count — 💬 3 subs</option>
-          <option value="icons">Icons — 💬 🇺🇸 🇪🇸 🇫🇷</option>
-          <option value="hidden">Hidden — not shown</option>
-        </select>
-      </div>
 
       </div><!-- /.panel-body -->
     </div><!-- /#panel-options -->
+
+    <!-- ── Appearance & Emojis Panel ── -->
+    <div class="panel collapsed" id="panel-appearance">
+      <div class="panel-header" onclick="togglePanel('panel-appearance')">
+        <span>🎨 Appearance &amp; Emojis</span>
+        <span class="panel-arrow">▶</span>
+      </div>
+      <div class="panel-body">
+
+        <!-- 📋 Results Summary -->
+        <label class="option-item">
+          <input type="checkbox" id="show-summary" onchange="toggleSummaryStyle()" />
+          <div>
+            <div class="option-title">📋 Show results summary card</div>
+            <div class="option-desc">Pins a summary card at the top of the stream list showing how many streams each server found, with quality breakdown. Uses the server emoji if set.</div>
+          </div>
+        </label>
+
+        <div id="summary-options" style="display:none;flex-direction:column;gap:0.5rem;margin:0.25rem 0 0.1rem">
+          <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
+            <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">Summary style</span>
+            <select id="summary-style" onchange="updateSummaryPreview();autoSave()">
+              <option value="compact">Compact — ✅ Label · 4 · 4K</option>
+              <option value="detailed">Detailed — ✅ Label — 4 · 4K·1080p</option>
+              <option value="minimal">Minimal — Label: 4 (4K) no icons</option>
+              <option value="bar">Bar chart — Label ████ 4</option>
+              <option value="scoreboard">Scoreboard — ① Label  4 · 4K</option>
+              <option value="trophy">Trophy — 🏆🥈🥉 ranked by count</option>
+              <option value="pulse">Pulse — 🟢🟡🔴 health dots</option>
+              <option value="report">Report — ARCTV: 4× 4K·HD</option>
+              <option value="spark">Spark — ▇ ARCTV  4 · 4K</option>
+              <option value="dot">Dot — ● ARCTV  4 · 4K</option>
+            </select>
+          </div>
+          <!-- Live preview -->
+          <div id="summary-preview" style="background:#0f0f13;border-radius:8px;padding:0.6rem 0.75rem;margin-top:0.2rem"></div>
+        </div>
+
+        <div class="options-divider"></div>
+
+        <!-- 💎 Quality badges -->
+        <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
+          <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">💎 Quality badges in stream name</span>
+          <span class="option-desc" style="margin-bottom:0.3rem">Prefixes or suffixes the stream name with tier badges: 💎 REMUX · 🎬 4K · 🌈 Dolby Vision · ✨ HDR · 🔊 Atmos · 🎵 TrueHD.</span>
+          <select id="quality-badge" onchange="autoSave()">
+            <option value="">Off — no badges</option>
+            <option value="emoji">Emoji — 💎🎬✨🔊 before name</option>
+            <option value="minimal">Minimal — single top badge only</option>
+            <option value="tags">Tags — [REMUX][4K][HDR] before name</option>
+            <option value="suffix">Suffix — name then  💎🎬✨</option>
+          </select>
+        </div>
+
+        <div class="options-divider"></div>
+
+        <!-- 🌍 Language display -->
+        <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
+          <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">🌍 Language display style</span>
+          <span class="option-desc" style="margin-bottom:0.3rem">Controls how audio language codes appear in track descriptions.</span>
+          <select id="flag-emoji" onchange="autoSave()">
+            <option value="">Codes — ENG DD 5.1 · RUS DD</option>
+            <option value="flag">Flags — 🇺🇸 DD 5.1 · 🇷🇺 DD</option>
+            <option value="both">Both — 🇺🇸 ENG DD · 🇷🇺 RUS DD</option>
+          </select>
+        </div>
+
+        <div class="options-divider"></div>
+
+        <!-- 📊 Bitrate display -->
+        <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
+          <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">📊 Bitrate display style</span>
+          <span class="option-desc" style="margin-bottom:0.3rem">How the file bitrate is shown in stream descriptions.</span>
+          <select id="bitrate-bar" onchange="autoSave()">
+            <option value="">Mbps only — 12.7Mbps</option>
+            <option value="blocks">Blocks — ████░ 12.7Mbps</option>
+            <option value="segments">Segments — ▰▰▰▰▱ 12.7Mbps</option>
+            <option value="dots">Dots — ●●●●○ 12.7Mbps</option>
+            <option value="bar_only">Bar only — ████░</option>
+          </select>
+        </div>
+
+        <div class="options-divider"></div>
+
+        <!-- 💬 Subtitle display -->
+        <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
+          <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">💬 Subtitle track display</span>
+          <span class="option-desc" style="margin-bottom:0.3rem">Controls how subtitle tracks appear in stream descriptions.</span>
+          <select id="subs-style" onchange="autoSave()">
+            <option value="full">Full list — Subs: ENG · SPA · FRE</option>
+            <option value="count">Count — 💬 3 subs</option>
+            <option value="icons">Icons — 💬 🇺🇸 🇪🇸 🇫🇷</option>
+            <option value="hidden">Hidden — not shown</option>
+          </select>
+        </div>
+
+      </div><!-- /.panel-body -->
+    </div><!-- /#panel-appearance -->
 
     <!-- ── Ping Test Panel ── -->
     <div class="panel collapsed" id="panel-ping">
@@ -781,7 +801,7 @@
       try {
         const states = JSON.parse(localStorage.getItem('meb-panels') || '{}');
         // Defaults: options open, others closed
-        const defaults = { 'panel-profile': true, 'panel-options': false, 'panel-ping': true, 'panel-log': true };
+        const defaults = { 'panel-profile': true, 'panel-options': false, 'panel-appearance': true, 'panel-ping': true, 'panel-log': true };
         const merged = { ...defaults, ...states };
         for (const [id, collapsed] of Object.entries(merged)) {
           const el = document.getElementById(id);
@@ -980,6 +1000,10 @@
             <label>Display Name</label>
             <input type="text" class="f-label" placeholder="e.g. Eagle" />
           </div>
+          <div class="field-group" style="max-width:5.5rem">
+            <label>Emoji <span style="font-weight:400;color:#555;font-size:0.73rem">optional</span></label>
+            <input type="text" class="f-emoji" placeholder="🖥️" maxlength="4" style="text-align:center;font-size:1.1rem" />
+          </div>
           <div class="field-group">
             <label>Server Type</label>
             <select class="f-type" onchange="updateBlockStyle(${id})">
@@ -1134,6 +1158,7 @@
         block.querySelector('.f-username').value  = data.username  || '';
         block.querySelector('.f-password').value  = data.password  || '';
         block.querySelector('.f-thumbnail').value = data.thumbnail || '';
+        if (block.querySelector('.f-emoji')) block.querySelector('.f-emoji').value = data.emoji || '';
         if (data.type) {
           block.querySelector('.f-type').value = data.type;
           updateBlockStyle(id);
@@ -1171,8 +1196,10 @@
           return null;
         }
         const thumbnail = block.querySelector('.f-thumbnail')?.value.trim() || '';
+        const emoji     = block.querySelector('.f-emoji')?.value.trim() || '';
         const entry = { label, type, url, apiKey, userId };
         if (thumbnail) entry.thumbnail = thumbnail;
+        if (emoji)     entry.emoji     = emoji;
         if (username && password) { entry.username = username; entry.password = password; }
         servers.push(entry);
       }
@@ -1372,6 +1399,126 @@
           <div style="min-width:0">
             <div style="color:#d8d0ff;font-weight:600;font-size:0.83rem;line-height:1.4;margin-bottom:0.15rem">${esc(p.name)}</div>
             ${descHtml}
+          </div>
+        </div>`;
+    }
+
+    // ── Summary style toggle + live preview ──────────────────────────────────
+    function toggleSummaryStyle() {
+      const show = document.getElementById('show-summary').checked;
+      const opts = document.getElementById('summary-options');
+      if (opts) opts.style.display = show ? 'flex' : 'none';
+      if (show) updateSummaryPreview();
+      autoSave();
+    }
+
+    const PREVIEW_SERVERS = [
+      { label: 'ARCTV',   emoji: '🏠', status: 'found',     count: 4, resLabels: ['4K','1080p'] },
+      { label: 'STREAMER',emoji: '⚡', status: 'found',     count: 2, resLabels: ['1080p']      },
+      { label: 'BACKUP',  emoji: '💾', status: 'not_found', count: 0, resLabels: []              },
+    ];
+
+    function updateSummaryPreview() {
+      const el = document.getElementById('summary-preview');
+      if (!el) return;
+      const style = document.getElementById('summary-style')?.value || 'compact';
+      const servers = PREVIEW_SERVERS;
+      const found = servers.filter(s => s.status === 'found');
+      const total = found.reduce((n, s) => n + s.count, 0);
+      const trunc = (str, n) => str.length > n ? str.slice(0, n - 1) + '…' : str;
+      const eLabel = (s, maxLen) => {
+        const prefix = s.emoji ? s.emoji + ' ' : '';
+        return prefix + trunc(s.label, maxLen - prefix.length);
+      };
+
+      let name, lines;
+
+      if (style === 'detailed') {
+        name = `📊 ${total} streams · ${found.length} found`;
+        lines = servers.map(s => {
+          const l = eLabel(s, 14);
+          if (s.status === 'found') { const res = s.resLabels.length ? ' · ' + s.resLabels.join('·') : ''; return `✅ ${l} — ${s.count}${res}`; }
+          return `❌ ${l} — none`;
+        });
+      } else if (style === 'minimal') {
+        name = `${total} streams · ${found.length} servers`;
+        lines = servers.map(s => {
+          const l = eLabel(s, 14);
+          if (s.status === 'found') { const res = s.resLabels.length ? ` (${s.resLabels[0]})` : ''; return `${l}: ${s.count}${res}`; }
+          return `${l}: —`;
+        });
+      } else if (style === 'bar') {
+        name = `📊 Results · ${total} streams`;
+        const maxC = Math.max(...found.map(s => s.count), 1);
+        lines = servers.map(s => {
+          const l = eLabel(s, 10);
+          if (s.status === 'found') { const f = Math.max(1, Math.round((s.count / maxC) * 4)); return `${l} ${'█'.repeat(f)}${'░'.repeat(4-f)} ${s.count}`; }
+          return `${l} ░░░░ ✗`;
+        });
+      } else if (style === 'scoreboard') {
+        name = `📊 ${total} streams · ${found.length} servers`;
+        const c = ['①','②','③','④','⑤']; let r = 0;
+        lines = servers.map(s => {
+          const l = eLabel(s, 12);
+          if (s.status === 'found') { const res = s.resLabels.length ? ' · ' + s.resLabels[0] : ''; return `${c[r++]||r+'.'} ${l}  ${s.count}${res}`; }
+          return `✗  ${l}`;
+        });
+      } else if (style === 'trophy') {
+        name = `🏆 ${total} streams · ${found.length} found`;
+        const medals = ['🏆','🥈','🥉','🎖️']; let mi = 0;
+        const sorted = [...servers].sort((a,b) => (b.count||0)-(a.count||0));
+        lines = sorted.map(s => {
+          const l = eLabel(s, 11);
+          if (s.status === 'found') { const res = s.resLabels.length ? ' · ' + s.resLabels[0] : ''; return `${medals[mi++]||'·'} ${l} ${s.count}${res}`; }
+          return `  ✗ ${l}`;
+        });
+      } else if (style === 'pulse') {
+        name = `⬤ Live · ${found.length} of ${servers.length} online`;
+        lines = servers.map(s => {
+          const l = eLabel(s, 13);
+          if (s.status === 'found') { const res = s.resLabels.length ? ' · ' + s.resLabels[0] : ''; return `🟢 ${l} · ${s.count}${res}`; }
+          return `🟡 ${l} · none`;
+        });
+      } else if (style === 'report') {
+        name = `📋 ${total} streams · ${found.length} servers`;
+        lines = servers.map(s => {
+          const l = eLabel(s, 11);
+          if (s.status === 'found') { const res = s.resLabels.length ? '  ' + s.resLabels.join('·') : ''; return `${l}: ${s.count}×${res}`; }
+          return `${l}: none`;
+        });
+      } else if (style === 'spark') {
+        name = `▇ ${total} streams · ${found.length} found`;
+        const sparks = ' ▁▂▃▄▅▆▇█'; const maxC = Math.max(...found.map(s => s.count), 1);
+        lines = servers.map(s => {
+          const l = eLabel(s, 13);
+          if (s.status === 'found') { const idx = Math.max(1, Math.min(8, Math.round((s.count/maxC)*8))); const res = s.resLabels.length ? ' ' + s.resLabels[0] : ''; return `${sparks[idx]} ${l}  ${s.count}${res}`; }
+          return `▁ ${l}  ✗`;
+        });
+      } else if (style === 'dot') {
+        name = `● ${total} streams · ${found.length} live`;
+        lines = servers.map(s => {
+          const l = eLabel(s, 14);
+          if (s.status === 'found') { const res = s.resLabels.length ? ' · ' + s.resLabels[0] : ''; return `● ${l}  ${s.count}${res}`; }
+          return `○ ${l}  none`;
+        });
+      } else {
+        // compact
+        name = `📊 ${total} streams · ${found.length} servers`;
+        lines = servers.map(s => {
+          const l = eLabel(s, 14);
+          if (s.status === 'found') { const res = s.resLabels.length ? ' · ' + s.resLabels.join('·') : ''; return `✅ ${l} · ${s.count}${res}`; }
+          return `❌ ${l}`;
+        });
+      }
+
+      el.innerHTML = `
+        <div style="font-size:0.7rem;color:#555;margin-bottom:0.4rem;letter-spacing:0.05em;text-transform:uppercase">Preview (example data)</div>
+        <div style="display:flex;gap:0.75rem;align-items:flex-start">
+          <div style="flex:0 0 auto;max-width:120px">
+            <div style="font-size:0.78rem;font-weight:600;color:#c9c9e0;line-height:1.4;word-break:break-word">${escHtml(name)}</div>
+          </div>
+          <div style="flex:1;border-left:1px solid #2a2a38;padding-left:0.75rem">
+            <div style="font-family:monospace;font-size:0.76rem;color:#888;line-height:1.7;white-space:pre">${lines.map(escHtml).join('\n')}</div>
           </div>
         </div>`;
     }
@@ -1627,6 +1774,7 @@
           username:  block.querySelector('.f-username')?.value  || '',
           password:  block.querySelector('.f-password')?.value  || '',
           thumbnail: block.querySelector('.f-thumbnail')?.value || '',
+          emoji:     block.querySelector('.f-emoji')?.value     || '',
           enabled:   block.querySelector('.f-enabled')?.checked ?? true,
           collapsed: block.classList.contains('collapsed'),
         });
@@ -1698,8 +1846,9 @@
         setChk('show-summary',   state.showSummary);
         setVal('summary-style',  state.summaryStyle);
         if (state.showSummary) {
-          const row = document.getElementById('summary-style-row');
-          if (row) row.style.display = 'flex';
+          const opts = document.getElementById('summary-options');
+          if (opts) opts.style.display = 'flex';
+          updateSummaryPreview();
         }
         setVal('quality-badge',  state.qualityBadge);
         setVal('flag-emoji',     state.flagEmoji);
