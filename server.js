@@ -1085,7 +1085,7 @@ async function searchServersForCatalog(servers, type, query, timeoutMs = 8000) {
       const url = new URL(`${server.url}/Users/${server.userId}/Items`);
       url.searchParams.set('SearchTerm',       query);
       url.searchParams.set('IncludeItemTypes', itemType);
-      url.searchParams.set('Fields',           `${DEFAULT_FIELDS},Overview,ProductionYear`);
+      url.searchParams.set('Fields',           `${DEFAULT_FIELDS},Overview,ProductionYear,CommunityRating,VoteCount`);
       url.searchParams.set('Recursive',        'true');
       url.searchParams.set('Limit',            '20');
       url.searchParams.set('EnableImages',     'false');
@@ -1093,15 +1093,13 @@ async function searchServersForCatalog(servers, type, query, timeoutMs = 8000) {
     }, timeoutMs);
     if (!resp.ok) return [];
     const data = await resp.json();
-    // Catalog needs stricter matching: item name must contain the full query
-    // (drop qn.includes(sn) — that lets single words like "Jobs" or "Dirty" through)
     return (data.Items || []).filter(item => {
       const sn = (item.Name || '').toLowerCase().trim();
       return sn === qn || sn.includes(qn);
     });
   }));
 
-  // Merge across all servers, deduplicate by IMDB ID
+  // Merge across all servers, deduplicate by IMDB ID — keep best-rated copy
   const seen = new Map();
   for (const result of results) {
     if (result.status !== 'fulfilled') continue;
@@ -1109,16 +1107,30 @@ async function searchServersForCatalog(servers, type, query, timeoutMs = 8000) {
       const imdbId = item.ProviderIds?.Imdb || item.ProviderIds?.imdb;
       if (!imdbId || !imdbId.startsWith('tt')) continue;
       if (seen.has(imdbId)) continue;
-      const meta = {
+      const sn = (item.Name || '').toLowerCase().trim();
+      // Relevance: 3=exact, 2=name starts with query, 1=contains elsewhere
+      const relevance = sn === qn ? 3 : sn.startsWith(qn) ? 2 : 1;
+      // Popularity: rating × log(votes+1) — rewards both high score and wide audience
+      const popularity = (item.CommunityRating || 0) * Math.log1p(item.VoteCount || 0);
+      const year = item.ProductionYear || 0;
+      seen.set(imdbId, {
         id: imdbId, type, name: item.Name,
         poster: `https://api.ratingposterdb.com/t2-3b15b466-4b6f-42bd-a2eb-adf50aba65b2/imdb/poster-default/${imdbId}.jpg`,
-      };
-      if (item.Overview)       meta.description = item.Overview;
-      if (item.ProductionYear) meta.releaseInfo  = String(item.ProductionYear);
-      seen.set(imdbId, meta);
+        _relevance: relevance, _popularity: popularity, _year: year,
+        ...(item.Overview       && { description: item.Overview }),
+        ...(item.ProductionYear && { releaseInfo: String(item.ProductionYear) }),
+      });
     }
   }
-  return [...seen.values()];
+
+  // Sort: exact matches first → most popular → newest
+  return [...seen.values()]
+    .sort((a, b) =>
+      (b._relevance - a._relevance) ||
+      (b._popularity - a._popularity) ||
+      (b._year - a._year)
+    )
+    .map(({ _relevance, _popularity, _year, ...meta }) => meta);
 }
 
 async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) {
