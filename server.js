@@ -1724,27 +1724,29 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
         });
 
       } else if (style === 'breakdown') {
-        // "6 Total | 5 Servers"  then per-server: "ARCTV: 2× [4K] 3× [1080p]" + fastest ping line
-        summaryName = `${total} Total | ${meta.serverStatus.length} Servers`;
-        const resOrder = { '4K': 0, '1080p': 1, '720p': 2, 'SD': 3 };
+        // "19 total · 5 servers"  per-server: "ARCTV: 4×4K 3×HD" + fastest ping footer
+        summaryName = `${total} total · ${meta.serverStatus.length} servers`;
+        // Short aliases so lines stay ≤20 chars
+        const resAlias = { '4K': '4K', '1080p': 'HD', '720p': '720' };
+        const resOrder = { '4K': 0, '1080p': 1, '720p': 2 };
         lines = meta.serverStatus.map(s => {
-          const l = eLabel(s, 11);
+          const l = eLabel(s, 8);          // tight label — 8 chars max
           if (s.status === 'found') {
             const resStr = Object.entries(s.resCounts || {})
               .sort(([a], [b]) => (resOrder[a] ?? 9) - (resOrder[b] ?? 9))
-              .map(([res, cnt]) => `${cnt}× [${res}]`)
-              .join('  ');
+              .map(([res, cnt]) => `${cnt}×${resAlias[res] || res}`)
+              .join(' ');
             return `${l}: ${resStr || s.count + '×'}`;
           }
-          if (s.status === 'not_found') return `${l}: none`;
-          if (s.status === 'timeout')   return `${l}: timed out`;
-          return                               `${l}: offline`;
+          if (s.status === 'not_found') return `${l}: —`;
+          if (s.status === 'timeout')   return `${l}: ⏱`;
+          return                               `${l}: 🔴`;
         });
-        // Fastest ping line — only if ping data available
+        // ⚡ fastest ping footer — only if ping data collected
         const pinged = meta.serverStatus.filter(s => s.status === 'found' && s.pingMs != null);
         if (pinged.length > 0) {
           const fastest = pinged.reduce((a, b) => a.pingMs < b.pingMs ? a : b);
-          lines.push(`⚡ ${trunc(fastest.label, 10)} fastest · ${fastest.pingMs}ms`);
+          lines.push(`⚡ ${trunc(fastest.label, 9)} · ${fastest.pingMs}ms`);
         }
 
       } else {

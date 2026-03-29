@@ -666,7 +666,7 @@
               <option value="report">Report — ARCTV: 4× 4K·HD</option>
               <option value="spark">Spark — ▇ ARCTV  4 · 4K</option>
               <option value="dot">Dot — ● ARCTV  4 · 4K</option>
-              <option value="breakdown">Breakdown — 6 Total | 5 Servers + res counts</option>
+              <option value="breakdown">Breakdown — 19 total · 5 servers + res counts</option>
             </select>
           </div>
           <!-- Live preview -->
@@ -1505,22 +1505,23 @@
           return `○ ${l}  none`;
         });
       } else if (style === 'breakdown') {
-        name = `${total} Total | ${servers.length} Servers`;
-        const resOrder = { '4K': 0, '1080p': 1, '720p': 2, 'SD': 3 };
+        name = `${total} total · ${servers.length} servers`;
+        const resAlias = { '4K': '4K', '1080p': 'HD', '720p': '720' };
+        const resOrder = { '4K': 0, '1080p': 1, '720p': 2 };
         lines = servers.map(s => {
-          const l = eLabel(s, 11);
+          const l = eLabel(s, 8);
           if (s.status === 'found') {
             const resStr = Object.entries(s.resCounts || {})
               .sort(([a],[b]) => (resOrder[a]??9)-(resOrder[b]??9))
-              .map(([res,cnt]) => `${cnt}× [${res}]`).join('  ');
+              .map(([res,cnt]) => `${cnt}×${resAlias[res]||res}`).join(' ');
             return `${l}: ${resStr || s.count + '×'}`;
           }
-          return `${l}: none`;
+          return `${l}: —`;
         });
         const pinged = servers.filter(s => s.status === 'found' && s.pingMs != null);
         if (pinged.length > 0) {
           const fastest = pinged.reduce((a,b) => a.pingMs < b.pingMs ? a : b);
-          lines.push(`⚡ ${trunc(fastest.label,10)} fastest · ${fastest.pingMs}ms`);
+          lines.push(`⚡ ${trunc(fastest.label,9)} · ${fastest.pingMs}ms`);
         }
 
       } else {
