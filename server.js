@@ -1526,27 +1526,90 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
     if (cfg.showSummary) {
       const found = meta.serverStatus.filter(s => s.status === 'found');
       const total = found.reduce((n, s) => n + (s.count || 0), 0);
+      const style = cfg.summaryStyle || 'compact';
+      // Truncate label to fit Stremio's narrow description column
+      const trunc = (str, n) => str.length > n ? str.slice(0, n - 1) + '…' : str;
 
-      // Keep each line short — Stremio's description column is narrow (~20 chars)
-      // Format: "✅ Label · N · 4K" or "❌ Label" / "⏱ Label" / "🔴 Label"
-      const lines = meta.serverStatus.map(s => {
-        const lbl = s.label.length > 12 ? s.label.slice(0, 11) + '…' : s.label;
-        if (s.status === 'found') {
-          const res = s.resLabels?.length ? ' · ' + s.resLabels.join('·') : '';
-          return `✅ ${lbl} · ${s.count}${res}`;
-        }
-        if (s.status === 'not_found') return `❌ ${lbl}`;
-        if (s.status === 'timeout')   return `⏱ ${lbl}`;
-        return                               `🔴 ${lbl}`;
-      });
+      let summaryName, lines;
 
-      // Name: short enough to stay on one line in Stremio's left column
-      const summaryName = total > 0
-        ? `📊 ${total} streams · ${found.length} servers`
-        : `📊 No streams found`;
+      if (style === 'detailed') {
+        // ✅ Label — N · 4K·1080p  /  ❌ Label — none
+        summaryName = `📊 ${total} streams · ${found.length} found`;
+        lines = meta.serverStatus.map(s => {
+          const l = trunc(s.label, 10);
+          if (s.status === 'found') {
+            const res = s.resLabels?.length ? ' · ' + s.resLabels.join('·') : '';
+            return `✅ ${l} — ${s.count}${res}`;
+          }
+          if (s.status === 'not_found') return `❌ ${l} — none`;
+          if (s.status === 'timeout')   return `⏱ ${l} — timeout`;
+          return                               `🔴 ${l} — offline`;
+        });
+
+      } else if (style === 'minimal') {
+        // Label: N (4K)   — no emoji, clean text only
+        summaryName = `${total} streams · ${found.length} servers`;
+        lines = meta.serverStatus.map(s => {
+          const l = trunc(s.label, 13);
+          if (s.status === 'found') {
+            const res = s.resLabels?.length ? ` (${s.resLabels[0]})` : '';
+            return `${l}: ${s.count}${res}`;
+          }
+          if (s.status === 'not_found') return `${l}: —`;
+          if (s.status === 'timeout')   return `${l}: timeout`;
+          return                               `${l}: offline`;
+        });
+
+      } else if (style === 'bar') {
+        // Label ████ 4   — bar scales to highest count
+        summaryName = `📊 Results · ${total} streams`;
+        const maxCount = Math.max(...found.map(s => s.count), 1);
+        lines = meta.serverStatus.map(s => {
+          const l = trunc(s.label, 8);
+          if (s.status === 'found') {
+            const filled = Math.max(1, Math.round((s.count / maxCount) * 4));
+            const bar = '█'.repeat(filled) + '░'.repeat(4 - filled);
+            return `${l} ${bar} ${s.count}`;
+          }
+          if (s.status === 'not_found') return `${l} ░░░░ ✗`;
+          if (s.status === 'timeout')   return `${l} ⏱`;
+          return                               `${l} 🔴`;
+        });
+
+      } else if (style === 'scoreboard') {
+        // ① Label  4 · 4K  — found servers ranked, others below
+        summaryName = `📊 ${total} streams · ${found.length} servers`;
+        const circled = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
+        let rank = 0;
+        lines = meta.serverStatus.map(s => {
+          const l = trunc(s.label, 10);
+          if (s.status === 'found') {
+            const num = circled[rank++] || `${rank}.`;
+            const res = s.resLabels?.length ? ' · ' + s.resLabels[0] : '';
+            return `${num} ${l}  ${s.count}${res}`;
+          }
+          if (s.status === 'not_found') return `✗  ${l}`;
+          if (s.status === 'timeout')   return `⏱  ${l}`;
+          return                               `🔴  ${l}`;
+        });
+
+      } else {
+        // compact (default) — ✅ Label · N · 4K
+        summaryName = `📊 ${total} streams · ${found.length} servers`;
+        lines = meta.serverStatus.map(s => {
+          const l = trunc(s.label, 12);
+          if (s.status === 'found') {
+            const res = s.resLabels?.length ? ' · ' + s.resLabels.join('·') : '';
+            return `✅ ${l} · ${s.count}${res}`;
+          }
+          if (s.status === 'not_found') return `❌ ${l}`;
+          if (s.status === 'timeout')   return `⏱ ${l}`;
+          return                               `🔴 ${l}`;
+        });
+      }
 
       streams.unshift({
-        name:        summaryName,
+        name:        total > 0 ? summaryName : `📊 No streams found`,
         description: lines.join('\n'),
         url:         `${req.protocol}://${req.get('host')}/stream-summary`,
       });

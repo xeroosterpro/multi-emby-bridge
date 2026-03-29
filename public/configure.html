@@ -615,12 +615,23 @@
       <div class="options-divider"></div>
 
       <label class="option-item">
-        <input type="checkbox" id="show-summary" />
+        <input type="checkbox" id="show-summary" onchange="document.getElementById('summary-style-row').style.display=this.checked?'flex':'none'" />
         <div>
           <div class="option-title">📋 Show results summary</div>
           <div class="option-desc">Pins a summary card at the top of the stream list showing how many streams each server found, with quality breakdown.</div>
         </div>
       </label>
+
+      <div class="sort-row" id="summary-style-row" style="display:none">
+        <span class="sort-row-label">Summary style</span>
+        <select id="summary-style">
+          <option value="compact">Compact — ✅ Label · 4 · 4K</option>
+          <option value="detailed">Detailed — ✅ Label — 4 · 4K·1080p</option>
+          <option value="minimal">Minimal — Label: 4 (4K) no icons</option>
+          <option value="bar">Bar chart — Label ████ 4</option>
+          <option value="scoreboard">Scoreboard — ① Label  4 · 4K</option>
+        </select>
+      </div>
 
       <div class="options-divider"></div>
 
@@ -1375,6 +1386,7 @@
       const autoSelect  = document.getElementById('auto-select').checked;
       const labelPreset = document.getElementById('label-preset').value;
       const showSummary  = document.getElementById('show-summary').checked;
+      const summaryStyle = document.getElementById('summary-style').value;
       const qualityBadge = document.getElementById('quality-badge').checked;
       const flagEmoji    = document.getElementById('flag-emoji').checked;
       const bitrateBar   = document.getElementById('bitrate-bar').checked;
@@ -1395,7 +1407,7 @@
           if (prefCodec !== 'any')   { sc.prefCodec  = prefCodec; sc.codecMode = codecMode; }
           if (labelPreset !== 'standard') sc.labelPreset = labelPreset;
           if (autoSelect)    sc.autoSelect    = true;
-          if (showSummary)   sc.showSummary   = true;
+          if (showSummary) { sc.showSummary   = true; if (summaryStyle !== 'compact') sc.summaryStyle = summaryStyle; }
           if (qualityBadge)  sc.qualityBadge  = true;
           if (flagEmoji)     sc.flagEmoji     = true;
           if (bitrateBar)    sc.bitrateBar    = true;
@@ -1435,7 +1447,7 @@
         if (prefCodec !== 'any') { config.prefCodec  = prefCodec; config.codecMode = codecMode; }
         if (labelPreset !== 'standard') config.labelPreset = labelPreset;
         if (autoSelect)   config.autoSelect   = true;
-        if (showSummary)  config.showSummary  = true;
+        if (showSummary) { config.showSummary = true; if (summaryStyle !== 'compact') config.summaryStyle = summaryStyle; }
         if (qualityBadge) config.qualityBadge = true;
         if (flagEmoji)    config.flagEmoji    = true;
         if (bitrateBar)   config.bitrateBar   = true;
@@ -1574,7 +1586,8 @@
         autoSelect:   document.getElementById('auto-select')?.checked,
         labelPreset:  document.getElementById('label-preset')?.value,
         pingOrigin:   document.getElementById('ping-origin')?.value,
-        showSummary:  document.getElementById('show-summary')?.checked,
+        showSummary:   document.getElementById('show-summary')?.checked,
+        summaryStyle:  document.getElementById('summary-style')?.value,
         qualityBadge: document.getElementById('quality-badge')?.checked,
         flagEmoji:    document.getElementById('flag-emoji')?.checked,
         bitrateBar:   document.getElementById('bitrate-bar')?.checked,
@@ -1660,6 +1673,11 @@
         setChk('ping-detail',    state.pingDetail);
         setChk('auto-select',    state.autoSelect);
         setChk('show-summary',   state.showSummary);
+        setVal('summary-style',  state.summaryStyle);
+        if (state.showSummary) {
+          const row = document.getElementById('summary-style-row');
+          if (row) row.style.display = 'flex';
+        }
         setChk('quality-badge',  state.qualityBadge);
         setChk('flag-emoji',     state.flagEmoji);
         setChk('bitrate-bar',    state.bitrateBar);
