@@ -1077,40 +1077,34 @@ async function getStreamsFromServer(server, type, imdbId, season, episode, label
 
 // ─── Catalog search (unified across all servers) ──────────────────────────────
 async function searchServersForCatalog(servers, type, query, timeoutMs = 8000) {
-  const itemType = type === 'movie' ? 'Movie' : 'Series';
+  const itemType  = type === 'movie' ? 'Movie' : 'Series';
+  const qn        = query.toLowerCase().trim();
 
   const results = await Promise.allSettled(servers.map(async (server) => {
-    const baseUrl = server.url.replace(/\/+$/, '');
-    const buildUrl = () => {
-      const u = new URL(`${baseUrl}/Users/${server.userId}/Items`);
-      u.searchParams.set('SearchTerm', query);
-      u.searchParams.set('IncludeItemTypes', itemType);
-      u.searchParams.set('Recursive', 'true');
-      u.searchParams.set('Limit', '20');
-      u.searchParams.set('Fields', 'ProviderIds,Overview,ProductionYear');
-      u.searchParams.set('EnableImages', 'false');
-      return u;
-    };
-    const resp = await apiFetch(server, buildUrl, timeoutMs);
+    const resp = await apiFetch(server, () => {
+      const url = new URL(`${server.url}/Users/${server.userId}/Items`);
+      url.searchParams.set('SearchTerm',       query);
+      url.searchParams.set('IncludeItemTypes', itemType);
+      url.searchParams.set('Fields',           `${DEFAULT_FIELDS},Overview,ProductionYear`);
+      url.searchParams.set('Recursive',        'true');
+      url.searchParams.set('Limit',            '20');
+      url.searchParams.set('EnableImages',     'false');
+      return url;
+    }, timeoutMs);
     if (!resp.ok) return [];
     const data = await resp.json();
-    return data.Items || [];
+    // Same name-similarity filter used in queryServerForMovie / findSeriesByName
+    return (data.Items || []).filter(item => {
+      const sn = (item.Name || '').toLowerCase().trim();
+      return sn === qn || sn.includes(qn) || qn.includes(sn);
+    });
   }));
 
-  // All query words (≥3 chars) must appear in the item name for a match
-  const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
-  const titleMatches = (name) => {
-    if (!name || queryWords.length === 0) return true;
-    const lower = name.toLowerCase();
-    return queryWords.every(w => lower.includes(w));
-  };
-
-  // Merge all items, deduplicate by IMDB ID
+  // Merge across all servers, deduplicate by IMDB ID
   const seen = new Map();
   for (const result of results) {
     if (result.status !== 'fulfilled') continue;
     for (const item of result.value) {
-      if (!titleMatches(item.Name)) continue;
       const imdbId = item.ProviderIds?.Imdb || item.ProviderIds?.imdb;
       if (!imdbId || !imdbId.startsWith('tt')) continue;
       if (seen.has(imdbId)) continue;
