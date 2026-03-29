@@ -1524,21 +1524,27 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
     });
     // ── Results summary card (optional — pinned to top of stream list) ──────────
     if (cfg.showSummary) {
-      const found   = meta.serverStatus.filter(s => s.status === 'found');
-      const total   = found.reduce((n, s) => n + (s.count || 0), 0);
-      const lines   = meta.serverStatus.map(s => {
+      const found = meta.serverStatus.filter(s => s.status === 'found');
+      const total = found.reduce((n, s) => n + (s.count || 0), 0);
+
+      // Keep each line short — Stremio's description column is narrow (~20 chars)
+      // Format: "✅ Label · N · 4K" or "❌ Label" / "⏱ Label" / "🔴 Label"
+      const lines = meta.serverStatus.map(s => {
+        const lbl = s.label.length > 12 ? s.label.slice(0, 11) + '…' : s.label;
         if (s.status === 'found') {
-          const cnt = s.count === 1 ? '1 stream' : `${s.count} streams`;
-          const res = s.resLabels?.length ? '  ·  ' + s.resLabels.join(' · ') : '';
-          return `✅  ${s.label}  ──  ${cnt}${res}`;
+          const res = s.resLabels?.length ? ' · ' + s.resLabels.join('·') : '';
+          return `✅ ${lbl} · ${s.count}${res}`;
         }
-        if (s.status === 'not_found') return `❌  ${s.label}  ──  not in library`;
-        if (s.status === 'timeout')   return `⏱  ${s.label}  ──  timed out`;
-        return                               `🔴  ${s.label}  ──  offline`;
+        if (s.status === 'not_found') return `❌ ${lbl}`;
+        if (s.status === 'timeout')   return `⏱ ${lbl}`;
+        return                               `🔴 ${lbl}`;
       });
+
+      // Name: short enough to stay on one line in Stremio's left column
       const summaryName = total > 0
-        ? `📊  ${total} stream${total !== 1 ? 's' : ''}  ·  ${found.length} server${found.length !== 1 ? 's' : ''} found`
-        : `📊  No streams found`;
+        ? `📊 ${total} streams · ${found.length} servers`
+        : `📊 No streams found`;
+
       streams.unshift({
         name:        summaryName,
         description: lines.join('\n'),
