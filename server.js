@@ -1213,14 +1213,18 @@ async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) 
   } : null;
 
   // Per-server status breakdown
-  const serverStatus = servers.map(srv => {
+  const serverStatus = servers.map((srv, i) => {
+    const pingMs = pingResults[i] ?? null;
     const srvStreams = allStreams.filter(s => s._serverLabel === srv.label);
-    if (!srvStreams.length) return { label: srv.label, emoji: srv.emoji || null, status: 'timeout' };
+    if (!srvStreams.length) return { label: srv.label, emoji: srv.emoji || null, status: 'timeout', pingMs };
     const placeholder = srvStreams.find(s => s._noResults);
-    if (placeholder) return { label: srv.label, emoji: srv.emoji || null, status: placeholder._noResultsType || 'not_found' };
+    if (placeholder) return { label: srv.label, emoji: srv.emoji || null, status: placeholder._noResultsType || 'not_found', pingMs };
     const real = srvStreams.filter(s => !s._noResults);
     const best = real[0];
     const resLabels = [...new Set(real.map(s => s._resLabel).filter(Boolean))];
+    // Count per resolution e.g. { '4K': 2, '1080p': 3 }
+    const resCounts = {};
+    real.forEach(s => { if (s._resLabel) resCounts[s._resLabel] = (resCounts[s._resLabel] || 0) + 1; });
     return {
       label:     srv.label,
       emoji:     srv.emoji || null,
@@ -1229,6 +1233,8 @@ async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) 
       size:      best?._sizeBytes || 0,
       bitrate:   best?._bitrate || 0,
       resLabels,
+      resCounts,
+      pingMs,
     };
   });
 
@@ -1716,6 +1722,30 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
           if (s.status === 'timeout')   return `○ ${l}  ⏱`;
           return                               `○ ${l}  🔴`;
         });
+
+      } else if (style === 'breakdown') {
+        // "6 Total | 5 Servers"  then per-server: "ARCTV: 2× [4K] 3× [1080p]" + fastest ping line
+        summaryName = `${total} Total | ${meta.serverStatus.length} Servers`;
+        const resOrder = { '4K': 0, '1080p': 1, '720p': 2, 'SD': 3 };
+        lines = meta.serverStatus.map(s => {
+          const l = eLabel(s, 11);
+          if (s.status === 'found') {
+            const resStr = Object.entries(s.resCounts || {})
+              .sort(([a], [b]) => (resOrder[a] ?? 9) - (resOrder[b] ?? 9))
+              .map(([res, cnt]) => `${cnt}× [${res}]`)
+              .join('  ');
+            return `${l}: ${resStr || s.count + '×'}`;
+          }
+          if (s.status === 'not_found') return `${l}: none`;
+          if (s.status === 'timeout')   return `${l}: timed out`;
+          return                               `${l}: offline`;
+        });
+        // Fastest ping line — only if ping data available
+        const pinged = meta.serverStatus.filter(s => s.status === 'found' && s.pingMs != null);
+        if (pinged.length > 0) {
+          const fastest = pinged.reduce((a, b) => a.pingMs < b.pingMs ? a : b);
+          lines.push(`⚡ ${trunc(fastest.label, 10)} fastest · ${fastest.pingMs}ms`);
+        }
 
       } else {
         // compact (default) — ✅ Label · N · 4K

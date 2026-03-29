@@ -666,6 +666,7 @@
               <option value="report">Report — ARCTV: 4× 4K·HD</option>
               <option value="spark">Spark — ▇ ARCTV  4 · 4K</option>
               <option value="dot">Dot — ● ARCTV  4 · 4K</option>
+              <option value="breakdown">Breakdown — 6 Total | 5 Servers + res counts</option>
             </select>
           </div>
           <!-- Live preview -->
@@ -1415,9 +1416,9 @@
     }
 
     const PREVIEW_SERVERS = [
-      { label: 'ARCTV',   emoji: '🏠', status: 'found',     count: 4, resLabels: ['4K','1080p'] },
-      { label: 'STREAMER',emoji: '⚡', status: 'found',     count: 2, resLabels: ['1080p']      },
-      { label: 'BACKUP',  emoji: '💾', status: 'not_found', count: 0, resLabels: []              },
+      { label: 'ARCTV',   emoji: '🏠', status: 'found',     count: 5, resLabels: ['4K','1080p'], resCounts: {'4K':2,'1080p':3}, pingMs: 12  },
+      { label: 'STREAMER',emoji: '⚡', status: 'found',     count: 2, resLabels: ['1080p'],      resCounts: {'1080p':2},        pingMs: 28  },
+      { label: 'BACKUP',  emoji: '💾', status: 'not_found', count: 0, resLabels: [],             resCounts: {},                 pingMs: null},
     ];
 
     function updateSummaryPreview() {
@@ -1503,6 +1504,25 @@
           if (s.status === 'found') { const res = s.resLabels.length ? ' · ' + s.resLabels[0] : ''; return `● ${l}  ${s.count}${res}`; }
           return `○ ${l}  none`;
         });
+      } else if (style === 'breakdown') {
+        name = `${total} Total | ${servers.length} Servers`;
+        const resOrder = { '4K': 0, '1080p': 1, '720p': 2, 'SD': 3 };
+        lines = servers.map(s => {
+          const l = eLabel(s, 11);
+          if (s.status === 'found') {
+            const resStr = Object.entries(s.resCounts || {})
+              .sort(([a],[b]) => (resOrder[a]??9)-(resOrder[b]??9))
+              .map(([res,cnt]) => `${cnt}× [${res}]`).join('  ');
+            return `${l}: ${resStr || s.count + '×'}`;
+          }
+          return `${l}: none`;
+        });
+        const pinged = servers.filter(s => s.status === 'found' && s.pingMs != null);
+        if (pinged.length > 0) {
+          const fastest = pinged.reduce((a,b) => a.pingMs < b.pingMs ? a : b);
+          lines.push(`⚡ ${trunc(fastest.label,10)} fastest · ${fastest.pingMs}ms`);
+        }
+
       } else {
         // compact
         name = `📊 ${total} streams · ${found.length} servers`;
