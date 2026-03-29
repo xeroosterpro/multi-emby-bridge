@@ -1093,10 +1093,11 @@ async function searchServersForCatalog(servers, type, query, timeoutMs = 8000) {
     }, timeoutMs);
     if (!resp.ok) return [];
     const data = await resp.json();
-    // Same name-similarity filter used in queryServerForMovie / findSeriesByName
+    // Catalog needs stricter matching: item name must contain the full query
+    // (drop qn.includes(sn) — that lets single words like "Jobs" or "Dirty" through)
     return (data.Items || []).filter(item => {
       const sn = (item.Name || '').toLowerCase().trim();
-      return sn === qn || sn.includes(qn) || qn.includes(sn);
+      return sn === qn || sn.includes(qn);
     });
   }));
 
@@ -1108,7 +1109,10 @@ async function searchServersForCatalog(servers, type, query, timeoutMs = 8000) {
       const imdbId = item.ProviderIds?.Imdb || item.ProviderIds?.imdb;
       if (!imdbId || !imdbId.startsWith('tt')) continue;
       if (seen.has(imdbId)) continue;
-      const meta = { id: imdbId, type, name: item.Name };
+      const meta = {
+        id: imdbId, type, name: item.Name,
+        poster: `https://images.metahub.space/poster/medium/${imdbId}/img`,
+      };
       if (item.Overview)       meta.description = item.Overview;
       if (item.ProductionYear) meta.releaseInfo  = String(item.ProductionYear);
       seen.set(imdbId, meta);
