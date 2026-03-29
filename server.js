@@ -1075,6 +1075,50 @@ async function getStreamsFromServer(server, type, imdbId, season, episode, label
   }
 }
 
+// ─── Catalog search (unified across all servers) ──────────────────────────────
+async function searchServersForCatalog(servers, type, query, timeoutMs = 8000) {
+  const itemType = type === 'movie' ? 'Movie' : 'Series';
+
+  const results = await Promise.allSettled(servers.map(async (server) => {
+    const baseUrl = server.url.replace(/\/+$/, '');
+    const buildUrl = () => {
+      const u = new URL(`${baseUrl}/Users/${server.userId}/Items`);
+      u.searchParams.set('SearchTerm', query);
+      u.searchParams.set('IncludeItemTypes', itemType);
+      u.searchParams.set('Recursive', 'true');
+      u.searchParams.set('Limit', '20');
+      u.searchParams.set('Fields', 'ProviderIds,Overview,ProductionYear');
+      u.searchParams.set('EnableImages', 'false');
+      return u;
+    };
+    const resp = await apiFetch(server, buildUrl, timeoutMs);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return data.Items || [];
+  }));
+
+  // Merge all items, deduplicate by IMDB ID
+  const seen = new Map();
+  for (const result of results) {
+    if (result.status !== 'fulfilled') continue;
+    for (const item of result.value) {
+      const imdbId = item.ProviderIds?.Imdb || item.ProviderIds?.imdb;
+      if (!imdbId || !imdbId.startsWith('tt')) continue;
+      if (seen.has(imdbId)) continue;
+      const meta = {
+        id: imdbId,
+        type,
+        name: item.Name,
+        poster: `https://images.metahub.space/poster/medium/${imdbId}/img`,
+      };
+      if (item.Overview)      meta.description = item.Overview;
+      if (item.ProductionYear) meta.releaseInfo = String(item.ProductionYear);
+      seen.set(imdbId, meta);
+    }
+  }
+  return [...seen.values()];
+}
+
 async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) {
   const { sortOrder, excludeRes, recommend, ping, audioLang, maxBitrate, prefCodec, codecMode, labelPreset, pingDetail, autoSelect, qualityBadge, flagEmoji, bitrateBar, subsStyle } = opts;
   const streamOpts = { qualityBadge, flagEmoji, bitrateBar, subsStyle };
@@ -1515,8 +1559,11 @@ app.get('/:config/manifest.json', (req, res) => {
     name: 'Multi-Emby Bridge',
     description: `Streams from: ${names || 'configured servers'}`,
     types: ['movie', 'series'],
-    catalogs: [],
-    resources: ['stream'],
+    catalogs: [
+      { type: 'movie',  id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: true }] },
+      { type: 'series', id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: true }] },
+    ],
+    resources: ['catalog', 'stream'],
     idPrefixes: ['tt'],
     behaviorHints: { configurable: true, configurationRequired: false },
   });
@@ -1525,6 +1572,37 @@ app.get('/:config/manifest.json', (req, res) => {
 // Clicking the gear icon in Stremio opens the addon base URL in a browser
 app.get('/:config/configure', (req, res) => {
   res.redirect('/configure');
+});
+
+// ─── Catalog handler ──────────────────────────────────────────────────────────
+// Route with extras: /:config/catalog/:type/:id/search=Query.json
+app.get('/:config/catalog/:type/:id/:extra.json', async (req, res) => {
+  const extraStr = decodeURIComponent(req.params.extra || '');
+  const searchMatch = extraStr.match(/^search=(.+)$/);
+  const query = searchMatch ? searchMatch[1].trim() : null;
+  if (!query) return res.json({ metas: [] });
+
+  let cfg;
+  try { cfg = decodeConfig(req.params.config); } catch { return res.json({ metas: [] }); }
+
+  const { type } = req.params;
+  if (!['movie', 'series'].includes(type)) return res.json({ metas: [] });
+
+  const servers = (cfg.servers || []).filter(s => s.url && s.apiKey && s.userId);
+  if (servers.length === 0) return res.json({ metas: [] });
+
+  try {
+    const metas = await searchServersForCatalog(servers, type, query);
+    res.json({ metas });
+  } catch (err) {
+    console.error('Catalog search error:', err.message);
+    res.json({ metas: [] });
+  }
+});
+
+// Route without extras (browse/top — not supported, return empty)
+app.get('/:config/catalog/:type/:id.json', (req, res) => {
+  res.json({ metas: [] });
 });
 
 // ─── Stream handler ───────────────────────────────────────────────────────────
