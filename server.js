@@ -327,7 +327,7 @@ async function resolveImdbName(imdbId, type) {
       `https://v3-cinemeta.strem.io/meta/${metaType}/${imdbId}.json`, 6000
     );
     const data = await resp.json();
-    if (data.meta?.name) return data.meta.name;
+    if (data.meta?.name) return { name: data.meta.name, year: data.meta.year ? parseInt(data.meta.year, 10) : null };
   } catch { /* continue to next strategy */ }
 
   // Strategy 2: IMDB suggestions API (free, no key needed)
@@ -341,8 +341,8 @@ async function resolveImdbName(imdbId, type) {
       // Verify the IMDB result type matches what we're looking for
       // qid: "movie", "tvSeries", "tvEpisode", "tvMiniSeries", etc.
       const qid = (match.qid || '').toLowerCase();
-      if (type === 'series' && (qid === 'tvseries' || qid === 'tvminiseries')) return match.l;
-      if (type === 'movie' && (qid === 'movie' || qid === 'tvmovie')) return match.l;
+      if (type === 'series' && (qid === 'tvseries' || qid === 'tvminiseries')) return { name: match.l, year: match.y ?? null };
+      if (type === 'movie' && (qid === 'movie' || qid === 'tvmovie')) return { name: match.l, year: match.y ?? null };
       // If type doesn't match (e.g., searching for series but got a tvEpisode), skip this result
       console.log(`[resolveImdbName] IMDB suggestion type mismatch: wanted ${type}, got qid=${qid} name="${match.l}" — skipping`);
     }
@@ -355,7 +355,7 @@ async function resolveImdbName(imdbId, type) {
       `https://v3-cinemeta.strem.io/catalog/${metaType}/top/search=${encodeURIComponent(imdbId)}.json`, 5000
     );
     const data = await resp.json();
-    if (data.metas?.[0]?.name) return data.metas[0].name;
+    if (data.metas?.[0]?.name) return { name: data.metas[0].name, year: data.metas[0].releaseInfo ? parseInt(data.metas[0].releaseInfo, 10) : null };
   } catch { /* continue */ }
 
   return null;
@@ -735,7 +735,7 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
 
 // ─── Server queries (Streambridge-matching logic) ────────────────────────────
 
-const DEFAULT_FIELDS = 'ProviderIds,Name,MediaSources,Path,Id,IndexNumber,ParentIndexNumber,MediaStreams';
+const DEFAULT_FIELDS = 'ProviderIds,Name,MediaSources,Path,Id,IndexNumber,ParentIndexNumber,MediaStreams,ProductionYear';
 
 async function queryServerForMovie(server, imdbId) {
   // Helper: query an endpoint with params, validate ProviderIds
@@ -768,8 +768,8 @@ async function queryServerForMovie(server, imdbId) {
     )).catch(() => []);
 
   if (server.type === 'jellyfin') {
-    // Pre-fetch the name in parallel — ready if provider ID strategies fail
-    const namePromise = resolveImdbName(imdbId, 'movie');
+    // Pre-fetch meta (name + year) in parallel — used for fallback and year validation
+    const metaPromise = resolveImdbName(imdbId, 'movie');
 
     // Strategy: all AnyProviderIdEquals formats in parallel
     items = await raceQueries(
@@ -778,10 +778,19 @@ async function queryServerForMovie(server, imdbId) {
       )
     );
 
-    // Fallback: name-based search (name already being fetched above)
+    // Year validation — filter out items whose ProductionYear doesn't match Cinemeta (±1 tolerance)
+    // This catches cases where a wrong movie is incorrectly tagged with this IMDB ID on the server
+    const meta = await metaPromise;
+    const metaYear = meta?.year;
+    if (items.length > 0 && metaYear) {
+      const yearFiltered = items.filter(i => !i.ProductionYear || Math.abs(i.ProductionYear - metaYear) <= 1);
+      if (yearFiltered.length > 0) items = yearFiltered;
+    }
+
+    // Fallback: name-based search
     if (items.length === 0) {
       try {
-        const movieName = await namePromise;
+        const movieName = meta?.name;
         if (movieName) {
           console.log(`[${server.label}] Jellyfin: searching movie by name "${movieName}"`);
           const resp = await apiFetch(server, () => {
@@ -798,7 +807,9 @@ async function queryServerForMovie(server, imdbId) {
           items = (data.Items || []).filter(i => {
             const sn = (i.Name || '').toLowerCase().trim();
             const qn = movieName.toLowerCase().trim();
-            return sn === qn || sn.includes(qn);
+            if (!(sn === qn || sn.includes(qn))) return false;
+            if (metaYear && i.ProductionYear) return Math.abs(i.ProductionYear - metaYear) <= 1;
+            return true;
           });
           console.log(`[${server.label}] Jellyfin name movie search "${movieName}": ${(data.Items||[]).length} raw → ${items.length} name-matched`);
         }
@@ -807,8 +818,8 @@ async function queryServerForMovie(server, imdbId) {
       }
     }
   } else {
-    // Emby: pre-fetch name in parallel while provider ID strategies run
-    const namePromise = resolveImdbName(imdbId, 'movie');
+    // Emby: pre-fetch meta (name + year) in parallel while provider ID strategies run
+    const metaPromise = resolveImdbName(imdbId, 'movie');
 
     // All provider ID strategies fire simultaneously
     items = await raceQueries([
@@ -817,13 +828,20 @@ async function queryServerForMovie(server, imdbId) {
       () => queryItems(`/Users/${server.userId}/Items`, { AnyProviderIdEquals: `imdb.${imdbId}` }),
     ]);
 
+    const meta = await metaPromise;
+    const metaYear = meta?.year;
+    if (items.length > 0 && metaYear) {
+      const yearFiltered = items.filter(i => !i.ProductionYear || Math.abs(i.ProductionYear - metaYear) <= 1);
+      if (yearFiltered.length > 0) items = yearFiltered;
+    }
+
     // Fallback: name-based search (name already being fetched above)
     // NOTE: intentionally does NOT use queryItems() here — queryItems validates ProviderIds,
     // which would drop items that are in the library but missing their IMDB metadata.
     // Instead, do a raw fetch and match by name only (same approach as the Jellyfin path).
     if (items.length === 0) {
       try {
-        const movieName = await namePromise;
+        const movieName = meta?.name;
         if (movieName) {
           console.log(`[${server.label}] Resolved ${imdbId} → "${movieName}", searching Emby by name`);
           const resp = await apiFetch(server, () => {
@@ -840,7 +858,9 @@ async function queryServerForMovie(server, imdbId) {
           items = (data.Items || []).filter(i => {
             const sn = (i.Name || '').toLowerCase().trim();
             const qn = movieName.toLowerCase().trim();
-            return sn === qn || sn.includes(qn);
+            if (!(sn === qn || sn.includes(qn))) return false;
+            if (metaYear && i.ProductionYear) return Math.abs(i.ProductionYear - metaYear) <= 1;
+            return true;
           });
           console.log(`[${server.label}] Emby name movie search "${movieName}": ${(data.Items||[]).length} raw → ${items.length} name-matched`);
         }
@@ -907,7 +927,7 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
 
   try {
     // Pre-fetch series name in parallel — ready if provider ID strategies all fail
-    const namePromise = resolveImdbName(imdbId, 'series');
+    const metaPromise = resolveImdbName(imdbId, 'series');
 
     // Race all provider ID strategies simultaneously
     const raceSeriesQueries = (fns) =>
@@ -924,7 +944,7 @@ async function queryServerForEpisode(server, imdbId, season, episode) {
     // Strategy 3: Name-based search — uses pre-fetched name (already in flight above)
     // Handles mismatched IMDB IDs between Stremio catalog and server
     if (seriesItems.length === 0) {
-      const seriesName = await namePromise;
+      const seriesName = (await metaPromise)?.name;
       if (seriesName) {
         console.log(`[${server.label}] Name-based series search: "${seriesName}"`);
         seriesItems = await findSeriesByName(seriesName);
@@ -988,11 +1008,11 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
   let items = [];
   try {
     // Pre-fetch name in parallel — ready immediately if provider ID search fails
-    const namePromise = resolveImdbName(imdbId, 'series');
+    const metaPromise = resolveImdbName(imdbId, 'series');
 
     if (server.type === 'jellyfin') {
       // Jellyfin: AnyProviderIdEquals is broken — search by name
-      const seriesName = await namePromise;
+      const seriesName = (await metaPromise)?.name;
       if (seriesName) {
         console.log(`[${server.label}] Direct episode fallback: searching episodes by name "${seriesName}"`);
         const resp = await apiFetch(server, () => makeUrl({ SearchTerm: seriesName }));
@@ -1000,11 +1020,12 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
       }
     } else {
       // Emby: run AnyProviderIdEquals and name fetch in parallel
-      const [providerItems, seriesName] = await Promise.all([
+      const [providerItems, seriesMeta] = await Promise.all([
         apiFetch(server, () => makeUrl({ AnyProviderIdEquals: `imdb.${imdbId}` }))
           .then(r => r.json()).then(d => d.Items || []).catch(() => []),
-        namePromise,
+        metaPromise,
       ]);
+      const seriesName = seriesMeta?.name;
 
       if (providerItems.length > 0) {
         items = providerItems;
