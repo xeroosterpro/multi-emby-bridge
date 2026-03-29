@@ -1097,22 +1097,26 @@ async function searchServersForCatalog(servers, type, query, timeoutMs = 8000) {
     return data.Items || [];
   }));
 
+  // All query words (≥3 chars) must appear in the item name for a match
+  const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+  const titleMatches = (name) => {
+    if (!name || queryWords.length === 0) return true;
+    const lower = name.toLowerCase();
+    return queryWords.every(w => lower.includes(w));
+  };
+
   // Merge all items, deduplicate by IMDB ID
   const seen = new Map();
   for (const result of results) {
     if (result.status !== 'fulfilled') continue;
     for (const item of result.value) {
+      if (!titleMatches(item.Name)) continue;
       const imdbId = item.ProviderIds?.Imdb || item.ProviderIds?.imdb;
       if (!imdbId || !imdbId.startsWith('tt')) continue;
       if (seen.has(imdbId)) continue;
-      const meta = {
-        id: imdbId,
-        type,
-        name: item.Name,
-        poster: `https://images.metahub.space/poster/medium/${imdbId}/img`,
-      };
-      if (item.Overview)      meta.description = item.Overview;
-      if (item.ProductionYear) meta.releaseInfo = String(item.ProductionYear);
+      const meta = { id: imdbId, type, name: item.Name };
+      if (item.Overview)       meta.description = item.Overview;
+      if (item.ProductionYear) meta.releaseInfo  = String(item.ProductionYear);
       seen.set(imdbId, meta);
     }
   }
