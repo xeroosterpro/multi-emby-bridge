@@ -614,6 +614,16 @@
 
       <div class="options-divider"></div>
 
+      <label class="option-item">
+        <input type="checkbox" id="show-summary" />
+        <div>
+          <div class="option-title">📋 Show results summary</div>
+          <div class="option-desc">Pins a summary card at the top of the stream list showing how many streams each server found, with quality breakdown.</div>
+        </div>
+      </label>
+
+      <div class="options-divider"></div>
+
       <div class="sort-row">
         <span class="sort-row-label">Stream label format</span>
         <select id="label-preset" onchange="updateLabelPreview()">
@@ -1364,6 +1374,7 @@
       const maxBitrate  = document.getElementById('max-bitrate').value;
       const autoSelect  = document.getElementById('auto-select').checked;
       const labelPreset = document.getElementById('label-preset').value;
+      const showSummary  = document.getElementById('show-summary').checked;
       const qualityBadge = document.getElementById('quality-badge').checked;
       const flagEmoji    = document.getElementById('flag-emoji').checked;
       const bitrateBar   = document.getElementById('bitrate-bar').checked;
@@ -1384,6 +1395,7 @@
           if (prefCodec !== 'any')   { sc.prefCodec  = prefCodec; sc.codecMode = codecMode; }
           if (labelPreset !== 'standard') sc.labelPreset = labelPreset;
           if (autoSelect)    sc.autoSelect    = true;
+          if (showSummary)   sc.showSummary   = true;
           if (qualityBadge)  sc.qualityBadge  = true;
           if (flagEmoji)     sc.flagEmoji     = true;
           if (bitrateBar)    sc.bitrateBar    = true;
@@ -1423,6 +1435,7 @@
         if (prefCodec !== 'any') { config.prefCodec  = prefCodec; config.codecMode = codecMode; }
         if (labelPreset !== 'standard') config.labelPreset = labelPreset;
         if (autoSelect)   config.autoSelect   = true;
+        if (showSummary)  config.showSummary  = true;
         if (qualityBadge) config.qualityBadge = true;
         if (flagEmoji)    config.flagEmoji    = true;
         if (bitrateBar)   config.bitrateBar   = true;
@@ -1561,6 +1574,7 @@
         autoSelect:   document.getElementById('auto-select')?.checked,
         labelPreset:  document.getElementById('label-preset')?.value,
         pingOrigin:   document.getElementById('ping-origin')?.value,
+        showSummary:  document.getElementById('show-summary')?.checked,
         qualityBadge: document.getElementById('quality-badge')?.checked,
         flagEmoji:    document.getElementById('flag-emoji')?.checked,
         bitrateBar:   document.getElementById('bitrate-bar')?.checked,
@@ -1645,6 +1659,7 @@
         setChk('show-ping',      state.showPing);
         setChk('ping-detail',    state.pingDetail);
         setChk('auto-select',    state.autoSelect);
+        setChk('show-summary',   state.showSummary);
         setChk('quality-badge',  state.qualityBadge);
         setChk('flag-emoji',     state.flagEmoji);
         setChk('bitrate-bar',    state.bitrateBar);

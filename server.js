@@ -1177,15 +1177,16 @@ async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) 
     if (!srvStreams.length) return { label: srv.label, status: 'timeout' };
     const placeholder = srvStreams.find(s => s._noResults);
     if (placeholder) return { label: srv.label, status: placeholder._noResultsType || 'not_found' };
-    // Sort real streams the same way to find this server's best file
     const real = srvStreams.filter(s => !s._noResults);
     const best = real[0];
+    const resLabels = [...new Set(real.map(s => s._resLabel).filter(Boolean))];
     return {
-      label:   srv.label,
-      status:  'found',
-      count:   real.length,
-      size:    best?._sizeBytes || 0,
-      bitrate: best?._bitrate || 0,
+      label:     srv.label,
+      status:    'found',
+      count:     real.length,
+      size:      best?._sizeBytes || 0,
+      bitrate:   best?._bitrate || 0,
+      resLabels,
     };
   });
 
@@ -1521,6 +1522,30 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
       bitrateBar:   cfg.bitrateBar,
       hideSubs:     cfg.hideSubs,
     });
+    // ── Results summary card (optional — pinned to top of stream list) ──────────
+    if (cfg.showSummary) {
+      const found   = meta.serverStatus.filter(s => s.status === 'found');
+      const total   = found.reduce((n, s) => n + (s.count || 0), 0);
+      const lines   = meta.serverStatus.map(s => {
+        if (s.status === 'found') {
+          const cnt = s.count === 1 ? '1 stream' : `${s.count} streams`;
+          const res = s.resLabels?.length ? '  ·  ' + s.resLabels.join(' · ') : '';
+          return `✅  ${s.label}  ──  ${cnt}${res}`;
+        }
+        if (s.status === 'not_found') return `❌  ${s.label}  ──  not in library`;
+        if (s.status === 'timeout')   return `⏱  ${s.label}  ──  timed out`;
+        return                               `🔴  ${s.label}  ──  offline`;
+      });
+      const summaryName = total > 0
+        ? `📊  ${total} stream${total !== 1 ? 's' : ''}  ·  ${found.length} server${found.length !== 1 ? 's' : ''} found`
+        : `📊  No streams found`;
+      streams.unshift({
+        name:        summaryName,
+        description: lines.join('\n'),
+        url:         `${req.protocol}://${req.get('host')}/stream-summary`,
+      });
+    }
+
     addLogEntry({
       ts:           new Date().toISOString(),
       type,
