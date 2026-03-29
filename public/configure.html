@@ -625,6 +625,10 @@
           <option value="audiophile">Audiophile — audio codec in name</option>
           <option value="source">Source Focus — source type in name (REMUX / WEB-DL)</option>
           <option value="minimal">Minimal — res only, size in desc</option>
+          <option value="slim">Slim — res · HDR in name, audio + size in desc</option>
+          <option value="crisp">Crisp — res · Atmos in name, HDR + codec + size in desc</option>
+          <option value="sharp">Sharp — res · HDR · Atmos in name, codec + size in desc</option>
+          <option value="pure">Pure — res only in name, all specs one line</option>
         </select>
       </div>
       <div id="label-preview" style="margin:0.2rem 0 0.1rem;padding:0.55rem 0.65rem;background:#0f0f13;border-radius:6px;font-size:0.77rem;line-height:1.6;color:#666;"></div>
@@ -1385,6 +1389,22 @@
         minimal:    {
           name: 'Server · 4K',
           desc: '58.32 GB',
+        },
+        slim:       {
+          name: 'Server · 4K · DV',
+          desc: 'TrueHD Atmos 7.1 · 58.32 GB',
+        },
+        crisp:      {
+          name: 'Server · 4K · Atmos',
+          desc: 'DV · HEVC 10bit · 58.32 GB',
+        },
+        sharp:      {
+          name: 'Server · 4K · DV · Atmos',
+          desc: 'HEVC 10bit · 58.32 GB',
+        },
+        pure:       {
+          name: 'Server · 4K',
+          desc: 'HEVC 10bit · DV · TrueHD Atmos 7.1 · 58.32 GB',
         },
       };
 

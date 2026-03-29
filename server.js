@@ -499,6 +499,7 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
     // ── Audio codec + channels + quality rank
     // Rank: TrueHD Atmos > TrueHD > DTS-MA > DTS > DD+ > DD > AAC > other
     let audioLabel = null;
+    let shortAudioLabel = null; // codec name only, no channels — used in minimal-family presets
     let audioRank = 99; // lower = better
     if (audioStream) {
       const ac = (audioStream.Codec || '').toLowerCase();
@@ -517,6 +518,8 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
       // More channels = better (tiebreaker within same codec)
       audioRank = audioRank * 10 - (ch || 0);
       audioLabel = [codecName, chStr].filter(Boolean).join(' ');
+      // Atmos gets its own short name; everything else uses the codec name without channels
+      shortAudioLabel = profile.includes('atmos') ? 'Atmos' : (codecName || null);
     }
 
     // ── Top audio badge for quality-badge feature
@@ -643,6 +646,26 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
       // Name: Server · Res  |  Desc: Size only
       streamName = [displayLabel, resLabel].filter(Boolean).join(' · ');
       streamDesc = sizeStr || bitrateLabel || 'Unknown quality';
+
+    } else if (labelPreset === 'slim') {
+      // Name: Server · Res · HDR  |  Desc: Audio · Size  (minimal + HDR + audio)
+      streamName = [displayLabel, resLabel, hdrLabel].filter(Boolean).join(' · ');
+      streamDesc = [audioLabel, sizeStr].filter(Boolean).join(' · ') || 'Unknown quality';
+
+    } else if (labelPreset === 'crisp') {
+      // Name: Server · Res · Atmos/codec  |  Desc: HDR · Codec · Size  (audio highlighted in name)
+      streamName = [displayLabel, resLabel, shortAudioLabel].filter(Boolean).join(' · ');
+      streamDesc = [hdrLabel, codecLabel, sizeStr].filter(Boolean).join(' · ') || 'Unknown quality';
+
+    } else if (labelPreset === 'sharp') {
+      // Name: Server · Res · HDR · Atmos/codec  |  Desc: Codec · Size  (most in name, tiny desc)
+      streamName = [displayLabel, resLabel, hdrLabel, shortAudioLabel].filter(Boolean).join(' · ');
+      streamDesc = [codecLabel, sizeStr].filter(Boolean).join(' · ') || 'Unknown quality';
+
+    } else if (labelPreset === 'pure') {
+      // Name: Server · Res  |  Desc: all key specs on one line (ultra-clean name)
+      streamName = [displayLabel, resLabel].filter(Boolean).join(' · ');
+      streamDesc = [codecLabel, hdrLabel, audioLabel, sizeStr].filter(Boolean).join(' · ') || 'Unknown quality';
 
     } else {
       // standard (default) — name has HDR, desc has codec+source / audio / subs / size
