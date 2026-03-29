@@ -425,19 +425,26 @@ function langFlag(code) {
   return LANG_FLAGS[(code || '').toLowerCase()] || null;
 }
 
-// Bitrate quality bar (5 unicode blocks scaled to 0/5/10/20/35 Mbps)
-function buildBitrateBar(bps) {
+// Bitrate quality bar (5 chars scaled to 0/5/10/20/35 Mbps, style-aware)
+function buildBitrateBar(bps, style = 'blocks') {
   if (!bps) return '';
   const mbps = bps / 1e6;
   const filled = (mbps > 0 ? 1 : 0) + (mbps >= 5 ? 1 : 0) + (mbps >= 10 ? 1 : 0) + (mbps >= 20 ? 1 : 0) + (mbps >= 35 ? 1 : 0);
   const n = Math.min(filled, 5);
-  return '█'.repeat(n) + '░'.repeat(5 - n);
+  const e = 5 - n;
+  if (style === 'segments') return '▰'.repeat(n) + '▱'.repeat(e);
+  if (style === 'dots')     return '●'.repeat(n) + '○'.repeat(e);
+  return '█'.repeat(n) + '░'.repeat(e); // blocks (default)
 }
 
 // ─── Stream building from PlaybackInfo MediaSources ──────────────────────────
 
 function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, streamOpts = {}) {
-  const { qualityBadge: useQualityBadge, flagEmoji: useFlagEmoji, bitrateBar: useBitrateBar, hideSubs: useHideSubs } = streamOpts;
+  // Each is a style string (e.g. 'emoji', 'flag', 'blocks') or falsy = off
+  const qualityBadgeStyle = streamOpts.qualityBadge || null;
+  const flagEmojiStyle    = streamOpts.flagEmoji    || null;
+  const bitrateBarStyle   = streamOpts.bitrateBar   || null;
+  const subsStyle         = streamOpts.subsStyle     || 'full';
   const streams = [];
   for (const source of mediaSources) {
     const sizeBytes = source.Size || 0;
@@ -530,18 +537,26 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
             : ac.includes('dts') ? 'DTS' : ac === 'eac3' ? 'DD+' : ac === 'ac3' ? 'DD'
             : ac.includes('aac') ? 'AAC' : (s.Codec || '').toUpperCase();
           const rawLang = s.Language ? s.Language.toUpperCase().slice(0, 3) : '';
-          const lang = useFlagEmoji ? (langFlag(s.Language) || rawLang) : rawLang;
+          const flag = langFlag(s.Language);
+          const lang = flagEmojiStyle === 'flag' ? (flag || rawLang)
+                     : flagEmojiStyle === 'both' ? (flag ? flag + rawLang : rawLang)
+                     : rawLang;
           return [lang, name, chStr].filter(Boolean).join(' ');
         }).join(' · ')
       : null;
 
-    // ── Subtitle tracks (unique languages) — skipped entirely when hideSubs is on
+    // ── Subtitle tracks — display varies by subsStyle
     let subsLabel = null;
-    if (!useHideSubs && subStreams.length > 0) {
+    if (subsStyle !== 'hidden' && subStreams.length > 0) {
       const uniqueLangs = [...new Set(subStreams.map(s => (s.Language || s.DisplayTitle || '?').slice(0, 3).toUpperCase()))];
-      subsLabel = useFlagEmoji
-        ? '💬 ' + uniqueLangs.map(l => langFlag(l) || l).join(' ')
-        : 'Subs: ' + uniqueLangs.join(' · ');
+      if (subsStyle === 'count') {
+        subsLabel = `💬 ${uniqueLangs.length} sub${uniqueLangs.length !== 1 ? 's' : ''}`;
+      } else if (subsStyle === 'icons' || flagEmojiStyle) {
+        // icons mode, or full+flag — show flag emoji per language
+        subsLabel = '💬 ' + uniqueLangs.map(l => langFlag(l) || l).join(' ');
+      } else {
+        subsLabel = 'Subs: ' + uniqueLangs.join(' · ');
+      }
     }
 
     // ── Raw codec ID (for filtering/preference)
@@ -557,7 +572,10 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
 
     // ── Bitrate in Mbps (with optional visual bar)
     let bitrateLabel = bitrate ? `${(bitrate / 1e6).toFixed(1)}Mbps` : null;
-    if (useBitrateBar && bitrate) bitrateLabel = `${buildBitrateBar(bitrate)} ${bitrateLabel}`;
+    if (bitrateBarStyle && bitrate) {
+      const bar = buildBitrateBar(bitrate, bitrateBarStyle);
+      bitrateLabel = bitrateBarStyle === 'bar_only' ? bar : `${bar} ${bitrateLabel}`;
+    }
 
     // ── Source label (REMUX, WEB-DL, etc. from filename)
     const sourceLabel = detectSourceLabel(source);
@@ -638,15 +656,37 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
       streamDesc = descLines.join('\n') || 'Unknown quality';
     }
 
-    // ── Prepend quality badge emojis to stream name (optional)
-    if (useQualityBadge) {
-      const badges = [];
-      if (sourceLabel === 'REMUX') badges.push('💎');
-      if (resLabel === '4K')       badges.push('🎬');
-      if (hdrLabel === 'DV')       badges.push('🌈');
-      else if (hdrLabel)           badges.push('✨');
-      if (topAudioBadge)           badges.push(topAudioBadge);
-      if (badges.length > 0) streamName = badges.join('') + ' ' + streamName;
+    // ── Quality badges — style controls placement and format
+    if (qualityBadgeStyle) {
+      const emojiBadges = [];
+      if (sourceLabel === 'REMUX') emojiBadges.push('💎');
+      if (resLabel === '4K')       emojiBadges.push('🎬');
+      if (hdrLabel === 'DV')       emojiBadges.push('🌈');
+      else if (hdrLabel)           emojiBadges.push('✨');
+      if (topAudioBadge)           emojiBadges.push(topAudioBadge);
+
+      if (qualityBadgeStyle === 'emoji' && emojiBadges.length > 0) {
+        streamName = emojiBadges.join('') + ' ' + streamName;
+
+      } else if (qualityBadgeStyle === 'minimal' && emojiBadges.length > 0) {
+        // Single highest-priority badge only
+        streamName = emojiBadges[0] + ' ' + streamName;
+
+      } else if (qualityBadgeStyle === 'tags') {
+        // Text tags in square brackets
+        const tags = [];
+        if (sourceLabel === 'REMUX') tags.push('[REMUX]');
+        if (resLabel === '4K')       tags.push('[4K]');
+        if (hdrLabel === 'DV')       tags.push('[DV]');
+        else if (hdrLabel === 'HDR10+') tags.push('[HDR10+]');
+        else if (hdrLabel)           tags.push('[HDR]');
+        if (topAudioBadge === '🔊') tags.push('[Atmos]');
+        else if (topAudioBadge === '🎵') tags.push('[Lossless]');
+        if (tags.length > 0) streamName = tags.join('') + ' ' + streamName;
+
+      } else if (qualityBadgeStyle === 'suffix' && emojiBadges.length > 0) {
+        streamName = streamName + '  ' + emojiBadges.join('');
+      }
     }
 
     streams.push({
@@ -1035,8 +1075,8 @@ async function getStreamsFromServer(server, type, imdbId, season, episode, label
 }
 
 async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) {
-  const { sortOrder, excludeRes, recommend, ping, audioLang, maxBitrate, prefCodec, codecMode, labelPreset, pingDetail, autoSelect, qualityBadge, flagEmoji, bitrateBar, hideSubs } = opts;
-  const streamOpts = { qualityBadge, flagEmoji, bitrateBar, hideSubs };
+  const { sortOrder, excludeRes, recommend, ping, audioLang, maxBitrate, prefCodec, codecMode, labelPreset, pingDetail, autoSelect, qualityBadge, flagEmoji, bitrateBar, subsStyle } = opts;
+  const streamOpts = { qualityBadge, flagEmoji, bitrateBar, subsStyle };
 
   // Pings and stream queries run concurrently — pings add zero extra wall time
   const [pingResults, streamResults] = await Promise.all([
@@ -1517,10 +1557,10 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
       labelPreset:  cfg.labelPreset,
       pingDetail:   cfg.pingDetail,
       autoSelect:   cfg.autoSelect,
-      qualityBadge: cfg.qualityBadge,
-      flagEmoji:    cfg.flagEmoji,
-      bitrateBar:   cfg.bitrateBar,
-      hideSubs:     cfg.hideSubs,
+      qualityBadge: cfg.qualityBadge === true ? 'emoji'  : (cfg.qualityBadge || null),
+      flagEmoji:    cfg.flagEmoji    === true ? 'flag'   : (cfg.flagEmoji    || null),
+      bitrateBar:   cfg.bitrateBar   === true ? 'blocks' : (cfg.bitrateBar   || null),
+      subsStyle:    cfg.hideSubs     === true ? 'hidden' : (cfg.subsStyle    || 'full'),
     });
     // ── Results summary card (optional — pinned to top of stream list) ──────────
     if (cfg.showSummary) {

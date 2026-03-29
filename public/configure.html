@@ -652,37 +652,60 @@
 
       <div class="options-divider"></div>
 
-      <label class="option-item">
-        <input type="checkbox" id="quality-badge" />
-        <div>
-          <div class="option-title">💎 Auto quality badges in stream name</div>
-          <div class="option-desc">Adds emoji badges to the stream name: 💎 REMUX · 🎬 4K · 🌈 Dolby Vision · ✨ HDR · 🔊 Atmos · 🎵 TrueHD/DTS-MA.</div>
-        </div>
-      </label>
+      <!-- 💎 Quality badges -->
+      <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
+        <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">💎 Quality badges in stream name</span>
+        <span class="option-desc" style="margin-bottom:0.3rem">Prefixes or suffixes the stream name with tier badges: 💎 REMUX · 🎬 4K · 🌈 Dolby Vision · ✨ HDR · 🔊 Atmos · 🎵 TrueHD.</span>
+        <select id="quality-badge" onchange="autoSave()">
+          <option value="">Off — no badges</option>
+          <option value="emoji">Emoji — 💎🎬✨🔊 before name</option>
+          <option value="minimal">Minimal — single top badge only</option>
+          <option value="tags">Tags — [REMUX][4K][HDR] before name</option>
+          <option value="suffix">Suffix — name then  💎🎬✨</option>
+        </select>
+      </div>
 
-      <label class="option-item">
-        <input type="checkbox" id="flag-emoji" />
-        <div>
-          <div class="option-title">🌍 Language flag emojis</div>
-          <div class="option-desc">Replaces language codes (ENG, RUS) with flag emojis (🇺🇸, 🇷🇺) in audio tracks and subtitle lists.</div>
-        </div>
-      </label>
+      <div class="options-divider"></div>
 
-      <label class="option-item">
-        <input type="checkbox" id="bitrate-bar" />
-        <div>
-          <div class="option-title">📊 Visual bitrate bar</div>
-          <div class="option-desc">Adds a ████░ quality bar next to the bitrate in descriptions. Scales from 0 to 35+ Mbps across 5 blocks.</div>
-        </div>
-      </label>
+      <!-- 🌍 Language display -->
+      <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
+        <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">🌍 Language display style</span>
+        <span class="option-desc" style="margin-bottom:0.3rem">Controls how audio language codes appear in track descriptions.</span>
+        <select id="flag-emoji" onchange="autoSave()">
+          <option value="">Codes — ENG DD 5.1 · RUS DD</option>
+          <option value="flag">Flags — 🇺🇸 DD 5.1 · 🇷🇺 DD</option>
+          <option value="both">Both — 🇺🇸 ENG DD · 🇷🇺 RUS DD</option>
+        </select>
+      </div>
 
-      <label class="option-item">
-        <input type="checkbox" id="hide-subs" />
-        <div>
-          <div class="option-title">🔇 Hide subtitle track list</div>
-          <div class="option-desc">Removes the subtitle language list (e.g. Subs: ENG · SPA) from stream descriptions.</div>
-        </div>
-      </label>
+      <div class="options-divider"></div>
+
+      <!-- 📊 Bitrate display -->
+      <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
+        <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">📊 Bitrate display style</span>
+        <span class="option-desc" style="margin-bottom:0.3rem">How the file bitrate is shown in stream descriptions.</span>
+        <select id="bitrate-bar" onchange="autoSave()">
+          <option value="">Mbps only — 12.7Mbps</option>
+          <option value="blocks">Blocks — ████░ 12.7Mbps</option>
+          <option value="segments">Segments — ▰▰▰▰▱ 12.7Mbps</option>
+          <option value="dots">Dots — ●●●●○ 12.7Mbps</option>
+          <option value="bar_only">Bar only — ████░</option>
+        </select>
+      </div>
+
+      <div class="options-divider"></div>
+
+      <!-- 💬 Subtitle display -->
+      <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
+        <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">💬 Subtitle track display</span>
+        <span class="option-desc" style="margin-bottom:0.3rem">Controls how subtitle tracks appear in stream descriptions.</span>
+        <select id="subs-style" onchange="autoSave()">
+          <option value="full">Full list — Subs: ENG · SPA · FRE</option>
+          <option value="count">Count — 💬 3 subs</option>
+          <option value="icons">Icons — 💬 🇺🇸 🇪🇸 🇫🇷</option>
+          <option value="hidden">Hidden — not shown</option>
+        </select>
+      </div>
 
       </div><!-- /.panel-body -->
     </div><!-- /#panel-options -->
@@ -1387,10 +1410,10 @@
       const labelPreset = document.getElementById('label-preset').value;
       const showSummary  = document.getElementById('show-summary').checked;
       const summaryStyle = document.getElementById('summary-style').value;
-      const qualityBadge = document.getElementById('quality-badge').checked;
-      const flagEmoji    = document.getElementById('flag-emoji').checked;
-      const bitrateBar   = document.getElementById('bitrate-bar').checked;
-      const hideSubs     = document.getElementById('hide-subs').checked;
+      const qualityBadge = document.getElementById('quality-badge').value;
+      const flagEmoji    = document.getElementById('flag-emoji').value;
+      const bitrateBar   = document.getElementById('bitrate-bar').value;
+      const subsStyle    = document.getElementById('subs-style').value;
       const { protocol, host } = window.location;
       const section   = document.getElementById('result-section');
 
@@ -1408,10 +1431,10 @@
           if (labelPreset !== 'standard') sc.labelPreset = labelPreset;
           if (autoSelect)    sc.autoSelect    = true;
           if (showSummary) { sc.showSummary   = true; if (summaryStyle !== 'compact') sc.summaryStyle = summaryStyle; }
-          if (qualityBadge)  sc.qualityBadge  = true;
-          if (flagEmoji)     sc.flagEmoji     = true;
-          if (bitrateBar)    sc.bitrateBar    = true;
-          if (hideSubs)      sc.hideSubs      = true;
+          if (qualityBadge)              sc.qualityBadge = qualityBadge;
+          if (flagEmoji)                 sc.flagEmoji    = flagEmoji;
+          if (bitrateBar)                sc.bitrateBar   = bitrateBar;
+          if (subsStyle !== 'full')      sc.subsStyle    = subsStyle;
           const encoded = encodeConfig(sc);
           return {
             label:       server.label,
@@ -1448,10 +1471,10 @@
         if (labelPreset !== 'standard') config.labelPreset = labelPreset;
         if (autoSelect)   config.autoSelect   = true;
         if (showSummary) { config.showSummary = true; if (summaryStyle !== 'compact') config.summaryStyle = summaryStyle; }
-        if (qualityBadge) config.qualityBadge = true;
-        if (flagEmoji)    config.flagEmoji    = true;
-        if (bitrateBar)   config.bitrateBar   = true;
-        if (hideSubs)     config.hideSubs     = true;
+        if (qualityBadge)         config.qualityBadge = qualityBadge;
+        if (flagEmoji)            config.flagEmoji    = flagEmoji;
+        if (bitrateBar)           config.bitrateBar   = bitrateBar;
+        if (subsStyle !== 'full') config.subsStyle    = subsStyle;
 
         const encoded     = encodeConfig(config);
         const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
@@ -1588,10 +1611,10 @@
         pingOrigin:   document.getElementById('ping-origin')?.value,
         showSummary:   document.getElementById('show-summary')?.checked,
         summaryStyle:  document.getElementById('summary-style')?.value,
-        qualityBadge: document.getElementById('quality-badge')?.checked,
-        flagEmoji:    document.getElementById('flag-emoji')?.checked,
-        bitrateBar:   document.getElementById('bitrate-bar')?.checked,
-        hideSubs:     document.getElementById('hide-subs')?.checked,
+        qualityBadge: document.getElementById('quality-badge')?.value  || '',
+        flagEmoji:    document.getElementById('flag-emoji')?.value    || '',
+        bitrateBar:   document.getElementById('bitrate-bar')?.value   || '',
+        subsStyle:    document.getElementById('subs-style')?.value    || 'full',
         servers: [],
       };
       document.querySelectorAll('.server-block').forEach(block => {
@@ -1678,10 +1701,10 @@
           const row = document.getElementById('summary-style-row');
           if (row) row.style.display = 'flex';
         }
-        setChk('quality-badge',  state.qualityBadge);
-        setChk('flag-emoji',     state.flagEmoji);
-        setChk('bitrate-bar',    state.bitrateBar);
-        setChk('hide-subs',      state.hideSubs);
+        setVal('quality-badge',  state.qualityBadge);
+        setVal('flag-emoji',     state.flagEmoji);
+        setVal('bitrate-bar',    state.bitrateBar);
+        setVal('subs-style',     state.subsStyle);
 
         // Restore resolution checkboxes
         if (Array.isArray(state.excludeRes)) {
