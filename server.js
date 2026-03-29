@@ -1724,30 +1724,15 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
         });
 
       } else if (style === 'breakdown') {
-        // "19 total · 5 servers"  per-server: "ARCTV: 4×4K 3×HD" + fastest ping footer
-        summaryName = `${total} total · ${meta.serverStatus.length} servers`;
-        // Short aliases so lines stay ≤20 chars
-        const resAlias = { '4K': '4K', '1080p': 'HD', '720p': '720' };
-        const resOrder = { '4K': 0, '1080p': 1, '720p': 2 };
+        // "19 Total on 5 Servers"  per-server: "✅ ARCTV: [5] Streams"
+        summaryName = `${total} Total on ${meta.serverStatus.length} Servers`;
         lines = meta.serverStatus.map(s => {
-          const l = eLabel(s, 8);          // tight label — 8 chars max
-          if (s.status === 'found') {
-            const resStr = Object.entries(s.resCounts || {})
-              .sort(([a], [b]) => (resOrder[a] ?? 9) - (resOrder[b] ?? 9))
-              .map(([res, cnt]) => `${cnt}×${resAlias[res] || res}`)
-              .join(' ');
-            return `${l}: ${resStr || s.count + '×'}`;
-          }
-          if (s.status === 'not_found') return `${l}: —`;
-          if (s.status === 'timeout')   return `${l}: ⏱`;
-          return                               `${l}: 🔴`;
+          const l = eLabel(s, 9);          // 9 chars keeps line ≤24 chars
+          if (s.status === 'found')    return `✅ ${l}: [${s.count}] Streams`;
+          if (s.status === 'not_found') return `❌ ${l}`;
+          if (s.status === 'timeout')   return `⏱ ${l}`;
+          return                               `🔴 ${l}`;
         });
-        // ⚡ fastest ping footer — only if ping data collected
-        const pinged = meta.serverStatus.filter(s => s.status === 'found' && s.pingMs != null);
-        if (pinged.length > 0) {
-          const fastest = pinged.reduce((a, b) => a.pingMs < b.pingMs ? a : b);
-          lines.push(`⚡ ${trunc(fastest.label, 9)} · ${fastest.pingMs}ms`);
-        }
 
       } else {
         // compact (default) — ✅ Label · N · 4K
