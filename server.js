@@ -1111,7 +1111,7 @@ async function searchServersForCatalog(servers, type, query, timeoutMs = 8000) {
       if (seen.has(imdbId)) continue;
       const meta = {
         id: imdbId, type, name: item.Name,
-        poster: `https://images.metahub.space/poster/medium/${imdbId}/img`,
+        poster: `https://api.ratingposterdb.com/t2-3b15b466-4b6f-42bd-a2eb-adf50aba65b2/imdb/poster-default/${imdbId}.jpg`,
       };
       if (item.Overview)       meta.description = item.Overview;
       if (item.ProductionYear) meta.releaseInfo  = String(item.ProductionYear);
