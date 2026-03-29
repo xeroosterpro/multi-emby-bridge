@@ -1505,6 +1505,7 @@
           return `○ ${l}  none`;
         });
       } else if (style === 'breakdown') {
+        name = `${total} total · ${servers.length} servers`;
         const typeCount = {};
         servers.forEach(s => {
           if (s.status === 'found') {
@@ -1512,13 +1513,14 @@
             typeCount[t] = (typeCount[t] || 0) + s.count;
           }
         });
-        const typeLines = Object.entries(typeCount).map(([t,n]) => `${n} ${t}`).join('\n');
-        name = `${total} total · ${servers.length} servers${typeLines ? '\n' + typeLines : ''}`;
-        lines = servers.map(s => {
+        const typeSummary = Object.entries(typeCount).map(([t,n]) => `${n} ${t}`).join(' · ');
+        lines = [];
+        if (typeSummary) lines.push(typeSummary);
+        servers.forEach(s => {
           const l = eLabel(s, 9);
-          if (s.status === 'found')     return `✅ ${l}: [${s.count}] Total Streams`;
-          if (s.status === 'not_found') return `❌ ${l}`;
-          return `⏱ ${l}`;
+          if (s.status === 'found')     lines.push(`✅ ${l}: [${s.count}] Total`);
+          else if (s.status === 'not_found') lines.push(`❌ ${l}`);
+          else lines.push(`⏱ ${l}`);
         });
 
       } else {

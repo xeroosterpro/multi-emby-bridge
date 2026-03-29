@@ -1725,9 +1725,11 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
         });
 
       } else if (style === 'breakdown') {
-        // Name: "19 total · 5 servers\n14 Emby\n5 Jellyfin"
-        // Lines: "✅ ARCTV: [5] Total Streams"
-        // Tally found-stream counts per server type for name sub-lines
+        // Name: "19 total · 5 servers"  (short — \n doesn't work in Stremio name field)
+        // Description line 0: "14 Emby · 5 Jellyfin"  (type tally, uses \n which works in desc)
+        // Description lines 1+: "✅ ARCTV: [7] Total"
+        summaryName = `${total} total · ${meta.serverStatus.length} servers`;
+        // Type tally as first description line
         const typeCount = {};
         meta.serverStatus.forEach(s => {
           if (s.status === 'found') {
@@ -1735,16 +1737,15 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
             typeCount[t] = (typeCount[t] || 0) + s.count;
           }
         });
-        const typeLines = Object.entries(typeCount)
-          .map(([t, n]) => `${n} ${t}`)
-          .join('\n');
-        summaryName = `${total} total · ${meta.serverStatus.length} servers${typeLines ? '\n' + typeLines : ''}`;
-        lines = meta.serverStatus.map(s => {
+        const typeSummary = Object.entries(typeCount).map(([t, n]) => `${n} ${t}`).join(' · ');
+        lines = [];
+        if (typeSummary) lines.push(typeSummary);
+        meta.serverStatus.forEach(s => {
           const l = eLabel(s, 9);
-          if (s.status === 'found')     return `✅ ${l}: [${s.count}] Total Streams`;
-          if (s.status === 'not_found') return `❌ ${l}`;
-          if (s.status === 'timeout')   return `⏱ ${l}`;
-          return                               `🔴 ${l}`;
+          if (s.status === 'found')     lines.push(`✅ ${l}: [${s.count}] Total`);
+          else if (s.status === 'not_found') lines.push(`❌ ${l}`);
+          else if (s.status === 'timeout')   lines.push(`⏱ ${l}`);
+          else                               lines.push(`🔴 ${l}`);
         });
 
       } else {
