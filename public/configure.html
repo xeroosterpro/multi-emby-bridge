@@ -1146,7 +1146,7 @@
         b.querySelector('.btn-up').disabled               = i === 0;
         b.querySelector('.btn-down').disabled             = i === blocks.length - 1;
       });
-      document.getElementById('btn-add').disabled = blocks.length >= 5;
+      document.getElementById('btn-add').disabled = blocks.length >= 10;
       document.querySelectorAll('.btn-remove').forEach(btn => {
         btn.style.display = blocks.length > 1 ? '' : 'none';
       });
@@ -1154,7 +1154,7 @@
 
     function addServer(data = null) {
       const container = document.getElementById('servers-container');
-      if (container.querySelectorAll('.server-block').length >= 5) return;
+      if (container.querySelectorAll('.server-block').length >= 10) return;
       const id    = nextId++;
       const block = buildServerBlock(id);
       container.appendChild(block);
