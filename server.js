@@ -56,55 +56,6 @@ function hashPassword(password, salt) {
   return crypto.createHmac('sha256', salt).update(password).digest('hex');
 }
 
-// ─── Gumroad license verification ────────────────────────────────────────────
-// Set GUMROAD_PRODUCT env var to your product permalink to enable the paywall.
-// Leave unset to run without any license gate (e.g. personal / private use).
-
-const GUMROAD_PRODUCT = process.env.GUMROAD_PRODUCT || null;
-const licenseCache    = new Map(); // licenseKey → { valid, email, name, expires }
-const LICENSE_TTL_MS  = 24 * 60 * 60 * 1000; // re-verify every 24 hours
-
-async function verifyGumroadLicense(licenseKey) {
-  if (!GUMROAD_PRODUCT) return { valid: true }; // paywall disabled
-  if (!licenseKey)      return { valid: false, error: 'No license key provided' };
-
-  const cached = licenseCache.get(licenseKey);
-  if (cached && cached.expires > Date.now()) return cached;
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 9000);
-  try {
-    const resp = await fetch('https://api.gumroad.com/v2/licenses/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        product_permalink:    GUMROAD_PRODUCT,
-        license_key:          licenseKey,
-        increment_uses_count: 'false',
-      }).toString(),
-      signal: controller.signal,
-    });
-    const data = await resp.json();
-    if (data.success && data.purchase && !data.purchase.refunded && !data.purchase.chargebacked) {
-      const result = {
-        valid:   true,
-        email:   data.purchase.email   || null,
-        name:    data.purchase.full_name || null,
-        expires: Date.now() + LICENSE_TTL_MS,
-      };
-      licenseCache.set(licenseKey, result);
-      return result;
-    }
-    return { valid: false, error: data.message || 'License key invalid or refunded' };
-  } catch (err) {
-    // Network error — if previously cached as valid, allow grace period
-    const stale = licenseCache.get(licenseKey);
-    if (stale?.valid) return { ...stale, expires: Date.now() + 60 * 60 * 1000 };
-    return { valid: false, error: 'Could not reach Gumroad — try again shortly' };
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 // ─── Health monitoring state ──────────────────────────────────────────────────
 const HEALTH_SERVERS_FILE = path.join(DATA_DIR, 'health-servers.json');
@@ -434,9 +385,59 @@ async function fetchPlaybackInfo(server, itemId) {
   return data.MediaSources || [];
 }
 
+// ─── Language → flag emoji lookup ────────────────────────────────────────────
+const LANG_FLAGS = {
+  eng: '🇺🇸', en: '🇺🇸',
+  rus: '🇷🇺', ru: '🇷🇺',
+  fra: '🇫🇷', fre: '🇫🇷', fr: '🇫🇷',
+  deu: '🇩🇪', ger: '🇩🇪', de: '🇩🇪',
+  spa: '🇪🇸', es: '🇪🇸',
+  jpn: '🇯🇵', ja: '🇯🇵',
+  zho: '🇨🇳', chi: '🇨🇳', cmn: '🇨🇳', zh: '🇨🇳',
+  kor: '🇰🇷', ko: '🇰🇷',
+  ita: '🇮🇹', it: '🇮🇹',
+  por: '🇵🇹', pob: '🇧🇷', pt: '🇵🇹',
+  ara: '🇸🇦', ar: '🇸🇦',
+  hin: '🇮🇳', hi: '🇮🇳',
+  tur: '🇹🇷', tr: '🇹🇷',
+  pol: '🇵🇱', pl: '🇵🇱',
+  nld: '🇳🇱', dut: '🇳🇱', nl: '🇳🇱',
+  swe: '🇸🇪', sv: '🇸🇪',
+  nor: '🇳🇴', no: '🇳🇴',
+  dan: '🇩🇰', da: '🇩🇰',
+  fin: '🇫🇮', fi: '🇫🇮',
+  ces: '🇨🇿', cze: '🇨🇿', cs: '🇨🇿',
+  slk: '🇸🇰', slo: '🇸🇰', sk: '🇸🇰',
+  hun: '🇭🇺', hu: '🇭🇺',
+  ron: '🇷🇴', rum: '🇷🇴', ro: '🇷🇴',
+  bul: '🇧🇬', bg: '🇧🇬',
+  hrv: '🇭🇷', hr: '🇭🇷',
+  srp: '🇷🇸', sr: '🇷🇸',
+  ukr: '🇺🇦', uk: '🇺🇦',
+  heb: '🇮🇱', he: '🇮🇱',
+  ell: '🇬🇷', gre: '🇬🇷', el: '🇬🇷',
+  vie: '🇻🇳', vi: '🇻🇳',
+  tha: '🇹🇭', th: '🇹🇭',
+  ind: '🇮🇩', idn: '🇮🇩', id: '🇮🇩',
+  msa: '🇲🇾', may: '🇲🇾', ms: '🇲🇾',
+};
+function langFlag(code) {
+  return LANG_FLAGS[(code || '').toLowerCase()] || null;
+}
+
+// Bitrate quality bar (5 unicode blocks scaled to 0/5/10/20/35 Mbps)
+function buildBitrateBar(bps) {
+  if (!bps) return '';
+  const mbps = bps / 1e6;
+  const filled = (mbps > 0 ? 1 : 0) + (mbps >= 5 ? 1 : 0) + (mbps >= 10 ? 1 : 0) + (mbps >= 20 ? 1 : 0) + (mbps >= 35 ? 1 : 0);
+  const n = Math.min(filled, 5);
+  return '█'.repeat(n) + '░'.repeat(5 - n);
+}
+
 // ─── Stream building from PlaybackInfo MediaSources ──────────────────────────
 
-function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset) {
+function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, streamOpts = {}) {
+  const { qualityBadge: useQualityBadge, flagEmoji: useFlagEmoji, bitrateBar: useBitrateBar, hideSubs: useHideSubs } = streamOpts;
   const streams = [];
   for (const source of mediaSources) {
     const sizeBytes = source.Size || 0;
@@ -510,6 +511,15 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset) {
       audioLabel = [codecName, chStr].filter(Boolean).join(' ');
     }
 
+    // ── Top audio badge for quality-badge feature
+    let topAudioBadge = null;
+    if (audioStream) {
+      const _ac = (audioStream.Codec || '').toLowerCase();
+      const _prof = (audioStream.Profile || '').toLowerCase();
+      if (_prof.includes('atmos')) topAudioBadge = '🔊';
+      else if (_ac.includes('truehd') || _ac === 'dts-ma' || _ac === 'dtshd') topAudioBadge = '🎵';
+    }
+
     // ── All audio tracks (shown when > 1 track exists)
     const allAudioLabel = audioStreams.length > 1
       ? audioStreams.map(s => {
@@ -519,17 +529,20 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset) {
           let name = ac.includes('truehd') ? 'TrueHD' : (ac === 'dts-ma' || ac === 'dtshd') ? 'DTS-MA'
             : ac.includes('dts') ? 'DTS' : ac === 'eac3' ? 'DD+' : ac === 'ac3' ? 'DD'
             : ac.includes('aac') ? 'AAC' : (s.Codec || '').toUpperCase();
-          const lang = s.Language ? s.Language.toUpperCase().slice(0, 3) : '';
+          const rawLang = s.Language ? s.Language.toUpperCase().slice(0, 3) : '';
+          const lang = useFlagEmoji ? (langFlag(s.Language) || rawLang) : rawLang;
           return [lang, name, chStr].filter(Boolean).join(' ');
         }).join(' · ')
       : null;
 
-    // ── Subtitle tracks (unique languages)
-    const subsLabel = subStreams.length > 0
-      ? 'Subs: ' + [...new Set(
-          subStreams.map(s => (s.Language || s.DisplayTitle || '?').slice(0, 3).toUpperCase())
-        )].join(' · ')
-      : null;
+    // ── Subtitle tracks (unique languages) — skipped entirely when hideSubs is on
+    let subsLabel = null;
+    if (!useHideSubs && subStreams.length > 0) {
+      const uniqueLangs = [...new Set(subStreams.map(s => (s.Language || s.DisplayTitle || '?').slice(0, 3).toUpperCase()))];
+      subsLabel = useFlagEmoji
+        ? '💬 ' + uniqueLangs.map(l => langFlag(l) || l).join(' ')
+        : 'Subs: ' + uniqueLangs.join(' · ');
+    }
 
     // ── Raw codec ID (for filtering/preference)
     const rawCodec = videoStream ? (videoStream.Codec || '').toLowerCase() : null;
@@ -542,8 +555,9 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset) {
     // ── Primary audio language (for preference sorting)
     const audioLangCode = audioStream ? (audioStream.Language || '').toLowerCase().slice(0, 3) || null : null;
 
-    // ── Bitrate in Mbps
-    const bitrateLabel = bitrate ? `${(bitrate / 1e6).toFixed(1)}Mbps` : null;
+    // ── Bitrate in Mbps (with optional visual bar)
+    let bitrateLabel = bitrate ? `${(bitrate / 1e6).toFixed(1)}Mbps` : null;
+    if (useBitrateBar && bitrate) bitrateLabel = `${buildBitrateBar(bitrate)} ${bitrateLabel}`;
 
     // ── Source label (REMUX, WEB-DL, etc. from filename)
     const sourceLabel = detectSourceLabel(source);
@@ -624,10 +638,22 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset) {
       streamDesc = descLines.join('\n') || 'Unknown quality';
     }
 
+    // ── Prepend quality badge emojis to stream name (optional)
+    if (useQualityBadge) {
+      const badges = [];
+      if (sourceLabel === 'REMUX') badges.push('💎');
+      if (resLabel === '4K')       badges.push('🎬');
+      if (hdrLabel === 'DV')       badges.push('🌈');
+      else if (hdrLabel)           badges.push('✨');
+      if (topAudioBadge)           badges.push(topAudioBadge);
+      if (badges.length > 0) streamName = badges.join('') + ' ' + streamName;
+    }
+
     streams.push({
       url: buildStreamUrl(server, itemId, source.Id, source.Container),
       name: streamName,
       description: streamDesc,
+      ...(server.thumbnail ? { thumbnail: server.thumbnail } : {}),
       _sizeBytes: sizeBytes,
       _bitrate: bitrate,
       _audioRank: audioRank,
@@ -725,12 +751,31 @@ async function queryServerForMovie(server, imdbId) {
     ]);
 
     // Fallback: name-based search (name already being fetched above)
+    // NOTE: intentionally does NOT use queryItems() here — queryItems validates ProviderIds,
+    // which would drop items that are in the library but missing their IMDB metadata.
+    // Instead, do a raw fetch and match by name only (same approach as the Jellyfin path).
     if (items.length === 0) {
       try {
         const movieName = await namePromise;
         if (movieName) {
-          console.log(`[${server.label}] Resolved ${imdbId} → "${movieName}", searching by name`);
-          items = await queryItems(`/Users/${server.userId}/Items`, { SearchTerm: movieName }, 20);
+          console.log(`[${server.label}] Resolved ${imdbId} → "${movieName}", searching Emby by name`);
+          const resp = await apiFetch(server, () => {
+            const url = new URL(`${server.url}/Users/${server.userId}/Items`);
+            url.searchParams.set('SearchTerm', movieName);
+            url.searchParams.set('Fields', DEFAULT_FIELDS);
+            url.searchParams.set('Recursive', 'true');
+            url.searchParams.set('Limit', '20');
+            url.searchParams.set('IncludeItemTypes', 'Movie');
+            url.searchParams.set('Filters', 'IsNotFolder');
+            return url;
+          });
+          const data = await resp.json();
+          items = (data.Items || []).filter(i => {
+            const sn = (i.Name || '').toLowerCase().trim();
+            const qn = movieName.toLowerCase().trim();
+            return sn === qn || sn.includes(qn) || qn.includes(sn);
+          });
+          console.log(`[${server.label}] Emby name movie search "${movieName}": ${(data.Items||[]).length} raw → ${items.length} name-matched`);
         }
       } catch (err) {
         console.error(`[${server.label}] Emby name search failed:`, err.message);
@@ -922,7 +967,7 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
 
 // ─── Main stream collection (Streambridge-matching: PlaybackInfo per item) ───
 
-async function getStreamsFromServer(server, type, imdbId, season, episode, labelPreset) {
+async function getStreamsFromServer(server, type, imdbId, season, episode, labelPreset, streamOpts = {}) {
   try {
     let items;
     if (type === 'movie') {
@@ -953,7 +998,7 @@ async function getStreamsFromServer(server, type, imdbId, season, episode, label
     for (const result of playbackResults) {
       if (result.status === 'fulfilled') {
         const { itemId, mediaSources } = result.value;
-        const streams = mediaSourcesToStreams(server, itemId, mediaSources, labelPreset);
+        const streams = mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, streamOpts);
         allStreams.push(...streams);
       }
     }
@@ -990,18 +1035,19 @@ async function getStreamsFromServer(server, type, imdbId, season, episode, label
 }
 
 async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) {
-  const { sortOrder, excludeRes, recommend, ping, audioLang, maxBitrate, prefCodec, codecMode, labelPreset, pingDetail, autoSelect } = opts;
+  const { sortOrder, excludeRes, recommend, ping, audioLang, maxBitrate, prefCodec, codecMode, labelPreset, pingDetail, autoSelect, qualityBadge, flagEmoji, bitrateBar, hideSubs } = opts;
+  const streamOpts = { qualityBadge, flagEmoji, bitrateBar, hideSubs };
 
   // Pings and stream queries run concurrently — pings add zero extra wall time
   const [pingResults, streamResults] = await Promise.all([
     Promise.all(ping ? servers.map(pingServer) : servers.map(() => null)),
     Promise.allSettled(servers.map(server => {
-      const query = getStreamsFromServer(server, type, imdbId, season, episode, labelPreset);
-      // When fast timeout is set, race the ENTIRE per-server pipeline against a hard cutoff
-      // This fixes the bug where individual API call timeouts still allow multiple sequential
-      // strategies (each with their own timeout) to add up to much longer total time
-      const cutoff = server._timeout && server._timeout < 10000 ? server._timeout : 0;
-      if (!cutoff) return query;
+      const query = getStreamsFromServer(server, type, imdbId, season, episode, labelPreset, streamOpts);
+      // Always enforce a per-server pipeline cutoff so multiple sequential fallbacks
+      // (provider ID → resolveImdbName → name search) can never hang forever.
+      // Cap at 2× the per-call timeout (max 20s) so the whole allSettled finishes
+      // within a predictable window and every server always returns a visible result.
+      const cutoff = Math.min((server._timeout || 10000) * 2, 20000);
       return Promise.race([
         query,
         new Promise((_, reject) => setTimeout(() => reject(new Error('cutoff')), cutoff)),
@@ -1010,7 +1056,22 @@ async function getAllStreams(servers, type, imdbId, season, episode, opts = {}) 
   ]);
 
   const allStreams = streamResults.flatMap((result, i) => {
-    const streams = result.status === 'fulfilled' ? result.value : [];
+    if (result.status === 'rejected') {
+      // Server timed out or threw — show a visible placeholder so it doesn't silently vanish
+      const srv = servers[i];
+      const isTimeout = (result.reason?.message || '').includes('cutoff');
+      return [{
+        name: srv.label,
+        description: isTimeout ? 'Server timed out' : 'Server error',
+        url: `${srv.url}/no-stream-available`,
+        _noResults: true,
+        _noResultsType: isTimeout ? 'timeout' : 'error',
+        _sizeBytes: 0, _bitrate: 0, _audioRank: 999,
+        _mediaSourceId: `${isTimeout ? 'timeout' : 'error'}:${srv.label}`,
+        _serverLabel: srv.label, _itemName: null,
+      }];
+    }
+    const streams = result.value;
     return streams.map(s => ({ ...s, _pingMs: pingResults[i] }));
   });
 
@@ -1147,20 +1208,6 @@ app.get('/configure', (req, res) => {
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// ─── Paywall ──────────────────────────────────────────────────────────────────
-app.get('/api/paywall', (req, res) => {
-  res.json({ enabled: !!GUMROAD_PRODUCT });
-});
-
-app.post('/api/verify-license', express.json(), async (req, res) => {
-  const { licenseKey } = req.body || {};
-  const result = await verifyGumroadLicense(licenseKey);
-  if (result.valid) {
-    res.json({ ok: true, email: result.email || null, name: result.name || null });
-  } else {
-    res.status(403).json({ ok: false, error: result.error });
-  }
-});
 
 // ─── Server info (ping origin label) ─────────────────────────────────────────
 // Railway exposes RAILWAY_REGION (e.g. "us-west2"), RAILWAY_SERVICE_NAME, etc.
@@ -1446,18 +1493,6 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
     return res.json({ streams: [] });
   }
 
-  // ── License check ─────────────────────────────────────────────────────────
-  if (GUMROAD_PRODUCT) {
-    const license = await verifyGumroadLicense(cfg.licenseKey);
-    if (!license.valid) {
-      return res.json({ streams: [{
-        name: '🔑 License Required',
-        description: `${license.error || 'Invalid license key'}\nVisit the configure page to enter your access key.`,
-        url: `${req.protocol}://${req.hostname}/configure`,
-      }] });
-    }
-  }
-
   const timeoutMs = (cfg.timeout && cfg.timeout >= 2000 && cfg.timeout <= 10000) ? cfg.timeout : 10000;
   const servers = (cfg.servers || [])
     .filter(s => s.url && s.apiKey && s.userId)
@@ -1478,9 +1513,13 @@ app.get('/:config/stream/:type/:id.json', async (req, res) => {
       maxBitrate:  cfg.maxBitrate,
       prefCodec:   cfg.prefCodec,
       codecMode:   cfg.codecMode,
-      labelPreset: cfg.labelPreset,
-      pingDetail:  cfg.pingDetail,
-      autoSelect:  cfg.autoSelect,
+      labelPreset:  cfg.labelPreset,
+      pingDetail:   cfg.pingDetail,
+      autoSelect:   cfg.autoSelect,
+      qualityBadge: cfg.qualityBadge,
+      flagEmoji:    cfg.flagEmoji,
+      bitrateBar:   cfg.bitrateBar,
+      hideSubs:     cfg.hideSubs,
     });
     addLogEntry({
       ts:           new Date().toISOString(),

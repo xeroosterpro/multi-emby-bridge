@@ -7,47 +7,6 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── License gate ── */
-    #license-gate {
-      min-height: 100vh; display: flex; align-items: center; justify-content: center;
-      padding: 2rem 1rem;
-    }
-    .license-card {
-      background: #161620; border: 1px solid #2a2a3a; border-radius: 16px;
-      padding: 2.5rem 2rem; max-width: 420px; width: 100%; text-align: center;
-    }
-    .license-logo { font-size: 2.2rem; margin-bottom: 0.5rem; }
-    .license-title { font-size: 1.3rem; font-weight: 700; color: #fff; margin-bottom: 0.35rem; }
-    .license-sub   { font-size: 0.85rem; color: #555; margin-bottom: 1.75rem; line-height: 1.5; }
-    .license-input-wrap { position: relative; margin-bottom: 0.75rem; }
-    .license-input {
-      width: 100%; background: #0f0f18; border: 1px solid #2a2a3a; border-radius: 9px;
-      padding: 0.75rem 1rem; color: #d0d0e0; font-size: 0.92rem; font-family: monospace;
-      letter-spacing: 0.04em; text-align: center; transition: border-color 0.2s;
-    }
-    .license-input:focus { outline: none; border-color: #7b61ff; }
-    .license-input.error { border-color: #e05555; }
-    .license-input.success { border-color: #4caf7d; }
-    .btn-license {
-      width: 100%; background: #7b61ff; border: none; color: #fff;
-      border-radius: 9px; padding: 0.8rem; font-size: 0.95rem; font-weight: 700;
-      cursor: pointer; transition: background 0.15s; margin-bottom: 0.75rem;
-    }
-    .btn-license:hover { background: #6a50ee; }
-    .btn-license:disabled { background: #3a3a58; cursor: default; }
-    .license-msg { font-size: 0.82rem; min-height: 1.2em; }
-    .license-msg.error   { color: #e05555; }
-    .license-msg.success { color: #4caf7d; }
-    .license-msg.info    { color: #666; }
-    .license-verified-badge {
-      display: inline-flex; align-items: center; gap: 0.4rem;
-      background: #1a2820; border: 1px solid #4caf7d; border-radius: 20px;
-      padding: 0.3rem 0.85rem; font-size: 0.8rem; color: #4caf7d;
-      font-weight: 600; margin-bottom: 0.5rem;
-    }
-    .license-change-link { font-size: 0.75rem; color: #444; cursor: pointer; }
-    .license-change-link:hover { color: #888; }
-
     /* ── Auto-save indicator ── */
     #autosave-indicator {
       position: fixed; bottom: 1.2rem; right: 1.2rem;
@@ -452,30 +411,10 @@
 </head>
 <body>
 
-  <!-- ── License Gate (shown when paywall is enabled and key not yet verified) ── -->
-  <div id="license-gate" style="display:none">
-    <div class="license-card">
-      <div class="license-logo">🔑</div>
-      <div class="license-title">Multi-Emby Bridge</div>
-      <div class="license-sub">Enter your Gumroad access key to continue.</div>
-      <div class="license-input-wrap">
-        <input id="license-key-input" class="license-input" type="text"
-          placeholder="XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX"
-          onkeydown="if(event.key==='Enter')verifyLicense()" />
-      </div>
-      <button class="btn-license" id="btn-verify-license" onclick="verifyLicense()">Unlock</button>
-      <div class="license-msg info" id="license-msg">Your key is available in your Gumroad purchase email.</div>
-    </div>
-  </div>
-
-  <div class="container" id="main-container" style="display:none">
+  <div class="container" id="main-container">
     <header>
       <h1>Multi-Emby Bridge</h1>
       <p>Add up to 5 Emby / Jellyfin servers — streams sorted by file size in Stremio</p>
-      <div id="license-header-badge" style="display:none;justify-content:center;margin-top:0.6rem">
-        <span class="license-verified-badge">✓ Licensed</span>
-        <span class="license-change-link" style="margin-left:0.6rem" onclick="showLicenseGate()">change key</span>
-      </div>
     </header>
 
     <!-- ── Saved Profile ── -->
@@ -689,6 +628,41 @@
         </select>
       </div>
       <div id="label-preview" style="margin:0.2rem 0 0.1rem;padding:0.55rem 0.65rem;background:#0f0f13;border-radius:6px;font-size:0.77rem;line-height:1.6;color:#666;"></div>
+
+      <div class="options-divider"></div>
+
+      <label class="option-item">
+        <input type="checkbox" id="quality-badge" />
+        <div>
+          <div class="option-title">💎 Auto quality badges in stream name</div>
+          <div class="option-desc">Adds emoji badges to the stream name: 💎 REMUX · 🎬 4K · 🌈 Dolby Vision · ✨ HDR · 🔊 Atmos · 🎵 TrueHD/DTS-MA.</div>
+        </div>
+      </label>
+
+      <label class="option-item">
+        <input type="checkbox" id="flag-emoji" />
+        <div>
+          <div class="option-title">🌍 Language flag emojis</div>
+          <div class="option-desc">Replaces language codes (ENG, RUS) with flag emojis (🇺🇸, 🇷🇺) in audio tracks and subtitle lists.</div>
+        </div>
+      </label>
+
+      <label class="option-item">
+        <input type="checkbox" id="bitrate-bar" />
+        <div>
+          <div class="option-title">📊 Visual bitrate bar</div>
+          <div class="option-desc">Adds a ████░ quality bar next to the bitrate in descriptions. Scales from 0 to 35+ Mbps across 5 blocks.</div>
+        </div>
+      </label>
+
+      <label class="option-item">
+        <input type="checkbox" id="hide-subs" />
+        <div>
+          <div class="option-title">🔇 Hide subtitle track list</div>
+          <div class="option-desc">Removes the subtitle language list (e.g. Subs: ENG · SPA) from stream descriptions.</div>
+        </div>
+      </label>
+
       </div><!-- /.panel-body -->
     </div><!-- /#panel-options -->
 
@@ -743,84 +717,6 @@
   </div>
 
   <script>
-    // ── License gate ──────────────────────────────────────────────────────────
-    const LS_LICENSE_KEY = 'meb-license-key';
-
-    async function initLicenseGate() {
-      const { enabled } = await fetch('/api/paywall').then(r => r.json()).catch(() => ({ enabled: false }));
-      if (!enabled) {
-        // No paywall — show configure immediately
-        showConfigureApp();
-        return;
-      }
-      const saved = localStorage.getItem(LS_LICENSE_KEY);
-      if (saved) {
-        // Re-verify saved key silently
-        const res = await fetch('/api/verify-license', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ licenseKey: saved }),
-        }).then(r => r.json()).catch(() => ({ ok: false }));
-        if (res.ok) { showConfigureApp(saved); return; }
-        localStorage.removeItem(LS_LICENSE_KEY);
-      }
-      showLicenseGate();
-    }
-
-    function showLicenseGate() {
-      document.getElementById('license-gate').style.display = 'flex';
-      document.getElementById('main-container').style.display = 'none';
-      document.getElementById('license-key-input').focus();
-    }
-
-    function showConfigureApp(licenseKey) {
-      document.getElementById('license-gate').style.display = 'none';
-      document.getElementById('main-container').style.display = 'block';
-      if (licenseKey) {
-        const badge = document.getElementById('license-header-badge');
-        if (badge) badge.style.display = 'flex';
-      }
-    }
-
-    async function verifyLicense() {
-      const input  = document.getElementById('license-key-input');
-      const btn    = document.getElementById('btn-verify-license');
-      const msgEl  = document.getElementById('license-msg');
-      const key    = (input.value || '').trim();
-      if (!key) { msgEl.textContent = 'Please enter your license key.'; msgEl.className = 'license-msg error'; return; }
-
-      btn.disabled = true;
-      btn.textContent = 'Verifying…';
-      msgEl.textContent = '';
-      msgEl.className = 'license-msg info';
-      input.className = 'license-input';
-
-      try {
-        const res = await fetch('/api/verify-license', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ licenseKey: key }),
-        }).then(r => r.json());
-
-        if (res.ok) {
-          input.className = 'license-input success';
-          msgEl.textContent = res.name ? `✓ Welcome, ${res.name}!` : '✓ License verified!';
-          msgEl.className = 'license-msg success';
-          localStorage.setItem(LS_LICENSE_KEY, key);
-          setTimeout(() => showConfigureApp(key), 800);
-        } else {
-          input.className = 'license-input error';
-          msgEl.textContent = res.error || 'Invalid license key.';
-          msgEl.className = 'license-msg error';
-          btn.disabled = false;
-          btn.textContent = 'Unlock';
-        }
-      } catch {
-        msgEl.textContent = 'Network error — please try again.';
-        msgEl.className = 'license-msg error';
-        btn.disabled = false;
-        btn.textContent = 'Unlock';
-      }
-    }
-
     // ── State ─────────────────────────────────────────────────────────────────
     let nextId = 0;
 
@@ -1038,7 +934,7 @@
         <div class="field-row">
           <div class="field-group">
             <label>Display Name</label>
-            <input type="text" class="f-label" placeholder="e.g. Server" />
+            <input type="text" class="f-label" placeholder="e.g. Eagle" />
           </div>
           <div class="field-group">
             <label>Server Type</label>
@@ -1046,6 +942,13 @@
               <option value="emby">Emby</option>
               <option value="jellyfin">Jellyfin</option>
             </select>
+          </div>
+        </div>
+
+        <div class="field-row full">
+          <div class="field-group">
+            <label>Thumbnail URL <span style="font-weight:400;color:#555;font-size:0.73rem">— optional, shown next to streams in Stremio</span></label>
+            <input type="url" class="f-thumbnail" placeholder="https://i.imgur.com/yourlogo.png" />
           </div>
         </div>
 
@@ -1180,12 +1083,13 @@
       container.appendChild(block);
 
       if (data) {
-        block.querySelector('.f-label').value    = data.label    || '';
-        block.querySelector('.f-url').value      = data.url      || '';
-        block.querySelector('.f-apikey').value   = data.apiKey   || '';
-        block.querySelector('.f-userid').value   = data.userId   || '';
-        block.querySelector('.f-username').value = data.username || '';
-        block.querySelector('.f-password').value = data.password || '';
+        block.querySelector('.f-label').value     = data.label     || '';
+        block.querySelector('.f-url').value       = data.url       || '';
+        block.querySelector('.f-apikey').value    = data.apiKey    || '';
+        block.querySelector('.f-userid').value    = data.userId    || '';
+        block.querySelector('.f-username').value  = data.username  || '';
+        block.querySelector('.f-password').value  = data.password  || '';
+        block.querySelector('.f-thumbnail').value = data.thumbnail || '';
         if (data.type) {
           block.querySelector('.f-type').value = data.type;
           updateBlockStyle(id);
@@ -1222,7 +1126,9 @@
           if (!silent) showError('All fields (Name, URL, API Key, User ID) must be filled for every enabled server.');
           return null;
         }
+        const thumbnail = block.querySelector('.f-thumbnail')?.value.trim() || '';
         const entry = { label, type, url, apiKey, userId };
+        if (thumbnail) entry.thumbnail = thumbnail;
         if (username && password) { entry.username = username; entry.password = password; }
         servers.push(entry);
       }
@@ -1458,6 +1364,10 @@
       const maxBitrate  = document.getElementById('max-bitrate').value;
       const autoSelect  = document.getElementById('auto-select').checked;
       const labelPreset = document.getElementById('label-preset').value;
+      const qualityBadge = document.getElementById('quality-badge').checked;
+      const flagEmoji    = document.getElementById('flag-emoji').checked;
+      const bitrateBar   = document.getElementById('bitrate-bar').checked;
+      const hideSubs     = document.getElementById('hide-subs').checked;
       const { protocol, host } = window.location;
       const section   = document.getElementById('result-section');
 
@@ -1473,9 +1383,11 @@
           if (maxBitrate)              sc.maxBitrate = parseInt(maxBitrate, 10);
           if (prefCodec !== 'any')   { sc.prefCodec  = prefCodec; sc.codecMode = codecMode; }
           if (labelPreset !== 'standard') sc.labelPreset = labelPreset;
-          if (autoSelect)              sc.autoSelect  = true;
-          const lk = localStorage.getItem(LS_LICENSE_KEY);
-          if (lk) sc.licenseKey = lk;
+          if (autoSelect)    sc.autoSelect    = true;
+          if (qualityBadge)  sc.qualityBadge  = true;
+          if (flagEmoji)     sc.flagEmoji     = true;
+          if (bitrateBar)    sc.bitrateBar    = true;
+          if (hideSubs)      sc.hideSubs      = true;
           const encoded = encodeConfig(sc);
           return {
             label:       server.label,
@@ -1510,9 +1422,11 @@
         if (maxBitrate)            config.maxBitrate = parseInt(maxBitrate, 10);
         if (prefCodec !== 'any') { config.prefCodec  = prefCodec; config.codecMode = codecMode; }
         if (labelPreset !== 'standard') config.labelPreset = labelPreset;
-        if (autoSelect)              config.autoSelect  = true;
-        const lk = localStorage.getItem(LS_LICENSE_KEY);
-        if (lk) config.licenseKey = lk;
+        if (autoSelect)   config.autoSelect   = true;
+        if (qualityBadge) config.qualityBadge = true;
+        if (flagEmoji)    config.flagEmoji    = true;
+        if (bitrateBar)   config.bitrateBar   = true;
+        if (hideSubs)     config.hideSubs     = true;
 
         const encoded     = encodeConfig(config);
         const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
@@ -1647,17 +1561,22 @@
         autoSelect:   document.getElementById('auto-select')?.checked,
         labelPreset:  document.getElementById('label-preset')?.value,
         pingOrigin:   document.getElementById('ping-origin')?.value,
+        qualityBadge: document.getElementById('quality-badge')?.checked,
+        flagEmoji:    document.getElementById('flag-emoji')?.checked,
+        bitrateBar:   document.getElementById('bitrate-bar')?.checked,
+        hideSubs:     document.getElementById('hide-subs')?.checked,
         servers: [],
       };
       document.querySelectorAll('.server-block').forEach(block => {
         state.servers.push({
-          label:     block.querySelector('.f-label')?.value    || '',
-          type:      block.querySelector('.f-type')?.value     || 'emby',
-          url:       block.querySelector('.f-url')?.value      || '',
-          apiKey:    block.querySelector('.f-apikey')?.value   || '',
-          userId:    block.querySelector('.f-userid')?.value   || '',
-          username:  block.querySelector('.f-username')?.value || '',
-          password:  block.querySelector('.f-password')?.value || '',
+          label:     block.querySelector('.f-label')?.value     || '',
+          type:      block.querySelector('.f-type')?.value      || 'emby',
+          url:       block.querySelector('.f-url')?.value       || '',
+          apiKey:    block.querySelector('.f-apikey')?.value    || '',
+          userId:    block.querySelector('.f-userid')?.value    || '',
+          username:  block.querySelector('.f-username')?.value  || '',
+          password:  block.querySelector('.f-password')?.value  || '',
+          thumbnail: block.querySelector('.f-thumbnail')?.value || '',
           enabled:   block.querySelector('.f-enabled')?.checked ?? true,
           collapsed: block.classList.contains('collapsed'),
         });
@@ -1726,6 +1645,10 @@
         setChk('show-ping',      state.showPing);
         setChk('ping-detail',    state.pingDetail);
         setChk('auto-select',    state.autoSelect);
+        setChk('quality-badge',  state.qualityBadge);
+        setChk('flag-emoji',     state.flagEmoji);
+        setChk('bitrate-bar',    state.bitrateBar);
+        setChk('hide-subs',      state.hideSubs);
 
         // Restore resolution checkboxes
         if (Array.isArray(state.excludeRes)) {
@@ -1739,17 +1662,11 @@
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────
-    // License gate runs first; showConfigureApp() triggers the rest
-    const _origShowConfigureApp = showConfigureApp;
-    window.showConfigureApp = function(licenseKey) {
-      _origShowConfigureApp(licenseKey);
-      if (!restoreFromLocalStorage()) addServer();
-      updateLabelPreview();
-      restorePanelStates();
-    };
+    if (!restoreFromLocalStorage()) addServer();
+    updateLabelPreview();
+    restorePanelStates();
     document.addEventListener('input',  autoSave);
     document.addEventListener('change', autoSave);
-    initLicenseGate();
   </script>
 </body>
 </html>
