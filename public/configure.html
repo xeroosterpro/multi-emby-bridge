@@ -29,6 +29,12 @@
 
     header { text-align: center; margin-bottom: 2rem; }
     header h1 { font-size: 1.8rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+    header .version-tag {
+      display: inline-block; font-size: 0.6rem; font-weight: 600;
+      background: #1e1e2e; color: #7b61ff; padding: 0.15rem 0.5rem;
+      border-radius: 10px; vertical-align: middle; margin-left: 0.4rem;
+      letter-spacing: 0.04em;
+    }
     header p  { margin-top: 0.5rem; color: #888; font-size: 0.95rem; }
 
     /* ── Unified collapsible panel ── */
@@ -367,11 +373,14 @@
 
     /* ── Generate ── */
     .btn-generate {
-      width: 100%; background: #7b61ff; border: none; color: #fff;
-      border-radius: 10px; padding: 0.85rem; font-size: 1rem; font-weight: 600;
-      cursor: pointer; transition: background 0.15s; margin-bottom: 2rem;
+      width: 100%; background: linear-gradient(135deg, #7b61ff 0%, #6a50ee 100%);
+      border: none; color: #fff; border-radius: 10px; padding: 0.85rem;
+      font-size: 1rem; font-weight: 600; cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.2s; margin-bottom: 2rem;
+      box-shadow: 0 2px 12px rgba(123, 97, 255, 0.15);
     }
-    .btn-generate:hover { background: #6a50ee; }
+    .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(123, 97, 255, 0.3); }
+    .btn-generate:active { transform: translateY(0); }
 
     /* ── Result section ── */
     #result-section {
@@ -397,7 +406,8 @@
       text-align: center; text-decoration: none; cursor: pointer;
       transition: background 0.15s; margin-top: 0.5rem; margin-bottom: 0.5rem;
     }
-    .btn-install:hover { background: #6a50ee; }
+    .btn-install:hover { background: #6a50ee; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(123, 97, 255, 0.25); }
+    .btn-install:active { transform: translateY(0); }
 
     .install-note { text-align: center; font-size: 0.78rem; color: #555; margin-top: 0.75rem; }
 
@@ -407,14 +417,62 @@
       color: #e05555; border-radius: 8px; padding: 0.7rem 1rem;
       font-size: 0.85rem; margin-bottom: 1rem;
     }
+
+    /* ── Footer ── */
+    .site-footer {
+      text-align: center; padding: 2rem 0 1rem; margin-top: 1rem;
+      border-top: 1px solid #1a1a28; color: #333; font-size: 0.72rem;
+      line-height: 1.8;
+    }
+    .site-footer a { color: #555; text-decoration: none; transition: color 0.15s; }
+    .site-footer a:hover { color: #7b61ff; }
+    .site-footer .footer-links { display: flex; justify-content: center; gap: 1rem; margin-bottom: 0.4rem; }
+
+    /* ── Responsive ── */
+    @media (max-width: 720px) {
+      body { padding: 1rem 0.5rem 3rem; }
+      .container { max-width: 100%; }
+      header h1 { font-size: 1.4rem; }
+      header p { font-size: 0.85rem; }
+      .server-block { padding: 1rem; }
+      .field-row { grid-template-columns: 1fr; gap: 0.6rem; }
+      .field-row.full { grid-template-columns: 1fr; }
+      .cred-inputs { grid-template-columns: 1fr; }
+      .profile-inputs { grid-template-columns: 1fr; }
+      .profile-actions { grid-template-columns: 1fr; }
+      .sort-row { flex-direction: column; align-items: flex-start; gap: 0.4rem; padding: 0.5rem 0.75rem; }
+      .sort-row select { width: 100%; }
+      .sort-row-dual { flex-direction: column; width: 100%; }
+      .sort-row-dual select { width: 100%; }
+      .exclude-res-row { flex-direction: column; align-items: flex-start; gap: 0.4rem; padding: 0.5rem 0.75rem; }
+      .url-row { flex-direction: column; }
+      .url-row input { font-size: 0.75rem; }
+      .btn-copy { padding: 0.5rem; text-align: center; }
+      .ping-controls { flex-direction: column; }
+      .ping-controls select { width: 100%; }
+      .log-table { font-size: 0.7rem; }
+      .log-table th, .log-table td { padding: 0.3rem; }
+      .log-actions { flex-direction: column; }
+      .btn-generate { font-size: 0.95rem; padding: 0.75rem; }
+      .btn-install { font-size: 0.95rem; padding: 0.8rem; }
+    }
+
+    @media (max-width: 480px) {
+      header h1 { font-size: 1.2rem; }
+      .server-block { padding: 0.75rem; }
+      .panel-body { padding: 0 0.75rem 0.75rem; }
+      .panel-header { padding: 0.65rem 0.75rem; }
+      .server-block-header { flex-wrap: wrap; gap: 0.5rem; }
+      .server-header-right { margin-left: auto; }
+    }
   </style>
 </head>
 <body>
 
   <div class="container" id="main-container">
     <header>
-      <h1>Multi-Emby Bridge</h1>
-      <p>Add up to 5 Emby / Jellyfin servers — streams sorted by file size in Stremio</p>
+      <h1>Multi-Emby Bridge <span class="version-tag">v1.0</span></h1>
+      <p>Add up to 10 Emby / Jellyfin servers — streams sorted by file size in Stremio</p>
     </header>
 
     <!-- ── Saved Profile ── -->
@@ -587,7 +645,7 @@
       </label>
 
       <label class="option-item">
-        <input type="checkbox" id="show-ping" checked />
+        <input type="checkbox" id="show-ping" checked onchange="onShowPingChange()" />
         <div>
           <div class="option-title">⚡ Mark fastest server</div>
           <div class="option-desc">Pings each server during the request and marks streams from the fastest responding one. Measured from the addon server, not your device.</div>
@@ -787,6 +845,15 @@
     <button class="btn-generate" onclick="generateLinks()">Generate Install Link</button>
 
     <div id="result-section"></div>
+
+    <footer class="site-footer">
+      <div class="footer-links">
+        <a href="https://github.com/xeroosterpro/multi-emby-bridge" target="_blank">GitHub</a>
+        <a href="/servers" target="_blank">Server Health</a>
+        <a href="/health" target="_blank">API Status</a>
+      </div>
+      <div>Multi-Emby Bridge v1.0 &mdash; Stremio Addon for Emby &amp; Jellyfin</div>
+    </footer>
   </div>
 
   <script>
@@ -940,9 +1007,18 @@
       refreshLog();
     }
 
-    // Auto-refresh log every 30s while page is open
+    // Auto-refresh log every 30s, but pause when tab is hidden
     refreshLog();
-    setInterval(refreshLog, 30000);
+    let logInterval = setInterval(refreshLog, 30000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        clearInterval(logInterval);
+        logInterval = null;
+      } else {
+        refreshLog();
+        logInterval = setInterval(refreshLog, 30000);
+      }
+    });
 
     // ── Auto-generate server name ─────────────────────────────────────────────
     async function autoNameServer(id) {
@@ -1578,6 +1654,17 @@
       document.getElementById('timeout-row').classList.toggle('visible', mode === 'timeout');
     }
 
+    function onShowPingChange() {
+      const enabled = document.getElementById('show-ping').checked;
+      const pd = document.getElementById('ping-detail');
+      if (pd) {
+        pd.disabled = !enabled;
+        if (!enabled) pd.checked = false;
+        pd.closest('.option-item').style.opacity = enabled ? '1' : '0.4';
+      }
+      autoSave();
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
     function showError(msg) { const e = document.getElementById('global-error'); e.textContent = msg; e.style.display = 'block'; }
     function hideError()    { document.getElementById('global-error').style.display = 'none'; }
@@ -1590,7 +1677,7 @@
     function generateLinks() {
       hideError();
       const config = collectConfig();
-      if (!config) { document.getElementById('result-section').style.display = 'none'; return; }
+      if (!config) return;
 
       const mode       = document.querySelector('input[name="perf-mode"]:checked').value;
       const sortOrder  = document.getElementById('sort-order').value;
@@ -1919,6 +2006,7 @@
     if (!restoreFromLocalStorage()) addServer();
     updateLabelPreview();
     restorePanelStates();
+    onShowPingChange();
     document.addEventListener('input',  autoSave);
     document.addEventListener('change', autoSave);
   </script>

@@ -211,10 +211,14 @@ function detectSourceLabel(source) {
 // cache the fresh token. All subsequent requests use the cached token.
 // The config URL never needs updating — renewal is fully automatic.
 
-const tokenCache = new Map(); // serverUrl → fresh apiKey string
+const tokenCache = new Map(); // serverUrl → { token, ts }
+const TOKEN_TTL = 12 * 60 * 60 * 1000; // 12 hours
 
 function getEffectiveApiKey(server) {
-  return tokenCache.get(server.url) || server.apiKey;
+  const entry = tokenCache.get(server.url);
+  if (entry && (Date.now() - entry.ts) < TOKEN_TTL) return entry.token;
+  if (entry) tokenCache.delete(server.url); // expired
+  return server.apiKey;
 }
 
 async function reauthenticate(server) {
@@ -245,7 +249,7 @@ async function reauthenticate(server) {
     }
     const data = await resp.json();
     if (data.AccessToken) {
-      tokenCache.set(server.url, data.AccessToken);
+      tokenCache.set(server.url, { token: data.AccessToken, ts: Date.now() });
       console.log(`[${server.label}] Re-authenticated successfully ✓`);
       return true;
     }
