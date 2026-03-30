@@ -312,6 +312,37 @@
               <option value="hidden">Hidden</option>
             </select>
           </div>
+
+          <div class="options-divider"></div>
+
+          <label class="option-item">
+            <input type="checkbox" id="show-catalog" checked onchange="toggleCatalogOptions();autoSave()" />
+            <div>
+              <div class="option-title">Home page catalog</div>
+              <div class="option-desc">Show a My Media row on the Stremio home screen. Search always works regardless.</div>
+            </div>
+          </label>
+
+          <div id="catalog-options" style="display:flex;flex-direction:column;gap:0.5rem;margin:0.35rem 0 0.2rem;padding:0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)">
+            <div class="appearance-row" style="margin:0">
+              <span class="appearance-label">Catalog shows</span>
+              <span class="appearance-hint">Content type displayed in each home page row</span>
+              <select id="catalog-content" onchange="autoSave()">
+                <option value="recent">Recently Added</option>
+                <option value="resume">Continue Watching</option>
+                <option value="favorites">Favorites</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="options-divider"></div>
+
+          <div class="appearance-row">
+            <span class="appearance-label">RPDB API Key</span>
+            <span class="appearance-hint">RatingPosterDB key for catalog poster images</span>
+            <input type="text" id="rpdb-key" placeholder="your-rpdb-api-key" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
+          </div>
+
         </div><!-- /tab-display -->
 
       </div><!-- /.panel-body -->

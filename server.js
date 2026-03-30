@@ -379,8 +379,8 @@ app.get('/:config/manifest.json', (req, res) => {
     description: `Streams from: ${names || 'configured servers'}`,
     types: ['movie', 'series'],
     catalogs: [
-      { type: 'movie',  id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: false }] },
-      { type: 'series', id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: false }] },
+      { type: 'movie',  id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: cfg.showCatalog === false }] },
+      { type: 'series', id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: cfg.showCatalog === false }] },
     ],
     resources: ['catalog', 'stream'],
     idPrefixes: ['tt'],
@@ -410,12 +410,12 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
 
   try {
     if (query) {
-      // Search catalog
+      // Search catalog — always runs regardless of showCatalog setting
       const metas = await searchServersForCatalog(servers, type, query);
       res.json({ metas });
     } else {
-      // Recently Added catalog (browse mode)
-      const metas = await getRecentlyAdded(servers, type);
+      // Browse catalog (home page row)
+      const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, cfg.catalogContent || 'recent');
       res.json({ metas });
     }
   } catch (err) {
@@ -436,7 +436,7 @@ app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
   if (servers.length === 0) return res.json({ metas: [] });
 
   try {
-    const metas = await getRecentlyAdded(servers, type);
+    const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, cfg.catalogContent || 'recent');
     res.json({ metas });
   } catch (err) {
     console.error('Catalog browse error:', err.message);

@@ -651,6 +651,12 @@ function toggleSummaryStyle() {
   autoSave();
 }
 
+function toggleCatalogOptions() {
+  const show = document.getElementById('show-catalog')?.checked ?? true;
+  const opts = document.getElementById('catalog-options');
+  if (opts) opts.style.display = show ? 'flex' : 'none';
+}
+
 const PREVIEW_SERVERS = [
   { label: 'ARCTV', emoji: '', type: 'emby', status: 'found', count: 5, resLabels: ['4K','1080p'], resCounts: {'4K':2,'1080p':3}, pingMs: 12 },
   { label: 'STREAMER', emoji: '', type: 'emby', status: 'found', count: 2, resLabels: ['1080p'], resCounts: {'1080p':2}, pingMs: 28 },
@@ -743,6 +749,9 @@ function generateLinks() {
   const flagEmoji = document.getElementById('flag-emoji').value;
   const bitrateBar = document.getElementById('bitrate-bar').value;
   const subsStyle = document.getElementById('subs-style').value;
+  const showCatalog = document.getElementById('show-catalog').checked;
+  const catalogContent = document.getElementById('catalog-content').value;
+  const rpdbKey = document.getElementById('rpdb-key').value.trim();
   const { protocol, host } = window.location;
   const section = document.getElementById('result-section');
 
@@ -769,6 +778,9 @@ function generateLinks() {
       if (flagEmoji) sc.flagEmoji = flagEmoji;
       if (bitrateBar) sc.bitrateBar = bitrateBar;
       if (subsStyle !== 'full') sc.subsStyle = subsStyle;
+      if (!showCatalog) sc.showCatalog = false;
+      if (catalogContent !== 'recent') sc.catalogContent = catalogContent;
+      if (rpdbKey) sc.rpdbKey = rpdbKey;
       const encoded = encodeConfig(sc);
       return { label: server.label, manifestUrl: `${protocol}//${host}/${encoded}/manifest.json`, deepLink: `stremio://${host}/${encoded}/manifest.json` };
     });
@@ -801,6 +813,9 @@ function generateLinks() {
     if (flagEmoji) config.flagEmoji = flagEmoji;
     if (bitrateBar) config.bitrateBar = bitrateBar;
     if (subsStyle !== 'full') config.subsStyle = subsStyle;
+    if (!showCatalog) config.showCatalog = false;
+    if (catalogContent !== 'recent') config.catalogContent = catalogContent;
+    if (rpdbKey) config.rpdbKey = rpdbKey;
 
     const encoded = encodeConfig(config);
     const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
@@ -923,6 +938,9 @@ function collectFormState() {
     flagEmoji: document.getElementById('flag-emoji')?.value || '',
     bitrateBar: document.getElementById('bitrate-bar')?.value || '',
     subsStyle: document.getElementById('subs-style')?.value || 'full',
+    showCatalog: document.getElementById('show-catalog')?.checked ?? true,
+    catalogContent: document.getElementById('catalog-content')?.value || 'recent',
+    rpdbKey: document.getElementById('rpdb-key')?.value.trim() || '',
     servers: [],
   };
   document.querySelectorAll('.server-block').forEach(block => {
@@ -1010,6 +1028,12 @@ function restoreFromLocalStorage() {
     setVal('flag-emoji', state.flagEmoji);
     setVal('bitrate-bar', state.bitrateBar);
     setVal('subs-style', state.subsStyle);
+    if (state.showCatalog === false) {
+      setChk('show-catalog', false);
+      toggleCatalogOptions();
+    }
+    setVal('catalog-content', state.catalogContent);
+    setVal('rpdb-key', state.rpdbKey);
 
     if (Array.isArray(state.excludeRes)) {
       document.querySelectorAll('.res-cb').forEach((cb, i) => {
@@ -1027,6 +1051,7 @@ updateLabelPreview();
 restorePanelStates();
 restoreActiveTab();
 onShowPingChange();
+toggleCatalogOptions();
 updateSteps();
 document.addEventListener('input', autoSave);
 document.addEventListener('change', autoSave);
