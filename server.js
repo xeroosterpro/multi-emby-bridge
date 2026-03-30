@@ -735,7 +735,7 @@ function mediaSourcesToStreams(server, itemId, mediaSources, labelPreset, stream
 
 // ─── Server queries (Streambridge-matching logic) ────────────────────────────
 
-const DEFAULT_FIELDS = 'ProviderIds,Name,MediaSources,Path,Id,IndexNumber,ParentIndexNumber,MediaStreams,ProductionYear';
+const DEFAULT_FIELDS = 'ProviderIds,Name,MediaSources,Path,Id,IndexNumber,ParentIndexNumber,MediaStreams,ProductionYear,SeriesName';
 
 async function queryServerForMovie(server, imdbId) {
   // Helper: query an endpoint with params, validate ProviderIds
@@ -1010,13 +1010,21 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
     // Pre-fetch name in parallel — ready immediately if provider ID search fails
     const metaPromise = resolveImdbName(imdbId, 'series');
 
+    // Helper: validate that an episode's SeriesName matches the expected series name
+    const seriesNameMatches = (item, expectedName) => {
+      if (!expectedName || !item.SeriesName) return true; // can't validate, allow through
+      const sn = item.SeriesName.toLowerCase().trim();
+      const qn = expectedName.toLowerCase().trim();
+      return sn === qn || sn.includes(qn) || qn.includes(sn);
+    };
+
     if (server.type === 'jellyfin') {
       // Jellyfin: AnyProviderIdEquals is broken — search by name
       const seriesName = (await metaPromise)?.name;
       if (seriesName) {
         console.log(`[${server.label}] Direct episode fallback: searching episodes by name "${seriesName}"`);
         const resp = await apiFetch(server, () => makeUrl({ SearchTerm: seriesName }));
-        items = (await resp.json()).Items || [];
+        items = ((await resp.json()).Items || []).filter(i => seriesNameMatches(i, seriesName));
       }
     } else {
       // Emby: run AnyProviderIdEquals and name fetch in parallel
@@ -1032,7 +1040,8 @@ async function queryServerForEpisodeDirect(server, imdbId, season, episode) {
       } else if (seriesName) {
         console.log(`[${server.label}] Direct episode fallback: searching Emby episodes by name "${seriesName}"`);
         const resp2 = await apiFetch(server, () => makeUrl({ SearchTerm: seriesName }));
-        items = (await resp2.json()).Items || [];
+        // Validate SeriesName to prevent fuzzy-matched wrong shows (e.g. "Dirty John" when searching "Dirty Jobs")
+        items = ((await resp2.json()).Items || []).filter(i => seriesNameMatches(i, seriesName));
       }
     }
   } catch (err) {
