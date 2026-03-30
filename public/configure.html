@@ -4,503 +4,58 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Multi-Emby Bridge — Configure</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    /* ── Auto-save indicator ── */
-    #autosave-indicator {
-      position: fixed; bottom: 1.2rem; right: 1.2rem;
-      background: #1e3a28; border: 1px solid #4caf7d; color: #4caf7d;
-      font-size: 0.75rem; font-weight: 600; padding: 0.35rem 0.75rem;
-      border-radius: 20px; opacity: 0; pointer-events: none;
-      transition: opacity 0.3s; z-index: 999;
-    }
-    #autosave-indicator.visible { opacity: 1; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0f0f13;
-      color: #e2e2e2;
-      min-height: 100vh;
-      padding: 2rem 1rem 4rem;
-    }
-
-    .container { max-width: 680px; margin: 0 auto; }
-
-    header { text-align: center; margin-bottom: 2rem; }
-    header h1 { font-size: 1.8rem; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
-    header .version-tag {
-      display: inline-block; font-size: 0.6rem; font-weight: 600;
-      background: #1e1e2e; color: #7b61ff; padding: 0.15rem 0.5rem;
-      border-radius: 10px; vertical-align: middle; margin-left: 0.4rem;
-      letter-spacing: 0.04em;
-    }
-    header p  { margin-top: 0.5rem; color: #888; font-size: 0.95rem; }
-
-    /* ── Unified collapsible panel ── */
-    .panel {
-      background: #161620; border: 1px solid #2a2a3a; border-radius: 12px;
-      margin-bottom: 0.85rem; overflow: hidden;
-    }
-    .panel-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.75rem 1.1rem; cursor: pointer; user-select: none;
-      transition: background 0.15s;
-    }
-    .panel-header:hover { background: #1a1a28; }
-    .panel-header-left { display: flex; align-items: center; gap: 0.55rem; }
-    .panel-title {
-      font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #9a8aff;
-    }
-    .panel-subtitle { font-size: 0.72rem; color: #444; margin-left: 0.25rem; }
-    .panel-chevron {
-      font-size: 0.6rem; color: #444; transition: transform 0.2s; flex-shrink: 0;
-    }
-    .panel.collapsed .panel-chevron { transform: rotate(-90deg); }
-    .panel-body { padding: 0 1.1rem 1rem; }
-    .panel.collapsed .panel-body { display: none; }
-
-    /* ── Profile Panel ── */
-    .profile-inputs  { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin-bottom: 0.65rem; }
-    .profile-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; }
-    .btn-profile {
-      background: #1e1e2e; border: 1px solid #3a3a58; color: #bbb;
-      border-radius: 8px; padding: 0.5rem; font-size: 0.85rem; font-weight: 600;
-      cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
-    }
-    .btn-profile:hover { background: #2a2a45; color: #fff; border-color: #7b61ff; }
-    .btn-profile:disabled { opacity: 0.45; cursor: default; }
-    .btn-profile.save-btn:hover { border-color: #4caf7d; color: #4caf7d; background: #1a2820; }
-    .profile-status { font-size: 0.8rem; margin-top: 0.5rem; min-height: 1.1em; }
-    .profile-status.success { color: #4caf7d; }
-    .profile-status.error   { color: #e05555; }
-    .profile-status.info    { color: #888; }
-
-    /* ── Server Block ── */
-    .server-block {
-      background: #1a1a23; border: 1px solid #2a2a38; border-radius: 12px;
-      padding: 1.25rem 1.5rem 1.5rem; margin-bottom: 1rem;
-      position: relative; transition: opacity 0.2s;
-    }
-    .server-block.disabled { opacity: 0.45; }
-    .server-block.collapsed { padding-bottom: 1.25rem; }
-    .server-block-header {
-      display: flex; align-items: center;
-      justify-content: space-between; margin-bottom: 1rem;
-    }
-    .server-block.collapsed .server-block-header { margin-bottom: 0; }
-    .server-header-left  { display: flex; align-items: center; gap: 0.55rem; }
-    .server-header-right { display: flex; align-items: center; gap: 0.35rem; }
-    .server-number {
-      font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #7b61ff;
-    }
-
-    /* ── Collapse ── */
-    .btn-collapse {
-      background: none; border: none; color: #555; cursor: pointer;
-      font-size: 0.65rem; padding: 0.15rem 0.3rem; line-height: 1;
-      transition: color 0.15s; user-select: none;
-    }
-    .btn-collapse:hover { color: #aaa; }
-    .server-body { display: block; }
-    .server-block.collapsed .server-body { display: none; }
-    .server-summary {
-      display: none; font-size: 0.8rem; color: #666;
-      margin-top: 0.25rem; white-space: nowrap; overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .server-block.collapsed .server-summary { display: block; }
-    .server-summary .sum-name { color: #999; font-weight: 600; }
-    .server-summary .sum-sep  { color: #444; margin: 0 0.3rem; }
-    .server-summary .sum-type { color: #555; }
-    .server-summary .sum-url  { color: #444; font-size: 0.75rem; }
-
-    /* ── Collapse-all toolbar ── */
-    .servers-toolbar {
-      display: flex; justify-content: flex-end; gap: 0.5rem;
-      margin-bottom: 0.6rem;
-    }
-    .btn-collapse-all {
-      background: #1a1a23; border: 1px solid #2a2a38; color: #666;
-      border-radius: 6px; padding: 0.3rem 0.65rem; font-size: 0.75rem;
-      font-weight: 600; cursor: pointer; transition: background 0.15s, color 0.15s;
-    }
-    .btn-collapse-all:hover { background: #22222e; color: #aaa; }
-
-    /* ── Toggle switch ── */
-    label.toggle-switch {
-      position: relative; display: inline-block; width: 32px; height: 17px;
-      flex-shrink: 0; cursor: pointer; margin: 0;
-      /* override global label styles */
-      font-size: inherit; font-weight: inherit; color: inherit;
-      text-transform: none; letter-spacing: normal;
-    }
-    .toggle-switch input { display: none; }
-    .toggle-slider {
-      position: absolute; inset: 0; background: #2a2a3a;
-      border-radius: 8.5px; transition: background 0.2s;
-    }
-    .toggle-slider::after {
-      content: ''; position: absolute; width: 13px; height: 13px;
-      background: #555; border-radius: 50%; top: 2px; left: 2px;
-      transition: transform 0.2s, background 0.2s;
-    }
-    .toggle-switch input:checked + .toggle-slider { background: #1e3a28; }
-    .toggle-switch input:checked + .toggle-slider::after {
-      background: #4caf7d; transform: translateX(15px);
-    }
-
-    /* ── Reorder buttons ── */
-    .btn-reorder {
-      background: none; border: 1px solid #2a2a3a; color: #555;
-      border-radius: 5px; width: 24px; height: 24px; font-size: 0.6rem;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: background 0.15s, color 0.15s; padding: 0; line-height: 1;
-    }
-    .btn-reorder:hover:not(:disabled) { background: #2a2a3a; color: #aaa; }
-    .btn-reorder:disabled { opacity: 0.2; cursor: default; }
-
-    .btn-remove {
-      background: none; border: 1px solid #3a2a2a; color: #e05555;
-      border-radius: 6px; padding: 0.25rem 0.6rem; font-size: 0.78rem;
-      cursor: pointer; transition: background 0.15s;
-    }
-    .btn-remove:hover { background: #3a1a1a; }
-
-    /* ── Fields ── */
-    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
-    .field-row.full { grid-template-columns: 1fr; }
-    .field-group { display: flex; flex-direction: column; gap: 0.3rem; }
-
-    label {
-      font-size: 0.78rem; font-weight: 600; color: #aaa;
-      text-transform: uppercase; letter-spacing: 0.06em;
-    }
-
-    select {
-      background: #12121a; border: 1px solid #2e2e42; border-radius: 8px;
-      color: #e2e2e2; font-size: 0.9rem; padding: 0.55rem 0.75rem;
-      width: 100%; transition: border-color 0.15s; outline: none; cursor: pointer;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23888' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2rem;
-    }
-    select:focus { border-color: #7b61ff; }
-    select option { background: #1a1a23; }
-
-    .type-emby     { border-left: 3px solid #00a4dc; }
-    .type-jellyfin { border-left: 3px solid #aa5cc3; }
-
-    input[type="text"], input[type="password"], input[type="url"] {
-      background: #12121a; border: 1px solid #2e2e42; border-radius: 8px;
-      color: #e2e2e2; font-size: 0.9rem; padding: 0.55rem 0.75rem;
-      width: 100%; transition: border-color 0.15s; outline: none;
-    }
-    input:focus { border-color: #7b61ff; }
-    input::placeholder { color: #444; }
-
-    /* ── Credential fetch ── */
-    .cred-section {
-      background: #12121a; border: 1px solid #2e2e42;
-      border-radius: 8px; padding: 0.85rem 1rem; margin-top: 0.25rem;
-    }
-    .cred-section .cred-title {
-      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.07em; color: #666; margin-bottom: 0.6rem;
-    }
-    .cred-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.6rem; }
-    .btn-fetch {
-      width: 100%; background: #2a2a40; border: 1px solid #3a3a58; color: #bbb;
-      border-radius: 6px; padding: 0.45rem; font-size: 0.82rem;
-      cursor: pointer; transition: background 0.15s, color 0.15s;
-    }
-    .btn-fetch:hover { background: #33335a; color: #fff; }
-    .btn-fetch:disabled { opacity: 0.5; cursor: default; }
-    .cred-status { font-size: 0.78rem; margin-top: 0.4rem; min-height: 1.1em; }
-    .cred-status.success { color: #4caf7d; }
-    .cred-status.error   { color: #e05555; }
-
-    /* ── Test connection ── */
-    .btn-test {
-      width: 100%; background: #1a1a2a; border: 1px solid #2e2e42; color: #777;
-      border-radius: 6px; padding: 0.45rem; font-size: 0.82rem;
-      cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
-      margin-top: 0.6rem;
-    }
-    .btn-test:hover { background: #22223a; color: #bbb; border-color: #4a4a6a; }
-    .btn-test:disabled { opacity: 0.5; cursor: default; }
-    .test-status { font-size: 0.78rem; margin-top: 0.4rem; min-height: 1.1em; }
-    .test-status.success { color: #4caf7d; }
-    .test-status.error   { color: #e05555; }
-
-    .divider {
-      text-align: center; font-size: 0.72rem; color: #444;
-      text-transform: uppercase; letter-spacing: 0.1em; margin: 0.6rem 0;
-    }
-
-    /* ── Add server ── */
-    .btn-add {
-      width: 100%; background: transparent; border: 1.5px dashed #2e2e42;
-      color: #666; border-radius: 10px; padding: 0.75rem; font-size: 0.9rem;
-      cursor: pointer; transition: border-color 0.15s, color 0.15s; margin-bottom: 1.5rem;
-    }
-    .btn-add:hover:not(:disabled) { border-color: #7b61ff; color: #7b61ff; }
-    .btn-add:disabled { opacity: 0.4; cursor: default; }
-
-    /* ── Options Panel ── */
-    /* Options panel now uses .panel — keep content-specific styles only */
-    /* Override global label styles for option items */
-    .options-panel label.option-item {
-      font-size: inherit; font-weight: normal; color: #e2e2e2;
-      text-transform: none; letter-spacing: normal;
-      display: flex; align-items: flex-start; gap: 0.75rem;
-      padding: 0.6rem 0.75rem; border-radius: 8px; cursor: pointer;
-      transition: background 0.15s; margin-bottom: 0.2rem;
-    }
-    .options-panel label.option-item:hover { background: #1e1e2e; }
-    .options-panel input[type="radio"] {
-      margin-top: 0.2rem; accent-color: #7b61ff; flex-shrink: 0; cursor: pointer;
-    }
-    .option-title  { font-size: 0.88rem; font-weight: 600; color: #e2e2e2; margin-bottom: 0.15rem; }
-    .option-desc   { font-size: 0.78rem; color: #666; line-height: 1.4; }
-
-    .timeout-select-row { display: none; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
-    .timeout-select-row.visible { display: flex; }
-    .timeout-select-row span   { font-size: 0.82rem; color: #888; }
-    .timeout-select-row select { width: auto; }
-
-    .options-divider { border-top: 1px solid #2a2a3a; margin: 0.75rem 0; }
-
-    .sort-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.3rem 0.75rem;
-    }
-    .sort-row-label { font-size: 0.82rem; color: #888; }
-    .sort-row select { width: auto; font-size: 0.85rem; }
-
-    .exclude-res-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.3rem 0.75rem; flex-wrap: wrap; gap: 0.5rem;
-    }
-    .res-checkboxes { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-    .options-panel label.res-check {
-      font-size: 0.82rem; font-weight: normal; color: #ccc;
-      text-transform: none; letter-spacing: normal;
-      display: flex; align-items: center; gap: 0.35rem; cursor: pointer; margin: 0;
-    }
-    .options-panel label.res-check:hover { color: #fff; }
-    .options-panel input[type="checkbox"] { accent-color: #7b61ff; cursor: pointer; }
-    .options-panel label.option-item input[type="checkbox"] {
-      margin-top: 0.2rem; flex-shrink: 0;
-    }
-
-    /* ── Library stats ── */
-    .btn-stats {
-      width: 100%; background: #1a1a2a; border: 1px solid #2e2e42; color: #777;
-      border-radius: 6px; padding: 0.45rem; font-size: 0.82rem;
-      cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
-      margin-top: 0.5rem;
-    }
-    .btn-stats:hover { background: #1a2a2a; color: #4ccd9a; border-color: #2a5a4a; }
-    .btn-stats:disabled { opacity: 0.5; cursor: default; }
-    .stats-display {
-      font-size: 0.8rem; margin-top: 0.4rem; min-height: 1.1em; color: #4ccd9a;
-      display: flex; gap: 1rem; flex-wrap: wrap;
-    }
-    .stats-display.error { color: #e05555; }
-    .stats-badge { display: flex; align-items: center; gap: 0.3rem; }
-    .stats-badge span:first-child { color: #666; }
-
-    /* ── Options inline row with two selects ── */
-    .sort-row-dual { display: flex; gap: 0.5rem; }
-    .sort-row-dual select { flex: 1; font-size: 0.85rem; }
-
-    /* ── Ping controls (inside panel-body) ── */
-    .ping-controls { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
-    .ping-controls select { width: auto; font-size: 0.82rem; }
-    .btn-ping-test {
-      background: #2a2a40; border: 1px solid #3a3a58; color: #bbb;
-      border-radius: 6px; padding: 0.4rem 0.85rem; font-size: 0.82rem;
-      cursor: pointer; transition: background 0.15s, color 0.15s; white-space: nowrap;
-    }
-    .btn-ping-test:hover { background: #33335a; color: #fff; }
-    .btn-ping-test:disabled { opacity: 0.5; cursor: default; }
-    .ping-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.35rem 0; border-bottom: 1px solid #1e1e2a;
-    }
-    .ping-row:last-child { border-bottom: none; }
-    .ping-label { font-size: 0.85rem; color: #ccc; }
-    .ping-value { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 70px; text-align: right; }
-    .ping-value.waiting { color: #444; }
-    .ping-value.fast    { color: #4caf7d; }
-    .ping-value.ok      { color: #f0a500; }
-    .ping-value.slow    { color: #e05555; }
-    .ping-value.timeout { color: #555; }
-    .ping-note { font-size: 0.75rem; color: #444; margin-top: 0.6rem; }
-
-    /* ── Request Log (inside panel-body) ── */
-    .log-actions { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
-    .btn-log { background: #1e1e2e; border: 1px solid #2e2e45; color: #666; border-radius: 7px; padding: 0.28rem 0.65rem; font-size: 0.73rem; font-weight: 600; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; text-decoration: none; display: inline-block; }
-    .btn-log:hover { background: #252535; color: #aaa; }
-    .btn-log.danger:hover { color: #e05555; border-color: #e05555; }
-    .log-table-wrap { overflow-x: auto; }
-    .log-table { width: 100%; border-collapse: collapse; font-size: 0.77rem; }
-    .log-table th { text-align: left; color: #444; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; padding: 0 0.5rem 0.45rem; border-bottom: 1px solid #1e1e2a; white-space: nowrap; }
-    .log-table td { padding: 0.38rem 0.5rem; border-bottom: 1px solid #181820; color: #777; vertical-align: top; }
-    .log-table tr:last-child td { border-bottom: none; }
-    .log-table .log-time { color: #454560; white-space: nowrap; font-size: 0.71rem; }
-    .log-table .log-id   { color: #7b61ff; font-family: monospace; }
-    .log-table .log-ms   { color: #555; white-space: nowrap; }
-    .log-empty { font-size: 0.8rem; color: #383850; text-align: center; padding: 1.25rem 0; }
-    .log-pagination {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.6rem 0 0; margin-top: 0.35rem; border-top: 1px solid #181820;
-      flex-wrap: wrap; gap: 0.4rem;
-    }
-    .log-page-info { font-size: 0.72rem; color: #444; }
-    .log-page-btns { display: flex; gap: 0.3rem; }
-    .btn-page {
-      background: #1a1a28; border: 1px solid #2a2a3a; color: #555;
-      border-radius: 5px; padding: 0.22rem 0.55rem; font-size: 0.72rem;
-      font-weight: 600; cursor: pointer; transition: background 0.12s, color 0.12s;
-    }
-    .btn-page:hover:not(:disabled) { background: #22222e; color: #aaa; border-color: #3a3a55; }
-    .btn-page:disabled { opacity: 0.3; cursor: default; }
-    .btn-page.active { background: #2a2240; border-color: #7b61ff; color: #9a80ff; }
-
-    /* ── Generate ── */
-    .btn-generate {
-      width: 100%; background: linear-gradient(135deg, #7b61ff 0%, #6a50ee 100%);
-      border: none; color: #fff; border-radius: 10px; padding: 0.85rem;
-      font-size: 1rem; font-weight: 600; cursor: pointer;
-      transition: transform 0.1s, box-shadow 0.2s; margin-bottom: 2rem;
-      box-shadow: 0 2px 12px rgba(123, 97, 255, 0.15);
-    }
-    .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(123, 97, 255, 0.3); }
-    .btn-generate:active { transform: translateY(0); }
-
-    /* ── Result section ── */
-    #result-section {
-      display: none; background: #1a1a23; border: 1px solid #2a2a38;
-      border-radius: 12px; padding: 1.5rem;
-    }
-    #result-section h2 { font-size: 1rem; font-weight: 700; margin-bottom: 1.25rem; color: #fff; }
-
-    .url-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-    .url-row input { flex: 1; font-size: 0.8rem; color: #aaa; cursor: text; }
-
-    .btn-copy {
-      background: #2a2a40; border: 1px solid #3a3a58; color: #bbb;
-      border-radius: 8px; padding: 0 0.85rem; font-size: 0.82rem;
-      cursor: pointer; white-space: nowrap; transition: background 0.15s;
-    }
-    .btn-copy:hover  { background: #33335a; color: #fff; }
-    .btn-copy.copied { color: #4caf7d; border-color: #4caf7d; }
-
-    .btn-install {
-      display: block; width: 100%; background: #7b61ff; border: none; color: #fff;
-      border-radius: 10px; padding: 0.9rem; font-size: 1.05rem; font-weight: 700;
-      text-align: center; text-decoration: none; cursor: pointer;
-      transition: background 0.15s; margin-top: 0.5rem; margin-bottom: 0.5rem;
-    }
-    .btn-install:hover { background: #6a50ee; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(123, 97, 255, 0.25); }
-    .btn-install:active { transform: translateY(0); }
-
-    .install-note { text-align: center; font-size: 0.78rem; color: #555; margin-top: 0.75rem; }
-
-    /* ── Global error ── */
-    #global-error {
-      display: none; background: #2a1212; border: 1px solid #5a2222;
-      color: #e05555; border-radius: 8px; padding: 0.7rem 1rem;
-      font-size: 0.85rem; margin-bottom: 1rem;
-    }
-
-    /* ── Footer ── */
-    .site-footer {
-      text-align: center; padding: 2rem 0 1rem; margin-top: 1rem;
-      border-top: 1px solid #1a1a28; color: #333; font-size: 0.72rem;
-      line-height: 1.8;
-    }
-    .site-footer a { color: #555; text-decoration: none; transition: color 0.15s; }
-    .site-footer a:hover { color: #7b61ff; }
-    .site-footer .footer-links { display: flex; justify-content: center; gap: 1rem; margin-bottom: 0.4rem; }
-
-    /* ── Responsive ── */
-    @media (max-width: 720px) {
-      body { padding: 1rem 0.5rem 3rem; }
-      .container { max-width: 100%; }
-      header h1 { font-size: 1.4rem; }
-      header p { font-size: 0.85rem; }
-      .server-block { padding: 1rem; }
-      .field-row { grid-template-columns: 1fr; gap: 0.6rem; }
-      .field-row.full { grid-template-columns: 1fr; }
-      .cred-inputs { grid-template-columns: 1fr; }
-      .profile-inputs { grid-template-columns: 1fr; }
-      .profile-actions { grid-template-columns: 1fr; }
-      .sort-row { flex-direction: column; align-items: flex-start; gap: 0.4rem; padding: 0.5rem 0.75rem; }
-      .sort-row select { width: 100%; }
-      .sort-row-dual { flex-direction: column; width: 100%; }
-      .sort-row-dual select { width: 100%; }
-      .exclude-res-row { flex-direction: column; align-items: flex-start; gap: 0.4rem; padding: 0.5rem 0.75rem; }
-      .url-row { flex-direction: column; }
-      .url-row input { font-size: 0.75rem; }
-      .btn-copy { padding: 0.5rem; text-align: center; }
-      .ping-controls { flex-direction: column; }
-      .ping-controls select { width: 100%; }
-      .log-table { font-size: 0.7rem; }
-      .log-table th, .log-table td { padding: 0.3rem; }
-      .log-actions { flex-direction: column; }
-      .btn-generate { font-size: 0.95rem; padding: 0.75rem; }
-      .btn-install { font-size: 0.95rem; padding: 0.8rem; }
-    }
-
-    @media (max-width: 480px) {
-      header h1 { font-size: 1.2rem; }
-      .server-block { padding: 0.75rem; }
-      .panel-body { padding: 0 0.75rem 0.75rem; }
-      .panel-header { padding: 0.65rem 0.75rem; }
-      .server-block-header { flex-wrap: wrap; gap: 0.5rem; }
-      .server-header-right { margin-left: auto; }
-    }
-  </style>
+  <link rel="stylesheet" href="/css/configure.css" />
 </head>
 <body>
 
   <div class="container" id="main-container">
-    <header>
+
+    <!-- ── Header ── -->
+    <header class="site-header">
       <h1>Multi-Emby Bridge <span class="version-tag">v1.0</span></h1>
-      <p>Add up to 10 Emby / Jellyfin servers — streams sorted by file size in Stremio</p>
+      <p>Aggregate streams from Emby &amp; Jellyfin servers into Stremio</p>
+      <div class="steps">
+        <div class="step active" id="step-1"><span class="step-num">1</span><span class="step-label">Add Servers</span></div>
+        <div class="step-line"></div>
+        <div class="step" id="step-2"><span class="step-num">2</span><span class="step-label">Configure</span></div>
+        <div class="step-line"></div>
+        <div class="step" id="step-3"><span class="step-num">3</span><span class="step-label">Install</span></div>
+      </div>
     </header>
 
-    <!-- ── Saved Profile ── -->
+    <!-- ── Profile ── -->
     <div class="panel collapsed" id="panel-profile">
       <div class="panel-header" onclick="togglePanel('panel-profile')">
         <div class="panel-header-left">
-          <span class="panel-title">💾 Saved Profile</span>
+          <span class="panel-title">Saved Profile</span>
+          <span class="panel-subtitle">save &amp; restore your config</span>
         </div>
         <span class="panel-chevron">▼</span>
       </div>
       <div class="panel-body">
-      <div class="profile-inputs">
-        <div class="field-group">
-          <label>Profile Name</label>
-          <input type="text" id="p-username" placeholder="e.g. MySetup" autocomplete="off" />
+        <div class="profile-row">
+          <div class="field-group">
+            <label>Profile Name</label>
+            <input type="text" id="p-username" placeholder="e.g. MySetup" autocomplete="off" />
+          </div>
+          <div class="field-group">
+            <label>Password</label>
+            <input type="password" id="p-password" placeholder="••••••••" autocomplete="off" />
+          </div>
         </div>
-        <div class="field-group">
-          <label>Password</label>
-          <input type="password" id="p-password" placeholder="••••••••" autocomplete="off" />
+        <div class="profile-actions">
+          <button class="btn-profile save-btn" onclick="saveProfile()">Save</button>
+          <button class="btn-profile" onclick="loadProfile()">Load</button>
+          <button class="btn-profile" onclick="exportConfig()">Export JSON</button>
+          <button class="btn-profile" onclick="document.getElementById('import-file').click()">Import JSON</button>
+          <input type="file" id="import-file" accept=".json" style="display:none" onchange="importConfig(event)" />
         </div>
+        <div class="profile-status info" id="profile-status">Save or export your config so you can restore it anytime.</div>
       </div>
-      <div class="profile-actions">
-        <button class="btn-profile save-btn" onclick="saveProfile()">Save Config</button>
-        <button class="btn-profile" onclick="loadProfile()">Load Config</button>
-      </div>
-      <div class="profile-status info" id="profile-status">Save your servers so you can reload them anytime.</div>
-      </div><!-- /.panel-body -->
-    </div><!-- /#panel-profile -->
+    </div>
+
+    <!-- ── Servers ── -->
+    <div class="section-label">Servers</div>
 
     <div class="servers-toolbar">
       <button class="btn-collapse-all" onclick="collapseAll()">Collapse All</button>
@@ -508,301 +63,268 @@
     </div>
 
     <div id="servers-container"></div>
+    <button class="btn-add" id="btn-add" onclick="addServer()">+ Add Server</button>
 
-    <button class="btn-add" id="btn-add" onclick="addServer()">+ Add Another Server</button>
-
-    <!-- ── Options Panel ── -->
-    <div class="panel options-panel" id="panel-options">
-      <div class="panel-header" onclick="togglePanel('panel-options')">
+    <!-- ── Settings (tabbed) ── -->
+    <div class="panel options-panel" id="panel-settings">
+      <div class="panel-header" onclick="togglePanel('panel-settings')">
         <div class="panel-header-left">
-          <span class="panel-title">⚡ Options</span>
+          <span class="panel-title">Settings</span>
         </div>
         <span class="panel-chevron">▼</span>
       </div>
       <div class="panel-body">
-
-      <label class="option-item">
-        <input type="radio" name="perf-mode" value="normal" checked onchange="onModeChange()" />
-        <div>
-          <div class="option-title">Normal</div>
-          <div class="option-desc">All servers in one addon. Default behaviour.</div>
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="tab-streaming" onclick="switchTab('tab-streaming')">Streaming</button>
+          <button class="tab-btn" data-tab="tab-labels" onclick="switchTab('tab-labels')">Labels</button>
+          <button class="tab-btn" data-tab="tab-display" onclick="switchTab('tab-display')">Display</button>
         </div>
-      </label>
 
-      <label class="option-item">
-        <input type="radio" name="perf-mode" value="split" onchange="onModeChange()" />
-        <div>
-          <div class="option-title">Split per server</div>
-          <div class="option-desc">Generates a separate install link per server. Stremio loads them independently and shows results as each one responds.</div>
-          <div class="option-desc" style="margin-top:0.35rem;color:#6a5aaa;font-size:0.75rem">💡 Recommended: enable <strong style="color:#8a7acc">🎯 Auto-select best stream</strong> below — each server returns its single best file, giving you one clean result per server.</div>
-        </div>
-      </label>
+        <!-- ── Tab: Streaming ── -->
+        <div class="tab-pane active" id="tab-streaming">
+          <label class="option-item">
+            <input type="radio" name="perf-mode" value="normal" checked onchange="onModeChange()" />
+            <div>
+              <div class="option-title">Normal</div>
+              <div class="option-desc">All servers in one addon. Default behaviour.</div>
+            </div>
+          </label>
+          <label class="option-item">
+            <input type="radio" name="perf-mode" value="split" onchange="onModeChange()" />
+            <div>
+              <div class="option-title">Split per server</div>
+              <div class="option-desc">Separate install link per server. Stremio loads them independently.</div>
+            </div>
+          </label>
+          <label class="option-item">
+            <input type="radio" name="perf-mode" value="timeout" onchange="onModeChange()" />
+            <div>
+              <div class="option-title">Fast timeout</div>
+              <div class="option-desc">Cut off slow servers sooner so results appear faster.</div>
+              <div class="timeout-select-row" id="timeout-row">
+                <span>Cut off after:</span>
+                <select id="timeout-value">
+                  <option value="2000">2s (aggressive)</option>
+                  <option value="3000">3s</option>
+                  <option value="4000">4s</option>
+                  <option value="5000" selected>5s</option>
+                  <option value="6000">6s</option>
+                  <option value="7000">7s</option>
+                  <option value="8000">8s</option>
+                  <option value="9000">9s</option>
+                </select>
+              </div>
+            </div>
+          </label>
 
-      <label class="option-item">
-        <input type="radio" name="perf-mode" value="timeout" onchange="onModeChange()" />
-        <div>
-          <div class="option-title">Fast timeout</div>
-          <div class="option-desc">Cut off slow servers sooner so results appear faster.</div>
-          <div class="timeout-select-row" id="timeout-row">
-            <span>Cut off after:</span>
-            <select id="timeout-value">
-              <option value="2000">2 seconds (aggressive)</option>
-              <option value="3000">3 seconds</option>
-              <option value="4000">4 seconds</option>
-              <option value="5000" selected>5 seconds</option>
-              <option value="6000">6 seconds</option>
-              <option value="7000">7 seconds</option>
-              <option value="8000">8 seconds</option>
-              <option value="9000">9 seconds</option>
+          <div class="options-divider"></div>
+
+          <div class="sort-row">
+            <span class="sort-row-label">Sort streams by</span>
+            <select id="sort-order">
+              <option value="size">File size (largest first)</option>
+              <option value="audio">Audio quality (best first)</option>
+              <option value="bitrate">Bitrate (highest first)</option>
             </select>
           </div>
-        </div>
-      </label>
 
-      <div class="options-divider"></div>
+          <div class="options-divider"></div>
 
-      <div class="sort-row">
-        <span class="sort-row-label">Sort streams by</span>
-        <select id="sort-order">
-          <option value="size">File size (largest first)</option>
-          <option value="audio">Audio quality (best first)</option>
-          <option value="bitrate">Bitrate (highest first)</option>
-        </select>
-      </div>
-
-      <div class="options-divider"></div>
-
-      <div class="exclude-res-row">
-        <span class="sort-row-label">Exclude resolutions</span>
-        <div class="res-checkboxes">
-          <label class="res-check"><input type="checkbox" class="res-cb" value="4K" /> 4K</label>
-          <label class="res-check"><input type="checkbox" class="res-cb" value="1080p" /> 1080p</label>
-          <label class="res-check"><input type="checkbox" class="res-cb" value="720p" /> 720p</label>
-          <label class="res-check"><input type="checkbox" class="res-cb" value="SD" /> SD</label>
-        </div>
-      </div>
-
-      <div class="sort-row">
-        <span class="sort-row-label">Prefer audio language</span>
-        <select id="audio-lang">
-          <option value="any">Any language</option>
-          <option value="eng">🇺🇸 English</option>
-          <option value="fre">🇫🇷 French</option>
-          <option value="spa">🇪🇸 Spanish</option>
-          <option value="ger">🇩🇪 German</option>
-          <option value="jpn">🇯🇵 Japanese</option>
-          <option value="kor">🇰🇷 Korean</option>
-          <option value="por">🇧🇷 Portuguese</option>
-          <option value="ita">🇮🇹 Italian</option>
-          <option value="zho">🇨🇳 Chinese</option>
-          <option value="rus">🇷🇺 Russian</option>
-          <option value="ara">🇸🇦 Arabic</option>
-          <option value="hin">🇮🇳 Hindi</option>
-        </select>
-      </div>
-
-      <div class="sort-row">
-        <span class="sort-row-label">Prefer codec</span>
-        <div class="sort-row-dual">
-          <select id="pref-codec">
-            <option value="any">No preference</option>
-            <option value="h264">H.264 / AVC</option>
-            <option value="hevc">H.265 / HEVC</option>
-            <option value="av1">AV1</option>
-            <option value="vp9">VP9</option>
-          </select>
-          <select id="codec-mode" title="Prefer = sort to top. Only = hide other codecs.">
-            <option value="prefer">Prefer (sort up)</option>
-            <option value="only">Only (hide others)</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="sort-row">
-        <span class="sort-row-label">Max bitrate</span>
-        <select id="max-bitrate">
-          <option value="">No limit</option>
-          <option value="5000000">5 Mbps</option>
-          <option value="10000000">10 Mbps</option>
-          <option value="15000000">15 Mbps</option>
-          <option value="20000000">20 Mbps</option>
-          <option value="30000000">30 Mbps</option>
-          <option value="40000000">40 Mbps</option>
-          <option value="60000000">60 Mbps</option>
-          <option value="80000000">80 Mbps</option>
-          <option value="100000000">100 Mbps</option>
-        </select>
-      </div>
-
-      <div class="options-divider"></div>
-
-      <label class="option-item">
-        <input type="checkbox" id="show-recommend" checked />
-        <div>
-          <div class="option-title">★ Mark recommended stream</div>
-          <div class="option-desc">Adds a ★ to the top result based on your sort preference.</div>
-        </div>
-      </label>
-
-      <label class="option-item">
-        <input type="checkbox" id="show-ping" checked onchange="onShowPingChange()" />
-        <div>
-          <div class="option-title">⚡ Mark fastest server</div>
-          <div class="option-desc">Pings each server during the request and marks streams from the fastest responding one. Measured from the addon server, not your device.</div>
-        </div>
-      </label>
-
-      <div class="options-divider"></div>
-
-      <label class="option-item">
-        <input type="checkbox" id="auto-select" />
-        <div>
-          <div class="option-title">🎯 Auto-select best stream</div>
-          <div class="option-desc">Only shows the single best result in Stremio. Picks automatically based on your sort order, language, codec, and filter preferences — no manual choosing needed.</div>
-        </div>
-      </label>
-
-      <label class="option-item">
-        <input type="checkbox" id="ping-detail" />
-        <div>
-          <div class="option-title">📡 Show ping RTT in stream details</div>
-          <div class="option-desc">Adds the measured latency (e.g. 📡 42ms) to each stream's description. Requires ⚡ Mark fastest server to be enabled.</div>
-        </div>
-      </label>
-
-      <div class="options-divider"></div>
-
-      <div class="sort-row">
-        <span class="sort-row-label">Stream label format</span>
-        <select id="label-preset" onchange="updateLabelPreview()">
-          <option value="standard">Standard — res · HDR in name, full desc</option>
-          <option value="compact">Compact — res · HDR · codec in name, 1-line desc</option>
-          <option value="detailed">Detailed — HDR in name, multi-audio + subs in desc</option>
-          <option value="cinema">Cinema — res · HDR · source in name</option>
-          <option value="bandwidth">Bandwidth — res · bitrate in name</option>
-          <option value="audiophile">Audiophile — audio codec in name</option>
-          <option value="source">Source Focus — source type in name (REMUX / WEB-DL)</option>
-          <option value="minimal">Minimal — res only, size in desc</option>
-          <option value="slim">Slim — res · HDR in name, audio + size in desc</option>
-          <option value="crisp">Crisp — res · Atmos in name, HDR + codec + size in desc</option>
-          <option value="sharp">Sharp — res · HDR · Atmos in name, codec + size in desc</option>
-          <option value="pure">Pure — res only in name, all specs one line</option>
-        </select>
-      </div>
-      <div id="label-preview" style="margin:0.2rem 0 0.1rem;padding:0.55rem 0.65rem;background:#0f0f13;border-radius:6px;font-size:0.77rem;line-height:1.6;color:#666;"></div>
-
-
-      </div><!-- /.panel-body -->
-    </div><!-- /#panel-options -->
-
-    <!-- ── Appearance & Emojis Panel ── -->
-    <div class="panel options-panel collapsed" id="panel-appearance">
-      <div class="panel-header" onclick="togglePanel('panel-appearance')">
-        <div class="panel-header-left">
-          <span class="panel-title">🎨 Appearance &amp; Emojis</span>
-        </div>
-        <span class="panel-chevron">▼</span>
-      </div>
-      <div class="panel-body" style="padding-top:0.65rem">
-
-        <!-- 📋 Results Summary -->
-        <label class="option-item">
-          <input type="checkbox" id="show-summary" onchange="toggleSummaryStyle()" />
-          <div>
-            <div class="option-title">📋 Show results summary card</div>
-            <div class="option-desc">Pins a summary card at the top of the stream list showing how many streams each server found, with quality breakdown. Uses the server emoji if set.</div>
+          <div class="exclude-res-row">
+            <span class="sort-row-label">Exclude resolutions</span>
+            <div class="res-checkboxes">
+              <label class="res-check"><input type="checkbox" class="res-cb" value="4K" /> 4K</label>
+              <label class="res-check"><input type="checkbox" class="res-cb" value="1080p" /> 1080p</label>
+              <label class="res-check"><input type="checkbox" class="res-cb" value="720p" /> 720p</label>
+              <label class="res-check"><input type="checkbox" class="res-cb" value="SD" /> SD</label>
+            </div>
           </div>
-        </label>
 
-        <div id="summary-options" style="display:none;flex-direction:column;gap:0.6rem;margin:0.5rem 0 0.25rem;padding:0.75rem;background:#111118;border-radius:8px;border:1px solid #1e1e2e">
-          <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
-            <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">Summary style</span>
-            <select id="summary-style" onchange="updateSummaryPreview();autoSave()">
-              <option value="compact">Compact — ✅ Label · 4 · 4K</option>
-              <option value="detailed">Detailed — ✅ Label — 4 · 4K·1080p</option>
-              <option value="minimal">Minimal — Label: 4 (4K) no icons</option>
-              <option value="bar">Bar chart — Label ████ 4</option>
-              <option value="scoreboard">Scoreboard — ① Label  4 · 4K</option>
-              <option value="trophy">Trophy — 🏆🥈🥉 ranked by count</option>
-              <option value="pulse">Pulse — 🟢🟡🔴 health dots</option>
-              <option value="report">Report — ARCTV: 4× 4K·HD</option>
-              <option value="spark">Spark — ▇ ARCTV  4 · 4K</option>
-              <option value="dot">Dot — ● ARCTV  4 · 4K</option>
-              <option value="breakdown">Breakdown — 19 Total on 5 Servers · ✅ per server</option>
+          <div class="sort-row">
+            <span class="sort-row-label">Prefer audio language</span>
+            <select id="audio-lang">
+              <option value="any">Any language</option>
+              <option value="eng">English</option>
+              <option value="fre">French</option>
+              <option value="spa">Spanish</option>
+              <option value="ger">German</option>
+              <option value="jpn">Japanese</option>
+              <option value="kor">Korean</option>
+              <option value="por">Portuguese</option>
+              <option value="ita">Italian</option>
+              <option value="zho">Chinese</option>
+              <option value="rus">Russian</option>
+              <option value="ara">Arabic</option>
+              <option value="hin">Hindi</option>
             </select>
           </div>
-          <!-- Live preview -->
-          <div id="summary-preview" style="background:#0a0a10;border:1px solid #1a1a28;border-radius:8px;padding:0.7rem 0.85rem;margin-top:0.1rem"></div>
-        </div>
 
-        <div class="options-divider"></div>
+          <div class="sort-row">
+            <span class="sort-row-label">Prefer codec</span>
+            <div class="sort-row-dual">
+              <select id="pref-codec">
+                <option value="any">No preference</option>
+                <option value="h264">H.264 / AVC</option>
+                <option value="hevc">H.265 / HEVC</option>
+                <option value="av1">AV1</option>
+                <option value="vp9">VP9</option>
+              </select>
+              <select id="codec-mode" title="Prefer = sort to top. Only = hide others.">
+                <option value="prefer">Prefer</option>
+                <option value="only">Only</option>
+              </select>
+            </div>
+          </div>
 
-        <!-- 💎 Quality badges -->
-        <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
-          <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">💎 Quality badges in stream name</span>
-          <span class="option-desc" style="margin-bottom:0.3rem">Prefixes or suffixes the stream name with tier badges: 💎 REMUX · 🎬 4K · 🌈 Dolby Vision · ✨ HDR · 🔊 Atmos · 🎵 TrueHD.</span>
-          <select id="quality-badge" onchange="autoSave()">
-            <option value="">Off — no badges</option>
-            <option value="emoji">Emoji — 💎🎬✨🔊 before name</option>
-            <option value="minimal">Minimal — single top badge only</option>
-            <option value="tags">Tags — [REMUX][4K][HDR] before name</option>
-            <option value="suffix">Suffix — name then  💎🎬✨</option>
-          </select>
-        </div>
+          <div class="sort-row">
+            <span class="sort-row-label">Max bitrate</span>
+            <select id="max-bitrate">
+              <option value="">No limit</option>
+              <option value="5000000">5 Mbps</option>
+              <option value="10000000">10 Mbps</option>
+              <option value="15000000">15 Mbps</option>
+              <option value="20000000">20 Mbps</option>
+              <option value="30000000">30 Mbps</option>
+              <option value="40000000">40 Mbps</option>
+              <option value="60000000">60 Mbps</option>
+              <option value="80000000">80 Mbps</option>
+              <option value="100000000">100 Mbps</option>
+            </select>
+          </div>
 
-        <div class="options-divider"></div>
+          <div class="options-divider"></div>
 
-        <!-- 🌍 Language display -->
-        <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
-          <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">🌍 Language display style</span>
-          <span class="option-desc" style="margin-bottom:0.3rem">Controls how audio language codes appear in track descriptions.</span>
-          <select id="flag-emoji" onchange="autoSave()">
-            <option value="none">None — hidden</option>
-            <option value="">Codes — ENG DD 5.1 · RUS DD</option>
-            <option value="flag">Flags — 🇺🇸 DD 5.1 · 🇷🇺 DD</option>
-            <option value="both">Both — 🇺🇸 ENG DD · 🇷🇺 RUS DD</option>
-          </select>
-        </div>
+          <label class="option-item">
+            <input type="checkbox" id="show-recommend" checked />
+            <div>
+              <div class="option-title">Mark recommended stream</div>
+              <div class="option-desc">Adds a star to the top result based on your sort preference.</div>
+            </div>
+          </label>
+          <label class="option-item">
+            <input type="checkbox" id="show-ping" checked onchange="onShowPingChange()" />
+            <div>
+              <div class="option-title">Mark fastest server</div>
+              <div class="option-desc">Pings each server and marks the fastest. Measured from the addon server.</div>
+            </div>
+          </label>
+          <label class="option-item">
+            <input type="checkbox" id="auto-select" />
+            <div>
+              <div class="option-title">Auto-select best stream</div>
+              <div class="option-desc">Only shows the single best result. Picks automatically based on your preferences.</div>
+            </div>
+          </label>
+          <label class="option-item" id="ping-detail-item">
+            <input type="checkbox" id="ping-detail" />
+            <div>
+              <div class="option-title">Show ping RTT in details</div>
+              <div class="option-desc">Adds measured latency to each stream description. Requires fastest server marking.</div>
+            </div>
+          </label>
+        </div><!-- /tab-streaming -->
 
-        <div class="options-divider"></div>
+        <!-- ── Tab: Labels ── -->
+        <div class="tab-pane" id="tab-labels">
+          <div class="sort-row" style="flex-direction:column;align-items:stretch;gap:0.3rem">
+            <span class="sort-row-label" style="font-weight:600">Stream label format</span>
+            <select id="label-preset" onchange="updateLabelPreview()">
+              <option value="standard">Standard — res + HDR in name, full desc</option>
+              <option value="compact">Compact — res + HDR + codec in name, 1-line desc</option>
+              <option value="detailed">Detailed — HDR in name, multi-audio + subs in desc</option>
+              <option value="cinema">Cinema — res + HDR + source in name</option>
+              <option value="minimal">Minimal — res only, size in desc</option>
+            </select>
+          </div>
+          <div id="label-preview" style="margin:0.5rem 0 0;padding:0.5rem 0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)"></div>
+        </div><!-- /tab-labels -->
 
-        <!-- 📊 Bitrate display -->
-        <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
-          <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">📊 Bitrate display style</span>
-          <span class="option-desc" style="margin-bottom:0.3rem">How the file bitrate is shown in stream descriptions.</span>
-          <select id="bitrate-bar" onchange="autoSave()">
-            <option value="none">None — hidden</option>
-            <option value="">Mbps only — 12.7Mbps</option>
-            <option value="blocks">Blocks — ████░ 12.7Mbps</option>
-            <option value="segments">Segments — ▰▰▰▰▱ 12.7Mbps</option>
-            <option value="dots">Dots — ●●●●○ 12.7Mbps</option>
-            <option value="bar_only">Bar only — ████░</option>
-          </select>
-        </div>
+        <!-- ── Tab: Display ── -->
+        <div class="tab-pane" id="tab-display">
+          <label class="option-item">
+            <input type="checkbox" id="show-summary" onchange="toggleSummaryStyle()" />
+            <div>
+              <div class="option-title">Results summary card</div>
+              <div class="option-desc">Pins a summary at the top showing how many streams each server found.</div>
+            </div>
+          </label>
 
-        <div class="options-divider"></div>
+          <div id="summary-options" style="display:none;flex-direction:column;gap:0.5rem;margin:0.35rem 0 0.2rem;padding:0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)">
+            <div style="display:flex;flex-direction:column;gap:0.25rem">
+              <span style="font-size:0.75rem;font-weight:600;color:#bbb">Summary style</span>
+              <select id="summary-style" onchange="updateSummaryPreview();autoSave()">
+                <option value="compact">Compact</option>
+                <option value="detailed">Detailed</option>
+                <option value="minimal">Minimal</option>
+                <option value="bar">Bar chart</option>
+              </select>
+            </div>
+            <div id="summary-preview" style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.6rem 0.75rem"></div>
+          </div>
 
-        <!-- 💬 Subtitle display -->
-        <div class="sort-row" style="align-items:flex-start;flex-direction:column;gap:0.3rem">
-          <span class="sort-row-label" style="font-size:0.82rem;font-weight:600;color:#c9c9e0">💬 Subtitle track display</span>
-          <span class="option-desc" style="margin-bottom:0.3rem">Controls how subtitle tracks appear in stream descriptions.</span>
-          <select id="subs-style" onchange="autoSave()">
-            <option value="full">Full list — Subs: ENG · SPA · FRE</option>
-            <option value="count">Count — 💬 3 subs</option>
-            <option value="icons">Icons — 💬 🇺🇸 🇪🇸 🇫🇷</option>
-            <option value="hidden">Hidden — not shown</option>
-          </select>
-        </div>
+          <div class="options-divider"></div>
+
+          <div class="appearance-row">
+            <span class="appearance-label">Quality badges</span>
+            <span class="appearance-hint">Tier badges in stream name: REMUX, 4K, DV, HDR, Atmos, TrueHD</span>
+            <select id="quality-badge" onchange="autoSave()">
+              <option value="">Off</option>
+              <option value="emoji">Emoji — before name</option>
+              <option value="tags">Tags — [REMUX][4K][HDR]</option>
+            </select>
+          </div>
+
+          <div class="options-divider"></div>
+
+          <div class="appearance-row">
+            <span class="appearance-label">Language display</span>
+            <span class="appearance-hint">How audio language codes appear in track descriptions</span>
+            <select id="flag-emoji" onchange="autoSave()">
+              <option value="none">None — hidden</option>
+              <option value="">Codes — ENG, RUS</option>
+              <option value="flag">Flags only</option>
+              <option value="both">Flags + Codes</option>
+            </select>
+          </div>
+
+          <div class="options-divider"></div>
+
+          <div class="appearance-row">
+            <span class="appearance-label">Bitrate display</span>
+            <span class="appearance-hint">How file bitrate appears in descriptions</span>
+            <select id="bitrate-bar" onchange="autoSave()">
+              <option value="none">None — hidden</option>
+              <option value="">Mbps only</option>
+              <option value="blocks">Blocks bar</option>
+              <option value="segments">Segments bar</option>
+            </select>
+          </div>
+
+          <div class="options-divider"></div>
+
+          <div class="appearance-row">
+            <span class="appearance-label">Subtitle display</span>
+            <span class="appearance-hint">How subtitle tracks appear in descriptions</span>
+            <select id="subs-style" onchange="autoSave()">
+              <option value="full">Full list</option>
+              <option value="count">Count only</option>
+              <option value="icons">Flag icons</option>
+              <option value="hidden">Hidden</option>
+            </select>
+          </div>
+        </div><!-- /tab-display -->
 
       </div><!-- /.panel-body -->
-    </div><!-- /#panel-appearance -->
+    </div><!-- /#panel-settings -->
 
-    <!-- ── Ping Test Panel ── -->
+    <!-- ── Ping Test ── -->
+    <div class="section-label">Tools</div>
+
     <div class="panel collapsed" id="panel-ping">
       <div class="panel-header" onclick="togglePanel('panel-ping')">
         <div class="panel-header-left">
-          <span class="panel-title">🔌 Ping Test</span>
-          <span class="panel-subtitle">measure latency to each server</span>
+          <span class="panel-title">Ping Test</span>
+          <span class="panel-subtitle">measure server latency</span>
         </div>
         <span class="panel-chevron">▼</span>
       </div>
@@ -818,18 +340,18 @@
       </div>
     </div>
 
-    <!-- ── Request History Log ── -->
+    <!-- ── Request Log ── -->
     <div class="panel collapsed" id="panel-log">
       <div class="panel-header" onclick="togglePanel('panel-log')">
         <div class="panel-header-left">
-          <span class="panel-title">📋 Request History</span>
+          <span class="panel-title">Request History</span>
           <span class="panel-subtitle" id="log-count-badge"></span>
         </div>
         <span class="panel-chevron">▼</span>
       </div>
       <div class="panel-body">
         <div class="log-actions">
-          <a href="/servers" target="_blank" class="btn-log">🖥️ Server Health →</a>
+          <a href="/servers" target="_blank" class="btn-log">Server Health</a>
           <button class="btn-log" onclick="refreshLog()">Refresh</button>
           <button class="btn-log danger" onclick="clearLog()">Clear</button>
         </div>
@@ -839,10 +361,12 @@
       </div>
     </div>
 
-    <div id="autosave-indicator">✓ Settings saved</div>
     <div id="global-error"></div>
 
-    <button class="btn-generate" onclick="generateLinks()">Generate Install Link</button>
+    <!-- ── Sticky Generate ── -->
+    <div class="generate-area">
+      <button class="btn-generate" onclick="generateLinks()">Generate Install Link</button>
+    </div>
 
     <div id="result-section"></div>
 
@@ -852,1163 +376,12 @@
         <a href="/servers" target="_blank">Server Health</a>
         <a href="/health" target="_blank">API Status</a>
       </div>
-      <div>Multi-Emby Bridge v1.0 &mdash; Stremio Addon for Emby &amp; Jellyfin</div>
+      <div>Multi-Emby Bridge &mdash; Stremio Addon for Emby &amp; Jellyfin</div>
     </footer>
+
+    <div id="autosave-indicator">Settings saved</div>
   </div>
 
-  <script>
-    // ── State ─────────────────────────────────────────────────────────────────
-    let nextId = 0;
-
-    // ── Panel collapse ────────────────────────────────────────────────────────
-    function togglePanel(id) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.classList.toggle('collapsed');
-      // Persist per-panel state
-      try {
-        const states = JSON.parse(localStorage.getItem('meb-panels') || '{}');
-        states[id] = el.classList.contains('collapsed');
-        localStorage.setItem('meb-panels', JSON.stringify(states));
-      } catch {}
-    }
-
-    function restorePanelStates() {
-      try {
-        const states = JSON.parse(localStorage.getItem('meb-panels') || '{}');
-        // Defaults: options open, others closed
-        const defaults = { 'panel-profile': true, 'panel-options': false, 'panel-appearance': true, 'panel-ping': true, 'panel-log': true };
-        const merged = { ...defaults, ...states };
-        for (const [id, collapsed] of Object.entries(merged)) {
-          const el = document.getElementById(id);
-          if (!el) continue;
-          el.classList.toggle('collapsed', collapsed);
-        }
-      } catch {}
-    }
-    restorePanelStates();
-
-    // ── Request Log ───────────────────────────────────────────────────────────
-    function fmtBytes(b) {
-      if (!b) return null;
-      if (b >= 1e9) return `${(b/1e9).toFixed(1)}GB`;
-      if (b >= 1e6) return `${(b/1e6).toFixed(0)}MB`;
-      return `${Math.round(b/1e3)}KB`;
-    }
-
-    const LOG_PAGE_SIZE = 15;
-    let logData = [];
-    let logPage = 0;
-
-    function renderLogPage() {
-      const wrap  = document.getElementById('log-table-wrap');
-      if (!wrap) return;
-      if (!logData.length) {
-        wrap.innerHTML = '<div class="log-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>';
-        return;
-      }
-
-      const totalPages = Math.ceil(logData.length / LOG_PAGE_SIZE);
-      if (logPage >= totalPages) logPage = totalPages - 1;
-      const slice = logData.slice(logPage * LOG_PAGE_SIZE, (logPage + 1) * LOG_PAGE_SIZE);
-
-      const rows = slice.map(e => {
-        const t  = new Date(e.ts).toLocaleTimeString();
-        const d  = new Date(e.ts).toLocaleDateString();
-        const ep = e.type === 'series'
-          ? ` S${String(e.season||0).padStart(2,'0')}E${String(e.episode||0).padStart(2,'0')}` : '';
-        const title = e.contentName
-          ? `<strong style="color:#c0b8ff">${escHtml(e.contentName)}</strong>${ep}`
-          : `<span class="log-id">${e.imdbId}</span>${ep}`;
-        const ms = e.ms < 1000 ? `${e.ms}ms` : `${(e.ms/1000).toFixed(1)}s`;
-
-        let bestHtml = '—';
-        if (e.bestServer) {
-          const size   = fmtBytes(e.bestServer.size);
-          const mbps   = e.bestServer.bitrate ? `${(e.bestServer.bitrate/1e6).toFixed(1)}Mbps` : null;
-          const detail = [size, mbps].filter(Boolean).join(' · ');
-          bestHtml = `<span style="color:#4caf7d;font-weight:700">${escHtml(e.bestServer.label)}</span>${detail ? `<br><span style="font-size:0.7rem;color:#4a6a55">${detail}</span>` : ''}`;
-        }
-
-        let serversHtml = '—';
-        if (e.serverStatus?.length) {
-          serversHtml = e.serverStatus.map(s => {
-            if (s.status === 'found') {
-              const size = fmtBytes(s.size);
-              const mbps = s.bitrate ? `${(s.bitrate/1e6).toFixed(1)}Mbps` : null;
-              const det  = [size, mbps].filter(Boolean).join(' / ');
-              return `<div style="margin-bottom:0.2rem"><span style="color:#4caf7d">✓</span> <span style="color:#888">${escHtml(s.label)}</span>${det ? ` <span style="color:#444;font-size:0.7rem">${det}</span>` : ''}</div>`;
-            }
-            if (s.status === 'offline')   return `<div><span style="color:#e05555">✗</span> <span style="color:#555">${escHtml(s.label)}</span> <span style="color:#444;font-size:0.7rem">offline</span></div>`;
-            if (s.status === 'not_found') return `<div><span style="color:#c06000">–</span> <span style="color:#555">${escHtml(s.label)}</span> <span style="color:#444;font-size:0.7rem">not in library</span></div>`;
-            return `<div><span style="color:#444">?</span> <span style="color:#444">${escHtml(s.label)}</span></div>`;
-          }).join('');
-        }
-
-        return `<tr>
-          <td class="log-time">${d}<br>${t}</td>
-          <td>${title}</td>
-          <td class="log-ms">${ms}</td>
-          <td>${bestHtml}</td>
-          <td>${serversHtml}</td>
-        </tr>`;
-      }).join('');
-
-      // Page number buttons (show up to 7, with current page highlighted)
-      let pageButtons = '';
-      const maxBtns = 7;
-      let start = Math.max(0, logPage - Math.floor(maxBtns / 2));
-      let end   = Math.min(totalPages, start + maxBtns);
-      if (end - start < maxBtns) start = Math.max(0, end - maxBtns);
-      for (let i = start; i < end; i++) {
-        pageButtons += `<button class="btn-page${i === logPage ? ' active' : ''}" onclick="goLogPage(${i})">${i + 1}</button>`;
-      }
-
-      wrap.innerHTML = `
-        <table class="log-table">
-          <thead><tr>
-            <th>Time</th><th>Content</th><th>Duration</th><th>Best File</th><th>Server Results</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <div class="log-pagination">
-          <span class="log-page-info">
-            ${logPage * LOG_PAGE_SIZE + 1}–${Math.min((logPage + 1) * LOG_PAGE_SIZE, logData.length)} of ${logData.length}
-          </span>
-          <div class="log-page-btns">
-            <button class="btn-page" onclick="goLogPage(${logPage - 1})" ${logPage === 0 ? 'disabled' : ''}>‹</button>
-            ${pageButtons}
-            <button class="btn-page" onclick="goLogPage(${logPage + 1})" ${logPage >= totalPages - 1 ? 'disabled' : ''}>›</button>
-          </div>
-        </div>`;
-    }
-
-    function goLogPage(p) {
-      const totalPages = Math.ceil(logData.length / LOG_PAGE_SIZE);
-      logPage = Math.max(0, Math.min(p, totalPages - 1));
-      renderLogPage();
-    }
-
-    async function refreshLog() {
-      try {
-        const data  = await fetch('/api/request-log').then(r => r.json());
-        const badge = document.getElementById('log-count-badge');
-        if (badge) badge.textContent = data.length ? `${data.length} entries` : '';
-        logData = data;
-        // Stay on current page if refreshing, go to page 0 on first load
-        renderLogPage();
-      } catch { /* ignore */ }
-    }
-
-    async function clearLog() {
-      if (!confirm('Clear request history?')) return;
-      await fetch('/api/clear-request-log', { method: 'POST' });
-      logData = []; logPage = 0;
-      refreshLog();
-    }
-
-    // Auto-refresh log every 30s, but pause when tab is hidden
-    refreshLog();
-    let logInterval = setInterval(refreshLog, 30000);
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        clearInterval(logInterval);
-        logInterval = null;
-      } else {
-        refreshLog();
-        logInterval = setInterval(refreshLog, 30000);
-      }
-    });
-
-    // ── Auto-generate server name ─────────────────────────────────────────────
-    async function autoNameServer(id) {
-      const block   = document.getElementById(`server-${id}`);
-      if (!block) return;
-      const labelEl = block.querySelector('.f-label');
-      const urlEl   = block.querySelector('.f-url');
-      const typeEl  = block.querySelector('.f-type');
-      if (!urlEl || !labelEl) return;
-      const url = (urlEl.value || '').trim().replace(/\/+$/, '');
-      if (!url || labelEl.value.trim()) return; // don't overwrite existing name
-      try {
-        const resp = await fetch('/api/test-connection', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, type: typeEl?.value || 'emby', apiKey: '', userId: '' }),
-        });
-        const data = await resp.json();
-        // Extract just the server name from "Connected — ServerName v1.2.3"
-        if (data.message) {
-          const match = data.message.match(/Connected — (.+?)(?:\s+v[\d.]+)?$/);
-          if (match && match[1]) {
-            labelEl.value = match[1];
-            if (block.classList.contains('collapsed')) updateSummary(id);
-            autoSave();
-          }
-        }
-      } catch { /* silent — user can type name manually */ }
-    }
-
-    // ── Config encoding ───────────────────────────────────────────────────────
-    function encodeConfig(obj) {
-      return btoa(unescape(encodeURIComponent(JSON.stringify(obj))))
-        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-    }
-
-    // ── Server block builder ─────────────────────────────────────────────────
-    function buildServerBlock(id) {
-      const div = document.createElement('div');
-      div.className = 'server-block';
-      div.id = `server-${id}`;
-      div.innerHTML = `
-        <div class="server-block-header">
-          <div class="server-header-left">
-            <label class="toggle-switch" title="Enable / disable this server">
-              <input type="checkbox" class="f-enabled" checked onchange="updateToggle(${id})" />
-              <span class="toggle-slider"></span>
-            </label>
-            <span class="server-number">Server <span class="server-num-label"></span></span>
-            <button class="btn-collapse" onclick="toggleCollapse(${id})" title="Collapse / expand">▼</button>
-          </div>
-          <div class="server-header-right">
-            <button class="btn-reorder btn-up"   onclick="moveServer(${id}, -1)" title="Move up">▲</button>
-            <button class="btn-reorder btn-down" onclick="moveServer(${id},  1)" title="Move down">▼</button>
-            <button class="btn-remove" onclick="removeServer(${id})">Remove</button>
-          </div>
-        </div>
-        <div class="server-summary">
-          <span class="sum-name"></span><span class="sum-sep">·</span><span class="sum-type"></span><span class="sum-sep">·</span><span class="sum-url"></span>
-        </div>
-
-        <div class="server-body">
-        <div class="field-row">
-          <div class="field-group">
-            <label>Display Name</label>
-            <input type="text" class="f-label" placeholder="e.g. Eagle" />
-          </div>
-          <div class="field-group" style="max-width:5.5rem">
-            <label>Emoji <span style="font-weight:400;color:#555;font-size:0.73rem">optional</span></label>
-            <input type="text" class="f-emoji" placeholder="🖥️" maxlength="4" style="text-align:center;font-size:1.1rem" />
-          </div>
-          <div class="field-group">
-            <label>Server Type</label>
-            <select class="f-type" onchange="updateBlockStyle(${id})">
-              <option value="emby">Emby</option>
-              <option value="jellyfin">Jellyfin</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="field-row full">
-          <div class="field-group">
-            <label>Thumbnail URL <span style="font-weight:400;color:#555;font-size:0.73rem">— optional, shown next to streams in Stremio</span></label>
-            <input type="url" class="f-thumbnail" placeholder="https://i.imgur.com/yourlogo.png" />
-          </div>
-        </div>
-
-        <div class="field-row full">
-          <div class="field-group">
-            <label>Server URL</label>
-            <input type="url" class="f-url" placeholder="http://192.168.1.100:8096"
-              onblur="autoNameServer(${id})" oninput="autoSave()" />
-          </div>
-        </div>
-
-        <div class="cred-section">
-          <div class="cred-title">Sign in to fetch credentials automatically</div>
-          <div class="cred-inputs">
-            <div class="field-group">
-              <label>Username</label>
-              <input type="text" class="f-username" placeholder="admin" autocomplete="off" />
-            </div>
-            <div class="field-group">
-              <label>Password</label>
-              <input type="password" class="f-password" placeholder="••••••••" autocomplete="off" />
-            </div>
-          </div>
-          <button class="btn-fetch" onclick="fetchCredentials(${id})">Fetch API Key &amp; User ID</button>
-          <div class="cred-status" id="cred-status-${id}"></div>
-        </div>
-
-        <div class="divider">— or enter manually —</div>
-
-        <div class="field-row">
-          <div class="field-group">
-            <label>API Key</label>
-            <input type="text" class="f-apikey" placeholder="Auto-filled above" autocomplete="off" />
-          </div>
-          <div class="field-group">
-            <label>User ID</label>
-            <input type="text" class="f-userid" placeholder="Auto-filled above" autocomplete="off" />
-          </div>
-        </div>
-
-        <button class="btn-test" onclick="testConnection(${id})">Test Connection</button>
-        <div class="test-status" id="test-status-${id}"></div>
-        <button class="btn-stats" onclick="loadLibraryStats(${id})">📚 Library Stats</button>
-        <div class="stats-display" id="stats-${id}"></div>
-        </div>
-      `;
-      return div;
-    }
-
-    // ── Collapse ──────────────────────────────────────────────────────────────
-    function updateSummary(id) {
-      const block   = document.getElementById(`server-${id}`);
-      const name    = block.querySelector('.f-label')?.value.trim() || 'Unnamed';
-      const type    = block.querySelector('.f-type')?.value || 'emby';
-      const url     = block.querySelector('.f-url')?.value.trim() || '';
-      const urlShort = url.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-      block.querySelector('.sum-name').textContent = name;
-      block.querySelector('.sum-type').textContent = type === 'jellyfin' ? 'Jellyfin' : 'Emby';
-      block.querySelector('.sum-url').textContent  = urlShort;
-    }
-
-    function toggleCollapse(id) {
-      const block = document.getElementById(`server-${id}`);
-      const collapsed = block.classList.toggle('collapsed');
-      block.querySelector('.btn-collapse').textContent = collapsed ? '▶' : '▼';
-      if (collapsed) updateSummary(id);
-      autoSave();
-    }
-
-    function collapseAll() {
-      document.querySelectorAll('.server-block').forEach(block => {
-        const id = parseInt(block.id.replace('server-', ''), 10);
-        block.classList.add('collapsed');
-        block.querySelector('.btn-collapse').textContent = '▶';
-        updateSummary(id);
-      });
-      autoSave();
-    }
-
-    function expandAll() {
-      document.querySelectorAll('.server-block').forEach(block => {
-        block.classList.remove('collapsed');
-        block.querySelector('.btn-collapse').textContent = '▼';
-      });
-      autoSave();
-    }
-
-    function updateBlockStyle(id) {
-      const block = document.getElementById(`server-${id}`);
-      const type = block.querySelector('.f-type').value;
-      block.classList.remove('type-emby', 'type-jellyfin');
-      block.classList.add(`type-${type}`);
-      if (block.classList.contains('collapsed')) updateSummary(id);
-    }
-
-    function updateToggle(id) {
-      const block = document.getElementById(`server-${id}`);
-      block.classList.toggle('disabled', !block.querySelector('.f-enabled').checked);
-    }
-
-    function moveServer(id, dir) {
-      const block     = document.getElementById(`server-${id}`);
-      const container = document.getElementById('servers-container');
-      const blocks    = [...container.querySelectorAll('.server-block')];
-      const idx       = blocks.indexOf(block);
-      const target    = blocks[idx + dir];
-      if (!target) return;
-      if (dir === -1) container.insertBefore(block, target);
-      else            container.insertBefore(target, block);
-      renumberBlocks();
-      autoSave();
-    }
-
-    function renumberBlocks() {
-      const blocks = document.querySelectorAll('.server-block');
-      blocks.forEach((b, i) => {
-        b.querySelector('.server-num-label').textContent  = i + 1;
-        b.querySelector('.btn-up').disabled               = i === 0;
-        b.querySelector('.btn-down').disabled             = i === blocks.length - 1;
-      });
-      document.getElementById('btn-add').disabled = blocks.length >= 10;
-      document.querySelectorAll('.btn-remove').forEach(btn => {
-        btn.style.display = blocks.length > 1 ? '' : 'none';
-      });
-    }
-
-    function addServer(data = null) {
-      const container = document.getElementById('servers-container');
-      if (container.querySelectorAll('.server-block').length >= 10) return;
-      const id    = nextId++;
-      const block = buildServerBlock(id);
-      container.appendChild(block);
-
-      if (data) {
-        block.querySelector('.f-label').value     = data.label     || '';
-        block.querySelector('.f-url').value       = data.url       || '';
-        block.querySelector('.f-apikey').value    = data.apiKey    || '';
-        block.querySelector('.f-userid').value    = data.userId    || '';
-        block.querySelector('.f-username').value  = data.username  || '';
-        block.querySelector('.f-password').value  = data.password  || '';
-        block.querySelector('.f-thumbnail').value = data.thumbnail || '';
-        if (block.querySelector('.f-emoji')) block.querySelector('.f-emoji').value = data.emoji || '';
-        if (data.type) {
-          block.querySelector('.f-type').value = data.type;
-          updateBlockStyle(id);
-        }
-      }
-      renumberBlocks();
-    }
-
-    function removeServer(id) {
-      const el = document.getElementById(`server-${id}`);
-      if (el) el.remove();
-      renumberBlocks();
-      autoSave();
-    }
-
-    // ── Collect config ────────────────────────────────────────────────────────
-    function collectConfig(silent = false) {
-      const blocks = document.querySelectorAll('.server-block');
-      if (blocks.length === 0) {
-        if (!silent) showError('Add at least one server.');
-        return null;
-      }
-      const servers = [];
-      for (const block of blocks) {
-        if (!block.querySelector('.f-enabled').checked) continue;
-        const label    = block.querySelector('.f-label').value.trim();
-        const type     = block.querySelector('.f-type').value;
-        const url      = block.querySelector('.f-url').value.trim().replace(/\/+$/, '');
-        const apiKey   = block.querySelector('.f-apikey').value.trim();
-        const userId   = block.querySelector('.f-userid').value.trim();
-        const username = block.querySelector('.f-username').value.trim();
-        const password = block.querySelector('.f-password').value;
-        if (!label || !url || !apiKey || !userId) {
-          if (!silent) showError('All fields (Name, URL, API Key, User ID) must be filled for every enabled server.');
-          return null;
-        }
-        const thumbnail = block.querySelector('.f-thumbnail')?.value.trim() || '';
-        const emoji     = block.querySelector('.f-emoji')?.value.trim() || '';
-        const entry = { label, type, url, apiKey, userId };
-        if (thumbnail) entry.thumbnail = thumbnail;
-        if (emoji)     entry.emoji     = emoji;
-        if (username && password) { entry.username = username; entry.password = password; }
-        servers.push(entry);
-      }
-      if (servers.length === 0) {
-        if (!silent) showError('At least one server must be enabled.');
-        return null;
-      }
-      return { servers };
-    }
-
-    // ── Populate form from config ─────────────────────────────────────────────
-    function populateFromConfig(config) {
-      document.getElementById('servers-container').innerHTML = '';
-      nextId = 0;
-      for (const server of (config.servers || [])) addServer(server);
-    }
-
-    // ── Safe JSON parse ───────────────────────────────────────────────────────
-    async function safeJson(resp) {
-      try { return await resp.json(); }
-      catch { return { error: `Server returned non-JSON (HTTP ${resp.status}).` }; }
-    }
-
-    // ── Profile helpers ───────────────────────────────────────────────────────
-    function setProfileButtons(disabled) {
-      document.querySelectorAll('.btn-profile').forEach(b => b.disabled = disabled);
-    }
-
-    async function saveProfile() {
-      const username = document.getElementById('p-username').value.trim();
-      const password = document.getElementById('p-password').value;
-      const statusEl = document.getElementById('profile-status');
-      if (!username) { statusEl.textContent = 'Enter a profile name first.'; statusEl.className = 'profile-status error'; return; }
-      if (!password) { statusEl.textContent = 'Enter a password to protect your profile.'; statusEl.className = 'profile-status error'; return; }
-      const config = collectConfig();
-      if (!config) return;
-      setProfileButtons(true);
-      statusEl.textContent = 'Saving…'; statusEl.className = 'profile-status info';
-      try {
-        const resp = await fetch('/api/profile/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, config }) });
-        const data = await safeJson(resp);
-        if (!resp.ok) throw new Error(data.error || 'Unknown error');
-        statusEl.textContent = `✓ ${data.message}`; statusEl.className = 'profile-status success';
-      } catch (err) {
-        statusEl.textContent = `✗ ${err.message}`; statusEl.className = 'profile-status error';
-      } finally { setProfileButtons(false); }
-    }
-
-    async function loadProfile() {
-      const username = document.getElementById('p-username').value.trim();
-      const password = document.getElementById('p-password').value;
-      const statusEl = document.getElementById('profile-status');
-      if (!username) { statusEl.textContent = 'Enter your profile name first.'; statusEl.className = 'profile-status error'; return; }
-      if (!password) { statusEl.textContent = 'Enter your password.'; statusEl.className = 'profile-status error'; return; }
-      setProfileButtons(true);
-      statusEl.textContent = 'Loading…'; statusEl.className = 'profile-status info';
-      try {
-        const resp = await fetch('/api/profile/load', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
-        const data = await safeJson(resp);
-        if (!resp.ok) throw new Error(data.error || 'Unknown error');
-        populateFromConfig(data.config);
-        const ago = data.updatedAt ? ` (last saved ${new Date(data.updatedAt).toLocaleDateString()})` : '';
-        statusEl.textContent = `✓ Profile loaded${ago}`; statusEl.className = 'profile-status success';
-      } catch (err) {
-        statusEl.textContent = `✗ ${err.message}`; statusEl.className = 'profile-status error';
-      } finally { setProfileButtons(false); }
-    }
-
-    // ── Credential fetch ──────────────────────────────────────────────────────
-    async function fetchCredentials(id) {
-      const block    = document.getElementById(`server-${id}`);
-      const url      = block.querySelector('.f-url').value.trim().replace(/\/+$/, '');
-      const username = block.querySelector('.f-username').value.trim();
-      const password = block.querySelector('.f-password').value;
-      const statusEl = document.getElementById(`cred-status-${id}`);
-      const btn      = block.querySelector('.btn-fetch');
-      if (!url)      { statusEl.textContent = 'Enter the Server URL first.'; statusEl.className = 'cred-status error'; return; }
-      if (!username) { statusEl.textContent = 'Enter your username.';        statusEl.className = 'cred-status error'; return; }
-      btn.disabled = true; btn.textContent = 'Fetching…';
-      statusEl.textContent = ''; statusEl.className = 'cred-status';
-      try {
-        const resp = await fetch('/api/fetch-credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, username, password }) });
-        const data = await safeJson(resp);
-        if (!resp.ok) throw new Error(data.error || 'Unknown error');
-        block.querySelector('.f-apikey').value = data.apiKey;
-        block.querySelector('.f-userid').value = data.userId;
-        statusEl.textContent = '✓ Credentials fetched successfully!'; statusEl.className = 'cred-status success';
-      } catch (err) {
-        statusEl.textContent = `✗ ${err.message}`; statusEl.className = 'cred-status error';
-      } finally { btn.disabled = false; btn.textContent = 'Fetch API Key & User ID'; }
-    }
-
-    // ── Test connection ───────────────────────────────────────────────────────
-    async function testConnection(id) {
-      const block    = document.getElementById(`server-${id}`);
-      const url      = block.querySelector('.f-url').value.trim().replace(/\/+$/, '');
-      const type     = block.querySelector('.f-type').value;
-      const apiKey   = block.querySelector('.f-apikey').value.trim();
-      const userId   = block.querySelector('.f-userid').value.trim();
-      const statusEl = document.getElementById(`test-status-${id}`);
-      const btn      = block.querySelector('.btn-test');
-      if (!url)             { statusEl.textContent = 'Enter the Server URL first.';                          statusEl.className = 'test-status error'; return; }
-      if (!apiKey || !userId) { statusEl.textContent = 'Enter API Key and User ID first (or use Fetch above).'; statusEl.className = 'test-status error'; return; }
-      btn.disabled = true; btn.textContent = 'Testing…';
-      statusEl.textContent = ''; statusEl.className = 'test-status';
-      try {
-        const resp = await fetch('/api/test-connection', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, type, apiKey, userId }) });
-        const data = await safeJson(resp);
-        if (data.ok) { statusEl.textContent = `✓ ${data.message}`; statusEl.className = 'test-status success'; }
-        else         { statusEl.textContent = `✗ ${data.error}`;   statusEl.className = 'test-status error';   }
-      } catch (err) {
-        statusEl.textContent = `✗ ${err.message}`; statusEl.className = 'test-status error';
-      } finally { btn.disabled = false; btn.textContent = 'Test Connection'; }
-    }
-
-    // ── Library stats ─────────────────────────────────────────────────────────
-    async function loadLibraryStats(id) {
-      const block    = document.getElementById(`server-${id}`);
-      const url      = block.querySelector('.f-url').value.trim().replace(/\/+$/, '');
-      const type     = block.querySelector('.f-type').value;
-      const apiKey   = block.querySelector('.f-apikey').value.trim();
-      const userId   = block.querySelector('.f-userid').value.trim();
-      const statsEl  = document.getElementById(`stats-${id}`);
-      const btn      = block.querySelector('.btn-stats');
-      if (!url)              { statsEl.textContent = 'Enter Server URL first.';   statsEl.className = 'stats-display error'; return; }
-      if (!apiKey || !userId){ statsEl.textContent = 'Enter API Key + User ID first.'; statsEl.className = 'stats-display error'; return; }
-      btn.disabled = true; btn.textContent = 'Loading…';
-      statsEl.textContent = ''; statsEl.className = 'stats-display';
-      try {
-        const resp = await fetch('/api/library-stats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, type, apiKey, userId }) });
-        const data = await safeJson(resp);
-        if (data.error) { statsEl.textContent = `✗ ${data.error}`; statsEl.className = 'stats-display error'; }
-        else {
-          statsEl.className = 'stats-display';
-          statsEl.innerHTML = `
-            <span class="stats-badge"><span>🎬</span><span>${data.movies.toLocaleString()} movies</span></span>
-            <span class="stats-badge"><span>📺</span><span>${data.shows.toLocaleString()} shows</span></span>
-            <span class="stats-badge"><span>🎞</span><span>${data.episodes.toLocaleString()} episodes</span></span>`;
-        }
-      } catch (err) {
-        statsEl.textContent = `✗ ${err.message}`; statsEl.className = 'stats-display error';
-      } finally { btn.disabled = false; btn.textContent = '📚 Library Stats'; }
-    }
-
-    // ── Label preview ─────────────────────────────────────────────────────────
-    function updateLabelPreview() {
-      const preset = document.getElementById('label-preset').value;
-      const previewEl = document.getElementById('label-preview');
-
-      // Realistic sample data for a 4K DV REMUX
-      const previews = {
-        standard:   {
-          name: 'Server · 4K · DV',
-          desc: 'HEVC 10bit · REMUX\nTrueHD 7.1\nMKV · 85.2Mbps · 58.32 GB',
-        },
-        compact:    {
-          name: 'Server · 4K · DV · HEVC 10bit',
-          desc: 'TrueHD 7.1 · 85.2Mbps · 58.32 GB',
-        },
-        detailed:   {
-          name: 'Server · 4K · DV',
-          desc: 'HEVC 10bit · REMUX\nENG TrueHD 7.1 · FRE DD+ 5.1 · SPA AAC 2.0\nSubs: EN · FR · ES · DE\n3840×2160 · 85.2Mbps · 58.32 GB',
-        },
-        cinema:     {
-          name: 'Server · 4K · DV · REMUX',
-          desc: 'HEVC 10bit\nTrueHD 7.1\nSubs: EN · FR · ES\n58.32 GB',
-        },
-        bandwidth:  {
-          name: 'Server · 4K · 85.2Mbps',
-          desc: 'HEVC 10bit · DV\nTrueHD 7.1\n58.32 GB',
-        },
-        audiophile: {
-          name: 'Server · 4K · TrueHD 7.1',
-          desc: 'HEVC 10bit · DV · REMUX\nENG TrueHD 7.1 · FRE DD+ 5.1\n85.2Mbps · 58.32 GB',
-        },
-        source:     {
-          name: 'Server · 4K · REMUX',
-          desc: 'DV · HEVC 10bit\nENG TrueHD 7.1 · FRE DD+ 5.1\n85.2Mbps · 58.32 GB',
-        },
-        minimal:    {
-          name: 'Server · 4K',
-          desc: '58.32 GB',
-        },
-        slim:       {
-          name: 'Server · 4K · DV',
-          desc: 'TrueHD Atmos 7.1 · 58.32 GB',
-        },
-        crisp:      {
-          name: 'Server · 4K · Atmos',
-          desc: 'DV · HEVC 10bit · 58.32 GB',
-        },
-        sharp:      {
-          name: 'Server · 4K · DV · Atmos',
-          desc: 'HEVC 10bit · 58.32 GB',
-        },
-        pure:       {
-          name: 'Server · 4K',
-          desc: 'HEVC 10bit · DV · TrueHD Atmos 7.1 · 58.32 GB',
-        },
-      };
-
-      const p = previews[preset] || previews.standard;
-      const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
-      // Render as a Stremio-style stream row
-      const descHtml = esc(p.desc).split('\n')
-        .map(l => `<div style="color:#555;font-size:0.73rem;line-height:1.5">${l}</div>`)
-        .join('');
-
-      previewEl.innerHTML = `
-        <div style="display:flex;align-items:flex-start;gap:0.65rem;padding:0.1rem 0">
-          <div style="flex-shrink:0;width:28px;height:28px;background:#1e1e2e;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:#555;margin-top:0.1rem">▶</div>
-          <div style="min-width:0">
-            <div style="color:#d8d0ff;font-weight:600;font-size:0.83rem;line-height:1.4;margin-bottom:0.15rem">${esc(p.name)}</div>
-            ${descHtml}
-          </div>
-        </div>`;
-    }
-
-    // ── Summary style toggle + live preview ──────────────────────────────────
-    function toggleSummaryStyle() {
-      const show = document.getElementById('show-summary').checked;
-      const opts = document.getElementById('summary-options');
-      if (opts) opts.style.display = show ? 'flex' : 'none';
-      if (show) updateSummaryPreview();
-      autoSave();
-    }
-
-    const PREVIEW_SERVERS = [
-      { label: 'ARCTV',   emoji: '🏠', type: 'emby',      status: 'found',     count: 5, resLabels: ['4K','1080p'], resCounts: {'4K':2,'1080p':3}, pingMs: 12  },
-      { label: 'STREAMER',emoji: '⚡', type: 'emby',      status: 'found',     count: 2, resLabels: ['1080p'],      resCounts: {'1080p':2},        pingMs: 28  },
-      { label: 'BACKUP',  emoji: '💾', type: 'jellyfin',  status: 'not_found', count: 0, resLabels: [],             resCounts: {},                 pingMs: null},
-    ];
-
-    function updateSummaryPreview() {
-      const el = document.getElementById('summary-preview');
-      if (!el) return;
-      const style = document.getElementById('summary-style')?.value || 'compact';
-      const servers = PREVIEW_SERVERS;
-      const found = servers.filter(s => s.status === 'found');
-      const total = found.reduce((n, s) => n + s.count, 0);
-      const trunc = (str, n) => str.length > n ? str.slice(0, n - 1) + '…' : str;
-      const eLabel = (s, maxLen) => {
-        const prefix = s.emoji ? s.emoji + ' ' : '';
-        return prefix + trunc(s.label, maxLen - prefix.length);
-      };
-
-      let name, lines;
-
-      if (style === 'detailed') {
-        name = `📊 ${total} streams · ${found.length} found`;
-        lines = servers.map(s => {
-          const l = eLabel(s, 14);
-          if (s.status === 'found') { const res = s.resLabels.length ? ' · ' + s.resLabels.join('·') : ''; return `✅ ${l} — ${s.count}${res}`; }
-          return `❌ ${l} — none`;
-        });
-      } else if (style === 'minimal') {
-        name = `${total} streams · ${found.length} servers`;
-        lines = servers.map(s => {
-          const l = eLabel(s, 14);
-          if (s.status === 'found') { const res = s.resLabels.length ? ` (${s.resLabels[0]})` : ''; return `${l}: ${s.count}${res}`; }
-          return `${l}: —`;
-        });
-      } else if (style === 'bar') {
-        name = `📊 Results · ${total} streams`;
-        const maxC = Math.max(...found.map(s => s.count), 1);
-        lines = servers.map(s => {
-          const l = eLabel(s, 10);
-          if (s.status === 'found') { const f = Math.max(1, Math.round((s.count / maxC) * 4)); return `${l} ${'█'.repeat(f)}${'░'.repeat(4-f)} ${s.count}`; }
-          return `${l} ░░░░ ✗`;
-        });
-      } else if (style === 'scoreboard') {
-        name = `📊 ${total} streams · ${found.length} servers`;
-        const c = ['①','②','③','④','⑤']; let r = 0;
-        lines = servers.map(s => {
-          const l = eLabel(s, 12);
-          if (s.status === 'found') { const res = s.resLabels.length ? ' · ' + s.resLabels[0] : ''; return `${c[r++]||r+'.'} ${l}  ${s.count}${res}`; }
-          return `✗  ${l}`;
-        });
-      } else if (style === 'trophy') {
-        name = `🏆 ${total} streams · ${found.length} found`;
-        const medals = ['🏆','🥈','🥉','🎖️']; let mi = 0;
-        const sorted = [...servers].sort((a,b) => (b.count||0)-(a.count||0));
-        lines = sorted.map(s => {
-          const l = eLabel(s, 11);
-          if (s.status === 'found') { const res = s.resLabels.length ? ' · ' + s.resLabels[0] : ''; return `${medals[mi++]||'·'} ${l} ${s.count}${res}`; }
-          return `  ✗ ${l}`;
-        });
-      } else if (style === 'pulse') {
-        name = `⬤ Live · ${found.length} of ${servers.length} online`;
-        lines = servers.map(s => {
-          const l = eLabel(s, 13);
-          if (s.status === 'found') { const res = s.resLabels.length ? ' · ' + s.resLabels[0] : ''; return `🟢 ${l} · ${s.count}${res}`; }
-          return `🟡 ${l} · none`;
-        });
-      } else if (style === 'report') {
-        name = `📋 ${total} streams · ${found.length} servers`;
-        lines = servers.map(s => {
-          const l = eLabel(s, 11);
-          if (s.status === 'found') { const res = s.resLabels.length ? '  ' + s.resLabels.join('·') : ''; return `${l}: ${s.count}×${res}`; }
-          return `${l}: none`;
-        });
-      } else if (style === 'spark') {
-        name = `▇ ${total} streams · ${found.length} found`;
-        const sparks = ' ▁▂▃▄▅▆▇█'; const maxC = Math.max(...found.map(s => s.count), 1);
-        lines = servers.map(s => {
-          const l = eLabel(s, 13);
-          if (s.status === 'found') { const idx = Math.max(1, Math.min(8, Math.round((s.count/maxC)*8))); const res = s.resLabels.length ? ' ' + s.resLabels[0] : ''; return `${sparks[idx]} ${l}  ${s.count}${res}`; }
-          return `▁ ${l}  ✗`;
-        });
-      } else if (style === 'dot') {
-        name = `● ${total} streams · ${found.length} live`;
-        lines = servers.map(s => {
-          const l = eLabel(s, 14);
-          if (s.status === 'found') { const res = s.resLabels.length ? ' · ' + s.resLabels[0] : ''; return `● ${l}  ${s.count}${res}`; }
-          return `○ ${l}  none`;
-        });
-      } else if (style === 'breakdown') {
-        name = `${total} total · ${servers.length} servers`;
-        const typeCount = {};
-        servers.forEach(s => {
-          if (s.status === 'found') {
-            const t = s.type === 'jellyfin' ? 'Jellyfin' : 'Emby';
-            typeCount[t] = (typeCount[t] || 0) + s.count;
-          }
-        });
-        const typeSummary = Object.entries(typeCount).map(([t,n]) => `${n} ${t}`).join('  ·  ');
-        lines = [];
-        if (typeSummary) lines.push(typeSummary);
-        servers.forEach(s => {
-          const l = eLabel(s, 10);
-          if (s.status === 'found')          lines.push(`✓ ${l}  ×${s.count}`);
-          else if (s.status === 'not_found') lines.push(`✗ ${l}`);
-          else lines.push(`⌛ ${l}`);
-        });
-
-      } else {
-        // compact
-        name = `📊 ${total} streams · ${found.length} servers`;
-        lines = servers.map(s => {
-          const l = eLabel(s, 14);
-          if (s.status === 'found') { const res = s.resLabels.length ? ' · ' + s.resLabels.join('·') : ''; return `✅ ${l} · ${s.count}${res}`; }
-          return `❌ ${l}`;
-        });
-      }
-
-      // Stremio-style mock card: name on left, description lines on right
-      const linesHtml = lines.map(l =>
-        `<div style="font-size:0.75rem;color:#666;line-height:1.65;white-space:pre;font-family:monospace">${escHtml(l)}</div>`
-      ).join('');
-
-      el.innerHTML = `
-        <div style="font-size:0.67rem;color:#3a3a4a;letter-spacing:0.07em;text-transform:uppercase;margin-bottom:0.55rem;font-weight:600">Stremio preview · example data</div>
-        <div style="display:flex;gap:0;align-items:stretch;background:#111118;border-radius:6px;overflow:hidden;border:1px solid #1c1c28">
-          <div style="flex:0 0 38%;padding:0.6rem 0.7rem;border-right:1px solid #1c1c28;display:flex;align-items:center">
-            <div style="font-size:0.8rem;font-weight:700;color:#d0c8ff;line-height:1.4;word-break:break-word">${escHtml(name)}</div>
-          </div>
-          <div style="flex:1;padding:0.55rem 0.7rem;display:flex;flex-direction:column;justify-content:center">
-            ${linesHtml}
-          </div>
-        </div>`;
-    }
-
-    // ── Performance mode ──────────────────────────────────────────────────────
-    function onModeChange() {
-      const mode = document.querySelector('input[name="perf-mode"]:checked').value;
-      document.getElementById('timeout-row').classList.toggle('visible', mode === 'timeout');
-    }
-
-    function onShowPingChange() {
-      const enabled = document.getElementById('show-ping').checked;
-      const pd = document.getElementById('ping-detail');
-      if (pd) {
-        pd.disabled = !enabled;
-        if (!enabled) pd.checked = false;
-        pd.closest('.option-item').style.opacity = enabled ? '1' : '0.4';
-      }
-      autoSave();
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
-    function showError(msg) { const e = document.getElementById('global-error'); e.textContent = msg; e.style.display = 'block'; }
-    function hideError()    { document.getElementById('global-error').style.display = 'none'; }
-
-    function escHtml(s) {
-      return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
-
-    // ── Generate links ────────────────────────────────────────────────────────
-    function generateLinks() {
-      hideError();
-      const config = collectConfig();
-      if (!config) return;
-
-      const mode       = document.querySelector('input[name="perf-mode"]:checked').value;
-      const sortOrder  = document.getElementById('sort-order').value;
-      const excludeRes = [...document.querySelectorAll('.res-cb:checked')].map(cb => cb.value);
-      const recommend  = document.getElementById('show-recommend').checked;
-      const showPing   = document.getElementById('show-ping').checked;
-      const pingDetail  = document.getElementById('ping-detail').checked;
-      const audioLang   = document.getElementById('audio-lang').value;
-      const prefCodec   = document.getElementById('pref-codec').value;
-      const codecMode   = document.getElementById('codec-mode').value;
-      const maxBitrate  = document.getElementById('max-bitrate').value;
-      const autoSelect  = document.getElementById('auto-select').checked;
-      const labelPreset = document.getElementById('label-preset').value;
-      const showSummary  = document.getElementById('show-summary').checked;
-      const summaryStyle = document.getElementById('summary-style').value;
-      const qualityBadge = document.getElementById('quality-badge').value;
-      const flagEmoji    = document.getElementById('flag-emoji').value;
-      const bitrateBar   = document.getElementById('bitrate-bar').value;
-      const subsStyle    = document.getElementById('subs-style').value;
-      const { protocol, host } = window.location;
-      const section   = document.getElementById('result-section');
-
-      if (mode === 'split') {
-        const rows = config.servers.map(server => {
-          const sc = { servers: [server] };
-          if (sortOrder !== 'size')    sc.sortOrder  = sortOrder;
-          if (excludeRes.length > 0)   sc.excludeRes = excludeRes;
-          if (recommend)               sc.recommend  = true;
-          if (showPing)                sc.ping       = true;
-          if (pingDetail)              sc.pingDetail = true;
-          if (audioLang !== 'any')     sc.audioLang  = audioLang;
-          if (maxBitrate)              sc.maxBitrate = parseInt(maxBitrate, 10);
-          if (prefCodec !== 'any')   { sc.prefCodec  = prefCodec; sc.codecMode = codecMode; }
-          if (labelPreset !== 'standard') sc.labelPreset = labelPreset;
-          if (autoSelect)    sc.autoSelect    = true;
-          if (showSummary) { sc.showSummary   = true; if (summaryStyle !== 'compact') sc.summaryStyle = summaryStyle; }
-          if (qualityBadge)              sc.qualityBadge = qualityBadge;
-          if (flagEmoji)                 sc.flagEmoji    = flagEmoji;
-          if (bitrateBar)                sc.bitrateBar   = bitrateBar;
-          if (subsStyle !== 'full')      sc.subsStyle    = subsStyle;
-          const encoded = encodeConfig(sc);
-          return {
-            label:       server.label,
-            manifestUrl: `${protocol}//${host}/${encoded}/manifest.json`,
-            deepLink:    `stremio://${host}/${encoded}/manifest.json`,
-          };
-        });
-
-        let html = '<h2>Ready to install — Split Mode</h2>';
-        html += '<p style="font-size:0.82rem;color:#666;margin:0 0 1.25rem;line-height:1.5;">Each server is a separate addon. Stremio shows results from each as they arrive.</p>';
-        rows.forEach((row, i) => {
-          if (i > 0) html += '<hr style="border:none;border-top:1px solid #2a2a38;margin:1.1rem 0;">';
-          html += `
-            <div>
-              <div style="font-size:0.75rem;font-weight:700;color:#7b61ff;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5rem;">${escHtml(row.label)}</div>
-              <div class="url-row">
-                <input type="text" readonly value="${escHtml(row.manifestUrl)}" />
-                <button class="btn-copy" data-url="${escHtml(row.manifestUrl)}" onclick="copySpecific(this)">Copy</button>
-              </div>
-              <a class="btn-install" href="${escHtml(row.deepLink)}">Install "${escHtml(row.label)}" in Stremio</a>
-            </div>`;
-        });
-        section.innerHTML = html;
-      } else {
-        if (mode === 'timeout')    config.timeout    = parseInt(document.getElementById('timeout-value').value, 10);
-        if (sortOrder !== 'size')  config.sortOrder  = sortOrder;
-        if (excludeRes.length > 0) config.excludeRes = excludeRes;
-        if (recommend)             config.recommend  = true;
-        if (showPing)              config.ping       = true;
-        if (pingDetail)            config.pingDetail = true;
-        if (audioLang !== 'any')   config.audioLang  = audioLang;
-        if (maxBitrate)            config.maxBitrate = parseInt(maxBitrate, 10);
-        if (prefCodec !== 'any') { config.prefCodec  = prefCodec; config.codecMode = codecMode; }
-        if (labelPreset !== 'standard') config.labelPreset = labelPreset;
-        if (autoSelect)   config.autoSelect   = true;
-        if (showSummary) { config.showSummary = true; if (summaryStyle !== 'compact') config.summaryStyle = summaryStyle; }
-        if (qualityBadge)         config.qualityBadge = qualityBadge;
-        if (flagEmoji)            config.flagEmoji    = flagEmoji;
-        if (bitrateBar)           config.bitrateBar   = bitrateBar;
-        if (subsStyle !== 'full') config.subsStyle    = subsStyle;
-
-        const encoded     = encodeConfig(config);
-        const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
-        const deepLink    = `stremio://${host}/${encoded}/manifest.json`;
-
-        section.innerHTML = `
-          <h2>Ready to install${mode === 'timeout' ? ' — Fast Timeout' : ''}</h2>
-          <div class="url-row">
-            <input type="text" readonly value="${escHtml(manifestUrl)}" />
-            <button class="btn-copy" data-url="${escHtml(manifestUrl)}" onclick="copySpecific(this)">Copy</button>
-          </div>
-          <a class="btn-install" href="${escHtml(deepLink)}">Install in Stremio</a>
-          <p class="install-note">
-            Opens Stremio and installs the addon automatically.<br/>
-            If the button doesn't work, copy the URL above and paste it into Stremio → Add Addon.
-          </p>`;
-      }
-
-      section.style.display = 'block';
-      section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-      // ── Save config key for health page auto-load ──────────────────────────
-      // Store in localStorage so /servers page can auto-populate without user input
-      try {
-        if (mode !== 'split') {
-          const encoded = encodeConfig(config);
-          localStorage.setItem('meb-last-config', encoded);
-        }
-      } catch {}
-
-      // ── Register servers for 24/7 backend health monitoring ────────────────
-      // Only send URL + label + type — no API keys stored on backend
-      try {
-        const healthServers = (config.servers || []).map(s => ({
-          url: s.url, label: s.label, type: s.type || 'emby',
-        }));
-        fetch('/api/health/register', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ servers: healthServers }),
-        }).catch(() => {});
-      } catch {}
-    }
-
-    // ── Copy ──────────────────────────────────────────────────────────────────
-    function copySpecific(btn) {
-      const url = btn.dataset.url;
-      function onSuccess() {
-        btn.textContent = 'Copied!'; btn.classList.add('copied');
-        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
-      }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url).then(onSuccess).catch(() => { fallbackCopy(url); onSuccess(); });
-      } else { fallbackCopy(url); onSuccess(); }
-    }
-
-    function fallbackCopy(text) {
-      const ta = document.createElement('textarea');
-      ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
-      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-    }
-
-    // ── Ping Test ─────────────────────────────────────────────────────────────
-    async function browserPing(url) {
-      const t0 = Date.now();
-      try {
-        await fetch(`${url}/System/Ping`, { mode: 'no-cors', cache: 'no-store' });
-        return Date.now() - t0;
-      } catch { return null; }
-    }
-
-    async function runPingTest() {
-      const resultsEl = document.getElementById('ping-results');
-      const config = collectConfig(true);
-      if (!config) {
-        resultsEl.innerHTML = '<div style="color:#888;font-size:0.82rem;padding:0.25rem 0;">Add and fill in at least one server first.</div>';
-        return;
-      }
-
-      const origin  = document.getElementById('ping-origin').value;
-      const servers = config.servers;
-
-      resultsEl.innerHTML = servers.map(s =>
-        `<div class="ping-row"><span class="ping-label">${escHtml(s.label)}</span><span class="ping-value" style="color:#555">testing…</span></div>`
-      ).join('');
-
-      if (origin === 'browser') {
-        await Promise.all(servers.map(async (s, i) => {
-          const ms    = await browserPing(s.url);
-          const valEl = resultsEl.querySelectorAll('.ping-row')[i]?.querySelector('.ping-value');
-          if (!valEl) return;
-          if (ms === null) { valEl.textContent = 'timeout'; valEl.className = 'ping-value timeout'; }
-          else { const cls = ms < 100 ? 'fast' : ms < 300 ? 'ok' : 'slow'; valEl.textContent = `${ms} ms`; valEl.className = `ping-value ${cls}`; }
-        }));
-      } else {
-        try {
-          const resp = await fetch('/api/ping-servers', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ servers: servers.map(s => ({ url: s.url, label: s.label })) }),
-          });
-          const data = await resp.json();
-          data.results.forEach((r, i) => {
-            const valEl = resultsEl.querySelectorAll('.ping-row')[i]?.querySelector('.ping-value');
-            if (!valEl) return;
-            if (r.ms === null) { valEl.textContent = 'timeout'; valEl.className = 'ping-value timeout'; }
-            else { const cls = r.ms < 100 ? 'fast' : r.ms < 300 ? 'ok' : 'slow'; valEl.textContent = `${r.ms} ms`; valEl.className = `ping-value ${cls}`; }
-          });
-        } catch {
-          resultsEl.innerHTML = '<div style="color:#e05555;font-size:0.82rem;padding:0.25rem 0;">Could not reach addon server.</div>';
-        }
-      }
-    }
-
-    // ── Auto-save to localStorage ─────────────────────────────────────────────
-    const LS_KEY = 'meb_config_v1';
-    let saveTimer = null;
-
-    function collectFormState() {
-      const mode = document.querySelector('input[name="perf-mode"]:checked')?.value || 'normal';
-      const state = {
-        mode,
-        timeoutValue: document.getElementById('timeout-value')?.value,
-        sortOrder:    document.getElementById('sort-order')?.value,
-        excludeRes:   [...document.querySelectorAll('.res-cb')].map(cb => cb.checked),
-        recommend:    document.getElementById('show-recommend')?.checked,
-        showPing:     document.getElementById('show-ping')?.checked,
-        pingDetail:   document.getElementById('ping-detail')?.checked,
-        audioLang:    document.getElementById('audio-lang')?.value,
-        prefCodec:    document.getElementById('pref-codec')?.value,
-        codecMode:    document.getElementById('codec-mode')?.value,
-        maxBitrate:   document.getElementById('max-bitrate')?.value,
-        autoSelect:   document.getElementById('auto-select')?.checked,
-        labelPreset:  document.getElementById('label-preset')?.value,
-        pingOrigin:   document.getElementById('ping-origin')?.value,
-        showSummary:   document.getElementById('show-summary')?.checked,
-        summaryStyle:  document.getElementById('summary-style')?.value,
-        qualityBadge: document.getElementById('quality-badge')?.value  || '',
-        flagEmoji:    document.getElementById('flag-emoji')?.value    || '',
-        bitrateBar:   document.getElementById('bitrate-bar')?.value   || '',
-        subsStyle:    document.getElementById('subs-style')?.value    || 'full',
-        servers: [],
-      };
-      document.querySelectorAll('.server-block').forEach(block => {
-        state.servers.push({
-          label:     block.querySelector('.f-label')?.value     || '',
-          type:      block.querySelector('.f-type')?.value      || 'emby',
-          url:       block.querySelector('.f-url')?.value       || '',
-          apiKey:    block.querySelector('.f-apikey')?.value    || '',
-          userId:    block.querySelector('.f-userid')?.value    || '',
-          username:  block.querySelector('.f-username')?.value  || '',
-          password:  block.querySelector('.f-password')?.value  || '',
-          thumbnail: block.querySelector('.f-thumbnail')?.value || '',
-          emoji:     block.querySelector('.f-emoji')?.value     || '',
-          enabled:   block.querySelector('.f-enabled')?.checked ?? true,
-          collapsed: block.classList.contains('collapsed'),
-        });
-      });
-      return state;
-    }
-
-    function saveToLocalStorage() {
-      try { localStorage.setItem(LS_KEY, JSON.stringify(collectFormState())); } catch {}
-      const ind = document.getElementById('autosave-indicator');
-      if (ind) { ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(() => ind.classList.remove('visible'), 1800); }
-    }
-
-    function autoSave() {
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(saveToLocalStorage, 600);
-    }
-
-    function restoreFromLocalStorage() {
-      try {
-        const raw = localStorage.getItem(LS_KEY);
-        if (!raw) return false;
-        const state = JSON.parse(raw);
-
-        // Restore servers
-        if (state.servers && state.servers.length > 0) {
-          document.getElementById('servers-container').innerHTML = '';
-          nextId = 0;
-          state.servers.forEach(s => {
-            const id = nextId;
-            addServer(s);
-            const block = document.getElementById(`server-${id}`);
-            if (!block) return;
-            // Restore enabled state
-            if (s.enabled === false) {
-              block.querySelector('.f-enabled').checked = false;
-              block.classList.add('disabled');
-            }
-            // Restore collapsed state
-            if (s.collapsed) {
-              block.classList.add('collapsed');
-              block.querySelector('.btn-collapse').textContent = '▶';
-              updateSummary(id);
-            }
-          });
-        }
-
-        // Restore mode radio
-        if (state.mode) {
-          const radio = document.querySelector(`input[name="perf-mode"][value="${state.mode}"]`);
-          if (radio) { radio.checked = true; onModeChange(); }
-        }
-
-        // Restore selects & inputs
-        const setVal = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
-        const setChk = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined) el.checked = v; };
-        setVal('timeout-value', state.timeoutValue);
-        setVal('sort-order',    state.sortOrder);
-        setVal('audio-lang',    state.audioLang);
-        setVal('pref-codec',    state.prefCodec);
-        setVal('codec-mode',    state.codecMode);
-        setVal('max-bitrate',   state.maxBitrate);
-        setVal('label-preset',  state.labelPreset);
-        setVal('ping-origin',   state.pingOrigin);
-        setChk('show-recommend', state.recommend);
-        setChk('show-ping',      state.showPing);
-        setChk('ping-detail',    state.pingDetail);
-        setChk('auto-select',    state.autoSelect);
-        setChk('show-summary',   state.showSummary);
-        setVal('summary-style',  state.summaryStyle);
-        if (state.showSummary) {
-          const opts = document.getElementById('summary-options');
-          if (opts) opts.style.display = 'flex';
-          updateSummaryPreview();
-        }
-        setVal('quality-badge',  state.qualityBadge);
-        setVal('flag-emoji',     state.flagEmoji);
-        setVal('bitrate-bar',    state.bitrateBar);
-        setVal('subs-style',     state.subsStyle);
-
-        // Restore resolution checkboxes
-        if (Array.isArray(state.excludeRes)) {
-          document.querySelectorAll('.res-cb').forEach((cb, i) => {
-            if (i < state.excludeRes.length) cb.checked = state.excludeRes[i];
-          });
-        }
-
-        return true;
-      } catch { return false; }
-    }
-
-    // ── Init ──────────────────────────────────────────────────────────────────
-    if (!restoreFromLocalStorage()) addServer();
-    updateLabelPreview();
-    restorePanelStates();
-    onShowPingChange();
-    document.addEventListener('input',  autoSave);
-    document.addEventListener('change', autoSave);
-  </script>
+  <script src="/js/configure.js"></script>
 </body>
 </html>

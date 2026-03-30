@@ -4,7 +4,8 @@
   "description": "Multi-server Emby addon for Stremio — streams sorted by file size",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node test/utils.test.js && node test/streams.test.js"
   },
   "dependencies": {
     "express": "^4.18.2",
