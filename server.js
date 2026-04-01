@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
 const crypto = require('crypto');
@@ -9,6 +9,7 @@ const { parseStreamId } = require('./lib/utils');
 const { fetchWithTimeout, authHeaders, appendAuth, apiFetch, pingServer, buildStreamUrl, getEffectiveApiKey } = require('./lib/auth');
 const { resolveImdbName, queryServerForMovie, queryServerForEpisode, searchServersForCatalog, getRecentlyAdded } = require('./lib/search');
 const { getAllStreams } = require('./lib/streams');
+const { fetchExternalCatalog } = require('./lib/catalogs');
 const { healthServers, healthHistory, registerHealthServers, unregisterHealthServer, cleanupStaleServers, pingHealthServers } = require('./lib/health');
 const { hashPassword, loadProfiles, saveProfiles } = require('./lib/profiles');
 
@@ -372,6 +373,11 @@ app.get('/:config/manifest.json', (req, res) => {
 
   const names = (cfg.servers || []).map((s) => s.label).join(', ');
 
+  const extCats = [];
+  (cfg.externalCatalogs || []).filter(c => c.enabled !== false).forEach((c, i) => {
+    const types = c.mediaType === 'both' ? ['movie', 'series'] : [c.mediaType || 'movie'];
+    types.forEach(t => extCats.push({ type: t, id: 'extcat-' + i, name: c.name || c.provider, extra: [] }));
+  });
   res.json({
     id: 'com.multiemby.bridge',
     version: '1.0.0',
@@ -381,6 +387,7 @@ app.get('/:config/manifest.json', (req, res) => {
     catalogs: [
       { type: 'movie',  id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: cfg.showCatalog === false }] },
       { type: 'series', id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: cfg.showCatalog === false }] },
+      ...extCats,
     ],
     resources: ['catalog', 'stream'],
     idPrefixes: ['tt'],
@@ -408,6 +415,20 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
   const servers = (cfg.servers || []).filter(s => s.url && s.apiKey && s.userId);
   if (servers.length === 0) return res.json({ metas: [] });
 
+  // External catalog intercept
+  if (req.params.id && req.params.id.startsWith('extcat-')) {
+    const idx = parseInt(req.params.id.replace('extcat-', ''), 10);
+    const extList = (cfg.externalCatalogs || []).filter(c => c.enabled !== false);
+    const entry = extList[idx];
+    if (!entry) return res.json({ metas: [] });
+    try {
+      const metas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null);
+      return res.json({ metas });
+    } catch (err) {
+      console.error('External catalog error:', err.message);
+      return res.json({ metas: [] });
+    }
+  }
   try {
     if (query) {
       // Search catalog — always runs regardless of showCatalog setting
@@ -435,6 +456,20 @@ app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
   const servers = (cfg.servers || []).filter(s => s.url && s.apiKey && s.userId);
   if (servers.length === 0) return res.json({ metas: [] });
 
+  // External catalog intercept
+  if (req.params.id && req.params.id.startsWith('extcat-')) {
+    const idx = parseInt(req.params.id.replace('extcat-', ''), 10);
+    const extList = (cfg.externalCatalogs || []).filter(c => c.enabled !== false);
+    const entry = extList[idx];
+    if (!entry) return res.json({ metas: [] });
+    try {
+      const metas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null);
+      return res.json({ metas });
+    } catch (err) {
+      console.error('External catalog error:', err.message);
+      return res.json({ metas: [] });
+    }
+  }
   try {
     const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, cfg.catalogContent || 'recent');
     res.json({ metas });

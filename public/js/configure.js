@@ -1,5 +1,6 @@
 // ── State ─────────────────────────────────────────────────────────────────
 let nextId = 0;
+let nextCatId = 0;
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
 function switchTab(tabId) {
@@ -50,6 +51,119 @@ function restorePanelStates() {
   } catch {}
 }
 restorePanelStates();
+
+// -- External Catalogs --------------------------------------------------------
+const TRAKT_LIST_NAMES = {
+  'trending': 'Trending', 'popular': 'Popular',
+  'watched/weekly': 'Most Watched', 'anticipated': 'Anticipated',
+};
+
+function onCatalogProviderChange() {
+  const provider = document.getElementById('cat-provider').value;
+  const traktFld = document.getElementById('cat-trakt-list');
+  const urlFld   = document.getElementById('cat-list-url');
+  const nameFld  = document.getElementById('cat-name');
+  traktFld.style.display = provider === 'trakt' ? '' : 'none';
+  urlFld.style.display   = (provider === 'mdblist' || provider === 'imdb' || provider === 'letterboxd') ? '' : 'none';
+  const mt = document.getElementById('cat-media-type').value;
+  const typeName = mt === 'series' ? 'Shows' : mt === 'both' ? 'Movies & Shows' : 'Movies';
+  if (provider === 'trakt') { const lt = document.getElementById('cat-trakt-list').value; nameFld.value = 'Trakt ' + (TRAKT_LIST_NAMES[lt] || 'Trending') + ' ' + typeName; }
+  else if (provider === 'mdblist')    { nameFld.value = 'MDbList ' + typeName; }
+  else if (provider === 'imdb')       { nameFld.value = 'IMDb List'; }
+  else if (provider === 'letterboxd') { nameFld.value = 'Letterboxd List'; }
+  else { nameFld.value = ''; }
+}
+
+function onCatalogUrlInput() {
+  const url = (document.getElementById('cat-list-url').value || '').trim();
+  const nameFld = document.getElementById('cat-name');
+  const autos = ['Trakt', 'MDbList', 'IMDb', 'Letterboxd'];
+  if (\!nameFld.value || autos.some(function(a){ return nameFld.value.startsWith(a); })) {
+    const m = url.match(/\/([^/?#]+)\/?(?:[?#].*)?$/);
+    if (m) nameFld.value = decodeURIComponent(m[1]).replace(/-/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+  }
+}
+
+function renderCatalogRow(cat, id) {
+  const badges = { trakt: 'Trakt', mdblist: 'MDbList', imdb: 'IMDb', letterboxd: 'Letterboxd' };
+  const typeBadge = cat.mediaType === 'both' ? 'Movies + Shows' : cat.mediaType === 'series' ? 'Shows' : 'Movies';
+  const badge  = badges[cat.provider] || cat.provider;
+  const detail = cat.listType
+    ? (TRAKT_LIST_NAMES[cat.listType] || cat.listType)
+    : (cat.listUrl ? cat.listUrl.replace(/^https?:\/\//, '').substring(0, 38) + (cat.listUrl.length > 42 ? '...' : '') : '');
+  const div = document.createElement('div');
+  div.className = 'catalog-row';
+  div.id = 'cat-row-' + id;
+  div.draggable = true;
+  div.dataset.provider  = cat.provider  || '';
+  div.dataset.listType  = cat.listType  || '';
+  div.dataset.listUrl   = cat.listUrl   || '';
+  div.dataset.mediaType = cat.mediaType || 'movie';
+  div.dataset.name      = cat.name      || '';
+  div.dataset.apiKey    = cat.apiKey    || '';
+  function mk(tag, cls, text) { const el = document.createElement(tag); el.className = cls; if (text) el.textContent = text; return el; }
+  const handle = mk('span', 'cat-drag-handle'); handle.title = 'Drag to reorder'; handle.textContent = '\u2803';
+  const provBadge = mk('span', 'cat-provider-badge cat-prov-' + (cat.provider || ''), badge);
+  const nameEl  = mk('span', 'cat-name-text',   cat.name || badge);
+  const detailEl = mk('span', 'cat-detail-text', detail);
+  const typeEl  = mk('span', 'cat-type-badge',  typeBadge);
+  const btn = mk('button', 'cat-remove-btn'); btn.title = 'Remove'; btn.textContent = '\u2715';
+  btn.addEventListener('click', function() { removeCatalog(id); });
+  [handle, provBadge, nameEl, detailEl, typeEl, btn].forEach(function(el){ div.appendChild(el); });
+  return div;
+}
+
+function addExternalCatalog(cat) {
+  if (\!cat) {
+    const provider  = document.getElementById('cat-provider').value;
+    if (\!provider) { alert('Select a provider first.'); return; }
+    const listType  = provider === 'trakt' ? document.getElementById('cat-trakt-list').value : '';
+    const listUrl   = provider \!== 'trakt' ? (document.getElementById('cat-list-url').value || '').trim() : '';
+    const mediaType = document.getElementById('cat-media-type').value;
+    const name      = (document.getElementById('cat-name').value || '').trim() || (provider + ' catalog');
+    if (provider \!== 'trakt' && \!listUrl) { alert('Paste the list URL first.'); return; }
+    const apiKey = provider === 'mdblist' ? (document.getElementById('mdblist-api-key') ? document.getElementById('mdblist-api-key').value.trim() : '') : '';
+    cat = { provider, listType, listUrl, mediaType, name, apiKey };
+    document.getElementById('cat-provider').value  = '';
+    document.getElementById('cat-list-url').value  = '';
+    document.getElementById('cat-name').value      = '';
+    document.getElementById('cat-trakt-list').style.display = 'none';
+    document.getElementById('cat-list-url').style.display   = 'none';
+  }
+  if (cat.provider === 'mdblist' && \!cat.apiKey) {
+    const keyEl = document.getElementById('mdblist-api-key');
+    cat.apiKey = keyEl ? keyEl.value.trim() : '';
+  }
+  const id  = nextCatId++;
+  const row = renderCatalogRow(cat, id);
+  document.getElementById('catalog-list').appendChild(row);
+  initDragRow(row);
+  autoSave();
+}
+
+function removeCatalog(id) {
+  const el = document.getElementById('cat-row-' + id);
+  if (el) el.remove();
+  autoSave();
+}
+
+function collectExternalCatalogs() {
+  const cats = [];
+  document.querySelectorAll('.catalog-row').forEach(function(row) {
+    cats.push({ provider: row.dataset.provider||'', listType: row.dataset.listType||'', listUrl: row.dataset.listUrl||'',
+      mediaType: row.dataset.mediaType||'movie', name: row.dataset.name||'', apiKey: row.dataset.apiKey||'', enabled: true });
+  });
+  return cats;
+}
+
+let _dragSrc = null;
+function initDragRow(row) {
+  row.addEventListener('dragstart', function(e) { _dragSrc = row; e.dataTransfer.effectAllowed = 'move'; row.classList.add('dragging'); });
+  row.addEventListener('dragend', function() { row.classList.remove('dragging'); document.querySelectorAll('.catalog-row').forEach(function(r){ r.classList.remove('drag-over'); }); autoSave(); });
+  row.addEventListener('dragover', function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (_dragSrc && _dragSrc \!== row) { document.querySelectorAll('.catalog-row').forEach(function(r){ r.classList.remove('drag-over'); }); row.classList.add('drag-over'); } });
+  row.addEventListener('drop', function(e) { e.preventDefault(); if (_dragSrc && _dragSrc \!== row) { const list = document.getElementById('catalog-list'); const all = Array.from(list.querySelectorAll('.catalog-row')); if (all.indexOf(_dragSrc) < all.indexOf(row)) list.insertBefore(_dragSrc, row.nextSibling); else list.insertBefore(_dragSrc, row); } row.classList.remove('drag-over'); });
+}
+
 
 // ── Request Log ───────────────────────────────────────────────────────────
 function fmtBytes(b) {
@@ -751,7 +865,10 @@ function generateLinks() {
   const subsStyle = document.getElementById('subs-style').value;
   const showCatalog = document.getElementById('show-catalog').checked;
   const catalogContent = document.getElementById('catalog-content').value;
-  const rpdbKey = document.getElementById('rpdb-key').value.trim();
+  const rpdbKey         = document.getElementById('rpdb-key').value.trim();
+  const traktClientId   = document.getElementById('trakt-client-id')?.value.trim() || '';
+  const mdblistApiKey   = document.getElementById('mdblist-api-key')?.value.trim() || '';
+  const externalCatalogs = collectExternalCatalogs();
   const { protocol, host } = window.location;
   const section = document.getElementById('result-section');
 
@@ -781,6 +898,8 @@ function generateLinks() {
       if (!showCatalog) sc.showCatalog = false;
       if (catalogContent !== 'recent') sc.catalogContent = catalogContent;
       if (rpdbKey) sc.rpdbKey = rpdbKey;
+      if (traktClientId) sc.traktClientId = traktClientId;
+      if (externalCatalogs.length) { sc.externalCatalogs = externalCatalogs; if (mdblistApiKey) sc.mdblistApiKey = mdblistApiKey; }
       const encoded = encodeConfig(sc);
       return { label: server.label, manifestUrl: `${protocol}//${host}/${encoded}/manifest.json`, deepLink: `stremio://${host}/${encoded}/manifest.json` };
     });
@@ -816,6 +935,8 @@ function generateLinks() {
     if (!showCatalog) config.showCatalog = false;
     if (catalogContent !== 'recent') config.catalogContent = catalogContent;
     if (rpdbKey) config.rpdbKey = rpdbKey;
+    if (traktClientId) config.traktClientId = traktClientId;
+    if (externalCatalogs.length) { config.externalCatalogs = externalCatalogs; if (mdblistApiKey) config.mdblistApiKey = mdblistApiKey; }
 
     const encoded = encodeConfig(config);
     const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
@@ -941,6 +1062,9 @@ function collectFormState() {
     showCatalog: document.getElementById('show-catalog')?.checked ?? true,
     catalogContent: document.getElementById('catalog-content')?.value || 'recent',
     rpdbKey: document.getElementById('rpdb-key')?.value.trim() || '',
+    traktClientId:    document.getElementById('trakt-client-id')?.value.trim() || '',
+    mdblistApiKey:    document.getElementById('mdblist-api-key')?.value.trim() || '',
+    externalCatalogs: collectExternalCatalogs(),
     servers: [],
   };
   document.querySelectorAll('.server-block').forEach(block => {
@@ -1034,6 +1158,12 @@ function restoreFromLocalStorage() {
     }
     setVal('catalog-content', state.catalogContent);
     setVal('rpdb-key', state.rpdbKey);
+    if (state.traktClientId) setVal('trakt-client-id', state.traktClientId);
+    if (state.mdblistApiKey) setVal('mdblist-api-key', state.mdblistApiKey);
+    if (Array.isArray(state.externalCatalogs) && state.externalCatalogs.length) {
+      const catList = document.getElementById('catalog-list');
+      if (catList) { catList.innerHTML = ''; nextCatId = 0; state.externalCatalogs.forEach(function(cat){ addExternalCatalog(cat); }); }
+    }
 
     if (Array.isArray(state.excludeRes)) {
       document.querySelectorAll('.res-cb').forEach((cb, i) => {

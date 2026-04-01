@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -78,6 +78,7 @@
           <button class="tab-btn active" data-tab="tab-streaming" onclick="switchTab('tab-streaming')">Streaming</button>
           <button class="tab-btn" data-tab="tab-labels" onclick="switchTab('tab-labels')">Labels</button>
           <button class="tab-btn" data-tab="tab-display" onclick="switchTab('tab-display')">Display</button>
+          <button class="tab-btn" data-tab="tab-catalogs" onclick="switchTab('tab-catalogs')">Catalogs</button>
         </div>
 
         <!-- ── Tab: Streaming ── -->
@@ -344,6 +345,57 @@
           </div>
 
         </div><!-- /tab-display -->
+
+        <!-- Tab: Catalogs -->
+        <div class="tab-pane" id="tab-catalogs">
+          <p class="tab-intro">Add external catalog rows to your Stremio home screen. Drag rows to reorder.</p>
+
+          <div class="catalog-api-keys">
+            <div class="appearance-row">
+              <span class="appearance-label">Trakt Client ID</span>
+              <span class="appearance-hint">Free at trakt.tv/oauth/applications â€” required for Trakt catalogs</span>
+              <input type="text" id="trakt-client-id" placeholder="your_trakt_client_id" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
+            </div>
+            <div class="appearance-row" style="margin-top:0.6rem">
+              <span class="appearance-label">MDbList API Key</span>
+              <span class="appearance-hint">Free at mdblist.com/api â€” required for MDbList catalogs</span>
+              <input type="text" id="mdblist-api-key" placeholder="your_mdblist_api_key" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
+            </div>
+          </div>
+
+          <div class="options-divider"></div>
+
+          <div id="catalog-list" class="catalog-list"></div>
+
+          <div class="catalog-add-form">
+            <div class="catalog-add-row">
+              <select id="cat-provider" onchange="onCatalogProviderChange()">
+                <option value="">â€” Provider â€”</option>
+                <option value="trakt">Trakt</option>
+                <option value="mdblist">MDbList</option>
+                <option value="imdb">IMDb List</option>
+                <option value="letterboxd">Letterboxd</option>
+              </select>
+              <select id="cat-trakt-list" class="cat-trakt-field" style="display:none">
+                <option value="trending">Trending</option>
+                <option value="popular">Popular</option>
+                <option value="watched/weekly">Most Watched</option>
+                <option value="anticipated">Anticipated</option>
+              </select>
+              <input type="text" id="cat-list-url" class="cat-url-field" placeholder="Paste list URL..." style="display:none;flex:1;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" oninput="onCatalogUrlInput()" />
+              <select id="cat-media-type">
+                <option value="movie">Movies</option>
+                <option value="series">Shows</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
+            <div class="catalog-add-row" style="margin-top:0.4rem">
+              <input type="text" id="cat-name" placeholder="Display name (auto-filled)" style="flex:1;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" />
+              <button class="btn-add-catalog" onclick="addExternalCatalog()">+ Add</button>
+            </div>
+          </div>
+
+        </div><!-- /tab-catalogs -->
 
       </div><!-- /.panel-body -->
     </div><!-- /#panel-settings -->
