@@ -426,7 +426,7 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
       return res.json({ metas });
     } catch (err) {
       console.error('External catalog error:', err.message);
-      return res.json({ metas: [] });
+      return res.json({ metas: [], _error: err.message });
     }
   }
   try {
@@ -467,7 +467,7 @@ app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
       return res.json({ metas });
     } catch (err) {
       console.error('External catalog error:', err.message);
-      return res.json({ metas: [] });
+      return res.json({ metas: [], _error: err.message });
     }
   }
   try {
