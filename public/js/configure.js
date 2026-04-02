@@ -58,6 +58,110 @@ const TRAKT_LIST_NAMES = {
   'watched/weekly': 'Most Watched', 'anticipated': 'Anticipated',
 };
 
+// -- Streaming Presets --
+const STREAMING_PRESETS = {
+  netflix: { label: "Netflix", color: "#E50914", letter: "N", catalogs: [
+    { name: "Netflix Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/netflix-movies", mediaType: "movie" },
+    { name: "Netflix Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/netflix-shows", mediaType: "series" },
+    { name: "Trending Movies", provider: "trakt", listType: "trending", mediaType: "movie" },
+    { name: "Trending Shows", provider: "trakt", listType: "trending", mediaType: "series" },
+    { name: "Action Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action", mediaType: "movie" },
+    { name: "Comedy Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy", mediaType: "movie" },
+    { name: "Drama Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama", mediaType: "movie" },
+    { name: "Crime Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime", mediaType: "movie" },
+    { name: "Thriller Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller", mediaType: "movie" },
+    { name: "Horror Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror", mediaType: "movie" },
+    { name: "Sci-Fi Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi", mediaType: "movie" },
+    { name: "Drama Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows", mediaType: "series" },
+    { name: "Crime Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows", mediaType: "series" }
+  ] },
+  prime: { label: "Prime Video", color: "#00A8E1", letter: "P", catalogs: [
+    { name: "Prime Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/amazon-prime-movies", mediaType: "movie" },
+    { name: "Prime Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/amazon-prime-shows", mediaType: "series" },
+    { name: "Trending Movies", provider: "trakt", listType: "trending", mediaType: "movie" },
+    { name: "Action Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action", mediaType: "movie" },
+    { name: "Drama Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows", mediaType: "series" },
+    { name: "Crime Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows", mediaType: "series" }
+  ] },
+  disney: { label: "Disney+", color: "#0063E5", letter: "D+", catalogs: [
+    { name: "Disney+ Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/disney-movies", mediaType: "movie" },
+    { name: "Disney+ Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/disney-shows", mediaType: "series" },
+    { name: "Popular Movies", provider: "trakt", listType: "popular", mediaType: "movie" },
+    { name: "Sci-Fi Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi", mediaType: "movie" }
+  ] },
+  hulu: { label: "Hulu", color: "#1CE783", letter: "H", catalogs: [
+    { name: "Hulu Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/hulu-movies", mediaType: "movie" },
+    { name: "Hulu Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/hulu-shows", mediaType: "series" },
+    { name: "Trending Movies", provider: "trakt", listType: "trending", mediaType: "movie" },
+    { name: "Comedy Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy", mediaType: "movie" },
+    { name: "Drama Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows", mediaType: "series" }
+  ] },
+  hbo: { label: "HBO Max", color: "#A855F7", letter: "HBO", catalogs: [
+    { name: "HBO Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/hbo-shows", mediaType: "series" },
+    { name: "Trending Movies", provider: "trakt", listType: "trending", mediaType: "movie" },
+    { name: "Crime Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows", mediaType: "series" },
+    { name: "Drama Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows", mediaType: "series" },
+    { name: "Horror Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror", mediaType: "movie" },
+    { name: "Thriller Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller", mediaType: "movie" }
+  ] },
+  popular: { label: "Popular & Trending", color: "#F59E0B", letter: "\u2605", catalogs: [
+    { name: "Trending Movies", provider: "trakt", listType: "trending", mediaType: "movie" },
+    { name: "Trending Shows", provider: "trakt", listType: "trending", mediaType: "series" },
+    { name: "Popular Movies", provider: "trakt", listType: "popular", mediaType: "movie" },
+    { name: "Most Watched Movies", provider: "trakt", listType: "watched/weekly", mediaType: "movie" },
+    { name: "IMDb Top 250", provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/imdb-toprated-250", mediaType: "movie" },
+    { name: "Best New Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/new-movies", mediaType: "movie" },
+    { name: "Best New Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/best-new-shows", mediaType: "series" },
+    { name: "Top Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/top-movies", mediaType: "movie" },
+    { name: "Latest TV Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/latest-tv-shows", mediaType: "series" }
+  ] }
+};
+
+let _selectedPreset = null;
+function initPresets() {
+  var c2 = document.getElementById("preset-services"); if (!c2) return;
+  Object.keys(STREAMING_PRESETS).forEach(function(k) {
+    var p = STREAMING_PRESETS[k]; var btn = document.createElement("button");
+    btn.className = "preset-service-btn"; btn.dataset.key = k; btn.style.background = p.color;
+    var ls = document.createElement("span"); ls.className = "preset-btn-letter"; ls.textContent = p.letter;
+    var lb = document.createElement("span"); lb.className = "preset-btn-label"; lb.textContent = p.label;
+    btn.appendChild(ls); btn.appendChild(lb);
+    btn.addEventListener("click", function() { selectPreset(k); });
+    c2.appendChild(btn);
+  });
+  document.getElementById("preset-preview").style.display = "none";
+}
+function selectPreset(key) {
+  _selectedPreset = key;
+  var p = STREAMING_PRESETS[key];
+  document.querySelectorAll(".preset-service-btn").forEach(function(b) { b.classList.toggle("active", b.dataset.key === key); });
+  var list = document.getElementById("preset-preview-list"); list.innerHTML = "";
+  p.catalogs.forEach(function(cat) {
+    var row = document.createElement("div"); row.className = "preset-preview-item";
+    var badge = document.createElement("span"); badge.className = "preset-preview-badge preset-badge-" + cat.provider;
+    badge.textContent = cat.provider === "mdblist" ? "MDB" : cat.provider.toUpperCase();
+    var nm = document.createElement("span"); nm.className = "preset-preview-name"; nm.textContent = cat.name;
+    var tp = document.createElement("span"); tp.className = "preset-preview-type"; tp.textContent = cat.mediaType === "series" ? "Shows" : "Movies";
+    row.appendChild(badge); row.appendChild(nm); row.appendChild(tp); list.appendChild(row);
+  });
+  var ab = document.getElementById("btn-apply-preset");
+  ab.textContent = "+ Apply " + p.label + " (" + p.catalogs.length + " rows)";
+  ab.style.background = p.color;
+  document.getElementById("preset-preview").style.display = "block";
+}
+function applyPreset() {
+  if (!_selectedPreset) return;
+  var p = STREAMING_PRESETS[_selectedPreset];
+  var mdbKey = (document.getElementById("mdblist-api-key") || {}).value || "";
+  p.catalogs.forEach(function(cat) {
+    addExternalCatalog({ provider: cat.provider, listType: cat.listType || "", listUrl: cat.listUrl || "",
+      mediaType: cat.mediaType || "movie", name: cat.name, apiKey: cat.provider === "mdblist" ? mdbKey : "", enabled: true });
+  });
+  document.querySelectorAll(".preset-service-btn").forEach(function(b) { b.classList.remove("active"); });
+  document.getElementById("preset-preview").style.display = "none";
+  _selectedPreset = null; autoSave();
+}
+
 function onCatalogProviderChange() {
   const provider = document.getElementById('cat-provider').value;
   const traktFld = document.getElementById('cat-trakt-list');
@@ -1195,6 +1299,7 @@ function restoreFromLocalStorage() {
 
 // ── Init ──────────────────────────────────────────────────────────────────
 if (!restoreFromLocalStorage()) addServer();
+initPresets();
 updateLabelPreview();
 restorePanelStates();
 restoreActiveTab();

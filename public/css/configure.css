@@ -567,3 +567,26 @@ input::placeholder { color: var(--text-muted); }
 .catalog-add-row select { padding: 0.35rem 0.5rem; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 0.78rem; }
 .btn-add-catalog { padding: 0.38rem 0.9rem; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 600; cursor: pointer; flex-shrink: 0; transition: opacity 0.15s; }
 .btn-add-catalog:hover { opacity: 0.85; }
+
+/* -- Streaming Presets -- */
+.preset-section { margin-bottom: 1rem; }
+.preset-header { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 0.75rem; }
+.preset-header strong { color: var(--text-primary); font-size: 0.85rem; }
+.preset-hint { color: var(--text-muted); font-size: 0.75rem; }
+.preset-services { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+.preset-service-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 90px; height: 68px; border: 2px solid transparent; border-radius: 10px; cursor: pointer; padding: 0.4rem; gap: 0.2rem; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s; font-family: inherit; }
+.preset-service-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+.preset-service-btn.active { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,0.25); transform: translateY(-2px); }
+.preset-btn-letter { font-size: 1.1rem; font-weight: 800; color: #fff; line-height: 1; }
+.preset-btn-label { font-size: 0.6rem; color: rgba(255,255,255,0.88); font-weight: 600; text-align: center; line-height: 1.2; }
+.preset-preview { display: none; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.75rem; margin-bottom: 0.75rem; }
+.preset-preview-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.3rem; margin-bottom: 0.6rem; }
+.preset-preview-item { display: flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.4rem; background: rgba(255,255,255,0.04); border-radius: 4px; }
+.preset-preview-badge { font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.35rem; border-radius: 3px; color: #fff; white-space: nowrap; }
+.preset-badge-trakt   { background: #ed2224; }
+.preset-badge-mdblist { background: #0d6efd; }
+.preset-badge-imdb    { background: #f5c518; color: #000; }
+.preset-preview-name { font-size: 0.75rem; color: var(--text-primary); flex: 1; }
+.preset-preview-type { font-size: 0.65rem; color: var(--text-muted); white-space: nowrap; }
+.btn-apply-preset { width: 100%; padding: 0.5rem; border: none; border-radius: var(--radius-sm); color: #fff; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: filter 0.15s; font-family: inherit; }
+.btn-apply-preset:hover { filter: brightness(1.15); }
