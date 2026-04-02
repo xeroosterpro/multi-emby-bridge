@@ -1086,7 +1086,14 @@ function collectFormState() {
 }
 
 function saveToLocalStorage() {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(collectFormState())); } catch {}
+  try {
+    const newState = collectFormState();
+    // Preserve traktClientId/mdblistApiKey if input is currently empty but we have a saved value
+    const existing = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    if (!newState.traktClientId && existing.traktClientId) newState.traktClientId = existing.traktClientId;
+    if (!newState.mdblistApiKey && existing.mdblistApiKey) newState.mdblistApiKey = existing.mdblistApiKey;
+    localStorage.setItem(LS_KEY, JSON.stringify(newState));
+  } catch {}
   const ind = document.getElementById('autosave-indicator');
   if (ind) { ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(() => ind.classList.remove('visible'), 1800); }
 }
@@ -1101,6 +1108,17 @@ function restoreFromLocalStorage() {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return false;
     const state = JSON.parse(raw);
+    // Fallback: recover traktClientId/mdblistApiKey/externalCatalogs from last generated config if missing
+    try {
+      const lastRaw = localStorage.getItem('meb-last-config');
+      if (lastRaw) {
+        const last = JSON.parse(atob(lastRaw.replace(/-/g,'+').replace(/_/g,'/')));
+        if (!state.traktClientId && last.traktClientId) state.traktClientId = last.traktClientId;
+        if (!state.mdblistApiKey && last.mdblistApiKey) state.mdblistApiKey = last.mdblistApiKey;
+        if ((!state.externalCatalogs || !state.externalCatalogs.length) && last.externalCatalogs && last.externalCatalogs.length)
+          state.externalCatalogs = last.externalCatalogs;
+      }
+    } catch(e) {}
 
     if (state.servers && state.servers.length > 0) {
       document.getElementById('servers-container').innerHTML = '';
