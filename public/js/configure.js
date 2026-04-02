@@ -180,24 +180,38 @@ function selectPreset(key) {
   var p = STREAMING_PRESETS[key];
   document.querySelectorAll(".preset-service-btn").forEach(function(b) { b.classList.toggle("active", b.dataset.key === key); });
   var list = document.getElementById("preset-preview-list"); list.innerHTML = "";
-  p.catalogs.forEach(function(cat) {
-    var row = document.createElement("div"); row.className = "preset-preview-item";
+  p.catalogs.forEach(function(cat, idx) {
+    var row = document.createElement("label"); row.className = "preset-preview-item";
+    var cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = true;
+    cb.className = "preset-cb"; cb.dataset.idx = idx;
+    cb.addEventListener("change", function() { updatePresetCount(); });
     var badge = document.createElement("span"); badge.className = "preset-preview-badge preset-badge-" + cat.provider;
     badge.textContent = cat.provider === "mdblist" ? "MDB" : cat.provider.toUpperCase();
     var nm = document.createElement("span"); nm.className = "preset-preview-name"; nm.textContent = cat.name;
     var tp = document.createElement("span"); tp.className = "preset-preview-type"; tp.textContent = cat.mediaType === "series" ? "Shows" : "Movies";
-    row.appendChild(badge); row.appendChild(nm); row.appendChild(tp); list.appendChild(row);
+    row.appendChild(cb); row.appendChild(badge); row.appendChild(nm); row.appendChild(tp); list.appendChild(row);
   });
-  var ab = document.getElementById("btn-apply-preset");
-  ab.textContent = "+ Apply " + p.label + " (" + p.catalogs.length + " rows)";
-  ab.style.background = p.color;
+  updatePresetCount();
   document.getElementById("preset-preview").style.display = "block";
+}
+function updatePresetCount() {
+  if (!_selectedPreset) return;
+  var p = STREAMING_PRESETS[_selectedPreset];
+  var checked = document.querySelectorAll(".preset-cb:checked").length;
+  var ab = document.getElementById("btn-apply-preset");
+  ab.textContent = "+ Apply " + p.label + " (" + checked + "/" + p.catalogs.length + " rows)";
+  ab.style.background = p.color;
+  ab.disabled = checked === 0;
 }
 function applyPreset() {
   if (!_selectedPreset) return;
   var p = STREAMING_PRESETS[_selectedPreset];
   var mdbKey = (document.getElementById("mdblist-api-key") || {}).value || "";
-  p.catalogs.forEach(function(cat) {
+  var cbs = document.querySelectorAll(".preset-cb");
+  cbs.forEach(function(cb) {
+    if (!cb.checked) return;
+    var cat = p.catalogs[parseInt(cb.dataset.idx, 10)];
+    if (!cat) return;
     addExternalCatalog({ provider: cat.provider, listType: cat.listType || "", listUrl: cat.listUrl || "",
       mediaType: cat.mediaType || "movie", name: cat.name, apiKey: cat.provider === "mdblist" ? mdbKey : "", enabled: true });
   });

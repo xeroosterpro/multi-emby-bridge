@@ -590,3 +590,9 @@ input::placeholder { color: var(--text-muted); }
 .preset-preview-type { font-size: 0.65rem; color: var(--text-muted); white-space: nowrap; }
 .btn-apply-preset { width: 100%; padding: 0.5rem; border: none; border-radius: var(--radius-sm); color: #fff; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: filter 0.15s; font-family: inherit; }
 .btn-apply-preset:hover { filter: brightness(1.15); }
+
+/* Preset checkboxes */
+.preset-cb { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; margin: 0; }
+.preset-preview-item { cursor: pointer; user-select: none; }
+.preset-preview-item:has(.preset-cb:not(:checked)) { opacity: 0.4; }
+.btn-apply-preset:disabled { opacity: 0.4; cursor: not-allowed; }
