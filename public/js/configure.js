@@ -78,7 +78,7 @@ function onCatalogUrlInput() {
   const url = (document.getElementById('cat-list-url').value || '').trim();
   const nameFld = document.getElementById('cat-name');
   const autos = ['Trakt', 'MDbList', 'IMDb', 'Letterboxd'];
-  if (\!nameFld.value || autos.some(function(a){ return nameFld.value.startsWith(a); })) {
+  if (!nameFld.value || autos.some(function(a){ return nameFld.value.startsWith(a); })) {
     const m = url.match(/\/([^/?#]+)\/?(?:[?#].*)?$/);
     if (m) nameFld.value = decodeURIComponent(m[1]).replace(/-/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
   }
@@ -114,14 +114,14 @@ function renderCatalogRow(cat, id) {
 }
 
 function addExternalCatalog(cat) {
-  if (\!cat) {
+  if (!cat) {
     const provider  = document.getElementById('cat-provider').value;
-    if (\!provider) { alert('Select a provider first.'); return; }
+    if (!provider) { alert('Select a provider first.'); return; }
     const listType  = provider === 'trakt' ? document.getElementById('cat-trakt-list').value : '';
-    const listUrl   = provider \!== 'trakt' ? (document.getElementById('cat-list-url').value || '').trim() : '';
+    const listUrl   = provider !== 'trakt' ? (document.getElementById('cat-list-url').value || '').trim() : '';
     const mediaType = document.getElementById('cat-media-type').value;
     const name      = (document.getElementById('cat-name').value || '').trim() || (provider + ' catalog');
-    if (provider \!== 'trakt' && \!listUrl) { alert('Paste the list URL first.'); return; }
+    if (provider !== 'trakt' && !listUrl) { alert('Paste the list URL first.'); return; }
     const apiKey = provider === 'mdblist' ? (document.getElementById('mdblist-api-key') ? document.getElementById('mdblist-api-key').value.trim() : '') : '';
     cat = { provider, listType, listUrl, mediaType, name, apiKey };
     document.getElementById('cat-provider').value  = '';
@@ -130,7 +130,7 @@ function addExternalCatalog(cat) {
     document.getElementById('cat-trakt-list').style.display = 'none';
     document.getElementById('cat-list-url').style.display   = 'none';
   }
-  if (cat.provider === 'mdblist' && \!cat.apiKey) {
+  if (cat.provider === 'mdblist' && !cat.apiKey) {
     const keyEl = document.getElementById('mdblist-api-key');
     cat.apiKey = keyEl ? keyEl.value.trim() : '';
   }
@@ -160,8 +160,8 @@ let _dragSrc = null;
 function initDragRow(row) {
   row.addEventListener('dragstart', function(e) { _dragSrc = row; e.dataTransfer.effectAllowed = 'move'; row.classList.add('dragging'); });
   row.addEventListener('dragend', function() { row.classList.remove('dragging'); document.querySelectorAll('.catalog-row').forEach(function(r){ r.classList.remove('drag-over'); }); autoSave(); });
-  row.addEventListener('dragover', function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (_dragSrc && _dragSrc \!== row) { document.querySelectorAll('.catalog-row').forEach(function(r){ r.classList.remove('drag-over'); }); row.classList.add('drag-over'); } });
-  row.addEventListener('drop', function(e) { e.preventDefault(); if (_dragSrc && _dragSrc \!== row) { const list = document.getElementById('catalog-list'); const all = Array.from(list.querySelectorAll('.catalog-row')); if (all.indexOf(_dragSrc) < all.indexOf(row)) list.insertBefore(_dragSrc, row.nextSibling); else list.insertBefore(_dragSrc, row); } row.classList.remove('drag-over'); });
+  row.addEventListener('dragover', function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (_dragSrc && _dragSrc !== row) { document.querySelectorAll('.catalog-row').forEach(function(r){ r.classList.remove('drag-over'); }); row.classList.add('drag-over'); } });
+  row.addEventListener('drop', function(e) { e.preventDefault(); if (_dragSrc && _dragSrc !== row) { const list = document.getElementById('catalog-list'); const all = Array.from(list.querySelectorAll('.catalog-row')); if (all.indexOf(_dragSrc) < all.indexOf(row)) list.insertBefore(_dragSrc, row.nextSibling); else list.insertBefore(_dragSrc, row); } row.classList.remove('drag-over'); });
 }
 
 
