@@ -73,36 +73,80 @@ const STREAMING_PRESETS = {
     { name: "Horror Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror", mediaType: "movie" },
     { name: "Sci-Fi Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi", mediaType: "movie" },
     { name: "Drama Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows", mediaType: "series" },
+    { name: "Comedy Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows", mediaType: "series" },
     { name: "Crime Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows", mediaType: "series" }
   ] },
   prime: { label: "Prime Video", color: "#00A8E1", letter: "P", catalogs: [
     { name: "Prime Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/amazon-prime-movies", mediaType: "movie" },
     { name: "Prime Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/amazon-prime-shows", mediaType: "series" },
     { name: "Trending Movies", provider: "trakt", listType: "trending", mediaType: "movie" },
+    { name: "Trending Shows", provider: "trakt", listType: "trending", mediaType: "series" },
     { name: "Action Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action", mediaType: "movie" },
+    { name: "Thriller Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller", mediaType: "movie" },
+    { name: "Comedy Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy", mediaType: "movie" },
+    { name: "Sci-Fi Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi", mediaType: "movie" },
     { name: "Drama Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows", mediaType: "series" },
-    { name: "Crime Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows", mediaType: "series" }
+    { name: "Crime Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows", mediaType: "series" },
+    { name: "Comedy Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows", mediaType: "series" },
+    { name: "Sci-Fi Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows", mediaType: "series" }
   ] },
   disney: { label: "Disney+", color: "#0063E5", letter: "D+", catalogs: [
     { name: "Disney+ Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/disney-movies", mediaType: "movie" },
     { name: "Disney+ Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/disney-shows", mediaType: "series" },
+    { name: "Family Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/family", mediaType: "movie" },
+    { name: "Pixar Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/pixar-movies", mediaType: "movie" },
     { name: "Popular Movies", provider: "trakt", listType: "popular", mediaType: "movie" },
-    { name: "Sci-Fi Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi", mediaType: "movie" }
+    { name: "Sci-Fi Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi", mediaType: "movie" },
+    { name: "Comedy Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy", mediaType: "movie" },
+    { name: "Action Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action", mediaType: "movie" }
   ] },
   hulu: { label: "Hulu", color: "#1CE783", letter: "H", catalogs: [
     { name: "Hulu Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/hulu-movies", mediaType: "movie" },
     { name: "Hulu Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/hulu-shows", mediaType: "series" },
     { name: "Trending Movies", provider: "trakt", listType: "trending", mediaType: "movie" },
+    { name: "Trending Shows", provider: "trakt", listType: "trending", mediaType: "series" },
     { name: "Comedy Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy", mediaType: "movie" },
-    { name: "Drama Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows", mediaType: "series" }
+    { name: "Drama Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama", mediaType: "movie" },
+    { name: "Horror Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror", mediaType: "movie" },
+    { name: "Thriller Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller", mediaType: "movie" },
+    { name: "Drama Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows", mediaType: "series" },
+    { name: "Comedy Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows", mediaType: "series" },
+    { name: "Sci-Fi Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows", mediaType: "series" }
   ] },
-  hbo: { label: "HBO Max", color: "#A855F7", letter: "HBO", catalogs: [
+  max: { label: "Max", color: "#002BE7", letter: "M", catalogs: [
     { name: "HBO Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/hbo-shows", mediaType: "series" },
     { name: "Trending Movies", provider: "trakt", listType: "trending", mediaType: "movie" },
-    { name: "Crime Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows", mediaType: "series" },
-    { name: "Drama Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows", mediaType: "series" },
+    { name: "Popular Movies", provider: "trakt", listType: "popular", mediaType: "movie" },
+    { name: "Drama Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama", mediaType: "movie" },
+    { name: "Crime Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime", mediaType: "movie" },
+    { name: "Thriller Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller", mediaType: "movie" },
     { name: "Horror Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror", mediaType: "movie" },
-    { name: "Thriller Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller", mediaType: "movie" }
+    { name: "Sci-Fi Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi", mediaType: "movie" },
+    { name: "Drama Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows", mediaType: "series" },
+    { name: "Crime Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows", mediaType: "series" },
+    { name: "Sci-Fi Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows", mediaType: "series" }
+  ] },
+  apple: { label: "Apple TV+", color: "#555555", letter: "", catalogs: [
+    { name: "Trending Movies", provider: "trakt", listType: "trending", mediaType: "movie" },
+    { name: "Trending Shows", provider: "trakt", listType: "trending", mediaType: "series" },
+    { name: "Popular Movies", provider: "trakt", listType: "popular", mediaType: "movie" },
+    { name: "Best New Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/new-movies", mediaType: "movie" },
+    { name: "Best New Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/best-new-shows", mediaType: "series" },
+    { name: "Drama Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama", mediaType: "movie" },
+    { name: "Thriller Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller", mediaType: "movie" },
+    { name: "Sci-Fi Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi", mediaType: "movie" },
+    { name: "Drama Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows", mediaType: "series" },
+    { name: "Comedy Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows", mediaType: "series" }
+  ] },
+  kids: { label: "Kids & Family", color: "#FF6B9D", letter: "\u2764", catalogs: [
+    { name: "Family Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/family", mediaType: "movie" },
+    { name: "Kids TV Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/kids-tv-shows", mediaType: "series" },
+    { name: "Disney+ Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/disney-movies", mediaType: "movie" },
+    { name: "Disney+ Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/disney-shows", mediaType: "series" },
+    { name: "Pixar Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/pixar-movies", mediaType: "movie" },
+    { name: "Top Kids Movies This Week", provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/top-watched-movies-of-the-week-for-kids", mediaType: "movie" },
+    { name: "Comedy Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy", mediaType: "movie" },
+    { name: "Comedy Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows", mediaType: "series" }
   ] },
   popular: { label: "Popular & Trending", color: "#F59E0B", letter: "\u2605", catalogs: [
     { name: "Trending Movies", provider: "trakt", listType: "trending", mediaType: "movie" },
