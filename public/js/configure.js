@@ -393,14 +393,14 @@ async function browseMdblistUser() {
   var username = (document.getElementById("mdblist-browse-user") || {}).value.trim();
   var apiKey = (document.getElementById("mdblist-api-key") || {}).value.trim();
   var resultsEl = document.getElementById("mdblist-browse-results");
-  if (!username) { resultsEl.innerHTML = "<div style="color:var(--error);font-size:0.78rem">Enter a username.</div>"; return; }
-  if (!apiKey) { resultsEl.innerHTML = "<div style="color:var(--error);font-size:0.78rem">Enter your MDbList API key above first.</div>"; return; }
-  resultsEl.innerHTML = "<div style="color:var(--text-muted);font-size:0.78rem">Loading lists...</div>";
+  if (!username) { resultsEl.innerHTML = "<div style='color:var(--error);font-size:0.78rem'>Enter a username.</div>"; return; }
+  if (!apiKey) { resultsEl.innerHTML = "<div style='color:var(--error);font-size:0.78rem'>Enter your MDbList API key above first.</div>"; return; }
+  resultsEl.innerHTML = "<div style='color:var(--text-muted);font-size:0.78rem'>Loading lists...</div>";
   try {
     var resp = await fetch("https://api.mdblist.com/lists/user/" + encodeURIComponent(username) + "/?apikey=" + encodeURIComponent(apiKey));
     if (!resp.ok) throw new Error("API returned " + resp.status);
     var lists = await resp.json();
-    if (!Array.isArray(lists) || !lists.length) { resultsEl.innerHTML = "<div style="color:var(--text-muted);font-size:0.78rem">No public lists found for this user.</div>"; return; }
+    if (!Array.isArray(lists) || !lists.length) { resultsEl.innerHTML = "<div style='color:var(--text-muted);font-size:0.78rem'>No public lists found for this user.</div>"; return; }
     var h = "<div class="mdblist-browse-grid">";
     lists.forEach(function(l, i) {
       h += "<label class="mdblist-browse-item"><input type="checkbox" class="mdblist-browse-cb" data-idx="" + i + "" />"
@@ -414,7 +414,7 @@ async function browseMdblistUser() {
     resultsEl._lists = lists;
     resultsEl._username = username;
   } catch (err) {
-    resultsEl.innerHTML = "<div style="color:var(--error);font-size:0.78rem">" + escHtml(err.message) + "</div>";
+    resultsEl.innerHTML = "<div style='color:var(--error);font-size:0.78rem'>" + escHtml(err.message) + "</div>";
   }
 }
 
@@ -446,10 +446,10 @@ async function browseTraktUser() {
   var input = (document.getElementById("trakt-browse-user") || {}).value.trim();
   var clientId = (document.getElementById("trakt-client-id") || {}).value.trim();
   var resultsEl = document.getElementById("trakt-browse-results");
-  if (!clientId) { resultsEl.innerHTML = "<div style="color:var(--error);font-size:0.78rem">Enter your Trakt Client ID above first.</div>"; return; }
+  if (!clientId) { resultsEl.innerHTML = "<div style='color:var(--error);font-size:0.78rem'>Enter your Trakt Client ID above first.</div>"; return; }
   var username = input.replace(/^https?:\/\/trakt\.tv\/users\//, "").replace(/\/.*$/, "").trim();
-  if (!username) { resultsEl.innerHTML = "<div style="color:var(--error);font-size:0.78rem">Enter a Trakt username or profile URL.</div>"; return; }
-  resultsEl.innerHTML = "<div style="color:var(--text-muted);font-size:0.78rem">Loading lists...</div>";
+  if (!username) { resultsEl.innerHTML = "<div style='color:var(--error);font-size:0.78rem'>Enter a Trakt username or profile URL.</div>"; return; }
+  resultsEl.innerHTML = "<div style='color:var(--text-muted);font-size:0.78rem'>Loading lists...</div>";
   try {
     var resp = await fetch("https://api.trakt.tv/users/" + encodeURIComponent(username) + "/lists", {
       headers: { "Content-Type": "application/json", "trakt-api-version": "2", "trakt-api-key": clientId }
@@ -470,7 +470,7 @@ async function browseTraktUser() {
     resultsEl._lists = allLists;
     resultsEl._username = username;
   } catch (err) {
-    resultsEl.innerHTML = "<div style="color:var(--error);font-size:0.78rem">" + escHtml(err.message) + "</div>";
+    resultsEl.innerHTML = "<div style='color:var(--error);font-size:0.78rem'>" + escHtml(err.message) + "</div>";
   }
 }
 
