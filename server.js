@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
 const crypto = require('crypto');
@@ -422,7 +422,7 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
     const entry = extList[idx];
     if (!entry) return res.json({ metas: [] });
     try {
-      const metas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null);
+      const metas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null);
       return res.json({ metas });
     } catch (err) {
       console.error('External catalog error:', err.message);
@@ -436,7 +436,7 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
       res.json({ metas });
     } else {
       // Browse catalog (home page row)
-      const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, cfg.catalogContent || 'recent');
+      const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, cfg.catalogContent || 'recent', cfg.catalogLang || null);
       res.json({ metas });
     }
   } catch (err) {
@@ -463,7 +463,7 @@ app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
     const entry = extList[idx];
     if (!entry) return res.json({ metas: [] });
     try {
-      const metas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null);
+      const metas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null);
       return res.json({ metas });
     } catch (err) {
       console.error('External catalog error:', err.message);
@@ -471,7 +471,7 @@ app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
     }
   }
   try {
-    const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, cfg.catalogContent || 'recent');
+    const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, cfg.catalogContent || 'recent', cfg.catalogLang || null);
     res.json({ metas });
   } catch (err) {
     console.error('Catalog browse error:', err.message);
@@ -522,6 +522,8 @@ app.get('/:config/stream/:type/:id.json', streamLimiter, async (req, res) => {
       flagEmoji:    cfg.flagEmoji    === true ? 'flag'   : (cfg.flagEmoji    || null),
       bitrateBar:   cfg.bitrateBar   === true ? 'blocks' : (cfg.bitrateBar   || null),
       subsStyle:    cfg.hideSubs     === true ? 'hidden' : (cfg.subsStyle    || 'full'),
+      customNameFields: cfg.customNameFields || [],
+      customDescFields: cfg.customDescFields || [],
     });
 
     // ── Results summary card (optional — pinned to top of stream list) ──────────

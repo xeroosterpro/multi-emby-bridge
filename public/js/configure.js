@@ -325,6 +325,29 @@ function renderCatalogRow(cat, id) {
   return div;
 }
 
+function applyAllNetworks() {
+  var NETWORK_KEYS = ["netflix", "prime", "disney", "hulu", "max", "apple"];
+  var seen = new Set();
+  var catList = document.getElementById("catalog-list");
+  if (catList) {
+    catList.querySelectorAll("[data-list-url]").forEach(function(row) {
+      seen.add(row.dataset.listUrl || "");
+    });
+  }
+  NETWORK_KEYS.forEach(function(key) {
+    var p = STREAMING_PRESETS[key]; if (!p) return;
+    var added = 0;
+    for (var ci = 0; ci < p.catalogs.length && added < 2; ci++) {
+      var cat = p.catalogs[ci];
+      var uid = cat.listUrl || ("trakt:" + (cat.listType || ""));
+      if (seen.has(uid)) continue;
+      seen.add(uid);
+      addExternalCatalog(cat);
+      added++;
+    }
+  });
+}
+
 function addExternalCatalog(cat) {
   if (!cat) {
     const provider  = document.getElementById('cat-provider').value;
@@ -1072,6 +1095,7 @@ function updateLabelPreview() {
     detailed: { name: 'Server · 4K · DV', desc: 'HEVC 10bit · REMUX\nENG TrueHD 7.1 · FRE DD+ 5.1\nSubs: EN · FR · ES\n3840x2160 · 85.2Mbps · 58.32 GB' },
     cinema:   { name: 'Server · 4K · DV · REMUX', desc: 'HEVC 10bit\nTrueHD 7.1\nSubs: EN · FR · ES\n58.32 GB' },
     minimal:  { name: 'Server · 4K', desc: '58.32 GB' },
+    custom:   { name: 'Server Â· custom fields', desc: 'fields selected in Custom section below' },
   };
   const p = previews[preset] || previews.standard;
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1087,6 +1111,12 @@ function updateLabelPreview() {
       </div>
     </div>`;
   autoSave();
+}
+
+function toggleCustomPreset() {
+  var preset = document.getElementById("label-preset").value;
+  var panel = document.getElementById("custom-preset-panel");
+  if (panel) panel.style.display = preset === "custom" ? "block" : "none";
 }
 
 // ── Summary preview — trimmed to 4 styles ────────────────────────────────
@@ -1233,6 +1263,12 @@ function generateLinks() {
       if (rpdbKey) sc.rpdbKey = rpdbKey;
       if (traktClientId) sc.traktClientId = traktClientId;
       if (externalCatalogs.length) { sc.externalCatalogs = externalCatalogs; if (mdblistApiKey) sc.mdblistApiKey = mdblistApiKey; }
+      var _clVal = document.getElementById("catalog-lang") ? document.getElementById("catalog-lang").value : "";
+      if (_clVal) sc.catalogLang = _clVal;
+      if (labelPreset === "custom") {
+        sc.customNameFields = Array.from(document.querySelectorAll(".cn-field:checked")).map(function(cb){return cb.value;});
+        sc.customDescFields = Array.from(document.querySelectorAll(".cd-field:checked")).map(function(cb){return cb.value;});
+      }
       const encoded = encodeConfig(sc);
       return { label: server.label, manifestUrl: `${protocol}//${host}/${encoded}/manifest.json`, deepLink: `stremio://${host}/${encoded}/manifest.json` };
     });
@@ -1270,6 +1306,12 @@ function generateLinks() {
     if (rpdbKey) config.rpdbKey = rpdbKey;
     if (traktClientId) config.traktClientId = traktClientId;
     if (externalCatalogs.length) { config.externalCatalogs = externalCatalogs; if (mdblistApiKey) config.mdblistApiKey = mdblistApiKey; }
+    var _clVal = document.getElementById("catalog-lang") ? document.getElementById("catalog-lang").value : "";
+    if (_clVal) config.catalogLang = _clVal;
+    if (labelPreset === "custom") {
+      config.customNameFields = Array.from(document.querySelectorAll(".cn-field:checked")).map(function(cb){return cb.value;});
+      config.customDescFields = Array.from(document.querySelectorAll(".cd-field:checked")).map(function(cb){return cb.value;});
+    }
 
     const encoded = encodeConfig(config);
     const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
@@ -1398,6 +1440,9 @@ function collectFormState() {
     traktClientId:    document.getElementById('trakt-client-id')?.value.trim() || '',
     mdblistApiKey:    document.getElementById('mdblist-api-key')?.value.trim() || '',
     externalCatalogs: collectExternalCatalogs(),
+    catalogLang: document.getElementById("catalog-lang") ? document.getElementById("catalog-lang").value : "",
+    customNameFields: Array.from(document.querySelectorAll(".cn-field:checked")).map(function(cb){return cb.value;}),
+    customDescFields: Array.from(document.querySelectorAll(".cd-field:checked")).map(function(cb){return cb.value;}),
     servers: [],
   };
   document.querySelectorAll('.server-block').forEach(block => {
@@ -1516,6 +1561,14 @@ function restoreFromLocalStorage() {
       if (catList) { catList.innerHTML = ''; nextCatId = 0; state.externalCatalogs.forEach(function(cat){ addExternalCatalog(cat); }); }
     }
 
+    if (state.catalogLang) setVal("catalog-lang", state.catalogLang);
+    if (Array.isArray(state.customNameFields) && state.customNameFields.length) {
+      document.querySelectorAll(".cn-field").forEach(function(cb){ cb.checked = state.customNameFields.indexOf(cb.value) >= 0; });
+    }
+    if (Array.isArray(state.customDescFields) && state.customDescFields.length) {
+      document.querySelectorAll(".cd-field").forEach(function(cb){ cb.checked = state.customDescFields.indexOf(cb.value) >= 0; });
+    }
+    toggleCustomPreset();
     if (Array.isArray(state.excludeRes)) {
       document.querySelectorAll('.res-cb').forEach((cb, i) => {
         if (i < state.excludeRes.length) cb.checked = state.excludeRes[i];
@@ -1530,6 +1583,7 @@ function restoreFromLocalStorage() {
 if (!restoreFromLocalStorage()) addServer();
 initPresets();
 updateLabelPreview();
+toggleCustomPreset();
 restorePanelStates();
 restoreActiveTab();
 onShowPingChange();

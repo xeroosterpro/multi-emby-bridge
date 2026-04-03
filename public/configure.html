@@ -10,7 +10,7 @@
 
   <div class="container" id="main-container">
 
-    <!-- ── Header ── -->
+    <!-- -- Header -- -->
     <header class="site-header">
       <h1>Multi-Emby Bridge <span class="version-tag">v1.0</span></h1>
       <p>Aggregate streams from Emby &amp; Jellyfin servers into Stremio</p>
@@ -23,14 +23,14 @@
       </div>
     </header>
 
-    <!-- ── Profile ── -->
+    <!-- -- Profile -- -->
     <div class="panel collapsed" id="panel-profile">
       <div class="panel-header" onclick="togglePanel('panel-profile')">
         <div class="panel-header-left">
           <span class="panel-title">Saved Profile</span>
           <span class="panel-subtitle">save &amp; restore your config</span>
         </div>
-        <span class="panel-chevron">▼</span>
+        <span class="panel-chevron">?</span>
       </div>
       <div class="panel-body">
         <div class="profile-row">
@@ -54,7 +54,7 @@
       </div>
     </div>
 
-    <!-- ── Servers ── -->
+    <!-- -- Servers -- -->
     <div class="section-label">Servers</div>
 
     <div class="servers-toolbar">
@@ -65,13 +65,13 @@
     <div id="servers-container"></div>
     <button class="btn-add" id="btn-add" onclick="addServer()">+ Add Server</button>
 
-    <!-- ── Settings (tabbed) ── -->
+    <!-- -- Settings (tabbed) -- -->
     <div class="panel options-panel" id="panel-settings">
       <div class="panel-header" onclick="togglePanel('panel-settings')">
         <div class="panel-header-left">
           <span class="panel-title">Settings</span>
         </div>
-        <span class="panel-chevron">▼</span>
+        <span class="panel-chevron">?</span>
       </div>
       <div class="panel-body">
         <div class="tab-bar">
@@ -81,7 +81,7 @@
           <button class="tab-btn" data-tab="tab-catalogs" onclick="switchTab('tab-catalogs')">Catalogs</button>
         </div>
 
-        <!-- ── Tab: Streaming ── -->
+        <!-- -- Tab: Streaming -- -->
         <div class="tab-pane active" id="tab-streaming">
           <label class="option-item">
             <input type="radio" name="perf-mode" value="normal" checked onchange="onModeChange()" />
@@ -225,7 +225,7 @@
           </label>
         </div><!-- /tab-streaming -->
 
-        <!-- ── Tab: Labels ── -->
+        <!-- -- Tab: Labels -- -->
         <div class="tab-pane" id="tab-labels">
           <div class="sort-row" style="flex-direction:column;align-items:stretch;gap:0.3rem">
             <span class="sort-row-label" style="font-weight:600">Stream label format</span>
@@ -235,12 +235,35 @@
               <option value="detailed">Detailed — HDR in name, multi-audio + subs in desc</option>
               <option value="cinema">Cinema — res + HDR + source in name</option>
               <option value="minimal">Minimal — res only, size in desc</option>
+              <option value="custom">Custom - define your own format</option>
             </select>
           </div>
           <div id="label-preview" style="margin:0.5rem 0 0;padding:0.5rem 0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)"></div>
+          <div id="custom-preset-panel" style="display:none;margin-top:0.5rem;padding:0.65rem;background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius-sm)">
+            <div style="font-size:0.68rem;font-weight:700;color:var(--text-muted);margin-bottom:0.45rem">Name includes (server always first)</div>
+            <div class="custom-fields-grid">
+              <label class="custom-field-check"><input type="checkbox" class="cn-field" value="res" checked onchange="autoSave()" /> Resolution</label>
+              <label class="custom-field-check"><input type="checkbox" class="cn-field" value="hdr" checked onchange="autoSave()" /> HDR</label>
+              <label class="custom-field-check"><input type="checkbox" class="cn-field" value="codec" onchange="autoSave()" /> Codec</label>
+              <label class="custom-field-check"><input type="checkbox" class="cn-field" value="source" onchange="autoSave()" /> Source</label>
+              <label class="custom-field-check"><input type="checkbox" class="cn-field" value="audio" onchange="autoSave()" /> Audio</label>
+              <label class="custom-field-check"><input type="checkbox" class="cn-field" value="bitrate" onchange="autoSave()" /> Bitrate</label>
+            </div>
+            <div style="font-size:0.68rem;font-weight:700;color:var(--text-muted);margin:0.65rem 0 0.45rem">Description includes</div>
+            <div class="custom-fields-grid">
+              <label class="custom-field-check"><input type="checkbox" class="cd-field" value="codec" checked onchange="autoSave()" /> Codec</label>
+              <label class="custom-field-check"><input type="checkbox" class="cd-field" value="source" checked onchange="autoSave()" /> Source</label>
+              <label class="custom-field-check"><input type="checkbox" class="cd-field" value="audio" checked onchange="autoSave()" /> Audio</label>
+              <label class="custom-field-check"><input type="checkbox" class="cd-field" value="allAudio" onchange="autoSave()" /> All tracks</label>
+              <label class="custom-field-check"><input type="checkbox" class="cd-field" value="bitrate" checked onchange="autoSave()" /> Bitrate</label>
+              <label class="custom-field-check"><input type="checkbox" class="cd-field" value="size" checked onchange="autoSave()" /> File size</label>
+              <label class="custom-field-check"><input type="checkbox" class="cd-field" value="subs" onchange="autoSave()" /> Subtitles</label>
+              <label class="custom-field-check"><input type="checkbox" class="cd-field" value="dims" onchange="autoSave()" /> Dimensions</label>
+            </div>
+          </div>
         </div><!-- /tab-labels -->
 
-        <!-- ── Tab: Display ── -->
+        <!-- -- Tab: Display -- -->
         <div class="tab-pane" id="tab-display">
           <label class="option-item">
             <input type="checkbox" id="show-summary" onchange="toggleSummaryStyle()" />
@@ -360,6 +383,20 @@
               <span class="appearance-label">MDbList API Key</span>
               <span class="appearance-hint">Free at mdblist.com/api â€” required for MDbList catalogs</span>
               <input type="text" id="mdblist-api-key" placeholder="your_mdblist_api_key" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
+            <div class="appearance-row" style="margin-top:0.6rem">
+              <span class="appearance-label">Language filter</span>
+              <span class="appearance-hint">Hide non-matching content from all catalog rows</span>
+              <select id="catalog-lang" onchange="autoSave()">
+                <option value="">Off - show everything</option>
+                <option value="en">English only</option>
+                <option value="es">Spanish only</option>
+                <option value="fr">French only</option>
+                <option value="de">German only</option>
+                <option value="ja">Japanese only</option>
+                <option value="ko">Korean only</option>
+                <option value="pt">Portuguese only</option>
+              </select>
+            </div>
             </div>
           </div>
 
@@ -370,6 +407,7 @@
               <span class="preset-hint">One click to replicate a service home screen layout</span>
             </div>
             <div class="preset-services" id="preset-services"></div>
+            <button class="btn-all-networks" onclick="applyAllNetworks()" title="Add Netflix, Prime, Disney+, Hulu, Max and Apple TV+ catalog rows at once">+ All Major Networks</button>
             <div class="preset-preview" id="preset-preview">
               <div class="preset-preview-list" id="preset-preview-list"></div>
               <button class="btn-apply-preset" id="btn-apply-preset" onclick="applyPreset()">+ Apply Preset</button>
@@ -443,7 +481,7 @@
       </div><!-- /.panel-body -->
     </div><!-- /#panel-settings -->
 
-    <!-- ── Ping Test ── -->
+    <!-- -- Ping Test -- -->
     <div class="section-label">Tools</div>
 
     <div class="panel collapsed" id="panel-ping">
@@ -452,7 +490,7 @@
           <span class="panel-title">Ping Test</span>
           <span class="panel-subtitle">measure server latency</span>
         </div>
-        <span class="panel-chevron">▼</span>
+        <span class="panel-chevron">?</span>
       </div>
       <div class="panel-body">
         <div class="ping-controls">
@@ -466,14 +504,14 @@
       </div>
     </div>
 
-    <!-- ── Request Log ── -->
+    <!-- -- Request Log -- -->
     <div class="panel collapsed" id="panel-log">
       <div class="panel-header" onclick="togglePanel('panel-log')">
         <div class="panel-header-left">
           <span class="panel-title">Request History</span>
           <span class="panel-subtitle" id="log-count-badge"></span>
         </div>
-        <span class="panel-chevron">▼</span>
+        <span class="panel-chevron">?</span>
       </div>
       <div class="panel-body">
         <div class="log-actions">
@@ -489,7 +527,7 @@
 
     <div id="global-error"></div>
 
-    <!-- ── Sticky Generate ── -->
+    <!-- -- Sticky Generate -- -->
     <div class="generate-area">
       <button class="btn-generate" onclick="generateLinks()">Generate Install Link</button>
     </div>

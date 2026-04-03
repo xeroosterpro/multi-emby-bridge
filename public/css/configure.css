@@ -618,3 +618,15 @@ input::placeholder { color: var(--text-muted); }
 .mdblist-browse-count { font-size: 0.65rem; color: var(--text-muted); flex-shrink: 0; }
 .mdblist-browse-actions { display: flex; gap: 0.45rem; align-items: center; }
 .mdblist-browse-actions select { padding: 0.3rem 0.5rem; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 0.78rem; }
+
+/* -- Custom Label Preset --------------------------------------------------- */
+#custom-preset-panel { margin-top: 0.6rem; padding: 0.7rem 0.8rem; background: var(--bg-base); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+#custom-preset-panel h4 { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; margin: 0 0 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.custom-fields-grid { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; margin-bottom: 0.8rem; }
+.custom-field-check { display: flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; color: var(--text-primary); cursor: pointer; user-select: none; }
+.custom-field-check input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; margin: 0; }
+.custom-fields-label { font-size: 0.72rem; color: var(--text-muted); margin: 0 0 0.35rem; font-weight: 600; }
+
+/* -- All Networks button --------------------------------------------------- */
+.btn-all-networks { display: block; width: 100%; padding: 0.5rem 1rem; margin-top: 0.5rem; background: linear-gradient(135deg, #E50914 0%, #002BE7 40%, #00A8E1 70%, #1CE783 100%); color: #fff; font-size: 0.82rem; font-weight: 700; border: none; border-radius: var(--radius-sm); cursor: pointer; text-align: center; letter-spacing: 0.04em; transition: filter 0.15s, transform 0.1s; font-family: inherit; }
+.btn-all-networks:hover { filter: brightness(1.12); transform: translateY(-1px); }
