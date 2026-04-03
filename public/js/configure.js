@@ -390,113 +390,115 @@ function initDragRow(row) {
 
 // == MDbList User Browser ==
 async function browseMdblistUser() {
-  var username = (document.getElementById("mdblist-browse-user") || {}).value.trim();
-  var apiKey = (document.getElementById("mdblist-api-key") || {}).value.trim();
-  var resultsEl = document.getElementById("mdblist-browse-results");
-  if (!username) { resultsEl.innerHTML = "<div style='color:var(--error);font-size:0.78rem'>Enter a username.</div>"; return; }
-  if (!apiKey) { resultsEl.innerHTML = "<div style='color:var(--error);font-size:0.78rem'>Enter your MDbList API key above first.</div>"; return; }
-  resultsEl.innerHTML = "<div style='color:var(--text-muted);font-size:0.78rem'>Loading lists...</div>";
+  var username = (document.getElementById('mdblist-browse-user') || {}).value.trim();
+  var apiKey = (document.getElementById('mdblist-api-key') || {}).value.trim();
+  var resultsEl = document.getElementById('mdblist-browse-results');
+  if (!username) { resultsEl.innerHTML = '<div style="color:var(--error);font-size:0.78rem">Enter a username.</div>'; return; }
+  if (!apiKey) { resultsEl.innerHTML = '<div style="color:var(--error);font-size:0.78rem">Enter your MDbList API key above first.</div>'; return; }
+  resultsEl.innerHTML = '<div style="color:var(--text-muted);font-size:0.78rem">Loading lists...</div>';
   try {
-    var resp = await fetch("https://api.mdblist.com/lists/user/" + encodeURIComponent(username) + "/?apikey=" + encodeURIComponent(apiKey));
-    if (!resp.ok) throw new Error("API returned " + resp.status);
+    var resp = await fetch('https://api.mdblist.com/lists/user/' + encodeURIComponent(username) + '/?apikey=' + encodeURIComponent(apiKey));
+    if (!resp.ok) throw new Error('API returned ' + resp.status);
     var lists = await resp.json();
-    if (!Array.isArray(lists) || !lists.length) { resultsEl.innerHTML = "<div style='color:var(--text-muted);font-size:0.78rem'>No public lists found for this user.</div>"; return; }
-    var h = "<div class="mdblist-browse-grid">";
+    if (!Array.isArray(lists) || !lists.length) { resultsEl.innerHTML = '<div style="color:var(--text-muted);font-size:0.78rem">No public lists found for this user.</div>'; return; }
+    var h = '<div class="mdblist-browse-grid">';
     lists.forEach(function(l, i) {
-      h += "<label class="mdblist-browse-item"><input type="checkbox" class="mdblist-browse-cb" data-idx="" + i + "" />"
-        + "<span class="mdblist-browse-name">" + escHtml(l.name) + "</span>"
-        + "<span class="mdblist-browse-count">" + (l.items || 0) + " items</span></label>";
+      h += '<label class="mdblist-browse-item"><input type="checkbox" class="mdblist-browse-cb" data-idx="' + i + '" />'
+        + '<span class="mdblist-browse-name">' + escHtml(l.name) + '</span>'
+        + '<span class="mdblist-browse-count">' + (l.items || 0) + ' items</span></label>';
     });
-    h += "</div><div class="mdblist-browse-actions">"
-      + "<select id="mdblist-browse-media"><option value="movie">Movies</option><option value="series">Shows</option><option value="both">Both</option></select>"
-      + "<button class="btn-add-catalog" onclick="addMdblistBrowseSelection()">+ Add Selected</button></div>";
+    h += '</div><div class="mdblist-browse-actions">'
+      + '<select id="mdblist-browse-media"><option value="movie">Movies</option><option value="series">Shows</option><option value="both">Both</option></select>'
+      + '<button class="btn-add-catalog" onclick="addMdblistBrowseSelection()">+ Add Selected</button></div>';
     resultsEl.innerHTML = h;
     resultsEl._lists = lists;
     resultsEl._username = username;
   } catch (err) {
-    resultsEl.innerHTML = "<div style='color:var(--error);font-size:0.78rem'>" + escHtml(err.message) + "</div>";
+    resultsEl.innerHTML = '<div style="color:var(--error);font-size:0.78rem">' + escHtml(err.message) + '</div>';
   }
 }
 
 function addMdblistBrowseSelection() {
-  var resultsEl = document.getElementById("mdblist-browse-results");
+  var resultsEl = document.getElementById('mdblist-browse-results');
   var lists = resultsEl._lists || [];
-  var username = resultsEl._username || "";
-  var mediaType = (document.getElementById("mdblist-browse-media") || {}).value || "movie";
-  var mdbKey = (document.getElementById("mdblist-api-key") || {}).value.trim();
-  var cbs = document.querySelectorAll(".mdblist-browse-cb:checked");
+  var username = resultsEl._username || '';
+  var mediaType = (document.getElementById('mdblist-browse-media') || {}).value || 'movie';
+  var mdbKey = (document.getElementById('mdblist-api-key') || {}).value.trim();
+  var cbs = document.querySelectorAll('.mdblist-browse-cb:checked');
   var added = 0, skipped = 0;
   cbs.forEach(function(cb) {
     var l = lists[parseInt(cb.dataset.idx, 10)];
     if (!l) return;
-    var listUrl = "https://mdblist.com/lists/" + encodeURIComponent(username) + "/" + encodeURIComponent(l.slug);
-    var catObj = { provider: "mdblist", listType: "", listUrl: listUrl, mediaType: mediaType, name: l.name, apiKey: mdbKey, enabled: true };
+    var listUrl = 'https://mdblist.com/lists/' + encodeURIComponent(username) + '/' + encodeURIComponent(l.slug);
+    var catObj = { provider: 'mdblist', listType: '', listUrl: listUrl, mediaType: mediaType, name: l.name, apiKey: mdbKey, enabled: true };
     if (catalogRowExists(catObj)) { skipped++; return; }
     addExternalCatalog(catObj);
     added++;
   });
   if (added || skipped) {
-    var msg = added + " added"; if (skipped) msg += ", " + skipped + " duplicate(s) skipped";
-    var ind = document.getElementById("autosave-indicator"); if (ind) { ind.textContent = msg; ind.classList.add("visible"); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove("visible"); ind.textContent = "Settings saved"; }, 2500); }
+    var msg = added + ' added'; if (skipped) msg += ', ' + skipped + ' duplicate(s) skipped';
+    var ind = document.getElementById('autosave-indicator'); if (ind) { ind.textContent = msg; ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove('visible'); ind.textContent = 'Settings saved'; }, 2500); }
   }
   autoSave();
 }
+
 // == Trakt User Lists ==
 async function browseTraktUser() {
-  var input = (document.getElementById("trakt-browse-user") || {}).value.trim();
-  var clientId = (document.getElementById("trakt-client-id") || {}).value.trim();
-  var resultsEl = document.getElementById("trakt-browse-results");
-  if (!clientId) { resultsEl.innerHTML = "<div style='color:var(--error);font-size:0.78rem'>Enter your Trakt Client ID above first.</div>"; return; }
-  var username = input.replace(/^https?:\/\/trakt\.tv\/users\//, "").replace(/\/.*$/, "").trim();
-  if (!username) { resultsEl.innerHTML = "<div style='color:var(--error);font-size:0.78rem'>Enter a Trakt username or profile URL.</div>"; return; }
-  resultsEl.innerHTML = "<div style='color:var(--text-muted);font-size:0.78rem'>Loading lists...</div>";
+  var input = (document.getElementById('trakt-browse-user') || {}).value.trim();
+  var clientId = (document.getElementById('trakt-client-id') || {}).value.trim();
+  var resultsEl = document.getElementById('trakt-browse-results');
+  if (!clientId) { resultsEl.innerHTML = '<div style="color:var(--error);font-size:0.78rem">Enter your Trakt Client ID above first.</div>'; return; }
+  var username = input.replace(/^https?:\/\/trakt\.tv\/users\//, '').replace(/\/.*$/, '').trim();
+  if (!username) { resultsEl.innerHTML = '<div style="color:var(--error);font-size:0.78rem">Enter a Trakt username or profile URL.</div>'; return; }
+  resultsEl.innerHTML = '<div style="color:var(--text-muted);font-size:0.78rem">Loading lists...</div>';
   try {
-    var resp = await fetch("https://api.trakt.tv/users/" + encodeURIComponent(username) + "/lists", {
-      headers: { "Content-Type": "application/json", "trakt-api-version": "2", "trakt-api-key": clientId }
+    var resp = await fetch('https://api.trakt.tv/users/' + encodeURIComponent(username) + '/lists', {
+      headers: { 'Content-Type': 'application/json', 'trakt-api-version': '2', 'trakt-api-key': clientId }
     });
-    if (!resp.ok) throw new Error("Trakt API returned " + resp.status);
+    if (!resp.ok) throw new Error('Trakt API returned ' + resp.status);
     var lists = await resp.json();
-    var allLists = [{ name: "Watchlist", slug: "watchlist", item_count: "?", _isWatchlist: true }].concat(lists);
-    var h = "<div class="mdblist-browse-grid">";
+    var allLists = [{ name: 'Watchlist', slug: 'watchlist', item_count: '?', _isWatchlist: true }].concat(lists);
+    var h = '<div class="mdblist-browse-grid">';
     allLists.forEach(function(l, i) {
-      h += "<label class="mdblist-browse-item"><input type="checkbox" class="trakt-browse-cb" data-idx="" + i + "" />"
-        + "<span class="mdblist-browse-name">" + escHtml(l.name) + "</span>"
-        + "<span class="mdblist-browse-count">" + (l.item_count || "?") + " items</span></label>";
+      h += '<label class="mdblist-browse-item"><input type="checkbox" class="trakt-browse-cb" data-idx="' + i + '" />'
+        + '<span class="mdblist-browse-name">' + escHtml(l.name) + '</span>'
+        + '<span class="mdblist-browse-count">' + (l.item_count || '?') + ' items</span></label>';
     });
-    h += "</div><div class="mdblist-browse-actions">"
-      + "<select id="trakt-browse-media"><option value="movie">Movies</option><option value="series">Shows</option><option value="both">Both</option></select>"
-      + "<button class="btn-add-catalog" onclick="addTraktBrowseSelection()">+ Add Selected</button></div>";
+    h += '</div><div class="mdblist-browse-actions">'
+      + '<select id="trakt-browse-media"><option value="movie">Movies</option><option value="series">Shows</option><option value="both">Both</option></select>'
+      + '<button class="btn-add-catalog" onclick="addTraktBrowseSelection()">+ Add Selected</button></div>';
     resultsEl.innerHTML = h;
     resultsEl._lists = allLists;
     resultsEl._username = username;
   } catch (err) {
-    resultsEl.innerHTML = "<div style='color:var(--error);font-size:0.78rem'>" + escHtml(err.message) + "</div>";
+    resultsEl.innerHTML = '<div style="color:var(--error);font-size:0.78rem">' + escHtml(err.message) + '</div>';
   }
 }
 
 function addTraktBrowseSelection() {
-  var resultsEl = document.getElementById("trakt-browse-results");
+  var resultsEl = document.getElementById('trakt-browse-results');
   var lists = resultsEl._lists || [];
-  var username = resultsEl._username || "";
-  var mediaType = (document.getElementById("trakt-browse-media") || {}).value || "movie";
-  var cbs = document.querySelectorAll(".trakt-browse-cb:checked");
+  var username = resultsEl._username || '';
+  var mediaType = (document.getElementById('trakt-browse-media') || {}).value || 'movie';
+  var cbs = document.querySelectorAll('.trakt-browse-cb:checked');
   var added = 0, skipped = 0;
   cbs.forEach(function(cb) {
     var l = lists[parseInt(cb.dataset.idx, 10)];
     if (!l) return;
-    var catObj = { provider: "trakt", listType: "user:" + username + ":" + l.slug, listUrl: "",
-      mediaType: mediaType, name: l.name + " (" + username + ")", apiKey: "", enabled: true };
+    var catObj = { provider: 'trakt', listType: 'user:' + username + ':' + l.slug, listUrl: '',
+      mediaType: mediaType, name: l.name + ' (' + username + ')', apiKey: '', enabled: true };
     if (catalogRowExists(catObj)) { skipped++; return; }
     addExternalCatalog(catObj);
     added++;
   });
   if (added || skipped) {
-    var msg = added + " added"; if (skipped) msg += ", " + skipped + " duplicate(s) skipped";
-    var ind = document.getElementById("autosave-indicator"); if (ind) { ind.textContent = msg; ind.classList.add("visible"); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove("visible"); ind.textContent = "Settings saved"; }, 2500); }
+    var msg = added + ' added'; if (skipped) msg += ', ' + skipped + ' duplicate(s) skipped';
+    var ind = document.getElementById('autosave-indicator'); if (ind) { ind.textContent = msg; ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove('visible'); ind.textContent = 'Settings saved'; }, 2500); }
   }
   autoSave();
 }
-// ── Request Log ───────────────────────────────────────────────────────────
+
+
 function fmtBytes(b) {
   if (!b) return null;
   if (b >= 1e9) return `${(b/1e9).toFixed(1)}GB`;
