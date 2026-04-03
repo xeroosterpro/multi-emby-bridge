@@ -13,6 +13,20 @@ const { fetchExternalCatalog } = require('./lib/catalogs');
 const { healthServers, healthHistory, registerHealthServers, unregisterHealthServer, cleanupStaleServers, pingHealthServers } = require('./lib/health');
 const { hashPassword, loadProfiles, saveProfiles } = require('./lib/profiles');
 
+// Cross-row deduplication cache (60s TTL per config)
+const _dedupCache = new Map();
+function getDedupSeen(key) {
+  let e = _dedupCache.get(key);
+  if (!e || Date.now() - e.ts > 60000) { e = { ts: Date.now(), seen: new Set() }; _dedupCache.set(key, e); }
+  return e.seen;
+}
+function dedupMetas(metas, key) {
+  const seen = getDedupSeen(key);
+  const out = metas.filter(m => !seen.has(m.id));
+  out.forEach(m => seen.add(m.id));
+  return out;
+}
+
 const app = express();
 const PORT = process.env.PORT || 7000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -423,7 +437,7 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
     if (!entry) return res.json({ metas: [] });
     try {
       const metas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null);
-      return res.json({ metas });
+      const dmx = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; return res.json({ metas: dmx });
     } catch (err) {
       console.error('External catalog error:', err.message);
       return res.json({ metas: [] });
@@ -433,11 +447,11 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
     if (query) {
       // Search catalog — always runs regardless of showCatalog setting
       const metas = await searchServersForCatalog(servers, type, query);
-      res.json({ metas });
+      const dme = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; res.json({ metas: dme });
     } else {
       // Browse catalog (home page row)
       const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, cfg.catalogContent || 'recent', cfg.catalogLang || null);
-      res.json({ metas });
+      const dme = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; res.json({ metas: dme });
     }
   } catch (err) {
     console.error('Catalog error:', err.message);
@@ -464,7 +478,7 @@ app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
     if (!entry) return res.json({ metas: [] });
     try {
       const metas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null);
-      return res.json({ metas });
+      const dmx = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; return res.json({ metas: dmx });
     } catch (err) {
       console.error('External catalog error:', err.message);
       return res.json({ metas: [] });

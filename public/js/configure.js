@@ -1265,6 +1265,8 @@ function generateLinks() {
       if (externalCatalogs.length) { sc.externalCatalogs = externalCatalogs; if (mdblistApiKey) sc.mdblistApiKey = mdblistApiKey; }
       var _clVal = document.getElementById("catalog-lang") ? document.getElementById("catalog-lang").value : "";
       if (_clVal) sc.catalogLang = _clVal;
+      const _ndVal = document.getElementById("no-dupes")?.checked;
+      if (_ndVal) sc.noDupes = true;
       if (labelPreset === "custom") {
         sc.customNameFields = Array.from(document.querySelectorAll(".cn-field:checked")).map(function(cb){return cb.value;});
         sc.customDescFields = Array.from(document.querySelectorAll(".cd-field:checked")).map(function(cb){return cb.value;});
@@ -1308,6 +1310,8 @@ function generateLinks() {
     if (externalCatalogs.length) { config.externalCatalogs = externalCatalogs; if (mdblistApiKey) config.mdblistApiKey = mdblistApiKey; }
     var _clVal = document.getElementById("catalog-lang") ? document.getElementById("catalog-lang").value : "";
     if (_clVal) config.catalogLang = _clVal;
+    const _ndVal2 = document.getElementById("no-dupes")?.checked;
+    if (_ndVal2) config.noDupes = true;
     if (labelPreset === "custom") {
       config.customNameFields = Array.from(document.querySelectorAll(".cn-field:checked")).map(function(cb){return cb.value;});
       config.customDescFields = Array.from(document.querySelectorAll(".cd-field:checked")).map(function(cb){return cb.value;});
@@ -1441,6 +1445,7 @@ function collectFormState() {
     mdblistApiKey:    document.getElementById('mdblist-api-key')?.value.trim() || '',
     externalCatalogs: collectExternalCatalogs(),
     catalogLang: document.getElementById("catalog-lang") ? document.getElementById("catalog-lang").value : "",
+    noDupes: document.getElementById("no-dupes")?.checked ?? false,
     customNameFields: Array.from(document.querySelectorAll(".cn-field:checked")).map(function(cb){return cb.value;}),
     customDescFields: Array.from(document.querySelectorAll(".cd-field:checked")).map(function(cb){return cb.value;}),
     servers: [],
@@ -1562,6 +1567,7 @@ function restoreFromLocalStorage() {
     }
 
     if (state.catalogLang) setVal("catalog-lang", state.catalogLang);
+    if (state.noDupes) { const cb = document.getElementById("no-dupes"); if (cb) cb.checked = true; }
     if (Array.isArray(state.customNameFields) && state.customNameFields.length) {
       document.querySelectorAll(".cn-field").forEach(function(cb){ cb.checked = state.customNameFields.indexOf(cb.value) >= 0; });
     }
