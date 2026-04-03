@@ -376,8 +376,38 @@
             </div>
           </div>
 
+          <!-- MDbList User Browser -->
+          <div class="browse-section">
+            <div class="browse-header">
+              <strong>&#x1F50D; Browse MDbList User</strong>
+              <span class="preset-hint">Enter a username to browse their public lists</span>
+            </div>
+            <div class="browse-input-row">
+              <input type="text" id="mdblist-browse-user" placeholder="e.g. garycrawfordgc" style="flex:1;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" />
+              <button class="btn-add-catalog" onclick="browseMdblistUser()">Browse</button>
+            </div>
+            <div id="mdblist-browse-results"></div>
+          </div>
+
+          <!-- Trakt User Lists -->
+          <div class="browse-section">
+            <div class="browse-header">
+              <strong>&#x1F3AC; Import Trakt Lists</strong>
+              <span class="preset-hint">Enter username or profile URL to import lists</span>
+            </div>
+            <div class="browse-input-row">
+              <input type="text" id="trakt-browse-user" placeholder="username or https://trakt.tv/users/..." style="flex:1;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" />
+              <button class="btn-add-catalog" onclick="browseTraktUser()">Browse</button>
+            </div>
+            <div id="trakt-browse-results"></div>
+          </div>
+
           <div class="options-divider"></div>
 
+          <div class="catalog-list-header">
+            <span class="catalog-list-count" id="catalog-count"></span>
+            <button class="btn-clear-all" id="btn-clear-all" onclick="clearAllCatalogs()">Clear All</button>
+          </div>
           <div id="catalog-list" class="catalog-list"></div>
 
           <div class="catalog-add-form">

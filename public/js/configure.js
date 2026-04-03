@@ -148,6 +148,36 @@ const STREAMING_PRESETS = {
     { name: "Comedy Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy", mediaType: "movie" },
     { name: "Comedy Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows", mediaType: "series" }
   ] },
+  genres: { label: "Genres", color: "#8B5CF6", letter: "\u266C", catalogs: [
+    { name: "Action Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action", mediaType: "movie" },
+    { name: "Comedy Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy", mediaType: "movie" },
+    { name: "Drama Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama", mediaType: "movie" },
+    { name: "Horror Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror", mediaType: "movie" },
+    { name: "Thriller Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller", mediaType: "movie" },
+    { name: "Sci-Fi Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi", mediaType: "movie" },
+    { name: "Crime Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime", mediaType: "movie" },
+    { name: "War Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/war", mediaType: "movie" },
+    { name: "History Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/history", mediaType: "movie" },
+    { name: "Drama Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows", mediaType: "series" },
+    { name: "Comedy Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows", mediaType: "series" },
+    { name: "Horror Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror-shows", mediaType: "series" },
+    { name: "Sci-Fi Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows", mediaType: "series" },
+    { name: "Crime Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows", mediaType: "series" }
+  ] },
+  discovery: { label: "Surprise Me", color: "#EC4899", letter: "\u2728", catalogs: [
+    { name: "Trending Movies", provider: "trakt", listType: "trending", mediaType: "movie" },
+    { name: "Trending Shows", provider: "trakt", listType: "trending", mediaType: "series" },
+    { name: "Anticipated Movies", provider: "trakt", listType: "anticipated", mediaType: "movie" },
+    { name: "Anticipated Shows", provider: "trakt", listType: "anticipated", mediaType: "series" },
+    { name: "Best New Movies", provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/new-movies", mediaType: "movie" },
+    { name: "Best New Shows", provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/best-new-shows", mediaType: "series" },
+    { name: "Latest Blu-Ray Releases", provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/latest-blu-ray-releases", mediaType: "movie" },
+    { name: "Certified Fresh", provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/certified-fresh", mediaType: "movie" },
+    { name: "TMDb Trending", provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/tmdb-trending-top-250", mediaType: "movie" },
+    { name: "Trakt Popular Movies", provider: "trakt", listType: "popular", mediaType: "movie" },
+    { name: "Most Watched Movies", provider: "trakt", listType: "watched/weekly", mediaType: "movie" },
+    { name: "IMDb Top 250", provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/imdb-toprated-250", mediaType: "movie" }
+  ] },
   popular: { label: "Popular & Trending", color: "#F59E0B", letter: "\u2605", catalogs: [
     { name: "Trending Movies", provider: "trakt", listType: "trending", mediaType: "movie" },
     { name: "Trending Shows", provider: "trakt", listType: "trending", mediaType: "series" },
@@ -203,18 +233,32 @@ function updatePresetCount() {
   ab.style.background = p.color;
   ab.disabled = checked === 0;
 }
+function catalogRowExists(cat) {
+  var dominated = false;
+  document.querySelectorAll('.catalog-row').forEach(function(row) {
+    if (row.dataset.provider === cat.provider && row.dataset.name === cat.name && row.dataset.mediaType === (cat.mediaType || 'movie')) dominated = true;
+    if (row.dataset.provider === cat.provider && row.dataset.listUrl && row.dataset.listUrl === (cat.listUrl || '') && row.dataset.mediaType === (cat.mediaType || 'movie')) dominated = true;
+    if (row.dataset.provider === cat.provider && row.dataset.listType && row.dataset.listType === (cat.listType || '') && row.dataset.mediaType === (cat.mediaType || 'movie')) dominated = true;
+  });
+  return dominated;
+}
+
 function applyPreset() {
   if (!_selectedPreset) return;
   var p = STREAMING_PRESETS[_selectedPreset];
   var mdbKey = (document.getElementById("mdblist-api-key") || {}).value || "";
   var cbs = document.querySelectorAll(".preset-cb");
+  var skipped = 0;
   cbs.forEach(function(cb) {
     if (!cb.checked) return;
     var cat = p.catalogs[parseInt(cb.dataset.idx, 10)];
     if (!cat) return;
-    addExternalCatalog({ provider: cat.provider, listType: cat.listType || "", listUrl: cat.listUrl || "",
-      mediaType: cat.mediaType || "movie", name: cat.name, apiKey: cat.provider === "mdblist" ? mdbKey : "", enabled: true });
+    var catObj = { provider: cat.provider, listType: cat.listType || "", listUrl: cat.listUrl || "",
+      mediaType: cat.mediaType || "movie", name: cat.name, apiKey: cat.provider === "mdblist" ? mdbKey : "", enabled: true };
+    if (catalogRowExists(catObj)) { skipped++; return; }
+    addExternalCatalog(catObj);
   });
+  if (skipped > 0) { var ind = document.getElementById('autosave-indicator'); if (ind) { ind.textContent = skipped + ' duplicate(s) skipped'; ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove('visible'); ind.textContent = 'Settings saved'; }, 2500); } }
   document.querySelectorAll(".preset-service-btn").forEach(function(b) { b.classList.remove("active"); });
   document.getElementById("preset-preview").style.display = "none";
   _selectedPreset = null; autoSave();
@@ -269,9 +313,15 @@ function renderCatalogRow(cat, id) {
   const nameEl  = mk('span', 'cat-name-text',   cat.name || badge);
   const detailEl = mk('span', 'cat-detail-text', detail);
   const typeEl  = mk('span', 'cat-type-badge',  typeBadge);
+  const toggle = document.createElement('label'); toggle.className = 'toggle-switch cat-toggle'; toggle.title = 'Enable / disable';
+  const togInput = document.createElement('input'); togInput.type = 'checkbox'; togInput.className = 'cat-enabled-cb'; togInput.checked = cat.enabled !== false;
+  const togSlider = document.createElement('span'); togSlider.className = 'toggle-slider';
+  toggle.appendChild(togInput); toggle.appendChild(togSlider);
+  togInput.addEventListener('change', function() { div.classList.toggle('cat-disabled', !togInput.checked); autoSave(); });
+  if (cat.enabled === false) div.classList.add('cat-disabled');
   const btn = mk('button', 'cat-remove-btn'); btn.title = 'Remove'; btn.textContent = '\u2715';
   btn.addEventListener('click', function() { removeCatalog(id); });
-  [handle, provBadge, nameEl, detailEl, typeEl, btn].forEach(function(el){ div.appendChild(el); });
+  [handle, provBadge, nameEl, detailEl, typeEl, toggle, btn].forEach(function(el){ div.appendChild(el); });
   return div;
 }
 
@@ -309,11 +359,21 @@ function removeCatalog(id) {
   autoSave();
 }
 
+function clearAllCatalogs() {
+  var list = document.getElementById('catalog-list');
+  if (!list || !list.children.length) return;
+  if (!confirm('Remove all ' + list.children.length + ' catalog rows?')) return;
+  list.innerHTML = '';
+  autoSave();
+}
+
 function collectExternalCatalogs() {
   const cats = [];
   document.querySelectorAll('.catalog-row').forEach(function(row) {
+    var cb = row.querySelector('.cat-enabled-cb');
     cats.push({ provider: row.dataset.provider||'', listType: row.dataset.listType||'', listUrl: row.dataset.listUrl||'',
-      mediaType: row.dataset.mediaType||'movie', name: row.dataset.name||'', apiKey: row.dataset.apiKey||'', enabled: true });
+      mediaType: row.dataset.mediaType||'movie', name: row.dataset.name||'', apiKey: row.dataset.apiKey||'',
+      enabled: cb ? cb.checked : true });
   });
   return cats;
 }
@@ -327,6 +387,115 @@ function initDragRow(row) {
 }
 
 
+
+// == MDbList User Browser ==
+async function browseMdblistUser() {
+  var username = (document.getElementById("mdblist-browse-user") || {}).value.trim();
+  var apiKey = (document.getElementById("mdblist-api-key") || {}).value.trim();
+  var resultsEl = document.getElementById("mdblist-browse-results");
+  if (!username) { resultsEl.innerHTML = "<div style="color:var(--error);font-size:0.78rem">Enter a username.</div>"; return; }
+  if (!apiKey) { resultsEl.innerHTML = "<div style="color:var(--error);font-size:0.78rem">Enter your MDbList API key above first.</div>"; return; }
+  resultsEl.innerHTML = "<div style="color:var(--text-muted);font-size:0.78rem">Loading lists...</div>";
+  try {
+    var resp = await fetch("https://api.mdblist.com/lists/user/" + encodeURIComponent(username) + "/?apikey=" + encodeURIComponent(apiKey));
+    if (!resp.ok) throw new Error("API returned " + resp.status);
+    var lists = await resp.json();
+    if (!Array.isArray(lists) || !lists.length) { resultsEl.innerHTML = "<div style="color:var(--text-muted);font-size:0.78rem">No public lists found for this user.</div>"; return; }
+    var h = "<div class="mdblist-browse-grid">";
+    lists.forEach(function(l, i) {
+      h += "<label class="mdblist-browse-item"><input type="checkbox" class="mdblist-browse-cb" data-idx="" + i + "" />"
+        + "<span class="mdblist-browse-name">" + escHtml(l.name) + "</span>"
+        + "<span class="mdblist-browse-count">" + (l.items || 0) + " items</span></label>";
+    });
+    h += "</div><div class="mdblist-browse-actions">"
+      + "<select id="mdblist-browse-media"><option value="movie">Movies</option><option value="series">Shows</option><option value="both">Both</option></select>"
+      + "<button class="btn-add-catalog" onclick="addMdblistBrowseSelection()">+ Add Selected</button></div>";
+    resultsEl.innerHTML = h;
+    resultsEl._lists = lists;
+    resultsEl._username = username;
+  } catch (err) {
+    resultsEl.innerHTML = "<div style="color:var(--error);font-size:0.78rem">" + escHtml(err.message) + "</div>";
+  }
+}
+
+function addMdblistBrowseSelection() {
+  var resultsEl = document.getElementById("mdblist-browse-results");
+  var lists = resultsEl._lists || [];
+  var username = resultsEl._username || "";
+  var mediaType = (document.getElementById("mdblist-browse-media") || {}).value || "movie";
+  var mdbKey = (document.getElementById("mdblist-api-key") || {}).value.trim();
+  var cbs = document.querySelectorAll(".mdblist-browse-cb:checked");
+  var added = 0, skipped = 0;
+  cbs.forEach(function(cb) {
+    var l = lists[parseInt(cb.dataset.idx, 10)];
+    if (!l) return;
+    var listUrl = "https://mdblist.com/lists/" + encodeURIComponent(username) + "/" + encodeURIComponent(l.slug);
+    var catObj = { provider: "mdblist", listType: "", listUrl: listUrl, mediaType: mediaType, name: l.name, apiKey: mdbKey, enabled: true };
+    if (catalogRowExists(catObj)) { skipped++; return; }
+    addExternalCatalog(catObj);
+    added++;
+  });
+  if (added || skipped) {
+    var msg = added + " added"; if (skipped) msg += ", " + skipped + " duplicate(s) skipped";
+    var ind = document.getElementById("autosave-indicator"); if (ind) { ind.textContent = msg; ind.classList.add("visible"); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove("visible"); ind.textContent = "Settings saved"; }, 2500); }
+  }
+  autoSave();
+}
+// == Trakt User Lists ==
+async function browseTraktUser() {
+  var input = (document.getElementById("trakt-browse-user") || {}).value.trim();
+  var clientId = (document.getElementById("trakt-client-id") || {}).value.trim();
+  var resultsEl = document.getElementById("trakt-browse-results");
+  if (!clientId) { resultsEl.innerHTML = "<div style="color:var(--error);font-size:0.78rem">Enter your Trakt Client ID above first.</div>"; return; }
+  var username = input.replace(/^https?:\/\/trakt\.tv\/users\//, "").replace(/\/.*$/, "").trim();
+  if (!username) { resultsEl.innerHTML = "<div style="color:var(--error);font-size:0.78rem">Enter a Trakt username or profile URL.</div>"; return; }
+  resultsEl.innerHTML = "<div style="color:var(--text-muted);font-size:0.78rem">Loading lists...</div>";
+  try {
+    var resp = await fetch("https://api.trakt.tv/users/" + encodeURIComponent(username) + "/lists", {
+      headers: { "Content-Type": "application/json", "trakt-api-version": "2", "trakt-api-key": clientId }
+    });
+    if (!resp.ok) throw new Error("Trakt API returned " + resp.status);
+    var lists = await resp.json();
+    var allLists = [{ name: "Watchlist", slug: "watchlist", item_count: "?", _isWatchlist: true }].concat(lists);
+    var h = "<div class="mdblist-browse-grid">";
+    allLists.forEach(function(l, i) {
+      h += "<label class="mdblist-browse-item"><input type="checkbox" class="trakt-browse-cb" data-idx="" + i + "" />"
+        + "<span class="mdblist-browse-name">" + escHtml(l.name) + "</span>"
+        + "<span class="mdblist-browse-count">" + (l.item_count || "?") + " items</span></label>";
+    });
+    h += "</div><div class="mdblist-browse-actions">"
+      + "<select id="trakt-browse-media"><option value="movie">Movies</option><option value="series">Shows</option><option value="both">Both</option></select>"
+      + "<button class="btn-add-catalog" onclick="addTraktBrowseSelection()">+ Add Selected</button></div>";
+    resultsEl.innerHTML = h;
+    resultsEl._lists = allLists;
+    resultsEl._username = username;
+  } catch (err) {
+    resultsEl.innerHTML = "<div style="color:var(--error);font-size:0.78rem">" + escHtml(err.message) + "</div>";
+  }
+}
+
+function addTraktBrowseSelection() {
+  var resultsEl = document.getElementById("trakt-browse-results");
+  var lists = resultsEl._lists || [];
+  var username = resultsEl._username || "";
+  var mediaType = (document.getElementById("trakt-browse-media") || {}).value || "movie";
+  var cbs = document.querySelectorAll(".trakt-browse-cb:checked");
+  var added = 0, skipped = 0;
+  cbs.forEach(function(cb) {
+    var l = lists[parseInt(cb.dataset.idx, 10)];
+    if (!l) return;
+    var catObj = { provider: "trakt", listType: "user:" + username + ":" + l.slug, listUrl: "",
+      mediaType: mediaType, name: l.name + " (" + username + ")", apiKey: "", enabled: true };
+    if (catalogRowExists(catObj)) { skipped++; return; }
+    addExternalCatalog(catObj);
+    added++;
+  });
+  if (added || skipped) {
+    var msg = added + " added"; if (skipped) msg += ", " + skipped + " duplicate(s) skipped";
+    var ind = document.getElementById("autosave-indicator"); if (ind) { ind.textContent = msg; ind.classList.add("visible"); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove("visible"); ind.textContent = "Settings saved"; }, 2500); }
+  }
+  autoSave();
+}
 // ── Request Log ───────────────────────────────────────────────────────────
 function fmtBytes(b) {
   if (!b) return null;
