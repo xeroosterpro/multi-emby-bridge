@@ -77,7 +77,7 @@
         <div class="tab-bar">
           <button class="tab-btn active" data-tab="tab-streaming" onclick="switchTab('tab-streaming')">Streaming</button>
           <button class="tab-btn" data-tab="tab-labels" onclick="switchTab('tab-labels')">Labels</button>
-          <button class="tab-btn" data-tab="tab-display" onclick="switchTab('tab-display')">Display</button>
+          <button class="tab-btn" data-tab="tab-appearance" onclick="switchTab('tab-appearance')">Appearance</button>
           <button class="tab-btn" data-tab="tab-catalogs" onclick="switchTab('tab-catalogs')">Catalogs</button>
         </div>
 
@@ -263,8 +263,8 @@
           </div>
         </div><!-- /tab-labels -->
 
-        <!-- -- Tab: Display -- -->
-        <div class="tab-pane" id="tab-display">
+        <!-- -- Tab: Appearance -- -->
+        <div class="tab-pane" id="tab-appearance">
           <label class="option-item">
             <input type="checkbox" id="show-summary" onchange="toggleSummaryStyle()" />
             <div>
@@ -337,53 +337,63 @@
             </select>
           </div>
 
-          <div class="options-divider"></div>
-
-          <label class="option-item">
-            <input type="checkbox" id="show-catalog" checked onchange="toggleCatalogOptions();autoSave()" />
-            <div>
-              <div class="option-title">Home page catalog</div>
-              <div class="option-desc">Show a My Media row on the Stremio home screen. Search always works regardless.</div>
-            </div>
-          </label>
-
-          <div id="catalog-options" style="display:flex;flex-direction:column;gap:0.5rem;margin:0.35rem 0 0.2rem;padding:0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)">
-            <div class="appearance-row" style="margin:0">
-              <span class="appearance-label">Catalog shows</span>
-              <span class="appearance-hint">Content type displayed in each home page row</span>
-              <select id="catalog-content" onchange="autoSave()">
-                <option value="recent">Recently Added</option>
-                <option value="resume">Continue Watching</option>
-                <option value="favorites">Favorites</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="options-divider"></div>
-
-          <div class="appearance-row">
-            <span class="appearance-label">RPDB API Key</span>
-            <span class="appearance-hint">RatingPosterDB key for catalog poster images</span>
-            <input type="text" id="rpdb-key" placeholder="your-rpdb-api-key" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
-          </div>
-
-        </div><!-- /tab-display -->
+        </div><!-- /tab-appearance -->
 
         <!-- Tab: Catalogs -->
         <div class="tab-pane" id="tab-catalogs">
           <p class="tab-intro">Add external catalog rows to your Stremio home screen. Drag rows to reorder.</p>
 
-          <div class="catalog-api-keys">
+          <!-- My Library -->
+          <div class="catalog-section">
+            <div class="catalog-section-title">My Library</div>
+            <label class="option-item">
+              <input type="checkbox" id="show-catalog" checked onchange="toggleCatalogOptions();autoSave()" />
+              <div>
+                <div class="option-title">Home page catalog</div>
+                <div class="option-desc">Show a My Media row on the Stremio home screen. Search always works regardless.</div>
+              </div>
+            </label>
+            <div id="catalog-options" style="display:flex;flex-direction:column;gap:0.5rem;margin:0.35rem 0 0.2rem;padding:0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)">
+              <div class="appearance-row" style="margin:0">
+                <span class="appearance-label">Catalog shows</span>
+                <span class="appearance-hint">Content type displayed in each home page row</span>
+                <select id="catalog-content" onchange="autoSave()">
+                  <option value="recent">Recently Added</option>
+                  <option value="resume">Continue Watching</option>
+                  <option value="favorites">Favorites</option>
+                </select>
+              </div>
+            </div>
+            <div class="appearance-row" style="margin-top:0.6rem">
+              <span class="appearance-label">RPDB API Key</span>
+              <span class="appearance-hint">RatingPosterDB key for catalog poster images</span>
+              <input type="text" id="rpdb-key" placeholder="your-rpdb-api-key" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
+            </div>
+          </div>
+
+          <div class="options-divider"></div>
+
+          <!-- API Keys -->
+          <div class="catalog-section">
+            <div class="catalog-section-title">API Keys</div>
             <div class="appearance-row">
               <span class="appearance-label">Trakt Client ID</span>
-              <span class="appearance-hint">Free at trakt.tv/oauth/applications â€” required for Trakt catalogs</span>
+              <span class="appearance-hint">Free at trakt.tv/oauth/applications &ndash; required for Trakt catalogs</span>
               <input type="text" id="trakt-client-id" placeholder="your_trakt_client_id" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
             </div>
             <div class="appearance-row" style="margin-top:0.6rem">
               <span class="appearance-label">MDbList API Key</span>
-              <span class="appearance-hint">Free at mdblist.com/api â€” required for MDbList catalogs</span>
+              <span class="appearance-hint">Free at mdblist.com/api &ndash; required for MDbList catalogs</span>
               <input type="text" id="mdblist-api-key" placeholder="your_mdblist_api_key" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
-            <div class="appearance-row" style="margin-top:0.6rem">
+            </div>
+          </div>
+
+          <div class="options-divider"></div>
+
+          <!-- Catalog Filters -->
+          <div class="catalog-section">
+            <div class="catalog-section-title">Catalog Filters</div>
+            <div class="appearance-row">
               <span class="appearance-label">Language filter</span>
               <span class="appearance-hint">Hide non-matching content from all catalog rows</span>
               <select id="catalog-lang" onchange="autoSave()">
@@ -397,13 +407,15 @@
                 <option value="pt">Portuguese only</option>
               </select>
             </div>
-            <div class="appearance-row">
+            <div class="appearance-row" style="margin-top:0.6rem">
               <span class="appearance-label">No duplicate rows</span>
               <span class="appearance-hint">Each title appears in only the first catalog row it shows up in</span>
               <label class="toggle-label"><input type="checkbox" id="no-dupes" onchange="autoSave()"> Enable</label>
             </div>
-            </div>
           </div>
+
+          <div class="options-divider"></div>
+
 
           <!-- Streaming Presets -->
           <div class="preset-section">

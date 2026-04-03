@@ -630,3 +630,7 @@ input::placeholder { color: var(--text-muted); }
 /* -- All Networks button --------------------------------------------------- */
 .btn-all-networks { display: block; width: 100%; padding: 0.5rem 1rem; margin-top: 0.5rem; background: linear-gradient(135deg, #E50914 0%, #002BE7 40%, #00A8E1 70%, #1CE783 100%); color: #fff; font-size: 0.82rem; font-weight: 700; border: none; border-radius: var(--radius-sm); cursor: pointer; text-align: center; letter-spacing: 0.04em; transition: filter 0.15s, transform 0.1s; font-family: inherit; }
 .btn-all-networks:hover { filter: brightness(1.12); transform: translateY(-1px); }
+
+/* -- Catalog section headers ----------------------------------------------- */
+.catalog-section { margin-bottom: 0.75rem; }
+.catalog-section-title { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
