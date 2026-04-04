@@ -332,12 +332,27 @@ function renderCatalogRow(cat, id) {
   div.dataset.mediaType = cat.mediaType || 'movie';
   div.dataset.name      = cat.name      || '';
   div.dataset.apiKey    = cat.apiKey    || '';
+  div.dataset.count     = cat.count || '';
+  div.dataset.valid     = cat.valid !== undefined ? cat.valid : '';
   function mk(tag, cls, text) { const el = document.createElement(tag); el.className = cls; if (text) el.textContent = text; return el; }
   const handle = mk('span', 'cat-drag-handle'); handle.title = 'Drag to reorder'; handle.textContent = '\u2803';
   const provBadge = mk('span', 'cat-provider-badge cat-prov-' + (cat.provider || ''), badge);
   const nameEl  = mk('span', 'cat-name-text',   cat.name || badge);
   const detailEl = mk('span', 'cat-detail-text', detail);
   const typeEl  = mk('span', 'cat-type-badge',  typeBadge);
+  
+  // Item count badge
+  const countEl = mk('span', 'cat-count-badge', cat.count ? cat.count + ' items' : '');
+  countEl.id = 'cat-count-' + id;
+  if (cat.valid === false) countEl.classList.add('cat-count-error');
+  else if (cat.valid === true) countEl.classList.add('cat-count-ok');
+  
+  // Test button
+  const testBtn = mk('button', 'cat-test-btn', 'Test');
+  testBtn.title = 'Test catalog connectivity';
+  testBtn.id = 'cat-test-' + id;
+  testBtn.addEventListener('click', function() { testCatalog(id); });
+  
   const toggle = document.createElement('label'); toggle.className = 'toggle-switch cat-toggle'; toggle.title = 'Enable / disable';
   const togInput = document.createElement('input'); togInput.type = 'checkbox'; togInput.className = 'cat-enabled-cb'; togInput.checked = cat.enabled !== false;
   const togSlider = document.createElement('span'); togSlider.className = 'toggle-slider';
@@ -346,9 +361,74 @@ function renderCatalogRow(cat, id) {
   if (cat.enabled === false) div.classList.add('cat-disabled');
   const btn = mk('button', 'cat-remove-btn'); btn.title = 'Remove'; btn.textContent = '\u2715';
   btn.addEventListener('click', function() { removeCatalog(id); });
-  [handle, provBadge, nameEl, detailEl, typeEl, toggle, btn].forEach(function(el){ div.appendChild(el); });
+  [handle, provBadge, nameEl, detailEl, typeEl, countEl, testBtn, toggle, btn].forEach(function(el){ div.appendChild(el); });
   return div;
 }
+
+// Test a catalog and update its count/status
+async function testCatalog(id) {
+  const row = document.getElementById('cat-row-' + id);
+  const countEl = document.getElementById('cat-count-' + id);
+  const testBtn = document.getElementById('cat-test-' + id);
+  if (!row || !countEl || !testBtn) return;
+  
+  testBtn.disabled = true;
+  testBtn.textContent = 'Testing...';
+  countEl.textContent = '';
+  countEl.className = 'cat-count-badge';
+  
+  const entry = {
+    provider: row.dataset.provider,
+    listType: row.dataset.listType,
+    listUrl: row.dataset.listUrl,
+    mediaType: row.dataset.mediaType,
+    name: row.dataset.name,
+    apiKey: row.dataset.apiKey
+  };
+  
+  const rpdbKey = document.getElementById('rpdb-key')?.value?.trim() || null;
+  const traktClientId = document.getElementById('trakt-client-id')?.value?.trim() || null;
+  const catalogLang = document.getElementById('catalog-lang')?.value || null;
+  
+  try {
+    const resp = await fetch('/api/catalog/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry, rpdbKey, traktClientId, catalogLang })
+    });
+    const result = await resp.json();
+    
+    row.dataset.count = result.count || 0;
+    row.dataset.valid = result.valid;
+    
+    if (result.valid) {
+      const m = result.movies || 0, s = result.shows || 0;
+      let label;
+      if (m > 0 && s > 0) label = m + ' movies · ' + s + ' shows';
+      else if (m > 0) label = m + ' movies';
+      else if (s > 0) label = s + ' shows';
+      else label = (result.count || 0) + ' items';
+      countEl.textContent = label;
+      row.dataset.count = result.count;
+      countEl.className = 'cat-count-badge cat-count-ok';
+      testBtn.textContent = '✓ OK';
+      testBtn.classList.add('cat-test-ok');
+      setTimeout(function() { testBtn.textContent = 'Test'; testBtn.disabled = false; testBtn.classList.remove('cat-test-ok'); }, 3000);
+    } else {
+      countEl.textContent = result.message || 'Failed';
+      countEl.className = 'cat-count-badge cat-count-error';
+      testBtn.textContent = 'Test';
+      testBtn.disabled = false;
+    }
+  } catch (err) {
+    countEl.textContent = 'Error';
+    countEl.className = 'cat-count-badge cat-count-error';
+    testBtn.textContent = 'Test';
+    testBtn.disabled = false;
+    console.error('Catalog test error:', err);
+  }
+}
+
 
 function applyAllNetworks() {
   var NETWORK_KEYS = ["netflix", "prime", "disney", "hulu", "max", "apple"];
@@ -399,6 +479,8 @@ function addExternalCatalog(cat) {
   document.getElementById('catalog-list').appendChild(row);
   initDragRow(row);
   autoSave();
+  // Auto-test when manually added (not preset-loaded rows with already-known count)
+  if (!cat.count && cat.enabled !== false) testCatalog(id);
 }
 
 function removeCatalog(id) {

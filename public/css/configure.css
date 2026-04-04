@@ -562,6 +562,19 @@ input::placeholder { color: var(--text-muted); }
 .cat-type-badge { font-size: 0.65rem; color: var(--text-muted); flex-shrink: 0; padding: 0.1rem 0.35rem; border: 1px solid var(--border); border-radius: 3px; }
 .cat-remove-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 0.85rem; padding: 0 0.2rem; flex-shrink: 0; opacity: 0.6; transition: opacity 0.15s, color 0.15s; }
 .cat-remove-btn:hover { opacity: 1; color: var(--error, #e55); }
+/* Catalog count badge */
+.cat-count-badge { font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 10px; flex-shrink: 0; min-width: 3rem; text-align: center; transition: all 0.2s; }
+.cat-count-badge:empty { display: none; }
+.cat-count-ok { background: rgba(76, 175, 125, 0.15); color: var(--success); border: 1px solid rgba(76, 175, 125, 0.3); }
+.cat-count-error { background: rgba(224, 85, 85, 0.15); color: var(--error); border: 1px solid rgba(224, 85, 85, 0.3); }
+.cat-count-badge:not(.cat-count-ok):not(.cat-count-error) { background: var(--bg-base); color: var(--text-muted); border: 1px solid var(--border); }
+
+/* Catalog test button */
+.cat-test-btn { background: var(--bg-base); border: 1px solid var(--border); color: var(--text-secondary); font-size: 0.65rem; font-weight: 600; padding: 0.25rem 0.55rem; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; transition: all 0.15s; }
+.cat-test-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.cat-test-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.cat-test-btn.cat-test-ok { background: #0d2e1a; color: #4ade80; border-color: #166534; }
+
 .catalog-add-form { border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 0.7rem 0.8rem; background: var(--bg-base); }
 .catalog-add-row { display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap; }
 .catalog-add-row select { padding: 0.35rem 0.5rem; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 0.78rem; }

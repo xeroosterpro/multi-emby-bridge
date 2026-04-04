@@ -197,6 +197,40 @@ app.post('/api/clear-request-log', apiLimiter, (req, res) => {
   res.json({ ok: true });
 });
 
+
+// ─── Catalog validation ───────────────────────────────────────────────────────
+app.post('/api/catalog/validate', apiLimiter, express.json(), async (req, res) => {
+  const { entry, rpdbKey, traktClientId, catalogLang } = req.body || {};
+  if (!entry) return res.status(400).json({ error: 'entry is required' });
+  
+  try {
+    const startTime = Date.now();
+    const metas = await fetchExternalCatalog(entry, rpdbKey || null, traktClientId || process.env.TRAKT_CLIENT_ID || null, catalogLang || null);
+    const duration = Date.now() - startTime;
+    
+    const movies = metas.filter(m => m.type === 'movie').length;
+    const shows  = metas.filter(m => m.type === 'series').length;
+    res.json({
+      valid: metas.length > 0,
+      count: metas.length,
+      movies,
+      shows,
+      duration,
+      sample: metas.slice(0, 3).map(m => ({ id: m.id, name: m.name })),
+      message: metas.length > 0 ? `Loaded ${metas.length} items (${movies} movies, ${shows} shows)` : 'No items found in catalog'
+    });
+  } catch (err) {
+    console.error('Catalog validation error:', err.message);
+    res.json({
+      valid: false,
+      count: 0,
+      duration: 0,
+      error: err.message,
+      message: `Failed to load catalog: ${err.message}`
+    });
+  }
+});
+
 // ─── Profile: save ────────────────────────────────────────────────────────────
 app.post('/api/profile/save', authLimiter, express.json(), (req, res) => {
   const { username, password, config } = req.body || {};
@@ -436,7 +470,8 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
     const entry = extList[idx];
     if (!entry) return res.json({ metas: [] });
     try {
-      const metas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null);
+      const allMetas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null);
+      const metas = allMetas.filter(m => m.type === type);
       const dmx = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; return res.json({ metas: dmx });
     } catch (err) {
       console.error('External catalog error:', err.message);
@@ -477,7 +512,8 @@ app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
     const entry = extList[idx];
     if (!entry) return res.json({ metas: [] });
     try {
-      const metas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null);
+      const allMetas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null);
+      const metas = allMetas.filter(m => m.type === type);
       const dmx = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; return res.json({ metas: dmx });
     } catch (err) {
       console.error('External catalog error:', err.message);
@@ -492,6 +528,7 @@ app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
     res.json({ metas: [] });
   }
 });
+
 
 // ─── Stream handler ───────────────────────────────────────────────────────────
 app.get('/:config/stream/:type/:id.json', streamLimiter, async (req, res) => {
@@ -649,3 +686,4 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`Multi-Emby Bridge running → http://localhost:${PORT}/configure`);
 });
+
