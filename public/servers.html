@@ -6,319 +6,136 @@
   <title>Server Health — Multi-Emby Bridge</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: #0d0d14; color: #d0d0e0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      min-height: 100vh; padding: 2rem 1rem;
-    }
-
-    .page-header {
-      max-width: 880px; margin: 0 auto 1.75rem;
-      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
-    }
+    body { background: #0d0d14; color: #d0d0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; padding: 2rem 1rem; }
+    .page-header { max-width: 960px; margin: 0 auto 1.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
     .page-title { font-size: 1.35rem; font-weight: 700; color: #fff; }
-    .page-sub   { font-size: 0.8rem; color: #555; margin-top: 0.2rem; }
+    .page-sub { font-size: 0.8rem; color: #555; margin-top: 0.2rem; }
     .header-actions { display: flex; gap: 0.6rem; align-items: center; }
-
-    .btn {
-      background: #1a1a28; border: 1px solid #2a2a3a; color: #aaa;
-      border-radius: 8px; padding: 0.45rem 1rem; font-size: 0.82rem;
-      font-weight: 600; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
-      text-decoration: none; display: inline-block;
-    }
+    .btn { background: #1a1a28; border: 1px solid #2a2a3a; color: #aaa; border-radius: 8px; padding: 0.45rem 1rem; font-size: 0.82rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; transition: background 0.15s; }
     .btn:hover { background: #22222e; color: #ddd; border-color: #3a3a55; }
     .btn.primary { border-color: #7b61ff; color: #7b61ff; }
     .btn.primary:hover { background: #1a1a30; }
-    .btn.danger { border-color: #e05555; color: #e05555; }
-    .btn.danger:hover { background: #1e1010; }
-
-    /* ── Status bar ── */
-    .status-bar {
-      max-width: 880px; margin: 0 auto 1.25rem;
-      display: flex; align-items: center; justify-content: space-between;
-      font-size: 0.78rem; color: #444; flex-wrap: wrap; gap: 0.5rem;
-    }
+    .toolbar { max-width: 960px; margin: 0 auto 1.1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem; }
+    .range-tabs { display: flex; gap: 0.3rem; }
+    .range-tab { background: #13131e; border: 1px solid #1e1e2e; color: #555; border-radius: 6px; padding: 0.3rem 0.75rem; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .range-tab:hover { color: #aaa; border-color: #2a2a3a; }
+    .range-tab.active { background: #1a1a28; border-color: #7b61ff; color: #7b61ff; }
+    .status-bar { max-width: 960px; margin: 0 auto 1.25rem; display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; color: #444; flex-wrap: wrap; gap: 0.5rem; }
     .status-bar .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #333; margin-right: 0.35rem; vertical-align: middle; }
-    .status-bar .dot.ok   { background: #4caf7d; box-shadow: 0 0 5px #4caf7d88; }
+    .status-bar .dot.ok { background: #4caf7d; box-shadow: 0 0 5px #4caf7d88; }
     .status-bar .dot.warn { background: #f0a500; }
-    .status-bar .dot.bad  { background: #e05555; }
-
-    /* ── Server grid ── */
-    .server-grid {
-      max-width: 880px; margin: 0 auto;
-      display: grid; gap: 1rem;
-      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-    }
-
-    .server-card {
-      background: #1a1a23; border: 1px solid #2a2a38; border-radius: 12px;
-      padding: 1.1rem 1.3rem 1.2rem;
-    }
-    .server-card.up      { border-left: 3px solid #4caf7d; }
-    .server-card.down    { border-left: 3px solid #e05555; }
+    .status-bar .dot.bad { background: #e05555; }
+    .server-grid { max-width: 960px; margin: 0 auto; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+    .server-card { background: #1a1a23; border: 1px solid #2a2a38; border-radius: 12px; padding: 1.1rem 1.3rem 1.2rem; }
+    .server-card.up { border-left: 3px solid #4caf7d; }
+    .server-card.down { border-left: 3px solid #e05555; }
     .server-card.unknown { border-left: 3px solid #333; }
-
     .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
     .card-name-row { display: flex; align-items: center; gap: 0.4rem; }
     .card-name { font-size: 0.95rem; font-weight: 700; color: #fff; }
     .card-type { font-size: 0.7rem; color: #555; background: #13131c; border: 1px solid #222232; border-radius: 4px; padding: 0.1rem 0.4rem; }
-    .card-url  { font-size: 0.73rem; color: #3a3a55; margin-bottom: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
+    .card-url { font-size: 0.73rem; color: #3a3a55; margin-bottom: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .status-row { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.7rem; }
     .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .status-dot.up      { background: #4caf7d; box-shadow: 0 0 6px #4caf7d88; }
-    .status-dot.down    { background: #e05555; box-shadow: 0 0 6px #e0555588; }
+    .status-dot.up { background: #4caf7d; box-shadow: 0 0 6px #4caf7d88; }
+    .status-dot.down { background: #e05555; box-shadow: 0 0 6px #e0555588; }
     .status-dot.unknown { background: #333; }
     .status-label { font-size: 0.85rem; font-weight: 600; }
-    .status-label.up   { color: #4caf7d; }
+    .status-label.up { color: #4caf7d; }
     .status-label.down { color: #e05555; }
     .status-label.unknown { color: #555; }
     .ping-ms { font-size: 0.78rem; margin-left: auto; }
-    .ping-ms.fast { color: #4caf7d; }
-    .ping-ms.ok   { color: #f0a500; }
-    .ping-ms.slow { color: #e05555; }
-
-    /* ── Uptime bar ── */
-    .uptime-bar {
-      display: flex; gap: 2px; height: 26px; align-items: flex-end; margin-bottom: 0.35rem;
-    }
-    .seg {
-      flex: 1; border-radius: 2px; cursor: default;
-      transition: opacity 0.12s; position: relative;
-    }
+    .ping-ms.fast { color: #4caf7d; } .ping-ms.ok { color: #f0a500; } .ping-ms.slow { color: #e05555; }
+    .ping-locations { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
+    .ping-loc { background: #13131e; border: 1px solid #1e1e2e; border-radius: 6px; padding: 0.25rem 0.6rem; font-size: 0.72rem; display: flex; align-items: center; gap: 0.35rem; }
+    .ping-loc .loc-label { color: #444; }
+    .ping-loc .loc-ms { font-weight: 700; }
+    .ping-loc .loc-ms.fast { color: #4caf7d; } .ping-loc .loc-ms.ok { color: #f0a500; } .ping-loc .loc-ms.slow { color: #e05555; } .ping-loc .loc-ms.none { color: #333; }
+    .browser-ping-btn { background: none; border: 1px solid #222232; color: #3a3a55; border-radius: 5px; padding: 0.15rem 0.45rem; font-size: 0.7rem; cursor: pointer; transition: all 0.15s; }
+    .browser-ping-btn:hover { border-color: #7b61ff; color: #7b61ff; }
+    .rt-graph-wrap { margin-bottom: 0.5rem; }
+    .rt-graph-label { display: flex; justify-content: space-between; font-size: 0.67rem; color: #2e2e42; margin-bottom: 0.2rem; }
+    .rt-graph svg { width: 100%; height: 44px; display: block; }
+    .uptime-bar { display: flex; gap: 2px; height: 22px; align-items: flex-end; margin-bottom: 0.35rem; }
+    .seg { flex: 1; border-radius: 2px; cursor: default; transition: opacity 0.12s; }
     .seg:hover { opacity: 0.7; }
-    .seg.up    { background: #4caf7d; height: 100%; }
-    .seg.down  { background: #e05555; height: 55%; }
-    .seg.empty { background: #1d1d28; height: 25%; }
-
-    .uptime-legend {
-      display: flex; justify-content: space-between;
-      font-size: 0.69rem; color: #383850; margin-bottom: 0.5rem;
-    }
-
+    .seg.up { background: #4caf7d; height: 100%; } .seg.down { background: #e05555; height: 55%; } .seg.empty { background: #1d1d28; height: 25%; }
+    .uptime-legend { display: flex; justify-content: space-between; font-size: 0.69rem; color: #383850; margin-bottom: 0.4rem; }
     .card-footer { font-size: 0.71rem; color: #383850; display: flex; gap: 1rem; flex-wrap: wrap; }
     .card-footer .highlight { color: #555; }
-
-    /* ── Empty / loading ── */
-    .empty-state {
-      max-width: 880px; margin: 3.5rem auto; text-align: center; color: #383850;
-      font-size: 0.9rem; line-height: 2;
-    }
+    .history-toggle { font-size: 0.7rem; color: #2e2e42; cursor: pointer; margin-top: 0.5rem; display: inline-flex; align-items: center; gap: 0.3rem; user-select: none; }
+    .history-toggle:hover { color: #555; }
+    .history-table-wrap { margin-top: 0.5rem; display: none; }
+    .history-table-wrap.open { display: block; }
+    .history-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; color: #444; }
+    .history-table th { text-align: left; color: #2e2e42; font-weight: 600; padding: 0.2rem 0.4rem; border-bottom: 1px solid #1e1e2e; }
+    .history-table td { padding: 0.18rem 0.4rem; border-bottom: 1px solid #111118; }
+    .history-table tr:last-child td { border-bottom: none; }
+    .h-up { color: #4caf7d; } .h-down { color: #e05555; }
+    .empty-state { max-width: 960px; margin: 3.5rem auto; text-align: center; color: #383850; font-size: 0.9rem; line-height: 2; }
     .empty-state .icon { font-size: 2.5rem; display: block; margin-bottom: 0.5rem; }
-    .empty-state a { color: #7b61ff; }
-
-    .loader { text-align: center; color: #444; font-size: 0.85rem; padding: 3rem 0; max-width: 880px; margin: 0 auto; }
-
-    /* ── No servers registered notice ── */
-    .notice {
-      max-width: 880px; margin: 0 auto 1.5rem;
-      background: #13131e; border: 1px solid #2a2a3a; border-radius: 10px;
-      padding: 0.9rem 1.2rem; font-size: 0.82rem; color: #666; line-height: 1.6;
-    }
-    .notice a { color: #7b61ff; }
-
-    /* ── Ping origin label ── */
-    .ping-origin-bar {
-      max-width: 880px; margin: 0 auto 1.1rem;
-      display: flex; align-items: center; gap: 0.5rem;
-    }
-    .ping-origin-label {
-      font-size: 0.73rem; color: #3a3a55;
-      display: flex; align-items: center; gap: 0.4rem;
-    }
-    .ping-origin-pill {
-      background: #1a1a28; border: 1px solid #2a2a3a; border-radius: 20px;
-      padding: 0.18rem 0.65rem; font-size: 0.72rem; color: #6a60aa;
-      font-weight: 600; letter-spacing: 0.02em;
-    }
-
-    /* ── Refresh info ── */
-    .refresh-bar {
-      max-width: 880px; margin: 1.1rem auto 0;
-      font-size: 0.73rem; color: #2e2e42; text-align: right;
-    }
+    .empty-state a, .notice a { color: #7b61ff; }
+    .loader { text-align: center; color: #444; font-size: 0.85rem; padding: 3rem 0; max-width: 960px; margin: 0 auto; }
+    .notice { max-width: 960px; margin: 0 auto 1.5rem; background: #13131e; border: 1px solid #2a2a3a; border-radius: 10px; padding: 0.9rem 1.2rem; font-size: 0.82rem; color: #666; line-height: 1.6; }
+    .ping-origin-bar { max-width: 960px; margin: 0 auto 1.1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .ping-origin-label { font-size: 0.73rem; color: #3a3a55; display: flex; align-items: center; gap: 0.4rem; }
+    .ping-origin-pill { background: #1a1a28; border: 1px solid #2a2a3a; border-radius: 20px; padding: 0.18rem 0.65rem; font-size: 0.72rem; color: #6a60aa; font-weight: 600; }
+    .refresh-bar { max-width: 960px; margin: 1.1rem auto 0; font-size: 0.73rem; color: #2e2e42; text-align: right; }
   </style>
 </head>
 <body>
-
 <div class="page-header">
-  <div>
-    <div class="page-title">🖥️ Server Health</div>
-    <div class="page-sub" id="page-sub">24/7 uptime monitoring — recorded by the addon server</div>
-  </div>
+  <div><div class="page-title">&#x1F5A5;&#xFE0F; Server Health</div><div class="page-sub">24/7 uptime monitoring &#x2014; recorded by the addon server</div></div>
   <div class="header-actions">
     <button class="btn primary" onclick="pingNow()">Ping Now</button>
-    <a href="/configure" class="btn">← Configure</a>
+    <a href="/configure" class="btn">&#x2190; Configure</a>
   </div>
 </div>
-
 <div class="ping-origin-bar">
-  <div class="ping-origin-label">
-    📡 Pings sent from:
-    <span class="ping-origin-pill" id="ping-origin-pill">Addon Server</span>
+  <div class="ping-origin-label">&#x1F4E1; Pings sent from: <span class="ping-origin-pill" id="ping-origin-pill">Addon Server</span></div>
+</div>
+<div class="toolbar">
+  <div class="range-tabs">
+    <button class="range-tab active" onclick="setRange('24h',this)">24h</button>
+    <button class="range-tab" onclick="setRange('7d',this)">7 days</button>
+    <button class="range-tab" onclick="setRange('30d',this)">30 days</button>
+    <button class="range-tab" onclick="setRange('all',this)">All time</button>
   </div>
+  <div style="font-size:0.73rem;color:#2e2e42" id="range-info"></div>
 </div>
-
-<div id="main-content">
-  <div class="loader">Loading health data…</div>
-</div>
-
+<div id="main-content"><div class="loader">Loading health data&#x2026;</div></div>
 <div class="refresh-bar" id="refresh-bar"></div>
-
 <script>
-  const SEGMENTS = 48; // how many history dots to show
-  let countdown  = 60; // refresh interval in seconds
-  let refreshTimer;
-
-  // ── Load history from backend ─────────────────────────────────────────────
-  async function loadHistory() {
-    try {
-      const data = await fetch('/api/health/history').then(r => r.json());
-      renderPage(data);
-    } catch (e) {
-      document.getElementById('main-content').innerHTML =
-        `<div class="empty-state"><span class="icon">⚠️</span>Could not load health data.<br><a href="/configure">← Back to Configure</a></div>`;
-    }
-  }
-
-  // ── Trigger immediate ping on backend ────────────────────────────────────
-  async function pingNow() {
-    document.getElementById('refresh-bar').textContent = 'Pinging…';
-    try {
-      await fetch('/api/health/ping-now', { method: 'POST' });
-      await loadHistory();
-    } catch {}
-  }
-
-  // ── Render ────────────────────────────────────────────────────────────────
-  function renderPage(data) {
-    const main = document.getElementById('main-content');
-
-    if (!data || data.length === 0) {
-      main.innerHTML = `
-        <div class="notice">
-          No servers registered for monitoring yet. Go to
-          <a href="/configure">Configure</a>, set up your servers, and click
-          <strong>Generate Install Link</strong> — servers are automatically registered for 24/7 health tracking.
-        </div>
-        <div class="empty-state">
-          <span class="icon">🔌</span>
-          No servers monitored yet.<br>
-          Generate your install link on the <a href="/configure">configure page</a> to start monitoring.
-        </div>`;
-      return;
-    }
-
-    const upCount   = data.filter(s => s.history[0]?.up === true).length;
-    const downCount = data.filter(s => s.history[0]?.up === false).length;
-
-    let statusHtml = `<div class="status-bar">`;
-    statusHtml += `<div>`;
-    if (downCount === 0 && upCount > 0) {
-      statusHtml += `<span class="dot ok"></span>All ${upCount} server${upCount > 1 ? 's' : ''} online`;
-    } else if (downCount > 0 && upCount > 0) {
-      statusHtml += `<span class="dot warn"></span>${upCount} online · <span style="color:#e05555">${downCount} offline</span>`;
-    } else if (downCount > 0 && upCount === 0) {
-      statusHtml += `<span class="dot bad"></span>All servers offline`;
-    } else {
-      statusHtml += `<span class="dot"></span>Waiting for first ping…`;
-    }
-    statusHtml += `</div>`;
-    statusHtml += `<div style="color:#2e2e42">Pings every 5 min · ${data.reduce((a,s)=>a+s.history.length,0)} total checks recorded</div>`;
-    statusHtml += `</div>`;
-
-    const cards = data.map(s => buildCard(s)).join('');
-    main.innerHTML = statusHtml + `<div class="server-grid">${cards}</div>`;
-  }
-
-  function buildCard(s) {
-    const h = s.history || [];
-    const latest = h[0] || null;
-    const state  = latest ? (latest.up ? 'up' : 'down') : 'unknown';
-
-    const urlShort   = (s.url || '').replace(/^https?:\/\//, '');
-    const typeLabel  = s.type === 'jellyfin' ? 'Jellyfin' : 'Emby';
-    const pingCls    = latest?.ms != null ? (latest.ms < 100 ? 'fast' : latest.ms < 400 ? 'ok' : 'slow') : '';
-    const pingText   = latest?.ms != null ? `${latest.ms}ms` : '';
-    const statusText = state === 'up' ? 'Online' : state === 'down' ? 'Offline' : 'Pending…';
-
-    // Uptime bar — show newest on the RIGHT (reverse history, pad with empty)
-    const slots   = [...h].reverse().slice(-SEGMENTS);
-    const padded  = Array(SEGMENTS - slots.length).fill(null).concat(slots);
-    const barHtml = padded.map((entry, i) => {
-      if (!entry) return `<div class="seg empty" title="No data"></div>`;
-      const ts  = new Date(entry.ts).toLocaleString();
-      const cls = entry.up ? 'up' : 'down';
-      const tip = entry.up ? `${ts} · Online (${entry.ms}ms)` : `${ts} · Offline`;
-      return `<div class="seg ${cls}" title="${escHtml(tip)}"></div>`;
-    }).join('');
-
-    // Stats
-    const upCount  = h.filter(e => e.up).length;
-    const pct      = h.length ? Math.round(upCount / h.length * 100) : null;
-    const lastTs   = latest ? new Date(latest.ts).toLocaleTimeString() : 'Never';
-    const oldest   = h.length ? new Date(h[h.length-1].ts).toLocaleDateString() : '—';
-
-    return `
-    <div class="server-card ${state}">
-      <div class="card-header">
-        <div class="card-name-row">
-          <span class="card-name">${escHtml(s.label || urlShort)}</span>
-          <span class="card-type">${typeLabel}</span>
-        </div>
-      </div>
-      <div class="card-url" title="${escHtml(s.url)}">${escHtml(urlShort)}</div>
-      <div class="status-row">
-        <div class="status-dot ${state}"></div>
-        <span class="status-label ${state}">${statusText}</span>
-        ${pingText ? `<span class="ping-ms ${pingCls}">${pingText}</span>` : ''}
-      </div>
-      <div class="uptime-legend">
-        <span>${oldest}</span>
-        <span>${pct !== null ? `${pct}% uptime · ${h.length} checks` : 'No history yet'}</span>
-        <span>Now</span>
-      </div>
-      <div class="uptime-bar">${barHtml}</div>
-      <div class="card-footer">
-        <span>Last checked: <span class="highlight">${lastTs}</span></span>
-        ${pct !== null ? `<span>Up: <span class="highlight">${upCount}/${h.length}</span></span>` : ''}
-      </div>
-    </div>`;
-  }
-
-  // ── Auto-refresh countdown ─────────────────────────────────────────────────
-  function startCountdown() {
-    clearInterval(refreshTimer);
-    countdown = 60;
-    refreshTimer = setInterval(() => {
-      countdown--;
-      document.getElementById('refresh-bar').textContent =
-        `Auto-refresh in ${countdown}s · Backend pings every 5 min`;
-      if (countdown <= 0) {
-        countdown = 60;
-        loadHistory();
-      }
-    }, 1000);
-  }
-
-  function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  // ── Load ping origin label ────────────────────────────────────────────────
-  async function loadServerInfo() {
-    try {
-      const info = await fetch('/api/server-info').then(r => r.json());
-      const pill = document.getElementById('ping-origin-pill');
-      if (!pill) return;
-      const region = info.region || null;
-      pill.textContent = region ? `Addon Server · ${region}` : 'Addon Server (Railway)';
-    } catch {}
-  }
-
-  // ── Init ──────────────────────────────────────────────────────────────────
-  loadServerInfo();
-  loadHistory().then(() => startCountdown());
+const SEGMENTS=60;let countdown=60,refreshTimer,currentRange='24h',rawData=[];const browserPings={};
+function rangeMs(r){return r==='24h'?86400000:r==='7d'?604800000:r==='30d'?2592000000:Infinity;}
+function setRange(r,btn){currentRange=r;document.querySelectorAll('.range-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderPage(rawData);}
+function filterH(h){if(currentRange==='all')return h;const c=Date.now()-rangeMs(currentRange);return h.filter(e=>e.ts>=c);}
+async function loadHistory(){try{rawData=await fetch('/api/health/history').then(r=>r.json());renderPage(rawData);}catch{document.getElementById('main-content').innerHTML='<div class="empty-state"><span class="icon">&#x26A0;&#xFE0F;</span>Could not load health data.</div>';}}
+async function pingNow(){document.getElementById('refresh-bar').textContent='Pinging&#x2026;';try{await fetch('/api/health/ping-now',{method:'POST'});await loadHistory();}catch{}}
+async function browserPing(url,btn,msEl){if(btn.dataset.t)return;btn.dataset.t='1';btn.textContent='&#x2026;';msEl.className='loc-ms none';msEl.textContent='&#x2014;';const t0=performance.now();try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),8000);await fetch(url+'/System/Ping',{signal:ctrl.signal,mode:'no-cors'});clearTimeout(timer);const ms=Math.round(performance.now()-t0);browserPings[url]=ms;msEl.textContent=ms+'ms';msEl.className='loc-ms '+(ms<100?'fast':ms<400?'ok':'slow');}catch{browserPings[url]=null;msEl.textContent='Blocked';msEl.className='loc-ms none';}btn.textContent='Retest';delete btn.dataset.t;}
+function renderPage(data){const main=document.getElementById('main-content');if(!data||!data.length){main.innerHTML='<div class="notice">No servers registered. Go to <a href="/configure">Configure</a>.</div>';return;}const fd=data.map(s=>({...s,history:filterH(s.history||[])}));const up=fd.filter(s=>s.history[0]&&s.history[0].up===true).length;const dn=fd.filter(s=>s.history[0]&&s.history[0].up===false).length;const tot=fd.reduce((a,s)=>a+s.history.length,0);const rl={'24h':'last 24h','7d':'last 7 days','30d':'last 30 days','all':'all time'}[currentRange];document.getElementById('range-info').textContent=tot+' checks \u00b7 '+rl;let sb='<div class="status-bar"><div>';if(!dn&&up)sb+='<span class="dot ok"></span>All '+up+' server'+(up>1?'s':'')+' online';else if(dn&&up)sb+='<span class="dot warn"></span>'+up+' online, '+dn+' offline';else if(dn)sb+='<span class="dot bad"></span>All servers offline';else sb+='<span class="dot"></span>Waiting\u2026';sb+='</div><div style="color:#2e2e42">Pings every 5 min</div></div>';main.innerHTML=sb+'<div class="server-grid">'+fd.map(buildCard).join('')+'</div>';fd.forEach(s=>{const id=encId(s.url);const btn=document.getElementById('bpbtn-'+id);const msEl=document.getElementById('bpms-'+id);if(btn&&msEl){const sv=browserPings[s.url];if(sv!==undefined){msEl.textContent=sv!==null?sv+'ms':'Blocked';msEl.className=sv!==null?'loc-ms '+(sv<100?'fast':sv<400?'ok':'slow'):'loc-ms none';btn.textContent='Retest';}btn.onclick=()=>browserPing(s.url,btn,msEl);}const tog=document.getElementById('htog-'+id);const wrap=document.getElementById('hwrap-'+id);if(tog&&wrap){tog.onclick=()=>{wrap.classList.toggle('open');tog.textContent=wrap.classList.contains('open')?'\u25b2 Hide history':'\u25bc Show history';};}});}
+function encId(u){return u.replace(/[^a-zA-Z0-9]/g,'_');}
+function buildCard(s){const h=s.history||[];const lat=h[0]||null;const state=lat?(lat.up?'up':'down'):'unknown';const us=(s.url||'').replace(/^https?:\/\//,'');const tl=s.type==='jellyfin'?'Jellyfin':'Emby';const pCls=lat&&lat.ms!=null?(lat.ms<100?'fast':lat.ms<400?'ok':'slow'):'';const pTxt=lat&&lat.ms!=null?lat.ms+'ms':'';const st=state==='up'?'Online':state==='down'?'Offline':'Pending\u2026';const id=encId(s.url);const rtp=h.filter(e=>e.up&&e.ms!=null).slice(0,80).reverse();const spark=buildSpark(rtp);const slots=h.slice().reverse().slice(-SEGMENTS);const pad=Array(SEGMENTS-slots.length).fill(null).concat(slots);const bar=pad.map(e=>{if(!e)return '<div class="seg empty" title="No data"></div>';const ts=new Date(e.ts).toLocaleString();const tip=e.up?ts+' \u00b7 Online ('+e.ms+'ms)':ts+' \u00b7 Offline';return '<div class="seg '+(e.up?'up':'down')+'" title="'+esc(tip)+'"></div>';}).join('');const uc=h.filter(e=>e.up).length;const pct=h.length?Math.round(uc/h.length*100):null;const lt=lat?new Date(lat.ts).toLocaleTimeString():'Never';const old=h.length?new Date(h[h.length-1].ts).toLocaleDateString():'\u2014';const avg=rtp.length?Math.round(rtp.reduce((a,e)=>a+e.ms,0)/rtp.length):null;const rows=h.slice(0,20).map(e=>'<tr><td>'+esc(new Date(e.ts).toLocaleString())+'</td><td class="'+(e.up?'h-up':'h-down')+'">'+(e.up?'Online \u00b7 '+e.ms+'ms':'Offline')+'</td></tr>').join('');
+return '<div class="server-card '+state+'">'+
+  '<div class="card-header"><div class="card-name-row"><span class="card-name">'+esc(s.label||us)+'</span><span class="card-type">'+tl+'</span></div></div>'+
+  '<div class="card-url" title="'+esc(s.url)+'">'+esc(us)+'</div>'+
+  '<div class="status-row"><div class="status-dot '+state+'"></div><span class="status-label '+state+'">'+st+'</span>'+(pTxt?'<span class="ping-ms '+pCls+'">'+pTxt+'</span>':'')+'</div>'+
+  '<div class="ping-locations">'+
+    '<div class="ping-loc"><span class="loc-label">&#x1F4E1; Server</span><span class="loc-ms '+pCls+'">'+(pTxt||'\u2014')+'</span></div>'+
+    '<div class="ping-loc"><span class="loc-label">&#x1F4BB; You</span><span class="loc-ms none" id="bpms-'+id+'">\u2014</span><button class="browser-ping-btn" id="bpbtn-'+id+'">Test</button></div>'+
+    (avg?'<div class="ping-loc"><span class="loc-label">\u2205 Avg</span><span class="loc-ms '+(avg<100?'fast':avg<400?'ok':'slow')+'">'+avg+'ms</span></div>':'')+
+  '</div>'+
+  spark+
+  '<div class="uptime-legend"><span>'+old+'</span><span>'+(pct!==null?pct+'% uptime \u00b7 '+h.length+' checks':'No history yet')+'</span><span>Now</span></div>'+
+  '<div class="uptime-bar">'+bar+'</div>'+
+  '<div class="card-footer"><span>Last checked: <span class="highlight">'+lt+'</span></span>'+(pct!==null?'<span>Up: <span class="highlight">'+uc+'/'+h.length+'</span></span>':'')+'</div>'+
+  (rows?'<div class="history-toggle" id="htog-'+id+'">\u25bc Show history</div><div class="history-table-wrap" id="hwrap-'+id+'"><table class="history-table"><thead><tr><th>Time</th><th>Result</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'')+
+'</div>';}
+function buildSpark(pts){if(pts.length<2)return'';const vals=pts.map(p=>p.ms);const mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;const W=400,H=44,p=3;const pp=vals.map((v,i)=>((p+(i/(vals.length-1))*(W-p*2)).toFixed(1))+','+(H-p-((v-mn)/rng)*(H-p*2)).toFixed(1)).join(' ');const lv=vals[vals.length-1];const col=lv<100?'#4caf7d':lv<400?'#f0a500':'#e05555';const lx=(p+(W-p*2)).toFixed(1);const ly=(H-p-((lv-mn)/rng)*(H-p*2)).toFixed(1);return'<div class="rt-graph-wrap"><div class="rt-graph-label"><span>Response time</span><span>'+mn+'ms \u2013 '+mx+'ms</span></div><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none"><polyline points="'+pp+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-linejoin="round" opacity="0.7"/><circle cx="'+lx+'" cy="'+ly+'" r="3" fill="'+col+'"/></svg></div>';}
+function startCountdown(){clearInterval(refreshTimer);countdown=60;refreshTimer=setInterval(()=>{countdown--;document.getElementById('refresh-bar').textContent='Auto-refresh in '+countdown+'s \u00b7 Backend pings every 5 min';if(countdown<=0){countdown=60;loadHistory();}},1000);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+async function loadServerInfo(){try{const info=await fetch('/api/server-info').then(r=>r.json());const pill=document.getElementById('ping-origin-pill');if(pill)pill.textContent=info.region?'Addon Server \u00b7 '+info.region:'Addon Server (Railway)';}catch{}}
+loadServerInfo();loadHistory().then(()=>startCountdown());
 </script>
 </body>
 </html>
