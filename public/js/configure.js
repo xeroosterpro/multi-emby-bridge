@@ -362,6 +362,9 @@ function renderCatalogRow(cat, id) {
   if (cat.enabled === false) div.classList.add('cat-disabled');
   const btn = mk('button', 'cat-remove-btn'); btn.title = 'Remove'; btn.textContent = '\u2715';
   btn.addEventListener('click', function() { removeCatalog(id); });
+  const shuffleBtn = mk('button', 'cat-shuffle-btn' + (cat.shuffle ? ' cat-shuffle-on' : ''), '🔀');
+  shuffleBtn.title = 'Shuffle order each refresh';
+  shuffleBtn.addEventListener('click', function() { var on = div.dataset.shuffle === 'true'; div.dataset.shuffle = on ? '' : 'true'; shuffleBtn.classList.toggle('cat-shuffle-on', !on); autoSave(); });
   [handle, provBadge, nameEl, detailEl, typeEl, countEl, testBtn, shuffleBtn, toggle, btn].forEach(function(el){ div.appendChild(el); });
   return div;
 }
