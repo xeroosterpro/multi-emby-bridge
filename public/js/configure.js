@@ -334,6 +334,7 @@ function renderCatalogRow(cat, id) {
   div.dataset.apiKey    = cat.apiKey    || '';
   div.dataset.count     = cat.count || '';
   div.dataset.valid     = cat.valid !== undefined ? cat.valid : '';
+  div.dataset.shuffle   = cat.shuffle ? 'true' : '';
   function mk(tag, cls, text) { const el = document.createElement(tag); el.className = cls; if (text) el.textContent = text; return el; }
   const handle = mk('span', 'cat-drag-handle'); handle.title = 'Drag to reorder'; handle.textContent = '\u2803';
   const provBadge = mk('span', 'cat-provider-badge cat-prov-' + (cat.provider || ''), badge);
@@ -361,7 +362,7 @@ function renderCatalogRow(cat, id) {
   if (cat.enabled === false) div.classList.add('cat-disabled');
   const btn = mk('button', 'cat-remove-btn'); btn.title = 'Remove'; btn.textContent = '\u2715';
   btn.addEventListener('click', function() { removeCatalog(id); });
-  [handle, provBadge, nameEl, detailEl, typeEl, countEl, testBtn, toggle, btn].forEach(function(el){ div.appendChild(el); });
+  [handle, provBadge, nameEl, detailEl, typeEl, countEl, testBtn, shuffleBtn, toggle, btn].forEach(function(el){ div.appendChild(el); });
   return div;
 }
 
@@ -503,7 +504,7 @@ function collectExternalCatalogs() {
     var cb = row.querySelector('.cat-enabled-cb');
     cats.push({ provider: row.dataset.provider||'', listType: row.dataset.listType||'', listUrl: row.dataset.listUrl||'',
       mediaType: row.dataset.mediaType||'movie', name: row.dataset.name||'', apiKey: row.dataset.apiKey||'',
-      enabled: cb ? cb.checked : true });
+      enabled: cb ? cb.checked : true, shuffle: row.dataset.shuffle === 'true' });
   });
   return cats;
 }

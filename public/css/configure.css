@@ -574,6 +574,9 @@ input::placeholder { color: var(--text-muted); }
 .cat-test-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .cat-test-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .cat-test-btn.cat-test-ok { background: #0d2e1a; color: #4ade80; border-color: #166534; }
+.cat-shuffle-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.75rem; padding: 0.2rem 0.4rem; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; opacity: 0.45; transition: all 0.15s; }
+.cat-shuffle-btn:hover { opacity: 0.9; border-color: var(--accent); }
+.cat-shuffle-btn.cat-shuffle-on { opacity: 1; border-color: #7b61ff; color: #7b61ff; background: #1a1a30; }
 
 .catalog-add-form { border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 0.7rem 0.8rem; background: var(--bg-base); }
 .catalog-add-row { display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap; }
