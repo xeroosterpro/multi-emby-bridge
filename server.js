@@ -26,6 +26,9 @@ function dedupMetas(metas, key) {
   out.forEach(m => seen.add(m.id));
   return out;
 }
+function setCatalogCache(res) {
+  res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60');
+}
 function shuffleMetas(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
@@ -478,7 +481,7 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
       const allMetas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null);
       let metas = allMetas.filter(m => m.type === type);
       if (entry.shuffle) metas = shuffleMetas(metas);
-      const dmx = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; return res.json({ metas: dmx });
+      const dmx = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; setCatalogCache(res); return res.json({ metas: dmx });
     } catch (err) {
       console.error('External catalog error:', err.message);
       return res.json({ metas: [] });
@@ -488,11 +491,11 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
     if (query) {
       // Search catalog — always runs regardless of showCatalog setting
       const metas = await searchServersForCatalog(servers, type, query);
-      const dme = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; res.json({ metas: dme });
+      const dme = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; setCatalogCache(res); res.json({ metas: dme });
     } else {
       // Browse catalog (home page row)
       const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, cfg.catalogContent || 'recent', cfg.catalogLang || null);
-      const dme = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; res.json({ metas: dme });
+      const dme = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; setCatalogCache(res); res.json({ metas: dme });
     }
   } catch (err) {
     console.error('Catalog error:', err.message);
@@ -521,7 +524,7 @@ app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
       const allMetas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null);
       let metas = allMetas.filter(m => m.type === type);
       if (entry.shuffle) metas = shuffleMetas(metas);
-      const dmx = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; return res.json({ metas: dmx });
+      const dmx = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; setCatalogCache(res); return res.json({ metas: dmx });
     } catch (err) {
       console.error('External catalog error:', err.message);
       return res.json({ metas: [] });
@@ -529,7 +532,7 @@ app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
   }
   try {
     const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, cfg.catalogContent || 'recent', cfg.catalogLang || null);
-    res.json({ metas });
+    setCatalogCache(res); res.json({ metas });
   } catch (err) {
     console.error('Catalog browse error:', err.message);
     res.json({ metas: [] });
