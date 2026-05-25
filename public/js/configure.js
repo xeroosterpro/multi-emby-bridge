@@ -316,12 +316,31 @@ function onCatalogUrlInput() {
 }
 
 function renderCatalogRow(cat, id) {
-  const badges = { trakt: 'Trakt', mdblist: 'MDbList', imdb: 'IMDb', letterboxd: 'Letterboxd' };
+  const badges = { trakt: 'Trakt', mdblist: 'MDbList', imdb: 'IMDb', letterboxd: 'Letterboxd', tmdb: 'TMDB' };
   const typeBadge = cat.mediaType === 'both' ? 'Movies + Shows' : cat.mediaType === 'series' ? 'Shows' : 'Movies';
   const badge  = badges[cat.provider] || cat.provider;
-  const detail = cat.listType
-    ? (TRAKT_LIST_NAMES[cat.listType] || cat.listType)
-    : (cat.listUrl ? cat.listUrl.replace(/^https?:\/\//, '').substring(0, 38) + (cat.listUrl.length > 42 ? '...' : '') : '');
+  var detail;
+  if (cat.provider === 'tmdb') {
+    var chartNames = {'trending-week':'Trending Weekly','trending-day':'Trending Daily',
+      'popular':'Popular','top-rated':'Top Rated','now-playing':'Now Playing','upcoming':'Upcoming'};
+    if (cat.tmdbMode === 'discover') {
+      var dparts = [];
+      if (cat.tmdbWatchProvider) {
+        var provNames = {'8':'Netflix','119':'Prime','337':'Disney+','15':'Hulu','1899':'Max','350':'Apple TV+'};
+        dparts.push(provNames[cat.tmdbWatchProvider] || 'Provider:'+cat.tmdbWatchProvider);
+      }
+      if (cat.tmdbGenre) dparts.push('Genre:'+cat.tmdbGenre);
+      if (cat.tmdbMinRating) dparts.push(cat.tmdbMinRating+'+');
+      if (cat.tmdbYearFrom || cat.tmdbYearTo) dparts.push((cat.tmdbYearFrom||'?')+'-'+(cat.tmdbYearTo||'?'));
+      detail = dparts.join(' / ') || 'Discover';
+    } else {
+      detail = chartNames[cat.tmdbChart] || cat.tmdbChart || 'Charts';
+    }
+  } else {
+    detail = cat.listType
+      ? (TRAKT_LIST_NAMES[cat.listType] || cat.listType)
+      : (cat.listUrl ? cat.listUrl.replace(/^https?:\/\//, '').substring(0, 38) + (cat.listUrl.length > 42 ? '...' : '') : '');
+  }
   const div = document.createElement('div');
   div.className = 'catalog-row';
   div.id = 'cat-row-' + id;
@@ -335,6 +354,14 @@ function renderCatalogRow(cat, id) {
   div.dataset.count     = cat.count || '';
   div.dataset.valid     = cat.valid !== undefined ? cat.valid : '';
   div.dataset.shuffle   = cat.shuffle ? 'true' : '';
+  div.dataset.tmdbMode         = cat.tmdbMode         || '';
+  div.dataset.tmdbChart        = cat.tmdbChart        || '';
+  div.dataset.tmdbGenre        = cat.tmdbGenre        || '';
+  div.dataset.tmdbWatchProvider= cat.tmdbWatchProvider|| '';
+  div.dataset.tmdbMinRating    = cat.tmdbMinRating != null ? String(cat.tmdbMinRating) : '';
+  div.dataset.tmdbYearFrom     = cat.tmdbYearFrom  != null ? String(cat.tmdbYearFrom)  : '';
+  div.dataset.tmdbYearTo       = cat.tmdbYearTo    != null ? String(cat.tmdbYearTo)    : '';
+  div.dataset.tmdbSortBy       = cat.tmdbSortBy       || '';
   function mk(tag, cls, text) { const el = document.createElement(tag); el.className = cls; if (text) el.textContent = text; return el; }
   const handle = mk('span', 'cat-drag-handle'); handle.title = 'Drag to reorder'; handle.textContent = '\u2803';
   const provBadge = mk('span', 'cat-provider-badge cat-prov-' + (cat.provider || ''), badge);
@@ -389,16 +416,27 @@ async function testCatalog(id) {
     name: row.dataset.name,
     apiKey: row.dataset.apiKey
   };
+  if (entry.provider === 'tmdb') {
+    entry.tmdbMode          = row.dataset.tmdbMode          || 'charts';
+    entry.tmdbChart         = row.dataset.tmdbChart         || '';
+    entry.tmdbGenre         = row.dataset.tmdbGenre         || '';
+    entry.tmdbWatchProvider = row.dataset.tmdbWatchProvider || '';
+    if (row.dataset.tmdbMinRating) entry.tmdbMinRating = Number(row.dataset.tmdbMinRating);
+    if (row.dataset.tmdbYearFrom)  entry.tmdbYearFrom  = Number(row.dataset.tmdbYearFrom);
+    if (row.dataset.tmdbYearTo)    entry.tmdbYearTo    = Number(row.dataset.tmdbYearTo);
+    entry.tmdbSortBy = row.dataset.tmdbSortBy || 'popularity.desc';
+  }
   
   const rpdbKey = document.getElementById('rpdb-key')?.value?.trim() || null;
   const traktClientId = document.getElementById('trakt-client-id')?.value?.trim() || null;
   const catalogLang = document.getElementById('catalog-lang')?.value || null;
+  const tmdbApiKey = document.getElementById('tmdb-api-key')?.value?.trim() || null;
   
   try {
     const resp = await fetch('/api/catalog/validate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entry, rpdbKey, traktClientId, catalogLang })
+      body: JSON.stringify({ entry, rpdbKey, traktClientId, catalogLang, tmdbApiKey })
     });
     const result = await resp.json();
     
@@ -505,9 +543,21 @@ function collectExternalCatalogs() {
   const cats = [];
   document.querySelectorAll('.catalog-row').forEach(function(row) {
     var cb = row.querySelector('.cat-enabled-cb');
-    cats.push({ provider: row.dataset.provider||'', listType: row.dataset.listType||'', listUrl: row.dataset.listUrl||'',
-      mediaType: row.dataset.mediaType||'movie', name: row.dataset.name||'', apiKey: row.dataset.apiKey||'',
-      enabled: cb ? cb.checked : true, shuffle: row.dataset.shuffle === 'true' });
+    var catEntry = { provider: row.dataset.provider||'', listType: row.dataset.listType||'',
+      listUrl: row.dataset.listUrl||'', mediaType: row.dataset.mediaType||'movie',
+      name: row.dataset.name||'', apiKey: row.dataset.apiKey||'',
+      enabled: cb ? cb.checked : true, shuffle: row.dataset.shuffle === 'true' };
+    if (catEntry.provider === 'tmdb') {
+      catEntry.tmdbMode          = row.dataset.tmdbMode          || 'charts';
+      catEntry.tmdbChart         = row.dataset.tmdbChart         || '';
+      catEntry.tmdbGenre         = row.dataset.tmdbGenre         || '';
+      catEntry.tmdbWatchProvider = row.dataset.tmdbWatchProvider || '';
+      if (row.dataset.tmdbMinRating) catEntry.tmdbMinRating = Number(row.dataset.tmdbMinRating);
+      if (row.dataset.tmdbYearFrom)  catEntry.tmdbYearFrom  = Number(row.dataset.tmdbYearFrom);
+      if (row.dataset.tmdbYearTo)    catEntry.tmdbYearTo    = Number(row.dataset.tmdbYearTo);
+      catEntry.tmdbSortBy = row.dataset.tmdbSortBy || 'popularity.desc';
+    }
+    cats.push(catEntry);
   });
   return cats;
 }
