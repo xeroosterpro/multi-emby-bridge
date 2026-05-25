@@ -296,12 +296,16 @@ function onCatalogProviderChange() {
   const nameFld  = document.getElementById('cat-name');
   traktFld.style.display = provider === 'trakt' ? '' : 'none';
   urlFld.style.display   = (provider === 'mdblist' || provider === 'imdb' || provider === 'letterboxd') ? '' : 'none';
+  var tmdbFld = document.getElementById('cat-tmdb-fields');
+  if (tmdbFld) tmdbFld.style.display = provider === 'tmdb' ? 'flex' : 'none';
+  if (provider !== 'tmdb') { var mtEl = document.getElementById('cat-media-type'); if (mtEl) mtEl.disabled = false; }
   const mt = document.getElementById('cat-media-type').value;
   const typeName = mt === 'series' ? 'Shows' : mt === 'both' ? 'Movies & Shows' : 'Movies';
   if (provider === 'trakt') { const lt = document.getElementById('cat-trakt-list').value; nameFld.value = 'Trakt ' + (TRAKT_LIST_NAMES[lt] || 'Trending') + ' ' + typeName; }
   else if (provider === 'mdblist')    { nameFld.value = 'MDbList ' + typeName; }
   else if (provider === 'imdb')       { nameFld.value = 'IMDb List'; }
   else if (provider === 'letterboxd') { nameFld.value = 'Letterboxd List'; }
+  else if (provider === 'tmdb') { updateTmdbAutoName(); return; }
   else { nameFld.value = ''; }
 }
 
@@ -312,6 +316,57 @@ function onCatalogUrlInput() {
   if (!nameFld.value || autos.some(function(a){ return nameFld.value.startsWith(a); })) {
     const m = url.match(/\/([^/?#]+)\/?(?:[?#].*)?$/);
     if (m) nameFld.value = decodeURIComponent(m[1]).replace(/-/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+  }
+}
+
+function setTmdbMode(mode) {
+  document.querySelectorAll('.tmdb-mode-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.mode === mode); });
+  var chartsEl = document.getElementById('cat-tmdb-charts-fields');
+  var discEl   = document.getElementById('cat-tmdb-discover-fields');
+  if (chartsEl) chartsEl.style.display = mode === 'charts' ? '' : 'none';
+  if (discEl)   discEl.style.display   = mode === 'discover' ? 'flex' : 'none';
+  updateTmdbAutoName();
+}
+
+function onTmdbChartChange() {
+  var chart = (document.getElementById('cat-tmdb-chart')||{}).value || '';
+  var mtSel = document.getElementById('cat-media-type');
+  if (chart === 'now-playing' || chart === 'upcoming') {
+    if (mtSel) { mtSel.value = 'movie'; mtSel.disabled = true; }
+  } else {
+    if (mtSel) mtSel.disabled = false;
+  }
+  updateTmdbAutoName();
+}
+
+function updateTmdbAutoName() {
+  var nameFld = document.getElementById('cat-name');
+  if (!nameFld) return;
+  var autoStarts = ['TMDB ', 'Trakt ', 'MDbList ', 'IMDb ', 'Letterboxd '];
+  var isAuto = !nameFld.value || autoStarts.some(function(p){ return nameFld.value.startsWith(p); });
+  if (!isAuto) return;
+  var activeBtn = document.querySelector('.tmdb-mode-btn.active');
+  var mode = activeBtn ? activeBtn.dataset.mode : 'charts';
+  var mt = (document.getElementById('cat-media-type')||{}).value || 'movie';
+  var typeName = mt === 'series' ? 'Shows' : 'Movies';
+  if (mode === 'charts') {
+    var chart = (document.getElementById('cat-tmdb-chart')||{}).value || 'trending-week';
+    var chartLabels = {'trending-week':'Trending Weekly','trending-day':'Trending Daily',
+      'popular':'Popular','top-rated':'Top Rated','now-playing':'Now Playing','upcoming':'Upcoming'};
+    nameFld.value = 'TMDB '+(chartLabels[chart]||chart)+' '+typeName;
+  } else {
+    var provSel = document.getElementById('cat-tmdb-watch-provider');
+    var provText = provSel ? (provSel.options[provSel.selectedIndex]||{}).text||'' : '';
+    var genreSel = document.getElementById('cat-tmdb-genre');
+    var genreText = genreSel ? (genreSel.options[genreSel.selectedIndex]||{}).text||'' : '';
+    var rating = (document.getElementById('cat-tmdb-min-rating')||{}).value || '';
+    var parts = ['TMDB'];
+    if (provText && provText !== 'Any Service') parts.push(provText);
+    if (genreText && genreText !== 'Any Genre') parts.push(genreText);
+    parts.push(typeName);
+    var label = parts.join(' ');
+    if (rating) label += ' '+rating+'+';
+    nameFld.value = label;
   }
 }
 
@@ -500,17 +555,42 @@ function addExternalCatalog(cat) {
     const provider  = document.getElementById('cat-provider').value;
     if (!provider) { alert('Select a provider first.'); return; }
     const listType  = provider === 'trakt' ? document.getElementById('cat-trakt-list').value : '';
-    const listUrl   = provider !== 'trakt' ? (document.getElementById('cat-list-url').value || '').trim() : '';
+    const listUrl = (provider === 'mdblist' || provider === 'imdb' || provider === 'letterboxd')
+      ? (document.getElementById('cat-list-url').value || '').trim() : '';
     const mediaType = document.getElementById('cat-media-type').value;
     const name      = (document.getElementById('cat-name').value || '').trim() || (provider + ' catalog');
-    if (provider !== 'trakt' && !listUrl) { alert('Paste the list URL first.'); return; }
+    if ((provider === 'mdblist' || provider === 'imdb' || provider === 'letterboxd') && !listUrl) {
+      alert('Paste the list URL first.'); return;
+    }
     const apiKey = provider === 'mdblist' ? (document.getElementById('mdblist-api-key') ? document.getElementById('mdblist-api-key').value.trim() : '') : '';
-    cat = { provider, listType, listUrl, mediaType, name, apiKey };
+    if (provider === 'tmdb') {
+      const tmdbMode          = (document.querySelector('.tmdb-mode-btn.active')||{}).dataset.mode || 'charts';
+      const tmdbChart         = (document.getElementById('cat-tmdb-chart')||{}).value || 'trending-week';
+      const tmdbGenre         = (document.getElementById('cat-tmdb-genre')||{}).value || '';
+      const tmdbWatchProvider = (document.getElementById('cat-tmdb-watch-provider')||{}).value || '';
+      const rawRating         = (document.getElementById('cat-tmdb-min-rating')||{}).value || '';
+      const rawYearF          = (document.getElementById('cat-tmdb-year-from')||{}).value || '';
+      const rawYearT          = (document.getElementById('cat-tmdb-year-to')||{}).value || '';
+      const tmdbSortBy        = (document.getElementById('cat-tmdb-sort-by')||{}).value || 'popularity.desc';
+      cat = { provider, mediaType, name, tmdbMode, tmdbChart, tmdbGenre, tmdbWatchProvider, tmdbSortBy,
+        tmdbMinRating: rawRating ? Number(rawRating) : null,
+        tmdbYearFrom:  rawYearF  ? Number(rawYearF)  : null,
+        tmdbYearTo:    rawYearT  ? Number(rawYearT)  : null };
+      // Reset discover inputs
+      var dFlds = document.getElementById('cat-tmdb-discover-fields');
+      if (dFlds) dFlds.querySelectorAll('input').forEach(function(i){ i.value=''; });
+    } else {
+      cat = { provider, listType, listUrl, mediaType, name, apiKey };
+    }
     document.getElementById('cat-provider').value  = '';
     document.getElementById('cat-list-url').value  = '';
     document.getElementById('cat-name').value      = '';
     document.getElementById('cat-trakt-list').style.display = 'none';
     document.getElementById('cat-list-url').style.display   = 'none';
+    var tmdbFldR = document.getElementById('cat-tmdb-fields');
+    if (tmdbFldR) tmdbFldR.style.display = 'none';
+    var mtR = document.getElementById('cat-media-type');
+    if (mtR) mtR.disabled = false;
   }
   if (cat.provider === 'mdblist' && !cat.apiKey) {
     const keyEl = document.getElementById('mdblist-api-key');

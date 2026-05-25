@@ -650,3 +650,18 @@ input::placeholder { color: var(--text-muted); }
 /* -- Catalog section headers ----------------------------------------------- */
 .catalog-section { margin-bottom: 0.75rem; }
 .catalog-section-title { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+
+.tmdb-mode-btn {
+  padding: 0.25rem 0.65rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.tmdb-mode-btn.active {
+  background: #01B4E4;
+  border-color: #01B4E4;
+  color: #fff;
+}
