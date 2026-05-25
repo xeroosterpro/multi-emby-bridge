@@ -290,6 +290,16 @@ function applyPreset() {
     if (!cat) return;
     var catObj = { provider: cat.provider, listType: cat.listType || "", listUrl: cat.listUrl || "",
       mediaType: cat.mediaType || "movie", name: cat.name, apiKey: cat.provider === "mdblist" ? mdbKey : "", enabled: true };
+    if (cat.provider === 'tmdb') {
+      catObj.tmdbMode          = cat.tmdbMode          || 'charts';
+      catObj.tmdbChart         = cat.tmdbChart         || '';
+      catObj.tmdbGenre         = cat.tmdbGenre         || '';
+      catObj.tmdbWatchProvider = cat.tmdbWatchProvider || '';
+      catObj.tmdbSortBy        = cat.tmdbSortBy        || 'popularity.desc';
+      if (cat.tmdbMinRating != null) catObj.tmdbMinRating = cat.tmdbMinRating;
+      if (cat.tmdbYearFrom  != null) catObj.tmdbYearFrom  = cat.tmdbYearFrom;
+      if (cat.tmdbYearTo    != null) catObj.tmdbYearTo    = cat.tmdbYearTo;
+    }
     if (catalogRowExists(catObj)) { skipped++; return; }
     addExternalCatalog(catObj);
   });
@@ -551,7 +561,12 @@ function applyAllNetworks() {
     var added = 0;
     for (var ci = 0; ci < p.catalogs.length && added < 2; ci++) {
       var cat = p.catalogs[ci];
-      var uid = cat.listUrl || ("trakt:" + (cat.listType || ""));
+      var uid;
+      if (cat.provider === 'tmdb') {
+        uid = 'tmdb:' + (cat.tmdbMode || '') + ':' + (cat.tmdbWatchProvider || '') + ':' + (cat.tmdbChart || '') + ':' + (cat.mediaType || '');
+      } else {
+        uid = cat.listUrl || ("trakt:" + (cat.listType || ""));
+      }
       if (seen.has(uid)) continue;
       seen.add(uid);
       addExternalCatalog(cat);
@@ -1730,6 +1745,7 @@ function saveToLocalStorage() {
     const existing = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
     if (!newState.traktClientId && existing.traktClientId) newState.traktClientId = existing.traktClientId;
     if (!newState.mdblistApiKey && existing.mdblistApiKey) newState.mdblistApiKey = existing.mdblistApiKey;
+    if (!newState.tmdbApiKey && existing.tmdbApiKey) newState.tmdbApiKey = existing.tmdbApiKey;
     localStorage.setItem(LS_KEY, JSON.stringify(newState));
   } catch {}
   const ind = document.getElementById('autosave-indicator');
@@ -1753,6 +1769,7 @@ function restoreFromLocalStorage() {
         const last = JSON.parse(atob(lastRaw.replace(/-/g,'+').replace(/_/g,'/')));
         if (!state.traktClientId && last.traktClientId) state.traktClientId = last.traktClientId;
         if (!state.mdblistApiKey && last.mdblistApiKey) state.mdblistApiKey = last.mdblistApiKey;
+        if (!state.tmdbApiKey && last.tmdbApiKey) state.tmdbApiKey = last.tmdbApiKey;
         if ((!state.externalCatalogs || !state.externalCatalogs.length) && last.externalCatalogs && last.externalCatalogs.length)
           state.externalCatalogs = last.externalCatalogs;
       }
