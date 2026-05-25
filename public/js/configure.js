@@ -61,8 +61,8 @@ const TRAKT_LIST_NAMES = {
 // -- Streaming Presets --
 const STREAMING_PRESETS = {
   netflix: { label: "Netflix", color: "#E50914", letter: "N", catalogs: [
-    { name: "Netflix Movies",  provider: "tmdb", tmdbMode: "trending-provider", tmdbWatchProvider: "8",    mediaType: "movie"  },
-    { name: "Netflix Shows",   provider: "tmdb", tmdbMode: "trending-provider", tmdbWatchProvider: "8",    mediaType: "series" },
+    { name: "Netflix Movies",  provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "8",    tmdbSortBy: "popularity.desc", mediaType: "movie"  },
+    { name: "Netflix Shows",   provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "8",    tmdbSortBy: "popularity.desc", mediaType: "series" },
     { name: "Action Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action",                  mediaType: "movie"  },
     { name: "Crime Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime",                   mediaType: "movie"  },
     { name: "Thriller Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",                mediaType: "movie"  },
@@ -75,8 +75,8 @@ const STREAMING_PRESETS = {
     { name: "Comedy Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows",            mediaType: "series" },
   ] },
   prime: { label: "Prime Video", color: "#00A8E1", letter: "P", catalogs: [
-    { name: "Prime Movies",    provider: "tmdb", tmdbMode: "trending-provider", tmdbWatchProvider: "119",  mediaType: "movie"  },
-    { name: "Prime Shows",     provider: "tmdb", tmdbMode: "trending-provider", tmdbWatchProvider: "119",  mediaType: "series" },
+    { name: "Prime Movies",    provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "119",  tmdbSortBy: "popularity.desc", mediaType: "movie"  },
+    { name: "Prime Shows",     provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "119",  tmdbSortBy: "popularity.desc", mediaType: "series" },
     { name: "Action Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action",                  mediaType: "movie"  },
     { name: "Thriller Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",                mediaType: "movie"  },
     { name: "Comedy Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",                  mediaType: "movie"  },
@@ -88,8 +88,8 @@ const STREAMING_PRESETS = {
     { name: "Sci-Fi Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows",            mediaType: "series" },
   ] },
   disney: { label: "Disney+", color: "#0063E5", letter: "D+", catalogs: [
-    { name: "Disney+ Movies",  provider: "tmdb", tmdbMode: "trending-provider", tmdbWatchProvider: "337",  mediaType: "movie"  },
-    { name: "Disney+ Shows",   provider: "tmdb", tmdbMode: "trending-provider", tmdbWatchProvider: "337",  mediaType: "series" },
+    { name: "Disney+ Movies",  provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "337",  tmdbSortBy: "popularity.desc", mediaType: "movie"  },
+    { name: "Disney+ Shows",   provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "337",  tmdbSortBy: "popularity.desc", mediaType: "series" },
     { name: "Marvel Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/marvel-cinematic-universe", mediaType: "movie"  },
     { name: "Star Wars Movies",        provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/star-wars",                 mediaType: "movie"  },
     { name: "Pixar Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/pixar-movies",              mediaType: "movie"  },
@@ -99,8 +99,8 @@ const STREAMING_PRESETS = {
     { name: "Comedy Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",                  mediaType: "movie"  },
   ] },
   hulu: { label: "Hulu", color: "#1CE783", letter: "H", catalogs: [
-    { name: "Hulu Movies",     provider: "tmdb", tmdbMode: "trending-provider", tmdbWatchProvider: "15",   mediaType: "movie"  },
-    { name: "Hulu Shows",      provider: "tmdb", tmdbMode: "trending-provider", tmdbWatchProvider: "15",   mediaType: "series" },
+    { name: "Hulu Movies",     provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "15",   tmdbSortBy: "popularity.desc", mediaType: "movie"  },
+    { name: "Hulu Shows",      provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "15",   tmdbSortBy: "popularity.desc", mediaType: "series" },
     { name: "Trending Movies",         provider: "trakt",   listType: "trending",                                                        mediaType: "movie"  },
     { name: "Trending Shows",          provider: "trakt",   listType: "trending",                                                        mediaType: "series" },
     { name: "Comedy Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",                  mediaType: "movie"  },
@@ -112,8 +112,8 @@ const STREAMING_PRESETS = {
     { name: "Sci-Fi Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows",            mediaType: "series" },
   ] },
   max: { label: "Max", color: "#002BE7", letter: "M", catalogs: [
-    { name: "Max Movies",      provider: "tmdb", tmdbMode: "trending-provider", tmdbWatchProvider: "1899", mediaType: "movie"  },
-    { name: "Max Shows",       provider: "tmdb", tmdbMode: "trending-provider", tmdbWatchProvider: "1899", mediaType: "series" },
+    { name: "Max Movies",      provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "1899", tmdbSortBy: "popularity.desc", mediaType: "movie"  },
+    { name: "Max Shows",       provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "1899", tmdbSortBy: "popularity.desc", mediaType: "series" },
     { name: "Trending Movies",         provider: "trakt",   listType: "trending",                                                        mediaType: "movie"  },
     { name: "Popular Movies",          provider: "trakt",   listType: "popular",                                                         mediaType: "movie"  },
     { name: "Drama Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama",                   mediaType: "movie"  },
@@ -126,8 +126,8 @@ const STREAMING_PRESETS = {
     { name: "Sci-Fi Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows",            mediaType: "series" },
   ] },
   apple: { label: "Apple TV+", color: "#444444", letter: "\u25cf", catalogs: [
-    { name: "Apple TV+ Movies", provider: "tmdb", tmdbMode: "trending-provider", tmdbWatchProvider: "350",  mediaType: "movie"  },
-    { name: "Apple TV+ Shows",  provider: "tmdb", tmdbMode: "trending-provider", tmdbWatchProvider: "350",  mediaType: "series" },
+    { name: "Apple TV+ Movies", provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "350", tmdbSortBy: "popularity.desc", mediaType: "movie"  },
+    { name: "Apple TV+ Shows",  provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "350",  tmdbSortBy: "popularity.desc", mediaType: "series" },
     { name: "Trending Movies",         provider: "trakt",   listType: "trending",                                                        mediaType: "movie"  },
     { name: "Trending Shows",          provider: "trakt",   listType: "trending",                                                        mediaType: "series" },
     { name: "Most Anticipated Movies", provider: "trakt",   listType: "anticipated",                                                     mediaType: "movie"  },
