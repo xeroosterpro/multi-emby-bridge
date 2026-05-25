@@ -386,6 +386,11 @@
               <span class="appearance-hint">Free at mdblist.com/api &ndash; required for MDbList catalogs</span>
               <input type="text" id="mdblist-api-key" placeholder="your_mdblist_api_key" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
             </div>
+            <div class="appearance-row" style="margin-top:0.6rem">
+              <span class="appearance-label">TMDB API Key</span>
+              <span class="appearance-hint">Free at themoviedb.org &rarr; Settings &rarr; API &ndash; required for TMDB catalogs</span>
+              <input type="text" id="tmdb-api-key" placeholder="your_tmdb_api_key" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
+            </div>
           </div>
 
           <div class="options-divider"></div>
@@ -473,6 +478,7 @@
                 <option value="mdblist">MDbList</option>
                 <option value="imdb">IMDb List</option>
                 <option value="letterboxd">Letterboxd</option>
+                <option value="tmdb">TMDB</option>
               </select>
               <select id="cat-trakt-list" class="cat-trakt-field" style="display:none">
                 <option value="trending">Trending</option>
@@ -486,6 +492,65 @@
                 <option value="series">Shows</option>
                 <option value="both">Both</option>
               </select>
+            </div>
+            <!-- TMDB fields -->
+            <div id="cat-tmdb-fields" class="catalog-add-row" style="display:none;flex-direction:column;gap:0.4rem;margin-top:0.4rem">
+              <div style="display:flex;gap:0.4rem;align-items:center">
+                <span style="font-size:0.75rem;color:var(--text-muted)">Mode:</span>
+                <button type="button" class="tmdb-mode-btn active" data-mode="charts" onclick="setTmdbMode('charts')">Charts</button>
+                <button type="button" class="tmdb-mode-btn" data-mode="discover" onclick="setTmdbMode('discover')">Discover</button>
+              </div>
+              <div id="cat-tmdb-charts-fields">
+                <select id="cat-tmdb-chart" onchange="onTmdbChartChange()" style="padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem">
+                  <option value="trending-week">Trending (Weekly)</option>
+                  <option value="trending-day">Trending (Daily)</option>
+                  <option value="popular">Popular</option>
+                  <option value="top-rated">Top Rated</option>
+                  <option value="now-playing">Now Playing (movies only)</option>
+                  <option value="upcoming">Upcoming (movies only)</option>
+                </select>
+              </div>
+              <div id="cat-tmdb-discover-fields" style="display:none;flex-wrap:wrap;gap:0.4rem">
+                <select id="cat-tmdb-genre" style="padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem">
+                  <option value="">Any Genre</option>
+                  <option value="28">Action</option>
+                  <option value="12">Adventure</option>
+                  <option value="16">Animation</option>
+                  <option value="35">Comedy</option>
+                  <option value="80">Crime</option>
+                  <option value="99">Documentary</option>
+                  <option value="18">Drama</option>
+                  <option value="14">Fantasy</option>
+                  <option value="36">History</option>
+                  <option value="27">Horror</option>
+                  <option value="10402">Music</option>
+                  <option value="9648">Mystery</option>
+                  <option value="10749">Romance</option>
+                  <option value="878">Science Fiction</option>
+                  <option value="53">Thriller</option>
+                  <option value="10752">War</option>
+                  <option value="37">Western</option>
+                </select>
+                <select id="cat-tmdb-watch-provider" style="padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem">
+                  <option value="">Any Service</option>
+                  <option value="8">Netflix</option>
+                  <option value="119">Prime Video</option>
+                  <option value="337">Disney+</option>
+                  <option value="15">Hulu</option>
+                  <option value="1899">Max</option>
+                  <option value="350">Apple TV+</option>
+                </select>
+                <input type="number" id="cat-tmdb-min-rating" placeholder="Min Rating (e.g. 7)" min="0" max="10" step="0.5" style="width:155px;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" />
+                <input type="number" id="cat-tmdb-year-from" placeholder="Year From" min="1900" max="2099" style="width:105px;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" />
+                <input type="number" id="cat-tmdb-year-to" placeholder="Year To" min="1900" max="2099" style="width:105px;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" />
+                <select id="cat-tmdb-sort-by" style="padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem">
+                  <option value="popularity.desc">Popularity</option>
+                  <option value="vote_average.desc">Rating</option>
+                  <option value="primary_release_date.desc">Release Date</option>
+                  <option value="revenue.desc">Revenue</option>
+                  <option value="vote_count.desc">Vote Count</option>
+                </select>
+              </div>
             </div>
             <div class="catalog-add-row" style="margin-top:0.4rem">
               <input type="text" id="cat-name" placeholder="Display name (auto-filled)" style="flex:1;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" />
