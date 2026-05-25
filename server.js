@@ -208,12 +208,12 @@ app.post('/api/clear-request-log', apiLimiter, (req, res) => {
 
 // ─── Catalog validation ───────────────────────────────────────────────────────
 app.post('/api/catalog/validate', apiLimiter, express.json(), async (req, res) => {
-  const { entry, rpdbKey, traktClientId, catalogLang } = req.body || {};
+  const { entry, rpdbKey, traktClientId, catalogLang, tmdbApiKey } = req.body || {};
   if (!entry) return res.status(400).json({ error: 'entry is required' });
   
   try {
     const startTime = Date.now();
-    const metas = await fetchExternalCatalog(entry, rpdbKey || null, traktClientId || process.env.TRAKT_CLIENT_ID || null, catalogLang || null);
+    const metas = await fetchExternalCatalog(entry, rpdbKey || null, traktClientId || process.env.TRAKT_CLIENT_ID || null, catalogLang || null, tmdbApiKey || process.env.TMDB_API_KEY || null);
     const duration = Date.now() - startTime;
     
     const movies = metas.filter(m => m.type === 'movie').length;
@@ -478,7 +478,7 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
     const entry = extList[idx];
     if (!entry) return res.json({ metas: [] });
     try {
-      const allMetas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null);
+      const allMetas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null, cfg.tmdbApiKey || process.env.TMDB_API_KEY || null);
       let metas = allMetas.filter(m => m.type === type);
       if (entry.shuffle) metas = shuffleMetas(metas);
       const dmx = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; setCatalogCache(res); return res.json({ metas: dmx });
@@ -521,7 +521,7 @@ app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
     const entry = extList[idx];
     if (!entry) return res.json({ metas: [] });
     try {
-      const allMetas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null);
+      const allMetas = await fetchExternalCatalog(entry, cfg.rpdbKey || null, cfg.traktClientId || process.env.TRAKT_CLIENT_ID || null, cfg.catalogLang || null, cfg.tmdbApiKey || process.env.TMDB_API_KEY || null);
       let metas = allMetas.filter(m => m.type === type);
       if (entry.shuffle) metas = shuffleMetas(metas);
       const dmx = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; setCatalogCache(res); return res.json({ metas: dmx });
@@ -696,4 +696,5 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`Multi-Emby Bridge running → http://localhost:${PORT}/configure`);
 });
+
 
