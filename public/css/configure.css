@@ -706,7 +706,7 @@ input::placeholder { color: var(--text-muted); }
 .options-divider { height: 1px; background: var(--border); margin: 10px 0; }
 .res-checkboxes { display: flex; gap: 12px; }
 .res-check { font-size: .8rem; color: var(--text-dim); display: flex; gap: 5px; align-items: center; }
-.timeout-select-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: .8rem; color: var(--text-dim); }
+.timeout-select-row.visible { display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: .8rem; color: var(--text-dim); }
 .exclude-res-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; }
 select, input[type=text], input[type=password], input[type=number] {
   background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm);
