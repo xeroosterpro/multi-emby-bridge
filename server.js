@@ -142,9 +142,7 @@ app.get('/api/server-info', (req, res) => {
 });
 
 // ─── Server health dashboard ──────────────────────────────────────────────────
-app.get('/servers', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'servers.html'));
-});
+app.get('/servers', (req, res) => res.redirect('/configure#/health'));
 app.get('/:config/servers', (req, res) => {
   res.redirect(`/servers?cfg=${encodeURIComponent(req.params.config)}`);
 });

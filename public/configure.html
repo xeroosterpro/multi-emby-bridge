@@ -540,7 +540,25 @@
     </select>
   </div>
 </section>
-      <section class="page" id="page-health"><div class="page-ph">Health</div></section>
+      <section class="page" id="page-health">
+        <h2 class="page-title">Server health</h2>
+        <p class="page-sub">Uptime and response time, pinged every 5 minutes from the addon server.</p>
+        <div class="ping-origin-bar">
+          <div class="ping-origin-label">&#x1F4E1; Pings sent from: <span class="ping-origin-pill" id="ping-origin-pill">Addon Server</span></div>
+          <button class="btn primary" onclick="pingNow()">Ping Now</button>
+        </div>
+        <div class="toolbar">
+          <div class="range-tabs">
+            <button class="range-tab active" onclick="setRange('24h',this)">24h</button>
+            <button class="range-tab" onclick="setRange('7d',this)">7 days</button>
+            <button class="range-tab" onclick="setRange('30d',this)">30 days</button>
+            <button class="range-tab" onclick="setRange('all',this)">All time</button>
+          </div>
+          <div style="font-size:0.73rem;color:#2e2e42" id="range-info"></div>
+        </div>
+        <div id="main-content"><div class="loader">Loading health data&#x2026;</div></div>
+        <div class="refresh-bar" id="refresh-bar"></div>
+      </section>
       <section class="page" id="page-install"><div class="page-ph">Install</div></section>
       <section class="page" id="page-ping"><div class="page-ph">Ping Test</div></section>
       <section class="page" id="page-log"><div class="page-ph">Request Log</div></section>
@@ -552,5 +570,6 @@
 
   <script src="/js/configure.js"></script>
   <script src="/js/shell.js"></script>
+  <script src="/js/health.js"></script>
 </body>
 </html>

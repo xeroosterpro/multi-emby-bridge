@@ -1098,6 +1098,7 @@ function renderServersPage() {
 window.onPageShow = function(name) {
   if (name === 'servers') renderServersPage();
   if (name === 'dashboard') renderDashboard();
+  if (name === 'health' && window.startHealth) window.startHealth();
 };
 
 async function renderDashboard() {
