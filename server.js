@@ -490,7 +490,7 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
   try {
     if (query) {
       // Search catalog — always runs regardless of showCatalog setting
-      const metas = await searchServersForCatalog(servers, type, query);
+      const metas = await searchServersForCatalog(servers, type, query, 8000, cfg.rpdbKey || null, cfg.catalogLang || null);
       const dme = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; setCatalogCache(res); res.json({ metas: dme });
     } else {
       // Browse catalog (home page row)
