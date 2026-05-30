@@ -1099,6 +1099,7 @@ window.onPageShow = function(name) {
   if (name === 'servers') renderServersPage();
   if (name === 'dashboard') renderDashboard();
   if (name === 'health' && window.startHealth) window.startHealth();
+  if (name === 'log' && typeof refreshLog === 'function') refreshLog();
 };
 
 async function renderDashboard() {
@@ -2015,4 +2016,6 @@ document.addEventListener('DOMContentLoaded', () => {
     .forEach(fn => { try { fn(); } catch (_) {} });
   document.addEventListener('input', autoSave);
   document.addEventListener('change', autoSave);
+  const qi = document.getElementById('quick-install');
+  if (qi) qi.addEventListener('click', () => { location.hash = '#/install'; generateLinks(); });
 });

@@ -559,14 +559,40 @@
         <div id="main-content"><div class="loader">Loading health data&#x2026;</div></div>
         <div class="refresh-bar" id="refresh-bar"></div>
       </section>
-      <section class="page" id="page-install"><div class="page-ph">Install</div></section>
-      <section class="page" id="page-ping"><div class="page-ph">Ping Test</div></section>
-      <section class="page" id="page-log"><div class="page-ph">Request Log</div></section>
+      <section class="page" id="page-install">
+        <h2 class="page-title">Install to Stremio</h2>
+        <p class="page-sub">Generate your install link and open it in Stremio.</p>
+        <button class="btn-generate" onclick="generateLinks()">Generate Install Link</button>
+        <div id="result-section"></div>
+      </section>
+      <section class="page" id="page-ping">
+        <h2 class="page-title">Ping test</h2>
+        <p class="page-sub">Measure latency to your servers from your browser or the addon server.</p>
+        <div class="ping-controls">
+          <select id="ping-origin">
+            <option value="browser">Your browser</option>
+            <option value="server">Addon server</option>
+          </select>
+          <button class="btn-ping-test" onclick="runPingTest()">Run Ping Test</button>
+        </div>
+        <div id="ping-results"></div>
+      </section>
+      <section class="page" id="page-log">
+        <h2 class="page-title">Request history</h2>
+        <p class="page-sub" id="log-count-badge"></p>
+        <div class="log-actions">
+          <a href="#/health" class="btn-log">Server Health</a>
+          <button class="btn-log" onclick="refreshLog()">Refresh</button>
+          <button class="btn-log danger" onclick="clearLog()">Clear</button>
+        </div>
+        <div class="log-table-wrap" id="log-table-wrap">
+          <div class="log-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>
+        </div>
+      </section>
     </main>
   </div>
 
   <div id="global-error"></div>
-  <div id="result-section"></div>
 
   <script src="/js/configure.js"></script>
   <script src="/js/shell.js"></script>
