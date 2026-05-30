@@ -30,7 +30,18 @@
     </aside>
 
     <main class="content" id="content">
-      <section class="page" id="page-dashboard"><div class="page-ph">Dashboard</div></section>
+      <section class="page" id="page-dashboard">
+  <h2 class="page-title">Hey there 🍿</h2>
+  <p class="page-sub" id="dash-status">Loading your setup…</p>
+  <div class="tiles">
+    <div class="tile t1"><div class="n" id="tile-servers">0</div><div class="l">Servers up</div></div>
+    <div class="tile t2"><div class="n" id="tile-catalogs">0</div><div class="l">Catalog rows</div></div>
+    <div class="tile t3"><div class="n" id="tile-movies">0</div><div class="l">Movies</div></div>
+    <div class="tile t4"><div class="n" id="tile-ping">—</div><div class="l">Fastest ping</div></div>
+  </div>
+  <h3 class="block-title">Your servers</h3>
+  <div class="dash-cards" id="dash-cards"></div>
+</section>
       <section class="page" id="page-servers">
         <h2 class="page-title">Your servers</h2>
         <p class="page-sub">Connected Emby &amp; Jellyfin servers. Click Manage to edit credentials.</p>

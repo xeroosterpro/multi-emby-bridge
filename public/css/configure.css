@@ -809,3 +809,23 @@ input::placeholder { color: var(--text-muted); }
 .profile-row input { flex: 1; }
 .profile-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn-soft { padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface-2); color: var(--text); cursor: pointer; font-size: .8rem; }
+
+/* ── Dashboard tiles + cards ────────────────────────────────────────────── */
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 13px; margin-bottom: 22px; }
+.tile { position: relative; border-radius: var(--r-lg); padding: 15px 16px; color: #1a0f14; overflow: hidden; }
+.tile .n { font-size: 1.7rem; font-weight: 900; line-height: 1; position: relative; z-index: 1; }
+.tile .l { font-size: .7rem; font-weight: 700; margin-top: 6px; opacity: .85; position: relative; z-index: 1; text-transform: uppercase; }
+.tile::after { content: ''; position: absolute; top: 0; left: 0; width: 40%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent); transform: translateX(-120%); animation: sheen 4.5s ease-in-out infinite; }
+.tile.t2::after { animation-delay: 1.1s; } .tile.t3::after { animation-delay: 2.2s; } .tile.t4::after { animation-delay: 3.3s; }
+.t1 { background: linear-gradient(150deg, #fdba74, #fb923c); }
+.t2 { background: linear-gradient(150deg, #f9a8d4, #f472b6); }
+.t3 { background: linear-gradient(150deg, #a5b4fc, #818cf8); }
+.t4 { background: linear-gradient(150deg, #6ee7b7, #34d399); }
+.dash-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.dash-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 15px; }
+.dc-head { display: flex; align-items: center; gap: 11px; margin-bottom: 11px; }
+.dc-mini { display: flex; gap: 8px; }
+.dc-mini .mc { flex: 1; background: var(--surface-2); border-radius: var(--r-sm); padding: 8px; text-align: center; }
+.dc-mini .mc .n { font-weight: 800; font-size: .9rem; }
+.dc-mini .mc .l { font-size: .56rem; color: var(--text-mute); text-transform: uppercase; }
+@media (max-width: 720px) { .tiles { grid-template-columns: repeat(2,1fr); } .dash-cards { grid-template-columns: 1fr; } }
