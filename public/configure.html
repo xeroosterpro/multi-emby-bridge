@@ -68,82 +68,86 @@
       <section class="page" id="page-catalogs">
   <h2 class="page-title">Catalogs</h2>
   <p class="page-sub">Add external rows to your Stremio home screen.</p>
-          <p class="tab-intro">Add external catalog rows to your Stremio home screen. Drag rows to reorder.</p>
 
-          <!-- My Library -->
-          <div class="catalog-section">
-            <div class="catalog-section-title">My Library</div>
-            <label class="option-item">
-              <input type="checkbox" id="show-catalog" checked onchange="toggleCatalogOptions();autoSave()" />
-              <div>
-                <div class="option-title">Home page catalog</div>
-                <div class="option-desc">Show a My Media row on the Stremio home screen. Search always works regardless.</div>
+          <!-- ===== Quick add: My Library home catalog ===== -->
+          <h3 class="block-title">Quick add</h3>
+          <div class="field">
+            <div class="sw" data-target="#show-catalog">
+              <span class="knob"></span>
+              <span><span class="sw-lbl">Home page catalog</span><br><span class="sw-sub">Show a My Media row on Stremio home. Search always works regardless.</span></span>
+            </div>
+            <!-- canonical checkbox keeps its onchange handler -->
+            <input type="checkbox" id="show-catalog" class="hidden-canonical" checked onchange="toggleCatalogOptions();autoSave()" />
+
+            <div id="catalog-options" style="margin-top:10px">
+              <div class="field-label">Catalog shows</div>
+              <div class="seg" data-target="#catalog-content">
+                <button data-val="recent">Recently Added</button>
+                <button data-val="resume">Continue Watching</button>
+                <button data-val="favorites">Favorites</button>
               </div>
-            </label>
-            <div id="catalog-options" style="display:flex;flex-direction:column;gap:0.5rem;margin:0.35rem 0 0.2rem;padding:0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)">
-              <div class="appearance-row" style="margin:0">
-                <span class="appearance-label">Catalog shows</span>
-                <span class="appearance-hint">Content type displayed in each home page row</span>
-                <select id="catalog-content" onchange="autoSave()">
-                  <option value="recent">Recently Added</option>
-                  <option value="resume">Continue Watching</option>
-                  <option value="favorites">Favorites</option>
-                </select>
-              </div>
-            </div>
-            <div class="appearance-row" style="margin-top:0.6rem">
-              <span class="appearance-label">RPDB API Key</span>
-              <span class="appearance-hint">RatingPosterDB key for catalog poster images</span>
-              <input type="text" id="rpdb-key" placeholder="your-rpdb-api-key" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
-            </div>
-          </div>
-
-          <div class="options-divider"></div>
-
-          <!-- API Keys -->
-          <div class="catalog-section">
-            <div class="catalog-section-title">API Keys</div>
-            <div class="appearance-row">
-              <span class="appearance-label">Trakt Client ID</span>
-              <span class="appearance-hint">Free at trakt.tv/oauth/applications &ndash; required for Trakt catalogs</span>
-              <input type="text" id="trakt-client-id" placeholder="your_trakt_client_id" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
-            </div>
-            <div class="appearance-row" style="margin-top:0.6rem">
-              <span class="appearance-label">MDbList API Key</span>
-              <span class="appearance-hint">Free at mdblist.com/api &ndash; required for MDbList catalogs</span>
-              <input type="text" id="mdblist-api-key" placeholder="your_mdblist_api_key" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
-            </div>
-            <div class="appearance-row" style="margin-top:0.6rem">
-              <span class="appearance-label">TMDB API Key</span>
-              <span class="appearance-hint">Free at themoviedb.org &rarr; Settings &rarr; API &ndash; copy the <strong>API Read Access Token</strong> (eyJ&hellip;) OR the <strong>API Key</strong> &mdash; both work</span>
-              <input type="text" id="tmdb-api-key" placeholder="Paste API Key or API Read Access Token (eyJ...)" autocomplete="off" spellcheck="false" oninput="autoSave()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
-            </div>
-          </div>
-
-          <div class="options-divider"></div>
-
-          <!-- Catalog Filters -->
-          <div class="catalog-section">
-            <div class="catalog-section-title">Catalog Filters</div>
-            <div class="appearance-row">
-              <span class="appearance-label">Language filter</span>
-              <span class="appearance-hint">Hide non-matching content from all catalog rows</span>
-              <select id="catalog-lang" onchange="autoSave()">
-                <option value="">Off - show everything</option>
-                <option value="en">English only</option>
-                <option value="es">Spanish only</option>
-                <option value="fr">French only</option>
-                <option value="de">German only</option>
-                <option value="ja">Japanese only</option>
-                <option value="ko">Korean only</option>
-                <option value="pt">Portuguese only</option>
+              <select id="catalog-content" class="hidden-canonical" onchange="autoSave()">
+                <option value="recent">Recently Added</option>
+                <option value="resume">Continue Watching</option>
+                <option value="favorites">Favorites</option>
               </select>
             </div>
-            <div class="appearance-row" style="margin-top:0.6rem">
-              <span class="appearance-label">No duplicate rows</span>
-              <span class="appearance-hint">Each title appears in only the first catalog row it shows up in</span>
-              <label class="toggle-label"><input type="checkbox" id="no-dupes" onchange="autoSave()"> Enable</label>
+          </div>
+
+          <!-- ===== Connections: API keys ===== -->
+          <h3 class="block-title">Connections</h3>
+          <div class="statusgrid" style="margin-bottom:18px">
+            <div class="keytile">
+              <div class="keytile-head" onclick="toggleKeyTile('trakt')"><span class="kn">Trakt</span><span class="st unset" id="pill-trakt">ADD KEY</span></div>
+              <div id="keywrap-trakt" style="display:none;margin-top:8px">
+                <input type="text" id="trakt-client-id" placeholder="your_trakt_client_id" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
+                <div class="field-hint" style="margin-top:4px">Free at trakt.tv/oauth/applications &ndash; required for Trakt catalogs</div>
+              </div>
             </div>
+            <div class="keytile">
+              <div class="keytile-head" onclick="toggleKeyTile('mdblist')"><span class="kn">MDbList</span><span class="st unset" id="pill-mdblist">ADD KEY</span></div>
+              <div id="keywrap-mdblist" style="display:none;margin-top:8px">
+                <input type="text" id="mdblist-api-key" placeholder="your_mdblist_api_key" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
+                <div class="field-hint" style="margin-top:4px">Free at mdblist.com/api &ndash; required for MDbList catalogs</div>
+              </div>
+            </div>
+            <div class="keytile">
+              <div class="keytile-head" onclick="toggleKeyTile('tmdb')"><span class="kn">TMDB</span><span class="st unset" id="pill-tmdb">ADD KEY</span></div>
+              <div id="keywrap-tmdb" style="display:none;margin-top:8px">
+                <input type="text" id="tmdb-api-key" placeholder="Paste API Key or API Read Access Token (eyJ...)" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
+                <div class="field-hint" style="margin-top:4px">Free at themoviedb.org &rarr; Settings &rarr; API &ndash; copy the <strong>API Read Access Token</strong> (eyJ&hellip;) OR the <strong>API Key</strong></div>
+              </div>
+            </div>
+            <div class="keytile">
+              <div class="keytile-head" onclick="toggleKeyTile('rpdb')"><span class="kn">RPDB</span><span class="st unset" id="pill-rpdb">ADD KEY</span></div>
+              <div id="keywrap-rpdb" style="display:none;margin-top:8px">
+                <input type="text" id="rpdb-key" placeholder="your-rpdb-api-key" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
+                <div class="field-hint" style="margin-top:4px">RatingPosterDB key for catalog poster images</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Filters ===== -->
+          <h3 class="block-title">Filters</h3>
+          <div class="field">
+            <div class="field-label">Language filter</div>
+            <select id="catalog-lang" class="pick" onchange="autoSave()">
+              <option value="">Off - show everything</option>
+              <option value="en">English only</option>
+              <option value="es">Spanish only</option>
+              <option value="fr">French only</option>
+              <option value="de">German only</option>
+              <option value="ja">Japanese only</option>
+              <option value="ko">Korean only</option>
+              <option value="pt">Portuguese only</option>
+            </select>
+          </div>
+          <div class="field">
+            <div class="sw" data-target="#no-dupes">
+              <span class="knob"></span>
+              <span><span class="sw-lbl">No duplicate rows</span><br><span class="sw-sub">Each title appears in only the first catalog row it shows up in</span></span>
+            </div>
+            <input type="checkbox" id="no-dupes" class="hidden-canonical" onchange="autoSave()" />
           </div>
 
           <div class="options-divider"></div>
@@ -191,22 +195,26 @@
 
           <div class="options-divider"></div>
 
-          <div class="catalog-list-header">
-            <span class="catalog-list-count" id="catalog-count"></span>
-            <button class="btn-clear-all" id="btn-clear-all" onclick="clearAllCatalogs()">Clear All</button>
-          </div>
-          <div id="catalog-list" class="catalog-list"></div>
-
+          <!-- ===== Add a row ===== -->
+          <h3 class="block-title">Add a row</h3>
           <div class="catalog-add-form">
+            <div class="field-label">Provider</div>
+            <div class="tilegroup" data-target="#cat-provider" style="grid-template-columns:repeat(5,1fr);margin-bottom:10px">
+              <div class="tile" data-val="trakt"><span class="tic">&#x1F3AC;</span>Trakt</div>
+              <div class="tile" data-val="mdblist"><span class="tic">&#x1F4DD;</span>MDbList</div>
+              <div class="tile" data-val="imdb"><span class="tic">&#x2B50;</span>IMDb</div>
+              <div class="tile" data-val="letterboxd"><span class="tic">&#x1F4D7;</span>Letterboxd</div>
+              <div class="tile" data-val="tmdb"><span class="tic">&#x1F3A5;</span>TMDB</div>
+            </div>
+            <select id="cat-provider" class="hidden-canonical" onchange="onCatalogProviderChange()">
+              <option value="">&#x2014; Provider &#x2014;</option>
+              <option value="trakt">Trakt</option>
+              <option value="mdblist">MDbList</option>
+              <option value="imdb">IMDb List</option>
+              <option value="letterboxd">Letterboxd</option>
+              <option value="tmdb">TMDB</option>
+            </select>
             <div class="catalog-add-row">
-              <select id="cat-provider" onchange="onCatalogProviderChange()">
-                <option value="">&#x2014; Provider &#x2014;</option>
-                <option value="trakt">Trakt</option>
-                <option value="mdblist">MDbList</option>
-                <option value="imdb">IMDb List</option>
-                <option value="letterboxd">Letterboxd</option>
-                <option value="tmdb">TMDB</option>
-              </select>
               <select id="cat-trakt-list" class="cat-trakt-field" style="display:none">
                 <option value="trending">Trending</option>
                 <option value="popular">Popular</option>
@@ -214,12 +222,18 @@
                 <option value="anticipated">Anticipated</option>
               </select>
               <input type="text" id="cat-list-url" class="cat-url-field" placeholder="Paste list URL..." style="display:none;flex:1;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" oninput="onCatalogUrlInput()" />
-              <select id="cat-media-type">
-                <option value="movie">Movies</option>
-                <option value="series">Shows</option>
-                <option value="both">Both</option>
-              </select>
             </div>
+            <div class="field-label" style="margin-top:8px">Media type</div>
+            <div class="seg" data-target="#cat-media-type">
+              <button data-val="movie">Movies</button>
+              <button data-val="series">Shows</button>
+              <button data-val="both">Both</button>
+            </div>
+            <select id="cat-media-type" class="hidden-canonical">
+              <option value="movie">Movies</option>
+              <option value="series">Shows</option>
+              <option value="both">Both</option>
+            </select>
             <!-- TMDB fields -->
             <div id="cat-tmdb-fields" class="catalog-add-row" style="display:none;flex-direction:column;gap:0.4rem;margin-top:0.4rem">
               <div style="display:flex;gap:0.4rem;align-items:center">
@@ -284,6 +298,16 @@
               <button class="btn-add-catalog" onclick="addExternalCatalog()">+ Add</button>
             </div>
           </div>
+
+          <div class="options-divider"></div>
+
+          <!-- ===== Your rows ===== -->
+          <h3 class="block-title">Your rows</h3>
+          <div class="catalog-list-header">
+            <span class="catalog-list-count" id="catalog-count"></span>
+            <button class="btn-clear-all" id="btn-clear-all" onclick="clearAllCatalogs()">Clear All</button>
+          </div>
+          <div id="catalog-list" class="catalog-list"></div>
 </section>
       <section class="page" id="page-streaming">
   <h2 class="page-title">Streaming</h2>

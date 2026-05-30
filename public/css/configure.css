@@ -841,3 +841,4 @@ input[type=range][data-slider] { flex: 1; accent-color: var(--accent-a); }
 .st.set { background: rgba(52,211,153,.16); color: #6ee7b7; }
 .st.unset { background: #3a3142; color: #9a8f98; }
 .hidden-canonical { display: none !important; }
+.keytile-head { cursor: pointer; }

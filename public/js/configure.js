@@ -1069,6 +1069,7 @@ window.onPageShow = function(name) {
   if (name === 'dashboard') renderDashboard();
   if (name === 'health' && window.startHealth) window.startHealth();
   if (name === 'log' && typeof refreshLog === 'function') refreshLog();
+  if (name === 'catalogs' && typeof refreshKeyPills === 'function') refreshKeyPills();
   if (window.Controls) Controls.syncAll();
 };
 
@@ -1504,7 +1505,19 @@ function toggleSummaryStyle() {
 function toggleCatalogOptions() {
   const show = document.getElementById('show-catalog')?.checked ?? true;
   const opts = document.getElementById('catalog-options');
-  if (opts) opts.style.display = show ? 'flex' : 'none';
+  if (opts) opts.style.display = show ? '' : 'none';
+}
+
+function toggleKeyTile(id) {
+  const w = document.getElementById('keywrap-' + id);
+  if (w) w.style.display = w.style.display === 'none' ? 'block' : 'none';
+}
+function refreshKeyPills() {
+  [['trakt-client-id','pill-trakt'],['mdblist-api-key','pill-mdblist'],['tmdb-api-key','pill-tmdb'],['rpdb-key','pill-rpdb']]
+    .forEach(([inp, pill]) => {
+      const i = document.getElementById(inp), p = document.getElementById(pill);
+      if (i && p) { const set = !!i.value.trim(); p.textContent = set ? 'SET' : 'ADD KEY'; p.className = 'st ' + (set ? 'set' : 'unset'); }
+    });
 }
 
 const PREVIEW_SERVERS = [
