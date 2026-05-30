@@ -65,7 +65,150 @@
         </div>
       </section>
       <section class="page" id="page-catalogs"><div class="page-ph">Catalogs</div></section>
-      <section class="page" id="page-streaming"><div class="page-ph">Streaming</div></section>
+      <section class="page" id="page-streaming">
+  <h2 class="page-title">Streaming</h2>
+  <p class="page-sub">How streams are filtered, sorted, and labelled per result.</p>
+          <label class="option-item">
+            <input type="radio" name="perf-mode" value="normal" checked onchange="onModeChange()" />
+            <div>
+              <div class="option-title">Normal</div>
+              <div class="option-desc">All servers in one addon. Default behaviour.</div>
+            </div>
+          </label>
+          <label class="option-item">
+            <input type="radio" name="perf-mode" value="split" onchange="onModeChange()" />
+            <div>
+              <div class="option-title">Split per server</div>
+              <div class="option-desc">Separate install link per server. Stremio loads them independently.</div>
+            </div>
+          </label>
+          <label class="option-item">
+            <input type="radio" name="perf-mode" value="timeout" onchange="onModeChange()" />
+            <div>
+              <div class="option-title">Fast timeout</div>
+              <div class="option-desc">Cut off slow servers sooner so results appear faster.</div>
+              <div class="timeout-select-row" id="timeout-row">
+                <span>Cut off after:</span>
+                <select id="timeout-value">
+                  <option value="2000">2s (aggressive)</option>
+                  <option value="3000">3s</option>
+                  <option value="4000">4s</option>
+                  <option value="5000" selected>5s</option>
+                  <option value="6000">6s</option>
+                  <option value="7000">7s</option>
+                  <option value="8000">8s</option>
+                  <option value="9000">9s</option>
+                </select>
+              </div>
+            </div>
+          </label>
+
+          <div class="options-divider"></div>
+
+          <div class="sort-row">
+            <span class="sort-row-label">Sort streams by</span>
+            <select id="sort-order">
+              <option value="size">File size (largest first)</option>
+              <option value="audio">Audio quality (best first)</option>
+              <option value="bitrate">Bitrate (highest first)</option>
+            </select>
+          </div>
+
+          <div class="options-divider"></div>
+
+          <div class="exclude-res-row">
+            <span class="sort-row-label">Exclude resolutions</span>
+            <div class="res-checkboxes">
+              <label class="res-check"><input type="checkbox" class="res-cb" value="4K" /> 4K</label>
+              <label class="res-check"><input type="checkbox" class="res-cb" value="1080p" /> 1080p</label>
+              <label class="res-check"><input type="checkbox" class="res-cb" value="720p" /> 720p</label>
+              <label class="res-check"><input type="checkbox" class="res-cb" value="SD" /> SD</label>
+            </div>
+          </div>
+
+          <div class="sort-row">
+            <span class="sort-row-label">Prefer audio language</span>
+            <select id="audio-lang">
+              <option value="any">Any language</option>
+              <option value="eng">English</option>
+              <option value="fre">French</option>
+              <option value="spa">Spanish</option>
+              <option value="ger">German</option>
+              <option value="jpn">Japanese</option>
+              <option value="kor">Korean</option>
+              <option value="por">Portuguese</option>
+              <option value="ita">Italian</option>
+              <option value="zho">Chinese</option>
+              <option value="rus">Russian</option>
+              <option value="ara">Arabic</option>
+              <option value="hin">Hindi</option>
+            </select>
+          </div>
+
+          <div class="sort-row">
+            <span class="sort-row-label">Prefer codec</span>
+            <div class="sort-row-dual">
+              <select id="pref-codec">
+                <option value="any">No preference</option>
+                <option value="h264">H.264 / AVC</option>
+                <option value="hevc">H.265 / HEVC</option>
+                <option value="av1">AV1</option>
+                <option value="vp9">VP9</option>
+              </select>
+              <select id="codec-mode" title="Prefer = sort to top. Only = hide others.">
+                <option value="prefer">Prefer</option>
+                <option value="only">Only</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="sort-row">
+            <span class="sort-row-label">Max bitrate</span>
+            <select id="max-bitrate">
+              <option value="">No limit</option>
+              <option value="5000000">5 Mbps</option>
+              <option value="10000000">10 Mbps</option>
+              <option value="15000000">15 Mbps</option>
+              <option value="20000000">20 Mbps</option>
+              <option value="30000000">30 Mbps</option>
+              <option value="40000000">40 Mbps</option>
+              <option value="60000000">60 Mbps</option>
+              <option value="80000000">80 Mbps</option>
+              <option value="100000000">100 Mbps</option>
+            </select>
+          </div>
+
+          <div class="options-divider"></div>
+
+          <label class="option-item">
+            <input type="checkbox" id="show-recommend" checked />
+            <div>
+              <div class="option-title">Mark recommended stream</div>
+              <div class="option-desc">Adds a star to the top result based on your sort preference.</div>
+            </div>
+          </label>
+          <label class="option-item">
+            <input type="checkbox" id="show-ping" checked onchange="onShowPingChange()" />
+            <div>
+              <div class="option-title">Mark fastest server</div>
+              <div class="option-desc">Pings each server and marks the fastest. Measured from the addon server.</div>
+            </div>
+          </label>
+          <label class="option-item">
+            <input type="checkbox" id="auto-select" />
+            <div>
+              <div class="option-title">Auto-select best stream</div>
+              <div class="option-desc">Only shows the single best result. Picks automatically based on your preferences.</div>
+            </div>
+          </label>
+          <label class="option-item" id="ping-detail-item">
+            <input type="checkbox" id="ping-detail" />
+            <div>
+              <div class="option-title">Show ping RTT in details</div>
+              <div class="option-desc">Adds measured latency to each stream description. Requires fastest server marking.</div>
+            </div>
+          </label>
+</section>
       <section class="page" id="page-appearance"><div class="page-ph">Appearance</div></section>
       <section class="page" id="page-health"><div class="page-ph">Health</div></section>
       <section class="page" id="page-install"><div class="page-ph">Install</div></section>

@@ -829,3 +829,20 @@ input::placeholder { color: var(--text-muted); }
 .dc-mini .mc .n { font-weight: 800; font-size: .9rem; }
 .dc-mini .mc .l { font-size: .56rem; color: var(--text-mute); text-transform: uppercase; }
 @media (max-width: 720px) { .tiles { grid-template-columns: repeat(2,1fr); } .dash-cards { grid-template-columns: 1fr; } }
+
+/* ── Streaming page controls ────────────────────────────────────────────── */
+.option-item { display: flex; gap: 11px; align-items: flex-start; padding: 11px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); margin-bottom: 8px; cursor: pointer; }
+.option-title { font-weight: 600; font-size: .9rem; }
+.option-desc { font-size: .75rem; color: var(--text-mute); margin-top: 2px; }
+.sort-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; }
+.sort-row-label { font-size: .85rem; color: var(--text-dim); }
+.sort-row-dual { display: flex; gap: 8px; }
+.options-divider { height: 1px; background: var(--border); margin: 10px 0; }
+.res-checkboxes { display: flex; gap: 12px; }
+.res-check { font-size: .8rem; color: var(--text-dim); display: flex; gap: 5px; align-items: center; }
+.timeout-select-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: .8rem; color: var(--text-dim); }
+.exclude-res-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; }
+select, input[type=text], input[type=password], input[type=number] {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm);
+  color: var(--text); font-size: .82rem; padding: .4rem .6rem;
+}
