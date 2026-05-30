@@ -308,13 +308,21 @@ app.post('/api/fetch-credentials', authLimiter, express.json(), async (req, res)
   }
 
   const authHeader = 'MediaBrowser Client="MultiEmbyBridge", Device="Web", DeviceId="meb-setup", Version="1.0.0"';
-  const authUrl = `${url.replace(/\/$/, '')}/Users/AuthenticateByName`;
-  try {
+  const baseUrl = url.replace(/\/+$/, '');
+
+  // Try multiple auth path patterns — shared/managed Emby servers sometimes
+  // use a subpath prefix (/emby/, /mediabrowser/) or non-standard layouts.
+  const authPaths = [
+    `${baseUrl}/Users/AuthenticateByName`,
+    `${baseUrl}/emby/Users/AuthenticateByName`,
+    `${baseUrl}/mediabrowser/Users/AuthenticateByName`,
+  ];
+
+  const tryAuth = async (authUrl) => {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
-    let resp;
+    const timer = setTimeout(() => controller.abort(), 8000);
     try {
-      resp = await fetch(authUrl, {
+      return await fetch(authUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -327,12 +335,27 @@ app.post('/api/fetch-credentials', authLimiter, express.json(), async (req, res)
     } finally {
       clearTimeout(timer);
     }
+  };
 
-    if (resp.status === 401 || resp.status === 403) {
-      return res.status(401).json({ error: 'Authentication failed — wrong username or password.' });
+  try {
+    let resp = null;
+    let lastError = null;
+    for (const authUrl of authPaths) {
+      try {
+        const r = await tryAuth(authUrl);
+        // 401/403 means we reached Emby but creds are wrong — no point trying other paths
+        if (r.status === 401 || r.status === 403) {
+          return res.status(401).json({ error: 'Authentication failed — wrong username or password.' });
+        }
+        if (r.ok) { resp = r; break; }
+        lastError = `HTTP ${r.status}`;
+      } catch (e) {
+        lastError = e.name === 'AbortError' ? 'timeout' : e.message;
+      }
     }
-    if (!resp.ok) {
-      return res.status(502).json({ error: `Server returned HTTP ${resp.status}. Check the URL.` });
+
+    if (!resp) {
+      return res.status(502).json({ error: `Could not reach auth endpoint (tried 3 paths, last error: ${lastError}). Check the URL or enter API Key and User ID manually.` });
     }
 
     const data = await resp.json();
