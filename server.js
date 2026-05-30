@@ -6,7 +6,7 @@ const fs = require('fs');
 
 // ─── Modules ─────────────────────────────────────────────────────────────────
 const { parseStreamId } = require('./lib/utils');
-const { fetchWithTimeout, authHeaders, appendAuth, apiFetch, pingServer, buildStreamUrl, getEffectiveApiKey } = require('./lib/auth');
+const { fetchWithTimeout, authHeaders, appendAuth, apiFetch, pingServer, buildStreamUrl, getEffectiveApiKey, BROWSER_UA } = require('./lib/auth');
 const { resolveImdbName, queryServerForMovie, queryServerForEpisode, searchServersForCatalog, getRecentlyAdded } = require('./lib/search');
 const { getAllStreams } = require('./lib/streams');
 const { fetchExternalCatalog } = require('./lib/catalogs');
@@ -328,6 +328,7 @@ app.post('/api/fetch-credentials', authLimiter, express.json(), async (req, res)
           'Content-Type': 'application/json',
           'X-Emby-Authorization': authHeader,
           'Authorization': authHeader,
+          'User-Agent': BROWSER_UA,
         },
         body: JSON.stringify({ Username: username, Pw: password }),
         signal: controller.signal,
@@ -404,7 +405,7 @@ app.post('/api/ping-servers', apiLimiter, express.json(), async (req, res) => {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 5000);
-      try { await fetch(`${s.url}/System/Ping`, { signal: controller.signal }); }
+      try { await fetch(`${s.url}/System/Ping`, { headers: { 'User-Agent': BROWSER_UA }, signal: controller.signal }); }
       finally { clearTimeout(timer); }
       return { label: s.label, ms: Date.now() - t0 };
     } catch {

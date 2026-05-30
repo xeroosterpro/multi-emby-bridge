@@ -1008,11 +1008,11 @@ function buildServerBlock(id) {
         <div class="cred-inputs">
           <div class="field-group">
             <label>Username</label>
-            <input type="text" class="f-username" placeholder="admin" autocomplete="off" />
+            <input type="text" class="f-username" placeholder="admin" autocomplete="off" oninput="updateCredWarning(${id})" />
           </div>
           <div class="field-group">
             <label>Password</label>
-            <input type="password" class="f-password" placeholder="••••••••" autocomplete="off" />
+            <input type="password" class="f-password" placeholder="••••••••" autocomplete="off" oninput="updateCredWarning(${id})" />
           </div>
         </div>
         <button class="btn-fetch" onclick="fetchCredentials(${id})">Fetch API Key &amp; User ID</button>
@@ -1022,13 +1022,14 @@ function buildServerBlock(id) {
       <div class="field-row">
         <div class="field-group">
           <label>API Key</label>
-          <input type="text" class="f-apikey" placeholder="Auto-filled above" autocomplete="off" />
+          <input type="text" class="f-apikey" placeholder="Auto-filled above" autocomplete="off" oninput="updateCredWarning(${id})" />
         </div>
         <div class="field-group">
           <label>User ID</label>
           <input type="text" class="f-userid" placeholder="Auto-filled above" autocomplete="off" />
         </div>
       </div>
+      <div class="cred-warning" id="cred-warning-${id}" style="display:none"></div>
       <div class="server-actions-row">
         <button class="btn-test" onclick="testConnection(${id})">Test Connection</button>
         <button class="btn-stats" onclick="loadLibraryStats(${id})">Library Stats</button>
@@ -1139,6 +1140,7 @@ function addServer(data = null) {
     }
   }
   renumberBlocks();
+  updateCredWarning(id);
 }
 
 function removeServer(id) {
@@ -1270,6 +1272,24 @@ function importConfig(event) {
   event.target.value = '';
 }
 
+// ── Saved-login warning ──
+function updateCredWarning(id) {
+  const block = document.getElementById(`server-${id}`);
+  if (!block) return;
+  const el = document.getElementById(`cred-warning-${id}`);
+  if (!el) return;
+  const apiKey = block.querySelector('.f-apikey').value.trim();
+  const username = block.querySelector('.f-username').value.trim();
+  const password = block.querySelector('.f-password').value;
+  if (apiKey && !(username && password)) {
+    el.innerHTML = '⚠️ No login saved — this API key will expire and the addon cannot auto-renew it. '
+      + 'Enter your <b>Username</b> + <b>Password</b> above and click “Fetch API Key & User ID” so tokens refresh automatically.';
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 // ── Credential fetch ──────────────────────────────────────────────────────
 async function fetchCredentials(id) {
   const block = document.getElementById(`server-${id}`);
@@ -1288,6 +1308,7 @@ async function fetchCredentials(id) {
     if (!resp.ok) throw new Error(data.error || 'Unknown error');
     block.querySelector('.f-apikey').value = data.apiKey;
     block.querySelector('.f-userid').value = data.userId;
+    updateCredWarning(id);
     statusEl.textContent = 'Credentials fetched!'; statusEl.className = 'cred-status success';
     autoSave();
   } catch (err) {
@@ -1476,6 +1497,19 @@ function generateLinks() {
   hideError();
   const config = collectConfig();
   if (!config) return;
+  const noAuto = config.servers.filter(s => s.apiKey && !(s.username && s.password));
+  if (noAuto.length) {
+    const names = noAuto.map(s => s.label).join(', ');
+    const verb = noAuto.length > 1 ? ' have' : ' has';
+    const msg = `Heads up: ${names}${verb} an API key but no saved login.
+
+Emby/Jellyfin tokens expire, and without a Username + Password the addon cannot auto-renew them — catalogs will go dead until you paste a fresh key by hand.
+
+Tip: enter your Username + Password and click “Fetch API Key & User ID” so tokens refresh automatically.
+
+Continue anyway?`;
+    if (!confirm(msg)) return;
+  }
 
   const mode = document.querySelector('input[name="perf-mode"]:checked').value;
   const sortOrder = document.getElementById('sort-order').value;

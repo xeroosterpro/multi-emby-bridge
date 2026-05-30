@@ -1,0 +1,6 @@
+.aider*
+node_modules/
+data/
+.claude/
+.playwright-mcp/
+*.log
