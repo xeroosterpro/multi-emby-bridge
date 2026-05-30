@@ -4,3 +4,4 @@ data/
 .claude/
 .playwright-mcp/
 *.log
+.superpowers/
