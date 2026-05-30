@@ -1069,6 +1069,7 @@ window.onPageShow = function(name) {
   if (name === 'dashboard') renderDashboard();
   if (name === 'health' && window.startHealth) window.startHealth();
   if (name === 'log' && typeof refreshLog === 'function') refreshLog();
+  if (window.Controls) Controls.syncAll();
 };
 
 async function renderDashboard(force = false) {
@@ -1973,6 +1974,7 @@ function restoreFromLocalStorage() {
       });
     }
 
+    if (window.Controls) Controls.syncAll();
     return true;
   } catch { return false; }
 }
@@ -1990,4 +1992,5 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('change', autoSave);
   const qi = document.getElementById('quick-install');
   if (qi) qi.addEventListener('click', () => { location.hash = '#/install'; generateLinks(); });
+  if (window.Controls) Controls.bindAll();
 });

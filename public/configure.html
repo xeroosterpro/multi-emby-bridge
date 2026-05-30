@@ -288,67 +288,65 @@
       <section class="page" id="page-streaming">
   <h2 class="page-title">Streaming</h2>
   <p class="page-sub">How streams are filtered, sorted, and labelled per result.</p>
-          <label class="option-item">
-            <input type="radio" name="perf-mode" value="normal" checked onchange="onModeChange()" />
-            <div>
-              <div class="option-title">Normal</div>
-              <div class="option-desc">All servers in one addon. Default behaviour.</div>
-            </div>
-          </label>
-          <label class="option-item">
-            <input type="radio" name="perf-mode" value="split" onchange="onModeChange()" />
-            <div>
-              <div class="option-title">Split per server</div>
-              <div class="option-desc">Separate install link per server. Stremio loads them independently.</div>
-            </div>
-          </label>
-          <label class="option-item">
-            <input type="radio" name="perf-mode" value="timeout" onchange="onModeChange()" />
-            <div>
-              <div class="option-title">Fast timeout</div>
-              <div class="option-desc">Cut off slow servers sooner so results appear faster.</div>
-              <div class="timeout-select-row" id="timeout-row">
-                <span>Cut off after:</span>
-                <select id="timeout-value">
-                  <option value="2000">2s (aggressive)</option>
-                  <option value="3000">3s</option>
-                  <option value="4000">4s</option>
-                  <option value="5000" selected>5s</option>
-                  <option value="6000">6s</option>
-                  <option value="7000">7s</option>
-                  <option value="8000">8s</option>
-                  <option value="9000">9s</option>
-                </select>
-              </div>
-            </div>
-          </label>
 
-          <div class="options-divider"></div>
+          <div class="field">
+            <div class="field-label">🚀 Delivery mode</div>
+            <div class="seg" data-radio="perf-mode">
+              <button data-val="normal">⚡ Normal</button>
+              <button data-val="split">🔀 Split</button>
+              <button data-val="timeout">⏱ Fast timeout</button>
+            </div>
+            <div class="hidden-canonical">
+              <input type="radio" name="perf-mode" value="normal" checked onchange="onModeChange()" />
+              <input type="radio" name="perf-mode" value="split" onchange="onModeChange()" />
+              <input type="radio" name="perf-mode" value="timeout" onchange="onModeChange()" />
+            </div>
+            <div class="timeout-select-row" id="timeout-row" style="margin-top:8px">
+              <span>Cut off after:</span>
+              <select id="timeout-value">
+                <option value="2000">2s (aggressive)</option>
+                <option value="3000">3s</option>
+                <option value="4000">4s</option>
+                <option value="5000" selected>5s</option>
+                <option value="6000">6s</option>
+                <option value="7000">7s</option>
+                <option value="8000">8s</option>
+                <option value="9000">9s</option>
+              </select>
+            </div>
+          </div>
 
-          <div class="sort-row">
-            <span class="sort-row-label">Sort streams by</span>
-            <select id="sort-order">
+          <div class="field">
+            <div class="field-label">📊 Sort streams by</div>
+            <div class="seg" data-target="#sort-order">
+              <button data-val="size">💾 File size</button><button data-val="audio">🔊 Audio</button><button data-val="bitrate">📶 Bitrate</button>
+            </div>
+            <select id="sort-order" class="hidden-canonical">
               <option value="size">File size (largest first)</option>
               <option value="audio">Audio quality (best first)</option>
               <option value="bitrate">Bitrate (highest first)</option>
             </select>
           </div>
 
-          <div class="options-divider"></div>
-
-          <div class="exclude-res-row">
-            <span class="sort-row-label">Exclude resolutions</span>
-            <div class="res-checkboxes">
-              <label class="res-check"><input type="checkbox" class="res-cb" value="4K" /> 4K</label>
-              <label class="res-check"><input type="checkbox" class="res-cb" value="1080p" /> 1080p</label>
-              <label class="res-check"><input type="checkbox" class="res-cb" value="720p" /> 720p</label>
-              <label class="res-check"><input type="checkbox" class="res-cb" value="SD" /> SD</label>
+          <div class="field">
+            <div class="field-label">🚫 Exclude resolutions</div>
+            <div class="chips exclude" data-targets>
+              <span class="chip" data-target="#res-4k">4K</span>
+              <span class="chip" data-target="#res-1080p">1080p</span>
+              <span class="chip" data-target="#res-720p">720p</span>
+              <span class="chip" data-target="#res-sd">SD</span>
+            </div>
+            <div class="hidden-canonical">
+              <input type="checkbox" class="res-cb" id="res-4k" value="4K" />
+              <input type="checkbox" class="res-cb" id="res-1080p" value="1080p" />
+              <input type="checkbox" class="res-cb" id="res-720p" value="720p" />
+              <input type="checkbox" class="res-cb" id="res-sd" value="SD" />
             </div>
           </div>
 
-          <div class="sort-row">
-            <span class="sort-row-label">Prefer audio language</span>
-            <select id="audio-lang">
+          <div class="field">
+            <div class="field-label">🌐 Prefer audio language</div>
+            <select id="audio-lang" class="pick">
               <option value="any">Any language</option>
               <option value="eng">English</option>
               <option value="fre">French</option>
@@ -365,26 +363,34 @@
             </select>
           </div>
 
-          <div class="sort-row">
-            <span class="sort-row-label">Prefer codec</span>
-            <div class="sort-row-dual">
-              <select id="pref-codec">
-                <option value="any">No preference</option>
-                <option value="h264">H.264 / AVC</option>
-                <option value="hevc">H.265 / HEVC</option>
-                <option value="av1">AV1</option>
-                <option value="vp9">VP9</option>
-              </select>
-              <select id="codec-mode" title="Prefer = sort to top. Only = hide others.">
-                <option value="prefer">Prefer</option>
-                <option value="only">Only</option>
-              </select>
+          <div class="field">
+            <div class="field-label">🎬 Prefer codec</div>
+            <div class="seg" data-target="#pref-codec" style="margin-bottom:8px">
+              <button data-val="any">Any</button><button data-val="h264">H.264</button><button data-val="hevc">HEVC</button><button data-val="av1">AV1</button><button data-val="vp9">VP9</button>
             </div>
+            <select id="pref-codec" class="hidden-canonical">
+              <option value="any">No preference</option>
+              <option value="h264">H.264 / AVC</option>
+              <option value="hevc">H.265 / HEVC</option>
+              <option value="av1">AV1</option>
+              <option value="vp9">VP9</option>
+            </select>
+            <div class="seg" data-target="#codec-mode" style="max-width:220px">
+              <button data-val="prefer">Prefer</button><button data-val="only">Only</button>
+            </div>
+            <select id="codec-mode" class="hidden-canonical" title="Prefer = sort to top. Only = hide others.">
+              <option value="prefer">Prefer</option>
+              <option value="only">Only</option>
+            </select>
           </div>
 
-          <div class="sort-row">
-            <span class="sort-row-label">Max bitrate</span>
-            <select id="max-bitrate">
+          <div class="field">
+            <div class="field-label">📶 Max bitrate</div>
+            <div class="sliderrow">
+              <input type="range" data-slider data-select="#max-bitrate" data-label="#maxbr-val" />
+              <span class="sliderval" id="maxbr-val"></span>
+            </div>
+            <select id="max-bitrate" class="hidden-canonical">
               <option value="">No limit</option>
               <option value="5000000">5 Mbps</option>
               <option value="10000000">10 Mbps</option>
@@ -398,36 +404,21 @@
             </select>
           </div>
 
-          <div class="options-divider"></div>
-
-          <label class="option-item">
-            <input type="checkbox" id="show-recommend" checked />
-            <div>
-              <div class="option-title">Mark recommended stream</div>
-              <div class="option-desc">Adds a star to the top result based on your sort preference.</div>
+          <div class="field">
+            <div class="field-label">✨ Extras</div>
+            <div class="switches">
+              <div class="sw" data-target="#show-recommend"><div class="knob"></div><div><div class="sw-lbl">⭐ Recommended</div><div class="sw-sub">star the best result</div></div></div>
+              <div class="sw" data-target="#show-ping"><div class="knob"></div><div><div class="sw-lbl">⚡ Fastest server</div><div class="sw-sub">mark lowest latency</div></div></div>
+              <div class="sw" data-target="#auto-select"><div class="knob"></div><div><div class="sw-lbl">🎯 Auto-select</div><div class="sw-sub">single best only</div></div></div>
+              <div class="sw" data-target="#ping-detail"><div class="knob"></div><div><div class="sw-lbl">📡 Ping in details</div><div class="sw-sub">show RTT per stream</div></div></div>
             </div>
-          </label>
-          <label class="option-item">
-            <input type="checkbox" id="show-ping" checked onchange="onShowPingChange()" />
-            <div>
-              <div class="option-title">Mark fastest server</div>
-              <div class="option-desc">Pings each server and marks the fastest. Measured from the addon server.</div>
+            <div class="hidden-canonical">
+              <input type="checkbox" id="show-recommend" checked />
+              <input type="checkbox" id="show-ping" checked onchange="onShowPingChange()" />
+              <input type="checkbox" id="auto-select" />
+              <span id="ping-detail-item"><input type="checkbox" id="ping-detail" /></span>
             </div>
-          </label>
-          <label class="option-item">
-            <input type="checkbox" id="auto-select" />
-            <div>
-              <div class="option-title">Auto-select best stream</div>
-              <div class="option-desc">Only shows the single best result. Picks automatically based on your preferences.</div>
-            </div>
-          </label>
-          <label class="option-item" id="ping-detail-item">
-            <input type="checkbox" id="ping-detail" />
-            <div>
-              <div class="option-title">Show ping RTT in details</div>
-              <div class="option-desc">Adds measured latency to each stream description. Requires fastest server marking.</div>
-            </div>
-          </label>
+          </div>
 </section>
       <section class="page" id="page-appearance">
   <h2 class="page-title">Appearance</h2>
