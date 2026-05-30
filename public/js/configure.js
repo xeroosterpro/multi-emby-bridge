@@ -2,19 +2,6 @@
 let nextId = 0;
 let nextCatId = 0;
 
-// ── Tabs ──────────────────────────────────────────────────────────────────
-function switchTab(tabId) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
-  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === tabId));
-  try { localStorage.setItem('meb-active-tab', tabId); } catch {}
-}
-function restoreActiveTab() {
-  try {
-    const t = localStorage.getItem('meb-active-tab');
-    if (t && document.getElementById(t)) switchTab(t);
-  } catch {}
-}
-
 // ── Steps indicator ──────────────────────────────────────────────────────
 function updateSteps() {
   const hasServers = document.querySelectorAll('.server-block').length > 0;
@@ -25,32 +12,6 @@ function updateSteps() {
   s1.className = hasServers ? 'step done' : 'step active';
   s2.className = hasServers ? 'step active' : 'step';
 }
-
-// ── Panel collapse ────────────────────────────────────────────────────────
-function togglePanel(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.toggle('collapsed');
-  try {
-    const states = JSON.parse(localStorage.getItem('meb-panels') || '{}');
-    states[id] = el.classList.contains('collapsed');
-    localStorage.setItem('meb-panels', JSON.stringify(states));
-  } catch {}
-}
-
-function restorePanelStates() {
-  try {
-    const states = JSON.parse(localStorage.getItem('meb-panels') || '{}');
-    const defaults = { 'panel-profile': true, 'panel-settings': false, 'panel-ping': true, 'panel-log': true };
-    const merged = { ...defaults, ...states };
-    for (const [id, collapsed] of Object.entries(merged)) {
-      const el = document.getElementById(id);
-      if (!el) continue;
-      el.classList.toggle('collapsed', collapsed);
-    }
-  } catch {}
-}
-restorePanelStates();
 
 // -- External Catalogs --------------------------------------------------------
 const TRAKT_LIST_NAMES = {
@@ -1168,24 +1129,6 @@ function toggleCollapse(id) {
   const collapsed = block.classList.toggle('collapsed');
   block.querySelector('.btn-collapse').textContent = collapsed ? '\u25B6' : '\u25BC';
   if (collapsed) updateSummary(id);
-  autoSave();
-}
-
-function collapseAll() {
-  document.querySelectorAll('.server-block').forEach(block => {
-    const id = parseInt(block.id.replace('server-', ''), 10);
-    block.classList.add('collapsed');
-    block.querySelector('.btn-collapse').textContent = '\u25B6';
-    updateSummary(id);
-  });
-  autoSave();
-}
-
-function expandAll() {
-  document.querySelectorAll('.server-block').forEach(block => {
-    block.classList.remove('collapsed');
-    block.querySelector('.btn-collapse').textContent = '\u25BC';
-  });
   autoSave();
 }
 
