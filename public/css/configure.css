@@ -846,3 +846,5 @@ select, input[type=text], input[type=password], input[type=number] {
   background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm);
   color: var(--text); font-size: .82rem; padding: .4rem .6rem;
 }
+/* ── Task 8: Appearance page ── */
+.toggle-label { font-size: .8rem; color: var(--text-dim); display: flex; gap: 6px; align-items: center; }

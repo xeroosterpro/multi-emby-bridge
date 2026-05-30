@@ -209,7 +209,118 @@
             </div>
           </label>
 </section>
-      <section class="page" id="page-appearance"><div class="page-ph">Appearance</div></section>
+      <section class="page" id="page-appearance">
+  <h2 class="page-title">Appearance</h2>
+  <p class="page-sub">Stream label format and how details are displayed.</p>
+  <h3 class="block-title">Label format</h3>
+  <div class="sort-row" style="flex-direction:column;align-items:stretch;gap:0.3rem">
+    <span class="sort-row-label" style="font-weight:600">Stream label format</span>
+    <select id="label-preset" onchange="updateLabelPreview()">
+      <option value="standard">Standard — res + HDR in name, full desc</option>
+      <option value="compact">Compact — res + HDR + codec in name, 1-line desc</option>
+      <option value="detailed">Detailed — HDR in name, multi-audio + subs in desc</option>
+      <option value="cinema">Cinema — res + HDR + source in name</option>
+      <option value="minimal">Minimal — res only, size in desc</option>
+      <option value="custom">Custom - define your own format</option>
+    </select>
+  </div>
+  <div id="label-preview" style="margin:0.5rem 0 0;padding:0.5rem 0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)"></div>
+  <div id="custom-preset-panel" style="display:none;margin-top:0.5rem;padding:0.65rem;background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius-sm)">
+    <div style="font-size:0.68rem;font-weight:700;color:var(--text-muted);margin-bottom:0.45rem">Name includes (server always first)</div>
+    <div class="custom-fields-grid">
+      <label class="custom-field-check"><input type="checkbox" class="cn-field" value="res" checked onchange="autoSave()" /> Resolution</label>
+      <label class="custom-field-check"><input type="checkbox" class="cn-field" value="hdr" checked onchange="autoSave()" /> HDR</label>
+      <label class="custom-field-check"><input type="checkbox" class="cn-field" value="codec" onchange="autoSave()" /> Codec</label>
+      <label class="custom-field-check"><input type="checkbox" class="cn-field" value="source" onchange="autoSave()" /> Source</label>
+      <label class="custom-field-check"><input type="checkbox" class="cn-field" value="audio" onchange="autoSave()" /> Audio</label>
+      <label class="custom-field-check"><input type="checkbox" class="cn-field" value="bitrate" onchange="autoSave()" /> Bitrate</label>
+    </div>
+    <div style="font-size:0.68rem;font-weight:700;color:var(--text-muted);margin:0.65rem 0 0.45rem">Description includes</div>
+    <div class="custom-fields-grid">
+      <label class="custom-field-check"><input type="checkbox" class="cd-field" value="codec" checked onchange="autoSave()" /> Codec</label>
+      <label class="custom-field-check"><input type="checkbox" class="cd-field" value="source" checked onchange="autoSave()" /> Source</label>
+      <label class="custom-field-check"><input type="checkbox" class="cd-field" value="audio" checked onchange="autoSave()" /> Audio</label>
+      <label class="custom-field-check"><input type="checkbox" class="cd-field" value="allAudio" onchange="autoSave()" /> All tracks</label>
+      <label class="custom-field-check"><input type="checkbox" class="cd-field" value="bitrate" checked onchange="autoSave()" /> Bitrate</label>
+      <label class="custom-field-check"><input type="checkbox" class="cd-field" value="size" checked onchange="autoSave()" /> File size</label>
+      <label class="custom-field-check"><input type="checkbox" class="cd-field" value="subs" onchange="autoSave()" /> Subtitles</label>
+      <label class="custom-field-check"><input type="checkbox" class="cd-field" value="dims" onchange="autoSave()" /> Dimensions</label>
+    </div>
+  </div>
+  <div class="options-divider"></div>
+  <h3 class="block-title">Display</h3>
+  <label class="option-item">
+    <input type="checkbox" id="show-summary" onchange="toggleSummaryStyle()" />
+    <div>
+      <div class="option-title">Results summary card</div>
+      <div class="option-desc">Pins a summary at the top showing how many streams each server found.</div>
+    </div>
+  </label>
+
+  <div id="summary-options" style="display:none;flex-direction:column;gap:0.5rem;margin:0.35rem 0 0.2rem;padding:0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)">
+    <div style="display:flex;flex-direction:column;gap:0.25rem">
+      <span style="font-size:0.75rem;font-weight:600;color:#bbb">Summary style</span>
+      <select id="summary-style" onchange="updateSummaryPreview();autoSave()">
+        <option value="compact">Compact</option>
+        <option value="detailed">Detailed</option>
+        <option value="minimal">Minimal</option>
+        <option value="bar">Bar chart</option>
+      </select>
+    </div>
+    <div id="summary-preview" style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.6rem 0.75rem"></div>
+  </div>
+
+  <div class="options-divider"></div>
+
+  <div class="appearance-row">
+    <span class="appearance-label">Quality badges</span>
+    <span class="appearance-hint">Tier badges in stream name: REMUX, 4K, DV, HDR, Atmos, TrueHD</span>
+    <select id="quality-badge" onchange="autoSave()">
+      <option value="">Off</option>
+      <option value="emoji">Emoji — before name</option>
+      <option value="tags">Tags — [REMUX][4K][HDR]</option>
+    </select>
+  </div>
+
+  <div class="options-divider"></div>
+
+  <div class="appearance-row">
+    <span class="appearance-label">Language display</span>
+    <span class="appearance-hint">How audio language codes appear in track descriptions</span>
+    <select id="flag-emoji" onchange="autoSave()">
+      <option value="none">None — hidden</option>
+      <option value="">Codes — ENG, RUS</option>
+      <option value="flag">Flags only</option>
+      <option value="both">Flags + Codes</option>
+    </select>
+  </div>
+
+  <div class="options-divider"></div>
+
+  <div class="appearance-row">
+    <span class="appearance-label">Bitrate display</span>
+    <span class="appearance-hint">How file bitrate appears in descriptions</span>
+    <select id="bitrate-bar" onchange="autoSave()">
+      <option value="none">None — hidden</option>
+      <option value="">Mbps only</option>
+      <option value="blocks">Blocks bar</option>
+      <option value="segments">Segments bar</option>
+    </select>
+  </div>
+
+  <div class="options-divider"></div>
+
+  <div class="appearance-row">
+    <span class="appearance-label">Subtitle display</span>
+    <span class="appearance-hint">How subtitle tracks appear in descriptions</span>
+    <select id="subs-style" onchange="autoSave()">
+      <option value="full">Full list</option>
+      <option value="count">Count only</option>
+      <option value="icons">Flag icons</option>
+      <option value="hidden">Hidden</option>
+    </select>
+  </div>
+</section>
       <section class="page" id="page-health"><div class="page-ph">Health</div></section>
       <section class="page" id="page-install"><div class="page-ph">Install</div></section>
       <section class="page" id="page-ping"><div class="page-ph">Ping Test</div></section>
