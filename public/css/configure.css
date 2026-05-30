@@ -848,3 +848,18 @@ select, input[type=text], input[type=password], input[type=number] {
 }
 /* ── Task 8: Appearance page ── */
 .toggle-label { font-size: .8rem; color: var(--text-dim); display: flex; gap: 6px; align-items: center; }
+
+/* ── Task 9: Catalogs page ── */
+.tab-intro { font-size: .82rem; color: var(--text-mute); margin-bottom: 14px; }
+.catalog-section-title, .preset-header strong, .browse-header strong { font-weight: 700; font-size: .9rem; }
+.catalog-section { margin-bottom: 8px; }
+.preset-section, .browse-section { margin: 14px 0; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); }
+.preset-hint { font-size: .72rem; color: var(--text-mute); display: block; margin-top: 2px; }
+.preset-services { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.btn-all-networks, .btn-add-catalog, .btn-apply-preset, .btn-clear-all { padding: 8px 14px; border: 1px solid rgba(251,146,60,.3); border-radius: var(--r-sm); background: rgba(251,146,60,.1); color: #fdba74; font-weight: 700; font-size: .8rem; cursor: pointer; }
+.browse-input-row, .catalog-add-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.catalog-list { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.catalog-list-header { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+.catalog-list-count { font-size: .78rem; color: var(--text-mute); }
+.tmdb-mode-btn { padding: 5px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface-2); color: var(--text-dim); cursor: pointer; font-size: .76rem; }
+.tmdb-mode-btn.active { background: var(--grad-accent); color: #1a0f14; border: none; }
