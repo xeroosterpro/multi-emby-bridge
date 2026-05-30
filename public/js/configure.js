@@ -2,6 +2,14 @@
 let nextId = 0;
 let nextCatId = 0;
 
+// Library-stats cache: key = url|apiKey|userId -> {movies,shows,episodes,ms,ts}
+let _libStatsCache = {};
+let _dashboardInFlight = false;
+try { _libStatsCache = JSON.parse(localStorage.getItem('meb-libstats-cache') || '{}'); } catch { _libStatsCache = {}; }
+function _libKey(s){ return [s.url, s.apiKey, s.userId].join('|'); }
+function _saveLibCache(){ try { localStorage.setItem('meb-libstats-cache', JSON.stringify(_libStatsCache)); } catch {} }
+const LIB_TTL_MS = 60 * 60 * 1000; // 1 hour
+
 // ── Steps indicator ──────────────────────────────────────────────────────
 function updateSteps() {
   const hasServers = document.querySelectorAll('.server-block').length > 0;
@@ -1063,53 +1071,74 @@ window.onPageShow = function(name) {
   if (name === 'log' && typeof refreshLog === 'function') refreshLog();
 };
 
-async function renderDashboard() {
-  const cfg = collectConfig(true) || { servers: [] };
-  const servers = cfg.servers || [];
-  const catCount = (typeof collectExternalCatalogs === 'function' ? collectExternalCatalogs() : []).length;
-  const catEl = document.getElementById('tile-catalogs');
-  if (catEl) catEl.textContent = catCount;
-  const wrap = document.getElementById('dash-cards');
-  if (!wrap) return;
-  wrap.innerHTML = '';
-  let upCount = 0, movieTotal = 0, fastest = null;
-  await Promise.all(servers.map(async s => {
-    const card = document.createElement('div');
-    card.className = 'dash-card';
-    card.innerHTML = `<div class="dc-head"><div class="sc-ico">${escHtml(s.emoji || '🎬')}</div>
-      <div><div class="sc-name">${escHtml(s.label)}</div>
-      <div class="sc-host">${escHtml((s.url||'').replace(/^https?:\/\//,''))}</div></div>
-      <span class="sc-badge unknown">● …</span></div>
-      <div class="dc-mini"><div class="mc"><div class="n">—</div><div class="l">Movies</div></div>
-      <div class="mc"><div class="n">—</div><div class="l">Shows</div></div>
-      <div class="mc"><div class="n">—</div><div class="l">Eps</div></div></div>`;
-    wrap.appendChild(card);
-    const t0 = performance.now();
-    try {
-      const r = await fetch('/api/library-stats', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: s.url, type: s.type, apiKey: s.apiKey, userId: s.userId }) });
-      const ms = Math.round(performance.now() - t0);
-      const badge = card.querySelector('.sc-badge');
-      if (r.ok) {
-        const st = await r.json();
+async function renderDashboard(force = false) {
+  if (_dashboardInFlight) return;
+  _dashboardInFlight = true;
+  try {
+    const now = Date.now();
+    const cfg = collectConfig(true) || { servers: [] };
+    const servers = cfg.servers || [];
+    const catCount = (typeof collectExternalCatalogs === 'function' ? collectExternalCatalogs() : []).length;
+    const catEl = document.getElementById('tile-catalogs');
+    if (catEl) catEl.textContent = catCount;
+    const wrap = document.getElementById('dash-cards');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    let upCount = 0, movieTotal = 0, fastest = null;
+    await Promise.all(servers.map(async s => {
+      const card = document.createElement('div');
+      card.className = 'dash-card';
+      card.innerHTML = `<div class="dc-head"><div class="sc-ico">${escHtml(s.emoji || '🎬')}</div>
+        <div><div class="sc-name">${escHtml(s.label)}</div>
+        <div class="sc-host">${escHtml((s.url||'').replace(/^https?:\/\//,''))}</div></div>
+        <span class="sc-badge unknown">● …</span></div>
+        <div class="dc-mini"><div class="mc"><div class="n">—</div><div class="l">Movies</div></div>
+        <div class="mc"><div class="n">—</div><div class="l">Shows</div></div>
+        <div class="mc"><div class="n">—</div><div class="l">Eps</div></div></div>`;
+      wrap.appendChild(card);
+      const k = _libKey(s);
+      const cached = _libStatsCache[k];
+      if (!force && cached && (now - cached.ts < LIB_TTL_MS)) {
         const mc = card.querySelectorAll('.mc .n');
-        mc[0].textContent = (st.movies||0).toLocaleString();
-        mc[1].textContent = (st.shows||0).toLocaleString();
-        mc[2].textContent = (st.episodes||0).toLocaleString();
-        upCount++; movieTotal += (st.movies||0);
-        if (fastest === null || ms < fastest) fastest = ms;
-        badge.textContent = ms < 400 ? '● UP ' + ms + 'ms' : '● SLOW ' + ms + 'ms';
-        badge.className = 'sc-badge ' + (ms < 400 ? 'up' : 'unknown');
-      } else { badge.textContent = '● Auth failed'; badge.className = 'sc-badge down'; }
-    } catch { const b = card.querySelector('.sc-badge'); b.textContent='● Down'; b.className='sc-badge down'; }
-  }));
-  const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  setTxt('tile-servers', upCount);
-  setTxt('tile-movies', movieTotal.toLocaleString());
-  setTxt('tile-ping', fastest != null ? fastest + 'ms' : '—');
-  setTxt('dash-status', servers.length
-    ? `Everything's loaded. ${upCount}/${servers.length} servers reachable.`
-    : 'No servers yet — add one on the Servers page.');
+        mc[0].textContent = (cached.movies||0).toLocaleString();
+        mc[1].textContent = (cached.shows||0).toLocaleString();
+        mc[2].textContent = (cached.episodes||0).toLocaleString();
+        upCount++; movieTotal += (cached.movies||0);
+        if (fastest === null || cached.ms < fastest) fastest = cached.ms;
+        const badge = card.querySelector('.sc-badge');
+        badge.textContent = cached.ms < 400 ? '● UP ' + cached.ms + 'ms' : '● SLOW ' + cached.ms + 'ms';
+        badge.className = 'sc-badge ' + (cached.ms < 400 ? 'up' : 'unknown');
+        return;
+      }
+      const t0 = performance.now();
+      try {
+        const r = await fetch('/api/library-stats', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: s.url, type: s.type, apiKey: s.apiKey, userId: s.userId }) });
+        const ms = Math.round(performance.now() - t0);
+        const badge = card.querySelector('.sc-badge');
+        if (r.ok) {
+          const st = await r.json();
+          const mc = card.querySelectorAll('.mc .n');
+          mc[0].textContent = (st.movies||0).toLocaleString();
+          mc[1].textContent = (st.shows||0).toLocaleString();
+          mc[2].textContent = (st.episodes||0).toLocaleString();
+          upCount++; movieTotal += (st.movies||0);
+          if (fastest === null || ms < fastest) fastest = ms;
+          badge.textContent = ms < 400 ? '● UP ' + ms + 'ms' : '● SLOW ' + ms + 'ms';
+          badge.className = 'sc-badge ' + (ms < 400 ? 'up' : 'unknown');
+          _libStatsCache[k] = { movies: st.movies||0, shows: st.shows||0, episodes: st.episodes||0, ms, ts: now };
+          _saveLibCache();
+        } else { badge.textContent = '● Auth failed'; badge.className = 'sc-badge down'; }
+      } catch { const b = card.querySelector('.sc-badge'); b.textContent='● Down'; b.className='sc-badge down'; }
+    }));
+    const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    setTxt('tile-servers', upCount);
+    setTxt('tile-movies', movieTotal.toLocaleString());
+    setTxt('tile-ping', fastest != null ? fastest + 'ms' : '—');
+    setTxt('dash-status', servers.length
+      ? `Everything's loaded. ${upCount}/${servers.length} servers reachable.`
+      : 'No servers yet — add one on the Servers page.');
+  } finally { _dashboardInFlight = false; }
 }
 
 // ── Server collapse ───────────────────────────────────────────────────────
