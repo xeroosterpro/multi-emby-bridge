@@ -1896,14 +1896,17 @@ function restoreFromLocalStorage() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
-if (!restoreFromLocalStorage()) addServer();
-initPresets();
-updateLabelPreview();
-toggleCustomPreset();
-restorePanelStates();
-restoreActiveTab();
-onShowPingChange();
-toggleCatalogOptions();
-updateSteps();
-document.addEventListener('input', autoSave);
-document.addEventListener('change', autoSave);
+document.addEventListener('DOMContentLoaded', () => {
+  if (!document.getElementById('servers-container')) return; // shell not ready / page absent
+  if (!restoreFromLocalStorage()) addServer();
+  initPresets();
+  updateLabelPreview();
+  toggleCustomPreset();
+  restorePanelStates();
+  restoreActiveTab();
+  onShowPingChange();
+  toggleCatalogOptions();
+  updateSteps();
+  document.addEventListener('input', autoSave);
+  document.addEventListener('change', autoSave);
+});
