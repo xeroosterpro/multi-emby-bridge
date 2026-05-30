@@ -951,9 +951,9 @@ function encodeConfig(obj) {
 // ── Server block builder ──────────────────────────────────────────────────
 function buildServerBlock(id) {
   const div = document.createElement('div');
-  div.className = 'server-block';
+  div.className = 'server-block server-card';
   div.id = `server-${id}`;
-  div.innerHTML = `
+  const fields = `
     <div class="server-block-header">
       <div class="server-header-left">
         <label class="toggle-switch" title="Enable / disable this server">
@@ -1038,8 +1038,66 @@ function buildServerBlock(id) {
       <div class="stats-display" id="stats-${id}"></div>
     </div>
   `;
+  div.innerHTML = `
+    <div class="sc-top"></div>
+    <div class="sc-head">
+      <div class="sc-ico">🎬</div>
+      <div class="sc-id">
+        <div class="sc-name" data-bind="name">New server</div>
+        <div class="sc-host" data-bind="host">not configured</div>
+      </div>
+      <span class="sc-badge unknown" data-bind="badge">● —</span>
+    </div>
+    <div class="sc-stats">
+      <div class="sc-row"><span>🎞 Movies</span><span data-bind="movies">—</span></div>
+      <div class="sc-row"><span>📺 Shows</span><span data-bind="shows">—</span></div>
+      <div class="sc-row"><span>▦ Episodes</span><span data-bind="episodes">—</span></div>
+    </div>
+    <button type="button" class="sc-manage" onclick="toggleManage(${id})">Manage Server →</button>
+    <div class="sc-edit" id="edit-${id}" style="display:none">${fields}</div>
+  `;
   return div;
 }
+
+// ── Server card (OMEGA) helpers ───────────────────────────────────────────
+function toggleManage(id) {
+  const e = document.getElementById('edit-' + id);
+  if (e) e.style.display = e.style.display === 'none' ? 'block' : 'none';
+}
+
+async function refreshServerCard(block) {
+  const get = sel => block.querySelector(sel)?.value.trim() || '';
+  const label = get('.f-label'), url = get('.f-url').replace(/\/+$/, '');
+  const type = block.querySelector('.f-type')?.value || 'emby';
+  const apiKey = get('.f-apikey'), userId = get('.f-userid');
+  const nameEl = block.querySelector('[data-bind=name]');
+  const hostEl = block.querySelector('[data-bind=host]');
+  if (nameEl) nameEl.textContent = label || 'New server';
+  if (hostEl) hostEl.textContent = url ? url.replace(/^https?:\/\//, '') : 'not configured';
+  if (!url || !apiKey || !userId) return;
+  try {
+    const r = await fetch('/api/library-stats', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, type, apiKey, userId }) });
+    const badge = block.querySelector('[data-bind=badge]');
+    if (r.ok) {
+      const s = await r.json();
+      block.querySelector('[data-bind=movies]').textContent   = (s.movies||0).toLocaleString();
+      block.querySelector('[data-bind=shows]').textContent    = (s.shows||0).toLocaleString();
+      block.querySelector('[data-bind=episodes]').textContent = (s.episodes||0).toLocaleString();
+      if (badge) { badge.textContent = '● Connected'; badge.className = 'sc-badge up'; }
+    } else if (badge) { badge.textContent = '● Auth failed'; badge.className = 'sc-badge down'; }
+  } catch { const b = block.querySelector('[data-bind=badge]'); if (b){ b.textContent='● Unreachable'; b.className='sc-badge down'; } }
+}
+
+function renderServersPage() {
+  document.querySelectorAll('#servers-container .server-card').forEach(refreshServerCard);
+}
+
+// ── Page-show hook (router calls this when a page is shown) ────────────────
+window.onPageShow = function(name) {
+  if (name === 'servers') renderServersPage();
+};
 
 // ── Server collapse ───────────────────────────────────────────────────────
 function updateSummary(id) {
@@ -1899,14 +1957,11 @@ function restoreFromLocalStorage() {
 document.addEventListener('DOMContentLoaded', () => {
   if (!document.getElementById('servers-container')) return; // shell not ready / page absent
   if (!restoreFromLocalStorage()) addServer();
-  initPresets();
-  updateLabelPreview();
-  toggleCustomPreset();
-  restorePanelStates();
-  restoreActiveTab();
-  onShowPingChange();
-  toggleCatalogOptions();
-  updateSteps();
+  // TEMP scaffold: these page-init calls belong to Catalogs/Appearance/Streaming
+  // pages not yet migrated; their target DOM is absent now, so guard each call.
+  // Later tasks move them to fire on their page's onPageShow.
+  [initPresets, updateLabelPreview, toggleCustomPreset, toggleCatalogOptions, onShowPingChange]
+    .forEach(fn => { try { fn(); } catch (_) {} });
   document.addEventListener('input', autoSave);
   document.addEventListener('change', autoSave);
 });

@@ -31,7 +31,28 @@
 
     <main class="content" id="content">
       <section class="page" id="page-dashboard"><div class="page-ph">Dashboard</div></section>
-      <section class="page" id="page-servers"><div class="page-ph">Servers</div></section>
+      <section class="page" id="page-servers">
+        <h2 class="page-title">Your servers</h2>
+        <p class="page-sub">Connected Emby &amp; Jellyfin servers. Click Manage to edit credentials.</p>
+        <div id="servers-container"></div>
+        <button class="btn-add" id="btn-add" onclick="addServer()">+ Add Server</button>
+
+        <div class="profile-block">
+          <h3 class="block-title">Saved profile</h3>
+          <div class="profile-row">
+            <input type="text" id="p-username" placeholder="Profile name" autocomplete="off" />
+            <input type="password" id="p-password" placeholder="Password" autocomplete="off" />
+          </div>
+          <div class="profile-actions">
+            <button class="btn-soft" onclick="saveProfile()">Save</button>
+            <button class="btn-soft" onclick="loadProfile()">Load</button>
+            <button class="btn-soft" onclick="exportConfig()">Export</button>
+            <button class="btn-soft" onclick="document.getElementById('import-file').click()">Import</button>
+            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importConfig(event)" />
+          </div>
+          <div class="profile-status" id="profile-status"></div>
+        </div>
+      </section>
       <section class="page" id="page-catalogs"><div class="page-ph">Catalogs</div></section>
       <section class="page" id="page-streaming"><div class="page-ph">Streaming</div></section>
       <section class="page" id="page-appearance"><div class="page-ph">Appearance</div></section>
