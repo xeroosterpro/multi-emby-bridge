@@ -42,7 +42,7 @@ body {
   --bg-elevated: #181824;
   --bg-hover: #1e1e30;
   --bg-input: #0e0e16;
-  --border: #222236;
+  --border: #2c2333;
   --border-focus: #7b61ff;
   --text-primary: #e8e8f0;
   --text-secondary: #8888a0;
@@ -745,10 +745,10 @@ select, input[type=text], input[type=password], input[type=number] {
 .status-bar .dot.warn { background: #f0a500; }
 .status-bar .dot.bad { background: #e05555; }
 .server-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
-.server-card { background: #1a1a23; border: 1px solid #2a2a38; border-radius: 12px; padding: 1.1rem 1.3rem 1.2rem; }
-.server-card.up { border-left: 3px solid #4caf7d; }
-.server-card.down { border-left: 3px solid #e05555; }
-.server-card.unknown { border-left: 3px solid #333; }
+#page-health .server-card { background: #1a1a23; border: 1px solid #2a2a38; border-radius: 12px; padding: 1.1rem 1.3rem 1.2rem; }
+#page-health .server-card.up { border-left: 3px solid #4caf7d; }
+#page-health .server-card.down { border-left: 3px solid #e05555; }
+#page-health .server-card.unknown { border-left: 3px solid #333; }
 .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
 .card-name-row { display: flex; align-items: center; gap: 0.4rem; }
 .card-name { font-size: 0.95rem; font-weight: 700; color: #fff; }
