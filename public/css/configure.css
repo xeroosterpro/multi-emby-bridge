@@ -1,3 +1,39 @@
+/* ============ Multi-Emby warm design system ============ */
+:root {
+  --bg-grad-a: #1a1420;
+  --bg-grad-b: #0f0c14;
+  --surface: #1c1622;
+  --surface-2: #241c2b;
+  --border: #2c2333;
+  --text: #f0ebf0;
+  --text-dim: #b6abb8;
+  --text-mute: #8a7f88;
+  --accent-a: #fb923c;   /* orange */
+  --accent-b: #f472b6;   /* pink   */
+  --accent-c: #818cf8;   /* indigo */
+  --accent-d: #34d399;   /* mint   */
+  --warn: #fcd34d;
+  --grad-accent: linear-gradient(90deg, var(--accent-a), var(--accent-b));
+  --grad-rgb: linear-gradient(90deg, #fb923c, #f472b6, #818cf8, #34d399, #fb923c);
+  --r-sm: 11px; --r-md: 14px; --r-lg: 17px;
+  --side-w: 210px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: linear-gradient(160deg, var(--bg-grad-a), var(--bg-grad-b)) fixed;
+  min-height: 100vh;
+}
+@keyframes rgbflow { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+@keyframes spin    { to { transform: rotate(360deg); } }
+@keyframes pulse   { 0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.5)} 50%{box-shadow:0 0 0 6px rgba(52,211,153,0)} }
+@keyframes sheen   { 0%{transform:translateX(-120%)} 60%,100%{transform:translateX(220%)} }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
