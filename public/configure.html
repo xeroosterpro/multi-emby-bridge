@@ -193,6 +193,17 @@
             <div id="trakt-browse-results"></div>
           </div>
 
+          <!-- Stremio Addon Importer -->
+          <div class="browse-section">
+            <div class="browse-header"><strong>&#x1F4E5; Import from a Stremio addon</strong>
+              <span class="preset-hint">Paste an addon's manifest URL to add its catalogs (e.g. TOP Streaming)</span></div>
+            <div class="browse-input-row">
+              <input type="text" id="addon-import-url" placeholder="https://…/manifest.json" style="flex:1;padding:0.35rem 0.6rem;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-size:0.8rem" />
+              <button class="btn-add-catalog" onclick="browseAddonCatalogs()">Browse</button>
+            </div>
+            <div id="addon-import-results"></div>
+          </div>
+
           <div class="options-divider"></div>
 
           <!-- ===== Add a row ===== -->

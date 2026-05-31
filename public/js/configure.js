@@ -183,6 +183,19 @@ const STREAMING_PRESETS = {
     { name: "Top Movies",          provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/top-movies",        mediaType: "movie"  },
     { name: "Latest TV Shows",     provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/latest-tv-shows",   mediaType: "series" },
   ] },
+  streamingcatalogs: { label: "Streaming Catalogs", color: "#111111", letter: "S", catalogs: [
+    { name: "Netflix",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "nfx", catalogType: "movie",  mediaType: "movie"  },
+    { name: "Netflix",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "nfx", catalogType: "series", mediaType: "series" },
+    { name: "HBO Max",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "hbm", catalogType: "movie",  mediaType: "movie"  },
+    { name: "HBO Max",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "hbm", catalogType: "series", mediaType: "series" },
+    { name: "Disney+",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "dnp", catalogType: "movie",  mediaType: "movie"  },
+    { name: "Disney+",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "dnp", catalogType: "series", mediaType: "series" },
+    { name: "Prime Video", provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "amp", catalogType: "movie",  mediaType: "movie"  },
+    { name: "Prime Video", provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "amp", catalogType: "series", mediaType: "series" },
+    { name: "Apple TV+",   provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "atp", catalogType: "movie",  mediaType: "movie"  },
+    { name: "Apple TV+",   provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "atp", catalogType: "series", mediaType: "series" },
+  ] },
+  topstreaming: { label: "TOP Streaming", color: "#c0392b", letter: "T", importHint: true, catalogs: [] },
   tmdb: { label: "TMDB", color: "#01B4E4", letter: "T", catalogs: [
     { name: "Trending Movies",  provider: "tmdb", tmdbMode: "charts", tmdbChart: "trending-week", mediaType: "movie"  },
     { name: "Trending Shows",   provider: "tmdb", tmdbMode: "charts", tmdbChart: "trending-week", mediaType: "series" },
@@ -210,6 +223,11 @@ function initPresets() {
   document.getElementById("preset-preview").style.display = "none";
 }
 function selectPreset(key) {
+  if (STREAMING_PRESETS[key] && STREAMING_PRESETS[key].importHint) {
+    const el = document.getElementById('addon-import-url');
+    if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    return;
+  }
   _selectedPreset = key;
   var p = STREAMING_PRESETS[key];
   document.querySelectorAll(".preset-service-btn").forEach(function(b) { b.classList.toggle("active", b.dataset.key === key); });
@@ -268,6 +286,11 @@ function applyPreset() {
       if (cat.tmdbMinRating != null) catObj.tmdbMinRating = cat.tmdbMinRating;
       if (cat.tmdbYearFrom  != null) catObj.tmdbYearFrom  = cat.tmdbYearFrom;
       if (cat.tmdbYearTo    != null) catObj.tmdbYearTo    = cat.tmdbYearTo;
+    }
+    if (cat.provider === 'addon') {
+      catObj.sourceUrl   = cat.sourceUrl   || '';
+      catObj.catalogId   = cat.catalogId   || '';
+      catObj.catalogType = cat.catalogType || cat.mediaType || 'movie';
     }
     if (catalogRowExists(catObj)) { skipped++; return; }
     addExternalCatalog(catObj);
@@ -409,6 +432,11 @@ function renderCatalogRow(cat, id) {
   div.dataset.tmdbYearFrom     = cat.tmdbYearFrom  != null ? String(cat.tmdbYearFrom)  : '';
   div.dataset.tmdbYearTo       = cat.tmdbYearTo    != null ? String(cat.tmdbYearTo)    : '';
   div.dataset.tmdbSortBy       = cat.tmdbSortBy       || '';
+  if (cat.provider === 'addon') {
+    div.dataset.sourceUrl   = cat.sourceUrl   || '';
+    div.dataset.catalogId   = cat.catalogId   || '';
+    div.dataset.catalogType = cat.catalogType || cat.mediaType || 'movie';
+  }
   function mk(tag, cls, text) { const el = document.createElement(tag); el.className = cls; if (text) el.textContent = text; return el; }
   const handle = mk('span', 'cat-drag-handle'); handle.title = 'Drag to reorder'; handle.textContent = '\u2803';
   const provBadge = mk('span', 'cat-provider-badge cat-prov-' + (cat.provider || ''), badge);
@@ -600,7 +628,7 @@ function addExternalCatalog(cat) {
   initDragRow(row);
   autoSave();
   // Auto-test when manually added (not preset-loaded rows with already-known count)
-  if (!cat.count && cat.enabled !== false) testCatalog(id);
+  if (!cat.count && cat.enabled !== false && cat.provider !== 'addon') testCatalog(id);
 }
 
 function removeCatalog(id) {
@@ -635,6 +663,11 @@ function collectExternalCatalogs() {
       if (row.dataset.tmdbYearTo)    catEntry.tmdbYearTo    = Number(row.dataset.tmdbYearTo);
       catEntry.tmdbSortBy = row.dataset.tmdbSortBy || 'popularity.desc';
     }
+    if (catEntry.provider === 'addon') {
+      catEntry.sourceUrl   = row.dataset.sourceUrl   || '';
+      catEntry.catalogId   = row.dataset.catalogId   || '';
+      catEntry.catalogType = row.dataset.catalogType || catEntry.mediaType;
+    }
     cats.push(catEntry);
   });
   return cats;
@@ -649,6 +682,41 @@ function initDragRow(row) {
 }
 
 
+
+// == Addon Catalog Importer ==
+async function browseAddonCatalogs() {
+  const url = (document.getElementById('addon-import-url').value || '').trim();
+  const box = document.getElementById('addon-import-results');
+  if (!url) { box.innerHTML = '<div class="profile-status error">Paste a manifest URL first.</div>'; return; }
+  box.innerHTML = '<div class="profile-status info">Loading…</div>';
+  try {
+    const r = await fetch('/api/addon-catalogs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ manifestUrl: url }) });
+    const data = await r.json();
+    if (!r.ok || data.error) { box.innerHTML = '<div class="profile-status error">' + escHtml(data.error || 'Failed') + '</div>'; return; }
+    window._addonImport = { baseUrl: data.baseUrl, catalogs: data.catalogs };
+    let html = '<div class="profile-status info">' + escHtml(data.name) + ' ' + escHtml(data.version) + ' — ' + data.catalogs.length + ' catalogs</div>';
+    html += '<label style="display:block;margin:6px 0;font-size:.78rem"><input type="checkbox" id="addon-sel-all" onchange="document.querySelectorAll(&quot;.addon-imp-cb&quot;).forEach(function(c){c.checked=document.getElementById(&quot;addon-sel-all&quot;).checked;})"> Select all</label>';
+    data.catalogs.forEach(function(c, i) {
+      html += '<label class="preset-preview-item"><input type="checkbox" class="addon-imp-cb" data-idx="' + i + '" checked> '
+            + escHtml(c.name) + ' <span class="cat-provider-badge">' + (c.type === 'series' ? 'Shows' : 'Movies') + '</span></label>';
+    });
+    html += '<button class="btn-add-catalog" style="margin-top:8px" onclick="addImportedAddonCatalogs()">+ Add selected</button>';
+    box.innerHTML = html;
+  } catch (e) { box.innerHTML = '<div class="profile-status error">' + escHtml(e.message) + '</div>'; }
+}
+
+function addImportedAddonCatalogs() {
+  const imp = window._addonImport; if (!imp) return;
+  let added = 0;
+  document.querySelectorAll('.addon-imp-cb:checked').forEach(function(cb) {
+    const c = imp.catalogs[Number(cb.dataset.idx)];
+    if (!c) return;
+    addExternalCatalog({ provider: 'addon', sourceUrl: imp.baseUrl, catalogId: c.id, catalogType: c.type, mediaType: c.type, name: c.name });
+    added++;
+  });
+  const box = document.getElementById('addon-import-results');
+  if (box) box.innerHTML = '<div class="profile-status success">Added ' + added + ' catalog row(s).</div>';
+}
 
 // == MDbList User Browser ==
 async function browseMdblistUser() {
