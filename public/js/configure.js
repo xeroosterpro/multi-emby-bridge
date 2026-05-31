@@ -1730,6 +1730,10 @@ Continue anyway?`;
       if (subsStyle !== 'full') sc.subsStyle = subsStyle;
       if (!showCatalog) sc.showCatalog = false;
       if (catalogContent !== 'recent') sc.catalogContent = catalogContent;
+      const libraryRows = ['recent','resume','nextup','favorites'].filter(function(k){
+        var el = document.getElementById('libchk-' + k); return el && el.checked;
+      });
+      sc.libraryRows = libraryRows;
       if (rpdbKey) sc.rpdbKey = rpdbKey;
       if (traktClientId) sc.traktClientId = traktClientId;
       if (tmdbApiKey) sc.tmdbApiKey = tmdbApiKey;
@@ -1776,6 +1780,10 @@ Continue anyway?`;
     if (subsStyle !== 'full') config.subsStyle = subsStyle;
     if (!showCatalog) config.showCatalog = false;
     if (catalogContent !== 'recent') config.catalogContent = catalogContent;
+    const libraryRows2 = ['recent','resume','nextup','favorites'].filter(function(k){
+      var el = document.getElementById('libchk-' + k); return el && el.checked;
+    });
+    config.libraryRows = libraryRows2;
     if (rpdbKey) config.rpdbKey = rpdbKey;
     if (traktClientId) config.traktClientId = traktClientId;
     if (tmdbApiKey) config.tmdbApiKey = tmdbApiKey;
@@ -1912,6 +1920,9 @@ function collectFormState() {
     subsStyle: document.getElementById('subs-style')?.value || 'full',
     showCatalog: document.getElementById('show-catalog')?.checked ?? true,
     catalogContent: document.getElementById('catalog-content')?.value || 'recent',
+    libraryRows: ['recent','resume','nextup','favorites'].filter(function(k){
+      var el = document.getElementById('libchk-' + k); return el && el.checked;
+    }),
     rpdbKey: document.getElementById('rpdb-key')?.value.trim() || '',
     traktClientId:    document.getElementById('trakt-client-id')?.value.trim() || '',
     mdblistApiKey:    document.getElementById('mdblist-api-key')?.value.trim() || '',
@@ -2033,6 +2044,12 @@ function restoreFromLocalStorage() {
       toggleCatalogOptions();
     }
     setVal('catalog-content', state.catalogContent);
+    var savedRows = Array.isArray(state.libraryRows) ? state.libraryRows
+                   : (state.catalogContent ? [state.catalogContent] : ['recent']);
+    ['recent','resume','nextup','favorites'].forEach(function(k){
+      var el = document.getElementById('libchk-' + k); if (el) el.checked = savedRows.indexOf(k) !== -1;
+    });
+    if (window.Controls) Controls.syncAll();
     setVal('rpdb-key', state.rpdbKey);
     if (state.traktClientId) setVal('trakt-client-id', state.traktClientId);
     if (state.mdblistApiKey) setVal('mdblist-api-key', state.mdblistApiKey);

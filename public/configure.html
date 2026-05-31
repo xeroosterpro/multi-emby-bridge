@@ -80,17 +80,20 @@
             <input type="checkbox" id="show-catalog" class="hidden-canonical" checked onchange="toggleCatalogOptions();autoSave()" />
 
             <div id="catalog-options" style="margin-top:10px">
-              <div class="field-label">Catalog shows</div>
-              <div class="seg" data-target="#catalog-content">
-                <button data-val="recent">Recently Added</button>
-                <button data-val="resume">Continue Watching</button>
-                <button data-val="favorites">Favorites</button>
+              <div class="field-label">Home rows</div>
+              <div class="switches">
+                <div class="sw" data-target="#libchk-recent"><span class="knob"></span><span class="sw-lbl">🆕 Recently Added</span></div>
+                <div class="sw" data-target="#libchk-resume"><span class="knob"></span><span class="sw-lbl">▶️ Continue Watching</span></div>
+                <div class="sw" data-target="#libchk-nextup"><span class="knob"></span><span class="sw-lbl">⏭️ Next Up</span></div>
+                <div class="sw" data-target="#libchk-favorites"><span class="knob"></span><span class="sw-lbl">⭐ Favorites</span></div>
               </div>
-              <select id="catalog-content" class="hidden-canonical" onchange="autoSave()">
-                <option value="recent">Recently Added</option>
-                <option value="resume">Continue Watching</option>
-                <option value="favorites">Favorites</option>
-              </select>
+              <div class="hidden-canonical">
+                <input type="checkbox" id="libchk-recent" checked onchange="autoSave()" />
+                <input type="checkbox" id="libchk-resume" onchange="autoSave()" />
+                <input type="checkbox" id="libchk-nextup" onchange="autoSave()" />
+                <input type="checkbox" id="libchk-favorites" onchange="autoSave()" />
+                <select id="catalog-content"><option value="recent">recent</option><option value="resume">resume</option><option value="favorites">favorites</option></select>
+              </div>
             </div>
           </div>
 
