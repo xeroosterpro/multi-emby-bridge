@@ -1078,6 +1078,18 @@ function buildServerBlock(id) {
         </div>
       </div>
       <div class="cred-warning" id="cred-warning-${id}" style="display:none"></div>
+      <div class="field-group">
+        <label>Cost (optional)</label>
+        <div style="display:flex;gap:8px">
+          <input class="f-cost" type="number" min="0" step="0.01" placeholder="0.00" style="flex:1" />
+          <select class="f-cost-period">
+            <option value="none">No cost</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+        </div>
+      </div>
       <div class="server-actions-row">
         <button class="btn-test" onclick="testConnection(${id})">Test Connection</button>
         <button class="btn-stats" onclick="loadLibraryStats(${id})">Library Stats</button>
@@ -1297,6 +1309,8 @@ function addServer(data = null) {
     block.querySelector('.f-password').value = data.password || '';
     block.querySelector('.f-thumbnail').value = data.thumbnail || '';
     if (block.querySelector('.f-emoji')) block.querySelector('.f-emoji').value = data.emoji || '';
+    if (block.querySelector('.f-cost')) block.querySelector('.f-cost').value = (data.cost != null ? data.cost : '');
+    if (block.querySelector('.f-cost-period')) block.querySelector('.f-cost-period').value = data.costPeriod || 'none';
     if (data.type) {
       block.querySelector('.f-type').value = data.type;
       updateBlockStyle(id);
@@ -1340,6 +1354,10 @@ function collectConfig(silent = false) {
     if (thumbnail) entry.thumbnail = thumbnail;
     if (emoji) entry.emoji = emoji;
     if (username && password) { entry.username = username; entry.password = password; }
+    const costRaw = block.querySelector('.f-cost')?.value.trim() || '';
+    const costPeriod = block.querySelector('.f-cost-period')?.value || 'none';
+    const cost = costRaw === '' ? NaN : Number(costRaw);
+    if (!Number.isNaN(cost) && cost > 0 && costPeriod !== 'none') { entry.cost = cost; entry.costPeriod = costPeriod; }
     servers.push(entry);
   }
   if (servers.length === 0) {
@@ -1363,6 +1381,16 @@ async function safeJson(resp) {
 function showError(msg) { const e = document.getElementById('global-error'); e.textContent = msg; e.style.display = 'block'; }
 function hideError() { document.getElementById('global-error').style.display = 'none'; }
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function monthlyCost(cost, period) {
+  const c = Number(cost);
+  if (!Number.isFinite(c) || c <= 0) return 0;
+  if (period === 'monthly')   return c;
+  if (period === 'quarterly') return c / 3;
+  if (period === 'yearly')    return c / 12;
+  return 0;
+}
+window.monthlyCost = monthlyCost;
 
 // ── Profile ───────────────────────────────────────────────────────────────
 function setProfileButtons(disabled) {
@@ -1957,6 +1985,8 @@ function collectFormState() {
       emoji: block.querySelector('.f-emoji')?.value || '',
       enabled: block.querySelector('.f-enabled')?.checked ?? true,
       collapsed: block.classList.contains('collapsed'),
+      cost: block.querySelector('.f-cost')?.value !== '' ? Number(block.querySelector('.f-cost')?.value) : undefined,
+      costPeriod: block.querySelector('.f-cost-period')?.value || 'none',
     });
   });
   return state;
