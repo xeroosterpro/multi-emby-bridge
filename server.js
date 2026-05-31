@@ -440,6 +440,28 @@ app.post('/api/library-stats', apiLimiter, express.json(), async (req, res) => {
   }
 });
 
+app.post('/api/addon-catalogs', apiLimiter, express.json(), async (req, res) => {
+  let manifestUrl = (req.body && req.body.manifestUrl || '').trim();
+  if (!manifestUrl) return res.status(400).json({ error: 'manifestUrl required' });
+  if (!/^https?:\/\//i.test(manifestUrl)) manifestUrl = 'https://' + manifestUrl;
+  if (!/\/manifest\.json($|\?)/i.test(manifestUrl)) {
+    manifestUrl = manifestUrl.replace(/\/+$/, '') + '/manifest.json';
+  }
+  const baseUrl = manifestUrl.replace(/\/manifest\.json.*$/i, '');
+  try {
+    const r = await fetchWithTimeout(manifestUrl, 8000, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Stremio-Addon/1.0)' } });
+    if (!r.ok) return res.status(502).json({ error: 'Manifest HTTP ' + r.status });
+    const mf = await r.json();
+    const catalogs = (Array.isArray(mf.catalogs) ? mf.catalogs : [])
+      .map(c => ({ type: c.type, id: c.id, name: c.name || c.id }))
+      .filter(c => (c.type === 'movie' || c.type === 'series') && c.id);
+    res.json({ name: mf.name || 'Addon', version: mf.version || '', baseUrl, catalogs });
+  } catch (err) {
+    if (err.name === 'AbortError') return res.status(504).json({ error: 'Timed out fetching manifest' });
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // ─── Manifest ─────────────────────────────────────────────────────────────────
 app.get('/:config/manifest.json', (req, res) => {
   let cfg;
