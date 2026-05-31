@@ -29,6 +29,7 @@
     const target = document.querySelector(el.getAttribute('data-target'));
     if (!target) return;
     el.addEventListener('click', () => {
+      if (target.disabled) return;            // respect a locked canonical checkbox
       target.checked = !target.checked;
       fire(target, 'change');
       syncSwitch(el);
@@ -39,6 +40,8 @@
     const target = document.querySelector(el.getAttribute('data-target'));
     if (!target) return;
     el.classList.toggle('on', !!target.checked);
+    el.style.opacity = target.disabled ? '0.45' : '';
+    el.style.pointerEvents = target.disabled ? 'none' : '';
   }
 
   // Chips multi: container[data-targets] where each chip[data-target="#id"] is a checkbox

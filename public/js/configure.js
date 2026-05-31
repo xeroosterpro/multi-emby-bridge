@@ -588,6 +588,7 @@ function addExternalCatalog(cat) {
     if (tmdbFldR) tmdbFldR.style.display = 'none';
     var mtR = document.getElementById('cat-media-type');
     if (mtR) mtR.disabled = false;
+    if (window.Controls) Controls.syncAll();  // clear stale provider-tile/segment highlight after reset
   }
   if (cat.provider === 'mdblist' && !cat.apiKey) {
     const keyEl = document.getElementById('mdblist-api-key');
@@ -1585,6 +1586,7 @@ function onShowPingChange() {
     if (!enabled) pd.checked = false;
   }
   if (item) item.style.opacity = enabled ? '1' : '0.4';
+  if (window.Controls) Controls.syncAll();  // reflect ping-detail enabled/disabled on its switch tile
   autoSave();
 }
 
