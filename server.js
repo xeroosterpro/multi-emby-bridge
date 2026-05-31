@@ -12,6 +12,7 @@ const { getAllStreams } = require('./lib/streams');
 const { fetchExternalCatalog } = require('./lib/catalogs');
 const { healthServers, healthHistory, registerHealthServers, unregisterHealthServer, cleanupStaleServers, pingHealthServers } = require('./lib/health');
 const { hashPassword, loadProfiles, saveProfiles } = require('./lib/profiles');
+const { ROW_NAMES, deriveLibraryRows } = require('./server-helpers');
 
 // Cross-row deduplication cache (60s TTL per config)
 const _dedupCache = new Map();
@@ -478,6 +479,18 @@ app.get('/:config/manifest.json', (req, res) => {
     const types = c.mediaType === 'both' ? ['movie', 'series'] : [c.mediaType || 'movie'];
     types.forEach(t => extCats.push({ type: t, id: 'extcat-' + i, name: c.name || c.provider, extra: [] }));
   });
+  const buildLibraryCatalogs = (cfg) => {
+    const rows = deriveLibraryRows(cfg);
+    const out = [
+      { type: 'movie',  id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: true }] },
+      { type: 'series', id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: true }] },
+    ];
+    rows.forEach(key => {
+      const types = key === 'nextup' ? ['series'] : ['movie', 'series'];
+      types.forEach(type => out.push({ type, id: 'myemby-' + key, name: ROW_NAMES[key], extra: [] }));
+    });
+    return out;
+  };
   res.json({
     id: 'com.multiemby.bridge',
     version: '1.0.0',
@@ -485,8 +498,7 @@ app.get('/:config/manifest.json', (req, res) => {
     description: `Streams from: ${names || 'configured servers'}`,
     types: ['movie', 'series'],
     catalogs: [
-      { type: 'movie',  id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: cfg.showCatalog === false }] },
-      { type: 'series', id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: cfg.showCatalog === false }] },
+      ...buildLibraryCatalogs(cfg),
       ...extCats,
     ],
     resources: ['catalog', 'stream'],
@@ -538,7 +550,10 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
       const dme = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; setCatalogCache(res); res.json({ metas: dme });
     } else {
       // Browse catalog (home page row)
-      const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, cfg.catalogContent || 'recent', cfg.catalogLang || null);
+      const libKey = (req.params.id && req.params.id.indexOf('myemby-') === 0)
+        ? req.params.id.slice('myemby-'.length)
+        : (cfg.catalogContent || 'recent');
+      const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, libKey, cfg.catalogLang || null);
       const dme = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas; setCatalogCache(res); res.json({ metas: dme });
     }
   } catch (err) {
@@ -575,7 +590,10 @@ app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
     }
   }
   try {
-    const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, cfg.catalogContent || 'recent', cfg.catalogLang || null);
+    const libKey = (req.params.id && req.params.id.indexOf('myemby-') === 0)
+      ? req.params.id.slice('myemby-'.length)
+      : (cfg.catalogContent || 'recent');
+    const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, libKey, cfg.catalogLang || null);
     setCatalogCache(res); res.json({ metas });
   } catch (err) {
     console.error('Catalog browse error:', err.message);
