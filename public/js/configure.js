@@ -224,6 +224,7 @@ function initPresets() {
 }
 function selectPreset(key) {
   if (STREAMING_PRESETS[key] && STREAMING_PRESETS[key].importHint) {
+    _selectedPreset = null;   // don't leave a stale selection that Apply would re-add
     const el = document.getElementById('addon-import-url');
     if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     return;
@@ -258,6 +259,13 @@ function updatePresetCount() {
 function catalogRowExists(cat) {
   var dominated = false;
   document.querySelectorAll('.catalog-row').forEach(function(row) {
+    if (cat.provider === 'addon') {
+      if (row.dataset.provider === 'addon'
+        && row.dataset.sourceUrl === (cat.sourceUrl || '')
+        && row.dataset.catalogId === (cat.catalogId || '')
+        && row.dataset.catalogType === (cat.catalogType || cat.mediaType || 'movie')) dominated = true;
+      return;  // addon rows are identified by source+id+type, not display name
+    }
     if (row.dataset.provider === cat.provider && row.dataset.name === cat.name && row.dataset.mediaType === (cat.mediaType || 'movie')) dominated = true;
     if (row.dataset.provider === cat.provider && row.dataset.listUrl && row.dataset.listUrl === (cat.listUrl || '') && row.dataset.mediaType === (cat.mediaType || 'movie')) dominated = true;
     if (row.dataset.provider === cat.provider && row.dataset.listType && row.dataset.listType === (cat.listType || '') && row.dataset.mediaType === (cat.mediaType || 'movie')) dominated = true;
@@ -711,7 +719,9 @@ function addImportedAddonCatalogs() {
   document.querySelectorAll('.addon-imp-cb:checked').forEach(function(cb) {
     const c = imp.catalogs[Number(cb.dataset.idx)];
     if (!c) return;
-    addExternalCatalog({ provider: 'addon', sourceUrl: imp.baseUrl, catalogId: c.id, catalogType: c.type, mediaType: c.type, name: c.name });
+    const entry = { provider: 'addon', sourceUrl: imp.baseUrl, catalogId: c.id, catalogType: c.type, mediaType: c.type, name: c.name };
+    if (catalogRowExists(entry)) return;   // skip already-added catalogs
+    addExternalCatalog(entry);
     added++;
   });
   const box = document.getElementById('addon-import-results');
