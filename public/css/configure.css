@@ -842,3 +842,27 @@ input[type=range][data-slider] { flex: 1; accent-color: var(--accent-a); }
 .st.unset { background: #3a3142; color: #9a8f98; }
 .hidden-canonical { display: none !important; }
 .keytile-head { cursor: pointer; }
+
+/* ===== dashboard glow cards ===== */
+.dash-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+@keyframes haloPulse { 0%,100%{ box-shadow:0 0 0 0 var(--gbglow), 0 6px 16px var(--gbglow); } 50%{ box-shadow:0 0 22px 4px var(--gbglow), 0 6px 16px var(--gbglow); } }
+@keyframes floaty { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-3px); } }
+@keyframes brandSheen { 0%{ transform:translateX(-140%) rotate(12deg); } 55%,100%{ transform:translateX(260%) rotate(12deg); } }
+.gcard { position: relative; background: linear-gradient(160deg, rgba(34,27,45,.9), rgba(16,12,22,.95)); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.55), 0 2px 0 rgba(255,255,255,.05) inset; transition: transform .3s, box-shadow .3s; }
+.gcard:hover { transform: perspective(900px) rotateX(3deg) translateY(-5px); box-shadow: 0 22px 50px rgba(0,0,0,.6), 0 0 30px var(--accentglow); }
+.gcard-top { height: 5px; background: var(--bar); box-shadow: 0 0 14px var(--accentglow); }
+.gcard-pad { padding: 16px; }
+.gcard-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.gbrand { --gbglow: var(--accentglow); position: relative; width: 48px; height: 48px; border-radius: 13px; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 30% 25%, rgba(255,255,255,.18), rgba(255,255,255,0) 60%), var(--badgebg); animation: haloPulse 2.4s ease-in-out infinite, floaty 3.6s ease-in-out infinite; overflow: hidden; }
+.gbrand::after { content: ''; position: absolute; top: 0; left: 0; width: 38%; height: 100%; background: linear-gradient(transparent, rgba(255,255,255,.5), transparent); animation: brandSheen 4s ease-in-out infinite; opacity: .7; }
+.gbrand svg { width: 30px; height: 30px; position: relative; z-index: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+.gtype { font-size: .56rem; font-weight: 800; letter-spacing: .08em; color: var(--text-dim); margin-top: 5px; text-transform: uppercase; }
+.gcard-nm { font-size: 1.05rem; font-weight: 800; }
+.gcard-host { font-size: .64rem; color: var(--text-mute); margin-bottom: 11px; }
+.grow { display: flex; justify-content: space-between; padding: 8px 11px; border-radius: 9px; margin-bottom: 6px; font-size: .78rem; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.05); }
+.grow .v { font-weight: 800; }
+.grow.price .v { color: #fcd34d; }
+.gmanage { width: 100%; margin-top: 6px; padding: 11px; border: none; border-radius: 11px; background: var(--bar); color: #0b0910; font-weight: 800; font-size: .82rem; cursor: pointer; box-shadow: 0 6px 16px var(--accentglow); }
+.tiles { grid-template-columns: repeat(5, 1fr); }
+.t5 { background: linear-gradient(150deg, #fcd34d, #f59e0b); }
+@media (max-width: 720px) { .tiles { grid-template-columns: repeat(2, 1fr); } .dash-cards { grid-template-columns: 1fr; } }

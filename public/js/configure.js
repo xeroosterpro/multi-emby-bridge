@@ -1164,6 +1164,24 @@ window.onPageShow = function(name) {
   if (window.Controls) Controls.syncAll();
 };
 
+const EMBY_SVG = '<svg viewBox="0 0 100 100" aria-label="Emby"><circle cx="50" cy="50" r="40" fill="none" stroke="#fff" stroke-width="9" stroke-dasharray="188 64" transform="rotate(-32 50 50)"/><path d="M41 33 L70 50 L41 67 Z" fill="#fff"/></svg>';
+const JELLYFIN_SVG = '<svg viewBox="0 0 100 100" aria-label="Jellyfin"><path d="M50 14C44 30 30 41 30 59a20 20 0 0 0 40 0C70 41 56 30 50 14Z" fill="#fff"/><path d="M50 42c-3 8-9 12-9 20a9 9 0 0 0 18 0c0-8-6-12-9-20Z" fill="#6a3a8c"/></svg>';
+
+function openServerManage(index) {
+  location.hash = '#/servers';
+  setTimeout(() => {
+    const cards = document.querySelectorAll('#servers-container .server-card');
+    const card = cards[index];
+    if (!card) return;
+    const edit = card.querySelector('.sc-edit');
+    if (edit && edit.style.display === 'none') {
+      const id = parseInt(card.id.replace('server-', ''), 10);
+      if (typeof toggleManage === 'function') toggleManage(id);
+    }
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 80);
+}
+
 async function renderDashboard(force = false) {
   if (_dashboardInFlight) return;
   _dashboardInFlight = true;
@@ -1178,24 +1196,53 @@ async function renderDashboard(force = false) {
     if (!wrap) return;
     wrap.innerHTML = '';
     let upCount = 0, movieTotal = 0, fastest = null;
-    await Promise.all(servers.map(async s => {
+    await Promise.all(servers.map(async (s, idx) => {
+      const PALETTE = [
+        ['linear-gradient(135deg,#fb923c,#f472b6)','rgba(244,114,182,.5)'],
+        ['linear-gradient(135deg,#818cf8,#22d3ee)','rgba(34,211,238,.5)'],
+        ['linear-gradient(135deg,#34d399,#22d3ee)','rgba(52,211,153,.5)'],
+        ['linear-gradient(135deg,#f59e0b,#fb7185)','rgba(245,158,11,.5)'],
+        ['linear-gradient(135deg,#a78bfa,#f472b6)','rgba(167,139,250,.5)'],
+      ];
+      const [bar, glow] = PALETTE[idx % PALETTE.length];
+      const isJelly = (s.type === 'jellyfin');
+      const brandSvg = isJelly ? JELLYFIN_SVG : EMBY_SVG;
+      const brandName = isJelly ? 'Jellyfin' : 'Emby';
+      const badgeBg = isJelly ? 'linear-gradient(135deg,#aa5cc3,#00a4dc)' : 'linear-gradient(135deg,#52b54b,#2f8f3e)';
+      const costStr = (s.cost && s.costPeriod)
+        ? '$' + Number(s.cost).toFixed(2) + ' / ' + ({monthly:'mo',quarterly:'qtr',yearly:'yr'}[s.costPeriod] || s.costPeriod)
+        : '— not set';
       const card = document.createElement('div');
-      card.className = 'dash-card';
-      card.innerHTML = `<div class="dc-head"><div class="sc-ico">${escHtml(s.emoji || '🎬')}</div>
-        <div><div class="sc-name">${escHtml(s.label)}</div>
-        <div class="sc-host">${escHtml((s.url||'').replace(/^https?:\/\//,''))}</div></div>
-        <span class="sc-badge unknown">● …</span></div>
-        <div class="dc-mini"><div class="mc"><div class="n">—</div><div class="l">Movies</div></div>
-        <div class="mc"><div class="n">—</div><div class="l">Shows</div></div>
-        <div class="mc"><div class="n">—</div><div class="l">Eps</div></div></div>`;
+      card.className = 'gcard';
+      card.style.setProperty('--bar', bar);
+      card.style.setProperty('--accentglow', glow);
+      card.style.setProperty('--badgebg', badgeBg);
+      card.innerHTML = `
+        <div class="gcard-top"></div>
+        <div class="gcard-pad">
+          <div class="gcard-head">
+            <div><div class="gbrand">${brandSvg}</div><div class="gtype">${brandName}</div></div>
+            <span class="sc-badge unknown">● …</span>
+          </div>
+          <div class="gcard-nm">${escHtml(s.label)}</div>
+          <div class="gcard-host">${escHtml((s.url||'').replace(/^https?:\/\//,''))}</div>
+          <div class="grow"><span>🎞 Movies</span><span class="v" data-st="movies">—</span></div>
+          <div class="grow"><span>📺 Shows</span><span class="v" data-st="shows">—</span></div>
+          <div class="grow"><span>▦ Episodes</span><span class="v" data-st="episodes">—</span></div>
+          <div class="grow price"><span>💵 Price</span><span class="v">${escHtml(costStr)}</span></div>
+          <button class="gmanage" type="button">Manage Server →</button>
+        </div>`;
+      card.querySelector('.gmanage').addEventListener('click', () => openServerManage(idx));
       wrap.appendChild(card);
+      const setStats = (st) => {
+        card.querySelector('[data-st=movies]').textContent   = (st.movies||0).toLocaleString();
+        card.querySelector('[data-st=shows]').textContent    = (st.shows||0).toLocaleString();
+        card.querySelector('[data-st=episodes]').textContent = (st.episodes||0).toLocaleString();
+      };
       const k = _libKey(s);
       const cached = _libStatsCache[k];
       if (!force && cached && (now - cached.ts < LIB_TTL_MS)) {
-        const mc = card.querySelectorAll('.mc .n');
-        mc[0].textContent = (cached.movies||0).toLocaleString();
-        mc[1].textContent = (cached.shows||0).toLocaleString();
-        mc[2].textContent = (cached.episodes||0).toLocaleString();
+        setStats(cached);
         upCount++; movieTotal += (cached.movies||0);
         if (fastest === null || cached.ms < fastest) fastest = cached.ms;
         const badge = card.querySelector('.sc-badge');
@@ -1211,10 +1258,7 @@ async function renderDashboard(force = false) {
         const badge = card.querySelector('.sc-badge');
         if (r.ok) {
           const st = await r.json();
-          const mc = card.querySelectorAll('.mc .n');
-          mc[0].textContent = (st.movies||0).toLocaleString();
-          mc[1].textContent = (st.shows||0).toLocaleString();
-          mc[2].textContent = (st.episodes||0).toLocaleString();
+          setStats(st);
           upCount++; movieTotal += (st.movies||0);
           if (fastest === null || ms < fastest) fastest = ms;
           badge.textContent = ms < 400 ? '● UP ' + ms + 'ms' : '● SLOW ' + ms + 'ms';
@@ -1228,6 +1272,9 @@ async function renderDashboard(force = false) {
     setTxt('tile-servers', upCount);
     setTxt('tile-movies', movieTotal.toLocaleString());
     setTxt('tile-ping', fastest != null ? fastest + 'ms' : '—');
+    const totalMo = servers.reduce((a, s) => a + monthlyCost(s.cost, s.costPeriod), 0);
+    setTxt('tile-cost', '$' + Math.round(totalMo) + (totalMo > 0 ? '/mo' : ''));
+    setTxt('tile-cost-l', 'Total cost · $' + Math.round(totalMo * 12) + '/yr');
     setTxt('dash-status', servers.length
       ? `Everything's loaded. ${upCount}/${servers.length} servers reachable.`
       : 'No servers yet — add one on the Servers page.');
