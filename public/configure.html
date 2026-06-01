@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="purple">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,8 +7,10 @@
   <link rel="stylesheet" href="/css/configure.css" />
 </head>
 <body>
+  <div class="bg" id="bg"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="stipple" id="stipple"></div></div>
   <div class="app">
     <aside class="sidebar" id="sidebar">
+      <button class="pin-btn" id="pin-btn" title="Lock sidebar open"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 10.8V4h6v6.8c0 .5.2.9.5 1.2L17 14H7l1.5-2c.3-.3.5-.7.5-1.2Z"/></svg></button>
       <div class="brand">◢ Multi-Emby</div>
       <nav class="nav" id="nav">
         <a class="nav-item" data-page="dashboard">🏠 <span>Dashboard</span></a>
@@ -24,6 +26,7 @@
           <a class="foot-link" data-page="install">Install</a>
           <a class="foot-link" data-page="ping">Ping</a>
           <a class="foot-link" data-page="log">Log</a>
+          <a class="foot-link" data-page="settings">Settings</a>
         </div>
         <div class="save-indicator" id="autosave-indicator">✓ Settings saved</div>
       </div>
@@ -666,11 +669,34 @@
           <div class="log-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>
         </div>
       </section>
+      <section class="page" id="page-settings">
+        <h2 class="page-title">Settings</h2>
+        <p class="page-sub">Theme, display size, and motion preferences. Saved on this device.</p>
+        <h3 class="block-title">Theme</h3>
+        <div class="themes">
+          <div class="swatch sel" data-t="purple"><div class="pv pv-purple"></div><div class="nm">Purple</div></div>
+          <div class="swatch" data-t="red"><div class="pv pv-red"></div><div class="nm">Red</div></div>
+          <div class="swatch" data-t="pink"><div class="pv pv-pink"></div><div class="nm">Pink</div></div>
+          <div class="swatch" data-t="blue"><div class="pv pv-blue"></div><div class="nm">Blue</div></div>
+          <div class="swatch" data-t="rgb"><div class="pv pv-rgb"></div><div class="nm">RGB</div></div>
+        </div>
+        <h3 class="block-title">Display</h3>
+        <div class="field">
+          <div class="field-label">Display size · <span id="scale-val">100%</span></div>
+          <input type="range" id="ui-scale" min="80" max="130" step="5" value="100" />
+        </div>
+        <div class="pref-row"><div class="switch" id="lock-switch"></div><div><div class="field-label" style="margin:0">Lock sidebar open</div><div class="field-hint">Keep the side menu expanded (same as the pin)</div></div></div>
+        <div class="pref-row"><div class="switch" id="motion-switch"></div><div><div class="field-label" style="margin:0">Reduce motion</div><div class="field-hint">Pause the animated background</div></div></div>
+      </section>
     </main>
   </div>
 
   <div id="global-error"></div>
+  <div class="modal-bg" id="modal-bg"><div class="modal" id="modal"></div></div>
+  <div class="toast-wrap" id="toast-wrap"></div>
 
+  <script src="/js/theme.js"></script>
+  <script src="/js/ui.js"></script>
   <script src="/js/configure.js"></script>
   <script src="/js/controls.js"></script>
   <script src="/js/shell.js"></script>
