@@ -811,6 +811,10 @@ app.listen(PORT, () => {
 // ─── Database init (migrations + admin seed); no-ops without DATABASE_URL ────
 const { runMigrations } = require('./lib/migrate');
 const { seedAdmin } = require('./lib/seed');
-runMigrations().then(() => seedAdmin()).catch(e => console.error('[boot] db init failed:', e.message));
+const { initHealthDB } = require('./lib/health');
+runMigrations()
+  .then(() => seedAdmin())
+  .then(() => initHealthDB())
+  .catch(e => console.error('[boot] db init failed:', e.message));
 
 
