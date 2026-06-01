@@ -139,6 +139,8 @@ const { makeManifestStore } = require('./lib/manifestStore');
 const { hasActiveAccess } = require('./lib/manifest');
 const { makeUserRouter } = require('./routes/user');
 app.use('/api/user', makeUserRouter());
+const { makeAdminRouter } = require('./routes/admin');
+app.use('/api/admin', makeAdminRouter());
 
 // ─── Per-user manifest: /u/:token/* → load the user's stored config (keys
 // decrypted in-memory) and re-dispatch to the existing /:config/* handlers. ──
