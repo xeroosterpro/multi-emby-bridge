@@ -1117,3 +1117,14 @@ body.locked-billing .pin-btn{ display:none; }
 .btn-add:hover{ filter:brightness(1.08); }
 .profile-block{ background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg);
   padding:16px 18px; margin-top:18px; backdrop-filter:blur(12px); }
+
+/* ===================== sidebar brand + user button (prototype) ===================== */
+.brand{ display:flex !important; align-items:center; gap:11px; background:none !important; -webkit-text-fill-color:initial !important; color:var(--text) !important; animation:none !important; padding:0 14px 16px !important; }
+.brand-logo{ width:30px; height:30px; border-radius:9px; display:grid; place-items:center; flex:none; background:linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow:0 0 16px var(--glow); }
+.brand-logo svg{ width:17px; height:17px; }
+.brand-name{ font-weight:800; font-size:1rem; white-space:nowrap; }
+.sidebar-foot{ border-top:1px solid var(--border); padding-top:8px !important; }
+.userbtn{ display:flex; align-items:center; gap:10px; padding:8px 10px; margin:8px 8px 0; border-radius:var(--r-md); cursor:pointer; color:var(--text-dim); }
+.userbtn:hover{ background:var(--bg-hover); color:var(--text); }
+.userbtn .avatar{ width:30px; height:30px; border-radius:50%; flex:none; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:grid; place-items:center; color:#0a0a12; font-weight:800; font-size:.8rem; }
+.userbtn .um{ font-size:.8rem; white-space:nowrap; }

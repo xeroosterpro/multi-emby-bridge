@@ -66,6 +66,20 @@ function initShell() {
     if (window.MEBPrefs) window.MEBPrefs.setMotion(on);
   });
 
+  // sidebar user button: show + populate when logged in; click logs out
+  fetch('/api/auth/me', { credentials: 'same-origin' }).then(r => r.json()).then(d => {
+    const btn = document.getElementById('logout');
+    if (btn && d && d.user) {
+      btn.style.display = 'flex';
+      const av = document.getElementById('side-avatar'); if (av) av.textContent = (d.user.username || '?')[0].toUpperCase();
+      const nm = document.getElementById('side-username'); if (nm) nm.textContent = d.user.username + ' · Log out';
+      btn.addEventListener('click', async () => {
+        try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch {}
+        location.reload();
+      });
+    }
+  }).catch(() => {});
+
   routeFromHash();
 }
 
