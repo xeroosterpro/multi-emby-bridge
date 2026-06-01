@@ -910,15 +910,23 @@ body.noanim .orb, body.noanim .flake{ animation:none !important } body.noanim .f
 
 /* hover-expand + lockable sidebar (overrides the flex shell layout) */
 .app{ background:transparent; }
+/* Smooth, gentle sidebar expand/collapse. The collapse is delayed (a grace
+   period) so brushing past the rail doesn't snap it shut; the open is instant
+   and eased. --side-ease is a soft ease-in-out used for the width + margin. */
+:root{ --side-ease:cubic-bezier(.33,0,.2,1); }
 .sidebar{ position:fixed; top:0; left:0; bottom:0; width:var(--side-collapsed); overflow:hidden; z-index:30;
-  background:rgba(14,14,22,.82); backdrop-filter:blur(16px); border-right:1px solid var(--border); transition:width .32s var(--ease); }
-.sidebar:hover, .sidebar.locked{ width:var(--side-w); box-shadow:0 0 40px rgba(0,0,0,.5); }
-.content{ margin-left:var(--side-collapsed); transition:margin-left .32s var(--ease); }
+  background:rgba(14,14,22,.82); backdrop-filter:blur(16px); border-right:1px solid var(--border);
+  transition:width .46s var(--side-ease) .28s, box-shadow .46s var(--side-ease) .28s; }
+.sidebar:hover, .sidebar.locked{ width:var(--side-w); box-shadow:0 0 40px rgba(0,0,0,.5);
+  transition:width .42s var(--side-ease) 0s, box-shadow .42s var(--side-ease) 0s; }
+.content{ margin-left:var(--side-collapsed); transition:margin-left .44s var(--side-ease); }
 body.sb-locked .content{ margin-left:var(--side-w); }
-.brand, .nav-item span, .sidebar-foot{ transition:opacity .2s var(--ease); white-space:nowrap; }
+/* labels fade IN gently once the panel has started widening (delay), and fade
+   OUT quickly so they never get clipped by the shrinking rail */
+.brand, .nav-item span, .sidebar-foot, .nav-sec{ transition:opacity .3s var(--side-ease) .16s; white-space:nowrap; }
 .sidebar:not(:hover):not(.locked) .nav-item span,
 .sidebar:not(:hover):not(.locked) .brand,
-.sidebar:not(:hover):not(.locked) .sidebar-foot{ opacity:0; pointer-events:none; }
+.sidebar:not(:hover):not(.locked) .sidebar-foot{ opacity:0; pointer-events:none; transition:opacity .24s var(--side-ease) .28s; }
 .nav-item{ position:relative; overflow:hidden; }
 .nav-item.on{ background:var(--glow) !important; animation:none !important; }
 .nav-item.on::before{ content:''; position:absolute; left:0; top:18%; bottom:18%; width:3px; border-radius:3px; background:var(--accent); }
