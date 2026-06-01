@@ -12,6 +12,7 @@ const { getAllStreams } = require('./lib/streams');
 const { fetchExternalCatalog } = require('./lib/catalogs');
 const { healthServers, healthHistory, registerHealthServers, unregisterHealthServer, cleanupStaleServers, pingHealthServers } = require('./lib/health');
 const { hashPassword, loadProfiles, saveProfiles } = require('./lib/profiles');
+const { snapshot: systemMetrics } = require('./lib/metrics');
 const { ROW_NAMES, deriveLibraryRows } = require('./server-helpers');
 
 // Cross-row deduplication cache (60s TTL per config)
@@ -130,6 +131,14 @@ app.get('/configure', (req, res) => {
 });
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
+// ─── System metrics (CPU/RAM/uptime) for the admin panel ─────────────────────
+// NOTE: unauthenticated for now (returns only non-sensitive resource numbers).
+// To be gated behind admin auth in Phase 4 once accounts exist.
+app.get('/api/metrics', apiLimiter, (req, res) => {
+  try { res.json(systemMetrics()); }
+  catch (e) { res.status(500).json({ error: 'metrics unavailable' }); }
+});
 
 // ─── Server info (ping origin label) ─────────────────────────────────────────
 app.get('/api/server-info', (req, res) => {
