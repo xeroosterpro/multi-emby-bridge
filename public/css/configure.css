@@ -961,3 +961,21 @@ input[type=range]{ width:100%; accent-color:var(--accent); cursor:pointer; }
   .sidebar{ width:0; border:0; } .sidebar.locked{ width:var(--side-w); }
   .content, body.sb-locked .content{ margin-left:0; }
 }
+
+/* ===================== nav line-icons + collapsible accordions ===================== */
+.nav-ic{ width:20px; height:20px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.nav-item.on .nav-ic{ stroke:var(--accent); }
+
+.acc2{ background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-md); margin:0 0 10px; transition:border-color .2s; }
+.acc2.open{ border-color:color-mix(in srgb, var(--accent) 40%, var(--border)); }
+.acc2-head{ display:flex; align-items:center; gap:10px; padding:13px 15px; cursor:pointer; user-select:none; }
+.acc2-head:hover{ background:var(--bg-hover); border-radius:var(--r-md); }
+.acc2-head .block-title{ margin:0 !important; flex:1; }
+.acc2-chev{ display:grid; place-items:center; }
+.acc2-chev svg{ width:18px; height:18px; stroke:var(--text-dim); stroke-width:2; transition:transform .3s var(--ease); }
+.acc2.open .acc2-chev svg{ transform:rotate(180deg); }
+.acc2-body{ display:grid; grid-template-rows:0fr; transition:grid-template-rows .32s var(--ease); }
+.acc2.open .acc2-body{ grid-template-rows:1fr; }
+.acc2-inner{ overflow:hidden; min-height:0; }
+.acc2-pad{ padding:2px 15px 15px; }
+body.noanim .acc2-body{ transition:none; }
