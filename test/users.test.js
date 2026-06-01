@@ -17,6 +17,8 @@ function fakeDb() {
       const r = rows.find(x => x.username === params[0]); return { rows: r ? [r] : [], rowCount: r ? 1 : 0 };
     }
     if (/UPDATE users SET last_seen/i.test(text)) return { rows: [], rowCount: 1 };
+    if (/SELECT .* FROM users ORDER BY/i.test(text)) return { rows: rows.map(r => ({ id: r.id, username: r.username, role: r.role })), rowCount: rows.length };
+    if (/UPDATE users SET role=\$2/i.test(text)) { const r = rows.find(x => x.id === params[0]); if (r) { r.role = params[1]; return { rows: [{ id: r.id, username: r.username, role: r.role }], rowCount: 1 }; } return { rows: [], rowCount: 0 }; }
     return { rows: [], rowCount: 0 };
   } };
 }
@@ -33,6 +35,11 @@ function fakeDb() {
   A(dup, 'duplicate username rejected (unique violation)');
   const pre = await users.create('bob', 'scrypt$already$hashed$value$here', 'admin');
   A(pre.password_hash === 'scrypt$already$hashed$value$here', 'pre-hashed value stored as-is');
+  const all = await users.listAll();
+  A(all.length === 2 && all[0].username === 'alice', 'listAll returns users');
+  const changed = await users.setRole(all[0].id, 'admin');
+  A(changed && changed.role === 'admin', 'setRole promotes to admin');
+  let bad = false; try { await users.setRole(all[0].id, 'wizard'); } catch { bad = true; } A(bad, 'setRole rejects invalid role');
   console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
   if (failed) process.exit(1);
 })();

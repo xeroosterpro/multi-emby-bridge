@@ -44,6 +44,8 @@
           <a class="foot-link" data-page="ping">Ping</a>
           <a class="foot-link" data-page="log">Log</a>
           <a class="foot-link" data-page="settings">Settings</a>
+          <a class="foot-link admin-only" data-page="admin" style="display:none">⚙ System</a>
+          <a class="foot-link admin-only" data-page="users" style="display:none">⚙ Users</a>
         </div>
         <div class="save-indicator" id="autosave-indicator">✓ Settings saved</div>
       </div>
@@ -705,6 +707,24 @@
         <div class="pref-row"><div class="switch" id="lock-switch"></div><div><div class="field-label" style="margin:0">Lock sidebar open</div><div class="field-hint">Keep the side menu expanded (same as the pin)</div></div></div>
         <div class="pref-row"><div class="switch" id="motion-switch"></div><div><div class="field-label" style="margin:0">Reduce motion</div><div class="field-hint">Pause the animated background</div></div></div>
       </section>
+
+      <section class="page" id="page-admin">
+        <h2 class="page-title">Admin · System</h2>
+        <p class="page-sub">Live resource usage for this deployment. <span id="admin-live" style="color:var(--accent)">●</span></p>
+        <div class="tiles">
+          <div class="tile"><div class="n" id="m-cpu">—</div><div class="l">CPU</div></div>
+          <div class="tile"><div class="n" id="m-ram">—</div><div class="l">RAM</div></div>
+          <div class="tile"><div class="n" id="m-mem">—</div><div class="l">Memory used</div></div>
+          <div class="tile"><div class="n" id="m-up">—</div><div class="l">Uptime</div></div>
+          <div class="tile"><div class="n" id="m-cpus">—</div><div class="l">CPU cores</div></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-users">
+        <h2 class="page-title">Admin · Users</h2>
+        <p class="page-sub">All accounts. Promote/demote roles.</p>
+        <div id="admin-users-list"></div>
+      </section>
     </main>
   </div>
 
@@ -723,5 +743,6 @@
   <script src="/js/dashboard-modal.js"></script>
   <script src="/js/auth-ui.js"></script>
   <script src="/js/user-account.js"></script>
+  <script src="/js/admin.js"></script>
 </body>
 </html>
