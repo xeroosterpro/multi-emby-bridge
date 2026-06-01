@@ -15,8 +15,10 @@
   let metricsTimer = null;
   async function tickMetrics() {
     const r = await api('/api/metrics'); const m = r.body; if (!m) return;
-    if ($('#m-cpu')) $('#m-cpu').textContent = (m.cpuPercent ?? '—') + '%';
-    if ($('#m-ram')) $('#m-ram').textContent = (m.sysMemPct ?? '—') + '%';
+    if ($('#m-cpu')) $('#m-cpu').textContent = (m.cpuPercent ?? 0) + '%';
+    if ($('#g-cpu')) $('#g-cpu').style.setProperty('--v', m.cpuPercent ?? 0);
+    if ($('#m-ram')) $('#m-ram').textContent = (m.sysMemPct ?? 0) + '%';
+    if ($('#g-ram')) $('#g-ram').style.setProperty('--v', m.sysMemPct ?? 0);
     if ($('#m-mem')) $('#m-mem').textContent = fmtMB(m.rssBytes);
     if ($('#m-up')) $('#m-up').textContent = fmtUptime(m.uptimeSec);
     if ($('#m-cpus')) $('#m-cpus').textContent = m.cpuCount ?? '—';

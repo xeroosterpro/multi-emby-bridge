@@ -79,13 +79,19 @@
     const link = document.querySelector('.billing-link'); if (link) link.style.display = '';
     if (!me || !me.user) { applyGate(false); return; }          // login overlay handles unauthenticated
     const st = (await api('/api/billing/status')).body || {};
-    if (st.hasAccess) {
+    const settings = $('#settings-sub');
+    const realSub = st.status === 'active' || st.status === 'comped';
+    if (realSub) {                                   // actual paying/comped subscriber
       applyGate(false);
-      if (link) link.style.display = 'none';        // hide Billing tab when active — manage in Settings
+      if (link) link.style.display = 'none';
       renderActive(st);
-    } else {
-      const settings = $('#settings-sub'); if (settings) settings.innerHTML = '';
-      applyGate(me.user.role !== 'admin');
+    } else if (st.hasAccess) {                       // admin (role-based access, no subscription)
+      applyGate(false);
+      if (link) link.style.display = 'none';
+      if (settings) settings.innerHTML = '<div class="card"><div class="label">Subscription</div><div class="mrow">Access<span class="mtag" style="color:var(--success)">● Admin · full access</span></div></div>';
+    } else {                                         // no access → lock to Billing
+      if (settings) settings.innerHTML = '';
+      applyGate(true);
       renderLocked(cfg);
     }
   }
