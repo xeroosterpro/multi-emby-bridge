@@ -35,9 +35,16 @@
         <span style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn-soft acct-role" data-uid="${u.id}" data-role="${u.role === 'admin' ? 'user' : 'admin'}">${u.role === 'admin' ? 'Demote' : 'Make admin'}</button>
           <button class="btn-soft acct-comp" data-uid="${u.id}" data-act="${comped ? 'uncomp' : 'comp'}">${comped ? 'Remove access' : 'Comp access'}</button>
+          <button class="btn-soft acct-del" data-uid="${u.id}" data-name="${u.username}" style="border-color:var(--error,#e05555);color:var(--error,#e05555)">Delete</button>
         </span>
       </div>`;
     }).join('');
+    wrap.querySelectorAll('.acct-del').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm('Delete user "' + btn.dataset.name + '"? This cannot be undone.')) return;
+      const res = await api('/api/admin/users/' + btn.dataset.uid, { method: 'DELETE' });
+      if (res.status === 200) { if (window.toast) window.toast('User deleted'); loadUsers(); }
+      else if (window.toast) window.toast((res.body && res.body.error) || 'Failed');
+    }));
     wrap.querySelectorAll('.acct-role').forEach(btn => btn.addEventListener('click', async () => {
       const res = await api('/api/admin/users/' + btn.dataset.uid + '/role', { method: 'POST', body: JSON.stringify({ role: btn.dataset.role }) });
       if (res.status === 200) { if (window.toast) window.toast('Role updated'); loadUsers(); }
@@ -77,10 +84,21 @@
     });
   }
 
+  function wireAddUser() {
+    const btn = $('#nu-create'); if (!btn || btn._w) return; btn._w = 1;
+    btn.addEventListener('click', async () => {
+      const username = $('#nu-name').value.trim(), password = $('#nu-pass').value, role = $('#nu-role').value;
+      if (!username || !password) { $('#nu-msg').textContent = 'Username and password required'; return; }
+      const res = await api('/api/admin/users', { method: 'POST', body: JSON.stringify({ username, password, role }) });
+      if (res.status === 200) { $('#nu-name').value = ''; $('#nu-pass').value = ''; $('#nu-msg').textContent = ''; if (window.toast) window.toast('User added'); loadUsers(); }
+      else { $('#nu-msg').textContent = (res.body && res.body.error) || 'Add failed'; }
+    });
+  }
+
   function onRoute() {
     const page = (location.hash || '').replace(/^#\//, '');
     if (page === 'admin') startMetrics(); else stopMetrics();
-    if (page === 'users') { loadUsers(); loadCodes(); wireCodeCreate(); }
+    if (page === 'users') { loadUsers(); loadCodes(); wireCodeCreate(); wireAddUser(); }
   }
 
   document.addEventListener('DOMContentLoaded', async () => {

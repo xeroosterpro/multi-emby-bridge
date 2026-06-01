@@ -25,19 +25,28 @@
     if (locked && location.hash !== '#/billing') location.hash = '#/billing';
   }
 
-  function renderActive(st) {
-    $('#billing-body').innerHTML = `<div class="card"><div class="label">Subscription</div>
+  function activeCardHTML(st) {
+    return `<div class="card"><div class="label">Subscription</div>
+      <div class="mrow">Plan<span class="mtag">Bridge Pro</span></div>
       <div class="mrow">Status<span class="mtag" style="color:var(--success)">● ${st.status}</span></div>
       ${st.periodEnd ? `<div class="mrow">Renews<span class="mtag">${new Date(st.periodEnd).toLocaleDateString()}</span></div>` : ''}
-      <div style="margin-top:12px"><button class="btn-soft" id="bill-cancel" type="button">Cancel subscription</button></div></div>`;
-    $('#bill-cancel').addEventListener('click', async () => { await api('/api/billing/cancel', { method: 'POST' }); if (window.toast) window.toast('Subscription cancelled'); init(); });
+      <div style="margin-top:12px"><button class="btn-soft bill-cancel" type="button">Cancel subscription</button></div></div>`;
+  }
+  function renderActive(st) {
+    // Managed in Settings (Billing tab is hidden when active); also fill the Billing page if visited.
+    const settings = $('#settings-sub'); if (settings) settings.innerHTML = activeCardHTML(st);
+    if ($('#billing-body')) $('#billing-body').innerHTML = activeCardHTML(st);
+    document.querySelectorAll('.bill-cancel').forEach(b => b.addEventListener('click', async () => {
+      await api('/api/billing/cancel', { method: 'POST' }); if (window.toast) window.toast('Subscription cancelled'); init();
+    }));
   }
 
   async function renderLocked(cfg) {
-    $('#billing-body').innerHTML = `<div class="card"><div class="label">Plan</div>
-      <div style="font-size:1.3rem;font-weight:800">Bridge Pro</div>
-      <div class="page-sub" style="margin:2px 0 12px">Unlimited servers · personal manifest · priority pings — ${cfg.planPrice}</div>
-      <div id="paypal-button-container"></div>
+    $('#billing-body').innerHTML = `<div class="card billing-plan"><div class="label">Plan</div>
+      <div style="font-size:1.4rem;font-weight:800">Bridge Pro</div>
+      <div class="bill-price">${cfg.planPrice}</div>
+      <ul class="bill-feat"><li>Unlimited servers</li><li>Your personal manifest URL</li><li>Priority health pings</li><li>Cancel anytime</li></ul>
+      <div id="paypal-button-container" style="margin-top:6px"></div>
       <div class="field-label" style="margin-top:14px">Have a discount code?</div>
       <div style="display:flex;gap:8px"><input class="input" id="bill-code" placeholder="Enter code" autocomplete="off"/><button class="btn-soft" id="bill-redeem" type="button">Apply</button></div>
       <div class="auth-err" id="bill-msg"></div></div>`;
@@ -70,8 +79,15 @@
     const link = document.querySelector('.billing-link'); if (link) link.style.display = '';
     if (!me || !me.user) { applyGate(false); return; }          // login overlay handles unauthenticated
     const st = (await api('/api/billing/status')).body || {};
-    if (st.hasAccess) { applyGate(false); renderActive(st); }
-    else { applyGate(me.user.role !== 'admin'); renderLocked(cfg); }
+    if (st.hasAccess) {
+      applyGate(false);
+      if (link) link.style.display = 'none';        // hide Billing tab when active — manage in Settings
+      renderActive(st);
+    } else {
+      const settings = $('#settings-sub'); if (settings) settings.innerHTML = '';
+      applyGate(me.user.role !== 'admin');
+      renderLocked(cfg);
+    }
   }
 
   window.MEBBilling = { refresh: init };

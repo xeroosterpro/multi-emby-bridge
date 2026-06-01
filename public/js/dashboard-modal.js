@@ -28,6 +28,7 @@
         <button class="on" data-mt="overview">Overview</button>
         <button data-mt="health">Health</button>
         <button data-mt="ping">Ping</button>
+        <button data-mt="watching">Watching</button>
       </div>
       <div class="modal-body">
         <div class="mtab on" id="mt-overview">
@@ -47,6 +48,10 @@
         <div class="mtab" id="mt-ping">
           <div class="mrow">Measure latency from your browser or the addon server.<span class="mtag"></span></div>
           <button class="btn-soft" data-goto="ping" style="margin-top:10px">Open Ping test →</button>
+        </div>
+        <div class="mtab" id="mt-watching">
+          <div class="mrow">Live "now playing" sessions aren't tracked yet.<span class="mtag"></span></div>
+          <div class="field-hint" style="margin-top:6px">Active-session reporting can be enabled per server in a future update.</div>
         </div>
       </div>`);
   });
