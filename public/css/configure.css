@@ -1055,3 +1055,7 @@ body.noanim .acc2-body{ transition:none; }
 
 .acct-card{ margin-bottom:14px; }
 .acct-card .btn-soft{ padding:.55rem .9rem; }
+
+/* billing access gate: lock app to Billing page when unsubscribed */
+body.locked-billing .nav, body.locked-billing .foot-link:not(.billing-link), body.locked-billing .quick-install{ display:none !important; }
+body.locked-billing .pin-btn{ display:none; }

@@ -141,6 +141,10 @@ const { makeUserRouter } = require('./routes/user');
 app.use('/api/user', makeUserRouter());
 const { makeAdminRouter } = require('./routes/admin');
 app.use('/api/admin', makeAdminRouter());
+const paypal = require('./lib/paypal');
+const { makeBilling } = require('./lib/billing');
+const { makeBillingRouter } = require('./routes/billing');
+app.use('/api/billing', makeBillingRouter());
 
 // ─── Per-user manifest: /u/:token/* → load the user's stored config (keys
 // decrypted in-memory) and re-dispatch to the existing /:config/* handlers. ──
@@ -150,7 +154,16 @@ app.use('/u/:token', async (req, res, next) => {
   try {
     const rec = await makeManifestStore(dbLib).lookup(req.params.token);
     if (!rec) return res.status(410).json({ error: 'link invalid or revoked' });
-    if (!hasActiveAccess(rec)) return res.status(402).json({ error: 'subscription required' }); // stub: always allowed until billing
+    // Anti-sharing gate — only enforced once billing (PayPal) is configured.
+    // Admins are always exempt; active/comped subscribers pass.
+    if (paypal.isConfigured()) {
+      let allowed = await makeBilling(dbLib).hasAccess(rec.user_id);
+      if (!allowed) {
+        const ur = await dbLib.query('SELECT role FROM users WHERE id=$1', [rec.user_id]);
+        allowed = ur.rowCount > 0 && ur.rows[0].role === 'admin';
+      }
+      if (!allowed) return res.status(402).json({ error: 'subscription required' });
+    }
     const cfg = await makeUserConfig(dbLib).getForServe(rec.user_id);
     if (!cfg) return res.status(404).json({ error: 'no configuration saved' });
     const rest = req.url === '/' ? '/manifest.json' : req.url; // req.url is post-mount remainder

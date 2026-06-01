@@ -2,9 +2,11 @@
 const express = require('express');
 const db = require('../lib/db');
 const { makeUsers } = require('../lib/users');
+const { makeBilling } = require('../lib/billing');
 
 function makeAdminRouter() {
   const users = makeUsers(db);
+  const billing = makeBilling(db);
   const r = express.Router();
   r.use(express.json());
 
@@ -32,6 +34,32 @@ function makeAdminRouter() {
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
+  });
+
+  // ── discount codes ──
+  r.get('/codes', requireAdmin, async (req, res) => {
+    try { res.json({ codes: await billing.listCodes() }); }
+    catch (e) { res.status(500).json({ error: 'load failed' }); }
+  });
+  r.post('/codes', requireAdmin, async (req, res) => {
+    const { code, type, maxUses } = req.body || {};
+    if (!code || !['comp_100', 'percent_50', 'first_month_free'].includes(type)) return res.status(400).json({ error: 'code and valid type required' });
+    try { await billing.createCode(code, type, maxUses, req.user.id); res.json({ ok: true }); }
+    catch (e) { if (e.code === '23505') return res.status(409).json({ error: 'code exists' }); res.status(500).json({ error: 'create failed' }); }
+  });
+  r.post('/codes/:code/deactivate', requireAdmin, async (req, res) => {
+    try { await billing.deactivateCode(req.params.code); res.json({ ok: true }); }
+    catch (e) { res.status(500).json({ error: 'deactivate failed' }); }
+  });
+
+  // ── comp / uncomp a user (grant access without payment) ──
+  r.post('/users/:id/comp', requireAdmin, async (req, res) => {
+    try { await billing.comp(req.params.id); res.json({ ok: true, status: 'comped' }); }
+    catch (e) { res.status(500).json({ error: 'comp failed' }); }
+  });
+  r.post('/users/:id/uncomp', requireAdmin, async (req, res) => {
+    try { await billing.cancel(req.params.id); res.json({ ok: true, status: 'cancelled' }); }
+    catch (e) { res.status(500).json({ error: 'uncomp failed' }); }
   });
 
   return r;
