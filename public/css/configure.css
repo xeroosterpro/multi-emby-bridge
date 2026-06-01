@@ -1181,3 +1181,15 @@ body.locked-billing .pin-btn{ display:none; }
 
 /* ===================== perf: drop heavy backdrop-blur on repeated cards (smoother) ===================== */
 .acc, .acc2, .gcard, .card, .server-block, .profile-block, .tiles .tile{ backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+
+/* ===================== monitoring pages (Health / Ping / Log) → prototype glassy ===================== */
+.ping-origin-bar, .toolbar, .ping-controls, .log-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.range-tab{ padding:7px 13px; border-radius:20px; border:1px solid color-mix(in srgb,var(--accent) 22%,var(--border)); background:transparent; color:var(--text-dim); cursor:pointer; font-family:inherit; font-size:.8rem; transition:all .18s var(--ease); }
+.range-tab:hover{ color:var(--text); border-color:color-mix(in srgb,var(--accent) 50%,var(--border)); }
+.range-tab.active{ background:var(--glow) !important; border-color:var(--accent) !important; color:var(--text) !important; }
+.btn.primary, .btn-ping-test{ background:linear-gradient(135deg,var(--accent),var(--accent-2)) !important; color:#0a0a12 !important; border:0 !important; border-radius:var(--r-md) !important; font-weight:700 !important; padding:9px 16px !important; cursor:pointer; }
+.btn-log{ background:transparent !important; border:1px solid color-mix(in srgb,var(--accent) 40%,var(--border)) !important; color:var(--text) !important; border-radius:var(--r-md) !important; padding:8px 14px !important; cursor:pointer; }
+.btn-log.danger{ border-color:var(--error,#e05555) !important; color:var(--error,#e05555) !important; }
+.ping-origin-pill{ padding:3px 10px; border-radius:20px; background:var(--glow); color:var(--accent); font-weight:700; font-size:.72rem; }
+#main-content, #ping-results, .log-table-wrap, .refresh-bar{ background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:16px; }
+.log-empty, .loader{ color:var(--text-dim); text-align:center; padding:24px; }
