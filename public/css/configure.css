@@ -1005,3 +1005,30 @@ body.noanim .acc2-body{ transition:none; }
 .acc2-head .field-label{ margin:0 !important; flex:1; }
 .acc2-field{ padding:0 !important; }
 .acc2-field .acc2-pad{ padding-top:10px; }
+
+/* ===================== server-detail modal ===================== */
+.modal-bg{ position:fixed; inset:0; z-index:400; background:rgba(4,4,10,.6); backdrop-filter:blur(6px);
+  display:grid; place-items:center; padding:20px; opacity:0; pointer-events:none; transition:opacity .3s var(--ease); }
+.modal-bg.on{ opacity:1; pointer-events:auto; }
+.modal{ width:100%; max-width:560px; max-height:88vh; overflow-y:auto; background:rgba(16,16,26,.97);
+  backdrop-filter:blur(20px); border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border)); border-radius:18px;
+  transform:scale(.95) translateY(10px); transition:transform .3s var(--ease); box-shadow:0 40px 90px rgba(0,0,0,.6),0 0 50px var(--glow); }
+.modal-bg.on .modal{ transform:none; }
+.modal-head{ display:flex; align-items:center; gap:13px; padding:20px; border-bottom:1px solid var(--border); }
+.mhead-brand{ width:40px; height:40px; display:grid; place-items:center; flex:none; }
+.mhead-brand svg{ width:34px; height:34px; }
+.modal-nm{ font-weight:700; font-size:1.05rem; }
+.modal-sub{ font-size:.8rem; color:var(--text-dim); }
+.modal-x{ margin-left:auto; width:32px; height:32px; border-radius:8px; display:grid; place-items:center; cursor:pointer; color:var(--text-dim); border:1px solid var(--border); }
+.modal-x:hover{ color:var(--text-primary); border-color:var(--accent); }
+.modal-x svg{ width:16px; height:16px; }
+.modal-tabs{ display:flex; gap:6px; padding:12px 20px 0; flex-wrap:wrap; }
+.modal-tabs button{ padding:7px 14px; border:0; background:transparent; color:var(--text-dim); font-family:inherit; font-size:.82rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; }
+.modal-tabs button.on{ color:var(--text-primary); border-bottom-color:var(--accent); }
+.modal-body{ padding:16px 20px 22px; }
+.mtab{ display:none; } .mtab.on{ display:block; animation:flowin .3s var(--ease); }
+.mchips{ display:flex; gap:8px; margin-bottom:12px; }
+.mchip{ flex:1; background:rgba(0,0,0,.28); border-radius:var(--radius-sm); padding:10px; text-align:center; }
+.mchip .cn{ font-weight:800; font-size:1.05rem; } .mchip .ct{ font-size:.62rem; color:var(--text-mute); text-transform:uppercase; letter-spacing:.05em; }
+.mrow{ display:flex; justify-content:space-between; gap:10px; padding:9px 11px; border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:7px; font-size:.82rem; }
+.mrow .mtag{ color:var(--text-mute); flex:none; }
