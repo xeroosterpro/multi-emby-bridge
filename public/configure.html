@@ -691,7 +691,8 @@
       </section>
       <section class="page" id="page-settings">
         <h2 class="page-title">Settings</h2>
-        <p class="page-sub">Theme, display size, and motion preferences. Saved on this device.</p>
+        <p class="page-sub">Subscription, theme, display size, and motion.</p>
+        <div id="settings-sub"></div>
         <h3 class="block-title">Theme</h3>
         <div class="themes">
           <div class="swatch sel" data-t="purple"><div class="pv pv-purple"></div><div class="nm">Purple</div></div>
@@ -730,6 +731,15 @@
       <section class="page" id="page-users">
         <h2 class="page-title">Admin · Users</h2>
         <p class="page-sub">All accounts — roles &amp; comp access.</p>
+        <div class="card" style="margin-bottom:14px"><div class="label">Add user</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:140px"><div class="field-label">Username</div><input class="input" id="nu-name" placeholder="username" autocomplete="off"/></div>
+            <div style="flex:1;min-width:140px"><div class="field-label">Password</div><input class="input" id="nu-pass" type="password" placeholder="temp password" autocomplete="new-password"/></div>
+            <div><div class="field-label">Role</div><select id="nu-role"><option value="user">User</option><option value="admin">Admin</option></select></div>
+            <button class="btn-soft" id="nu-create" type="button">Add</button>
+          </div>
+          <div class="auth-err" id="nu-msg"></div>
+        </div>
         <div id="admin-users-list"></div>
         <h3 class="block-title" style="margin-top:22px">Discount codes</h3>
         <div class="card" style="margin-bottom:12px">

@@ -1059,3 +1059,8 @@ body.noanim .acc2-body{ transition:none; }
 /* billing access gate: lock app to Billing page when unsubscribed */
 body.locked-billing .nav, body.locked-billing .foot-link:not(.billing-link), body.locked-billing .quick-install{ display:none !important; }
 body.locked-billing .pin-btn{ display:none; }
+
+.bill-price{ font-size:2rem; font-weight:800; background:linear-gradient(135deg,var(--accent),var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; margin:2px 0 8px; }
+.bill-feat{ list-style:none; padding:0; margin:0 0 14px; }
+.bill-feat li{ font-size:.82rem; color:var(--text-secondary); padding:3px 0 3px 20px; position:relative; }
+.bill-feat li::before{ content:"¹3"; position:absolute; left:0; color:var(--accent); font-weight:700; }

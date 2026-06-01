@@ -28,6 +28,24 @@ function makeAdminRouter() {
     } catch (e) { console.error('[admin/users:get]', e.message); res.status(500).json({ error: 'load failed' }); }
   });
 
+  r.post('/users', requireAdmin, async (req, res) => {
+    const { username, password, role } = req.body || {};
+    if (!username || !password) return res.status(400).json({ error: 'username and password required' });
+    try {
+      const u = await users.create(username, password, role === 'admin' ? 'admin' : 'user');
+      res.json({ id: u.id, username: u.username, role: u.role });
+    } catch (e) {
+      if (e.code === '23505') return res.status(409).json({ error: 'username taken' });
+      res.status(500).json({ error: 'create failed' });
+    }
+  });
+
+  r.delete('/users/:id', requireAdmin, async (req, res) => {
+    if (req.params.id === req.user.id) return res.status(400).json({ error: 'cannot delete yourself' });
+    try { const ok = await users.remove(req.params.id); res.json({ ok }); }
+    catch (e) { res.status(500).json({ error: 'delete failed' }); }
+  });
+
   r.post('/users/:id/role', requireAdmin, async (req, res) => {
     const { role } = req.body || {};
     if (req.params.id === req.user.id && role !== 'admin') {
