@@ -1106,3 +1106,14 @@ body.locked-billing .pin-btn{ display:none; }
 .gchip .cn{ font-weight:800; font-size:1.05rem; }
 .gchip .ct{ font-size:.6rem; color:var(--text-mute); text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
 .gcard-hint{ font-size:.66rem; color:var(--text-mute); text-align:center; margin-top:12px; }
+
+/* ===================== Servers page → prototype glassy cards ===================== */
+.server-block.server-card{ background:var(--bg-surface) !important; border:1px solid var(--border) !important;
+  border-radius:var(--r-lg); position:relative; overflow:hidden; backdrop-filter:blur(12px); margin-bottom:14px; }
+.server-block.server-card::before{ content:""; position:absolute; top:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg,var(--accent),var(--accent-2)); opacity:.85; }
+.btn-add{ background:linear-gradient(135deg,var(--accent),var(--accent-2)) !important; color:#0a0a12 !important;
+  border:0 !important; border-radius:var(--r-md) !important; font-weight:700 !important; padding:11px 18px !important; cursor:pointer; }
+.btn-add:hover{ filter:brightness(1.08); }
+.profile-block{ background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg);
+  padding:16px 18px; margin-top:18px; backdrop-filter:blur(12px); }
