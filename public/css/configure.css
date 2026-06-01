@@ -1052,3 +1052,6 @@ body.noanim .acc2-body{ transition:none; }
   font-family:inherit; font-weight:600; font-size:.82rem; cursor:pointer; transition:color .25s; }
 .auth-tabs button.on{ color:#0a0a12; }
 .auth-err{ color:var(--error,#e05555); font-size:.76rem; min-height:16px; margin:6px 0; text-align:center; }
+
+.acct-card{ margin-bottom:14px; }
+.acct-card .btn-soft{ padding:.55rem .9rem; }
