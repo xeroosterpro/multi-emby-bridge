@@ -109,7 +109,7 @@ Seed an initial admin (`Eli`) via migration/env — **not** hardcoded in client 
 ### 3.2 Per-user manifest URL (subscription-gated + revocable)
 - New table `manifest_tokens` — `token` (long random, e.g. 32 bytes base64url, unique, indexed), `user_id`, `created_at`, `revoked_at` (nullable).
 - URL shape: `https://<host>/u/<token>/manifest.json` (and the matching catalog/stream routes under `/u/<token>/…`).
-- **On every request** to a `/u/<token>/…` route, the server: looks up the token → user → checks the user has an **active subscription** (Phase 4). If not active or token revoked → `403`/`410`. This is the anti-sharing mechanism: a leaked URL stops working the instant the payer's subscription lapses, and the user can **Regenerate** (issues a new token, sets `revoked_at` on the old) to kill a shared link.
+- **On every request** to a `/u/<token>/…` route, the server: looks up the token → user → checks the user has an **active subscription** (enforced in the final billing phase; stubbed always-allowed until then). If not active or token revoked → `403`/`410`. This is the anti-sharing mechanism: a leaked URL stops working the instant the payer's subscription lapses, and the user can **Regenerate** (issues a new token, sets `revoked_at` on the old) to kill a shared link.
 - One active token per user at a time (regenerate replaces). Tokens are unguessable; never derived from username.
 - **Explicitly documented limitation:** this does not prevent copying a URL while a subscription is active among a small trusted group; per the decision, we are not adding device/IP limits or short-lived signed sub-tokens in this design (those remain future options).
 
@@ -118,7 +118,9 @@ Seed an initial admin (`Eli`) via migration/env — **not** hardcoded in client 
 
 ---
 
-## Phase 4 — PayPal subscriptions + billing gating
+## Phase 5 — FINAL — PayPal subscriptions + billing gating
+
+*(Built last. Presented here next to the manifest/anti-sharing material it relates to, but implemented after Phase 4.)*
 
 ### 4.1 Subscription model
 - **Recurring** subscription ("Bridge Pro", e.g. $4/mo) via **PayPal Subscriptions API** (Billing Plans + embedded PayPal JS SDK smart buttons on the Billing page).
@@ -140,7 +142,7 @@ Seed an initial admin (`Eli`) via migration/env — **not** hardcoded in client 
 
 ---
 
-## Phase 5 — Admin panel + health persistence
+## Phase 4 — Admin panel + health persistence
 
 ### 5.1 Health/uptime/ping persistence
 - Replace `lib/health.js`'s JSON-file persistence (`data/health-history.json`) with a Postgres table `health_checks` — `server_id`, `user_id`, `checked_at`, `status` (`up`|`slow`|`down`), `ping_ms`. Written on each 5-min ping.
@@ -180,11 +182,14 @@ public/configure.html       sidebar SPA shell + all pages
 ```
 
 ## Phasing / sequencing
+
+**Billing is intentionally the LAST phase** (per decision 2026-05-31). Until it lands, access is ungated (or admin-comped) so the whole app is usable while the rest is built.
+
 1. **Phase 1 (Frontend)** — ship the redesign against current client-side config. Independent; highest immediate value.
 2. **Phase 2 (DB + accounts)** — foundation for everything server-side.
-3. **Phase 3 (Encryption + manifest tokens + anti-sharing)** — depends on 2.
-4. **Phase 4 (PayPal + billing gating)** — depends on 2–3 (gating reads subscription).
-5. **Phase 5 (Admin + health persistence)** — depends on 2; health persistence can land any time after 2.
+3. **Phase 3 (Encryption + manifest tokens + anti-sharing)** — depends on 2. The anti-sharing "active subscription" check is stubbed to always-allowed until the billing phase enforces it.
+4. **Phase 4 (Admin + health persistence)** — depends on 2; health persistence can land any time after 2.
+5. **Phase 5 — FINAL (PayPal + billing gating)** — depends on 2–4. Turns on real subscription status, which drives the anti-sharing check (Phase 3) and the access-gating UI (Phase 1 scaffold). Admin comp/discount-code management (built in Phase 4) becomes fully functional here.
 
 Each phase gets its own implementation plan via the writing-plans skill, starting with Phase 1.
 
