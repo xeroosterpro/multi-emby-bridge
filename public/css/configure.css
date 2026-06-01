@@ -1178,3 +1178,6 @@ body.locked-billing .pin-btn{ display:none; }
 .acc-inner{ overflow:hidden; min-height:0; }
 .acc.menu-space .acc-inner{ overflow:visible; }
 .acc-pad{ padding:6px 16px 16px; border-top:1px solid var(--border); }
+
+/* ===================== perf: drop heavy backdrop-blur on repeated cards (smoother) ===================== */
+.acc, .acc2, .gcard, .card, .server-block, .profile-block, .tiles .tile{ backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
