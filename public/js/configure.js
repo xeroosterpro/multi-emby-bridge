@@ -1277,7 +1277,7 @@ async function renderDashboard(force = false) {
     setTxt('tile-ping', fastest != null ? fastest + 'ms' : '—');
     const totalMo = servers.reduce((a, s) => a + monthlyCost(s.cost, s.costPeriod), 0);
     setTxt('tile-cost', '$' + Math.round(totalMo) + (totalMo > 0 ? '/mo' : ''));
-    setTxt('tile-cost-l', 'Total cost · $' + Math.round(totalMo * 12) + '/yr');
+    setTxt('tile-cost-l', 'Server costs · $' + Math.round(totalMo * 12) + '/yr');
     setTxt('dash-status', servers.length
       ? `Everything's loaded. ${upCount}/${servers.length} servers reachable.`
       : 'No servers yet — add one on the Servers page.');
