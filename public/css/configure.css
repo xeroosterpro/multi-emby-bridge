@@ -1077,3 +1077,23 @@ body.locked-billing .pin-btn{ display:none; }
 .gauge-in{ width:116px; height:116px; border-radius:50%; background:#0c0c14; display:grid; place-items:center; text-align:center; }
 .gauge .gv{ font-size:1.8rem; font-weight:800; letter-spacing:-.02em; }
 .gauge .gl{ font-size:.68rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; margin-top:2px; }
+
+/* ===================== converge Dashboard to prototype's glassy aesthetic ===================== */
+/* Stat tiles: rainbow → dark glass with gradient-accent numbers */
+.content .tiles .tile{ background:var(--bg-surface) !important; border:1px solid var(--border) !important;
+  border-radius:var(--r-lg) !important; box-shadow:none !important; color:var(--text) !important; padding:18px !important; }
+.content .tiles .tile .n{ background:linear-gradient(135deg,var(--accent),var(--accent-2)); -webkit-background-clip:text;
+  background-clip:text; color:transparent !important; font-weight:800; }
+.content .tiles .tile .l{ color:var(--text-dim) !important; text-transform:uppercase; letter-spacing:.06em; font-size:.66rem; font-weight:700; }
+
+/* Server cards: uniform theme accent bar (not per-server rainbow) + glassy + ghost Manage */
+.gcard .gcard-top{ background:linear-gradient(90deg,var(--accent),var(--accent-2)) !important; }
+.gcard{ background:var(--bg-surface) !important; border:1px solid var(--border) !important; }
+.gmanage{ background:transparent !important; border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)) !important;
+  color:var(--text) !important; font-weight:700 !important; transition:.18s; }
+.gmanage:hover{ background:var(--glow) !important; border-color:var(--accent) !important; }
+
+/* Sidebar section labels (grouped nav like the prototype) */
+.nav-sec{ font-size:10px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--text-mute);
+  padding:10px 0 4px 18px; white-space:nowrap; opacity:0; transition:opacity .25s var(--ease); }
+.sidebar:hover .nav-sec, .sidebar.locked .nav-sec{ opacity:1; }
