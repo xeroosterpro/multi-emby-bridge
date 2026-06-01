@@ -23,10 +23,10 @@ function generateParticles() {
   const st = document.getElementById('stipple');
   if (!st || st._done) return; st._done = 1;
   let html = '';
-  for (let i = 0; i < 60; i++) {
-    const size = (Math.random()*3+1).toFixed(1), left = (Math.random()*100).toFixed(1);
-    const dur = (Math.random()*16+10).toFixed(1), delay = (-Math.random()*28).toFixed(1);
-    const o = (Math.random()*0.4+0.18).toFixed(2), sway = (Math.random()*50-25).toFixed(0);
+  for (let i = 0; i < 90; i++) {
+    const size = (Math.random()*3.5+1.5).toFixed(1), left = (Math.random()*100).toFixed(1);
+    const dur = (Math.random()*14+9).toFixed(1), delay = (-Math.random()*26).toFixed(1);
+    const o = (Math.random()*0.45+0.28).toFixed(2), sway = (Math.random()*60-30).toFixed(0);
     html += `<div class="flake" style="left:${left}%;width:${size}px;height:${size}px;--o:${o};--sway:${sway}px;animation-duration:${dur}s;animation-delay:${delay}s;opacity:${o}"></div>`;
   }
   st.insertAdjacentHTML('beforeend', html);

@@ -1128,3 +1128,16 @@ body.locked-billing .pin-btn{ display:none; }
 .userbtn:hover{ background:var(--bg-hover); color:var(--text); }
 .userbtn .avatar{ width:30px; height:30px; border-radius:50%; flex:none; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:grid; place-items:center; color:#0a0a12; font-weight:800; font-size:.8rem; }
 .userbtn .um{ font-size:.8rem; white-space:nowrap; }
+
+/* ===================== motion/smoothness pass (match prototype feel) ===================== */
+.gcard{ transition:transform .26s var(--ease), box-shadow .26s var(--ease), border-color .26s var(--ease) !important; }
+.gcard:hover{ transform:translateY(-4px); border-color:var(--accent) !important; box-shadow:0 16px 38px rgba(0,0,0,.5),0 0 26px var(--glow) !important; }
+.content .tiles .tile{ transition:transform .2s var(--ease), border-color .2s var(--ease), box-shadow .2s var(--ease); }
+.content .tiles .tile:hover{ transform:translateY(-3px); border-color:color-mix(in srgb,var(--accent) 45%,var(--border)) !important; box-shadow:0 10px 26px rgba(0,0,0,.4); }
+.nav-item{ transition:background .22s var(--ease), color .22s var(--ease) !important; }
+.btn-soft, .btn-add, .btn-generate, .seg button, .pick, select, .input{ transition:all .18s var(--ease) !important; }
+/* make the falling particles a touch more visible so the motion reads */
+.bg .flake{ box-shadow:0 0 7px var(--glow); }
+.bg .orb{ opacity:.55 !important; }
+/* smoother theme recolor across surfaces */
+.tile, .gcard, .card, .acc2, .server-block{ transition:background-color .5s var(--ease), border-color .3s var(--ease); }
