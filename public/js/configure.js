@@ -1221,18 +1221,21 @@ async function renderDashboard(force = false) {
         <div class="gcard-top"></div>
         <div class="gcard-pad">
           <div class="gcard-head">
-            <div><div class="gbrand">${brandSvg}</div><div class="gtype">${brandName}</div></div>
+            <div class="gbrand">${brandSvg}</div>
+            <div style="flex:1;min-width:0">
+              <div class="gcard-nm">${escHtml(s.label)}</div>
+              <div class="gcard-host">${escHtml((s.url||'').replace(/^https?:\/\//,''))}</div>
+            </div>
             <span class="sc-badge unknown">● …</span>
           </div>
-          <div class="gcard-nm">${escHtml(s.label)}</div>
-          <div class="gcard-host">${escHtml((s.url||'').replace(/^https?:\/\//,''))}</div>
-          <div class="grow"><span>🎞 Movies</span><span class="v" data-st="movies">—</span></div>
-          <div class="grow"><span>📺 Shows</span><span class="v" data-st="shows">—</span></div>
-          <div class="grow"><span>▦ Episodes</span><span class="v" data-st="episodes">—</span></div>
-          <div class="grow price"><span>💵 Price</span><span class="v">${escHtml(costStr)}</span></div>
-          <button class="gmanage" type="button">Manage Server →</button>
+          <div class="gtype" style="display:none">${brandName}</div>
+          <div class="gchips">
+            <div class="gchip"><div class="cn" data-st="movies">—</div><div class="ct">Movies</div></div>
+            <div class="gchip"><div class="cn" data-st="shows">—</div><div class="ct">Shows</div></div>
+            <div class="gchip"><div class="cn" data-st="episodes">—</div><div class="ct">Episodes</div></div>
+          </div>
+          <div class="gcard-hint">Click for health · ping · who's watching →</div>
         </div>`;
-      card.querySelector('.gmanage').addEventListener('click', () => openServerManage(idx));
       wrap.appendChild(card);
       const setStats = (st) => {
         card.querySelector('[data-st=movies]').textContent   = (st.movies||0).toLocaleString();
