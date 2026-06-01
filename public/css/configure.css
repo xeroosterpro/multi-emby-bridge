@@ -1141,3 +1141,19 @@ body.locked-billing .pin-btn{ display:none; }
 .bg .orb{ opacity:.55 !important; }
 /* smoother theme recolor across surfaces */
 .tile, .gcard, .card, .acc2, .server-block{ transition:background-color .5s var(--ease), border-color .3s var(--ease); }
+
+/* ===================== nav tab hover + active transitions (match prototype) ===================== */
+.nav-item{ transition:background .22s var(--ease), color .22s var(--ease) !important; }
+.nav-item:hover{ background:var(--bg-hover) !important; color:var(--text) !important; }
+.nav-item .nav-ic{ transition:stroke .2s var(--ease); }
+.nav-item:hover .nav-ic{ stroke:var(--text); }
+/* active accent bar slides in instead of popping */
+.nav-item::before{ content:''; position:absolute; left:0; top:18%; bottom:18%; width:3px; border-radius:3px;
+  background:var(--accent); transform:scaleY(0); transform-origin:center; transition:transform .26s var(--ease); }
+.nav-item.on::before{ transform:scaleY(1) !important; }
+.nav-item.on{ background:var(--glow) !important; color:var(--text) !important; }
+/* footer + segmented + modal tab hovers */
+.foot-link{ transition:color .2s var(--ease); } .foot-link:hover{ color:var(--accent) !important; }
+.seg button, .modal-tabs button{ transition:all .18s var(--ease) !important; }
+.seg button:hover{ border-color:var(--accent) !important; color:var(--text) !important; }
+.modal-tabs button:hover{ color:var(--text) !important; }
