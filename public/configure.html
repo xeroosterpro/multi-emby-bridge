@@ -59,11 +59,11 @@
   <h2 class="page-title">Dashboard</h2>
   <p class="page-sub" id="dash-status">Live overview · click a server for details</p>
   <div class="tiles">
-    <div class="tile t1"><div class="n" id="tile-servers">0</div><div class="l">Servers up</div></div>
-    <div class="tile t2"><div class="n" id="tile-catalogs">0</div><div class="l">Catalog rows</div></div>
-    <div class="tile t3"><div class="n" id="tile-movies">0</div><div class="l">Movies</div></div>
-    <div class="tile t4"><div class="n" id="tile-ping">—</div><div class="l">Fastest ping</div></div>
-    <div class="tile t5"><div class="n" id="tile-cost">$0</div><div class="l" id="tile-cost-l">Total cost</div></div>
+    <div class="tile t1 tile-link" data-goto="servers"><div class="n" id="tile-servers">0</div><div class="l">Servers up</div></div>
+    <div class="tile t2 tile-link" data-goto="catalogs"><div class="n" id="tile-catalogs">0</div><div class="l">Catalog rows</div></div>
+    <div class="tile t3 tile-link" data-goto="servers"><div class="n" id="tile-movies">0</div><div class="l">Movies</div></div>
+    <div class="tile t4 tile-link" data-goto="health"><div class="n" id="tile-ping">—</div><div class="l">Fastest ping</div></div>
+    <div class="tile t5 tile-link" data-goto="billing"><div class="n" id="tile-cost">$0</div><div class="l" id="tile-cost-l">Total cost</div></div>
   </div>
   <h3 class="block-title">Your servers</h3>
   <div class="dash-cards" id="dash-cards"></div>
@@ -122,38 +122,7 @@
             </div>
           </div>
 
-          <!-- ===== Connections: API keys ===== -->
-          <h3 class="block-title">Connections</h3>
-          <div class="statusgrid" style="margin-bottom:18px">
-            <div class="keytile">
-              <div class="keytile-head" onclick="toggleKeyTile('trakt')"><span class="kn">Trakt</span><span class="st unset" id="pill-trakt">ADD KEY</span></div>
-              <div id="keywrap-trakt" style="display:none;margin-top:8px">
-                <input type="text" id="trakt-client-id" placeholder="your_trakt_client_id" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
-                <div class="field-hint" style="margin-top:4px">Free at trakt.tv/oauth/applications &ndash; required for Trakt catalogs</div>
-              </div>
-            </div>
-            <div class="keytile">
-              <div class="keytile-head" onclick="toggleKeyTile('mdblist')"><span class="kn">MDbList</span><span class="st unset" id="pill-mdblist">ADD KEY</span></div>
-              <div id="keywrap-mdblist" style="display:none;margin-top:8px">
-                <input type="text" id="mdblist-api-key" placeholder="your_mdblist_api_key" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
-                <div class="field-hint" style="margin-top:4px">Free at mdblist.com/api &ndash; required for MDbList catalogs</div>
-              </div>
-            </div>
-            <div class="keytile">
-              <div class="keytile-head" onclick="toggleKeyTile('tmdb')"><span class="kn">TMDB</span><span class="st unset" id="pill-tmdb">ADD KEY</span></div>
-              <div id="keywrap-tmdb" style="display:none;margin-top:8px">
-                <input type="text" id="tmdb-api-key" placeholder="Paste API Key or API Read Access Token (eyJ...)" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
-                <div class="field-hint" style="margin-top:4px">Free at themoviedb.org &rarr; Settings &rarr; API &ndash; copy the <strong>API Read Access Token</strong> (eyJ&hellip;) OR the <strong>API Key</strong></div>
-              </div>
-            </div>
-            <div class="keytile">
-              <div class="keytile-head" onclick="toggleKeyTile('rpdb')"><span class="kn">RPDB</span><span class="st unset" id="pill-rpdb">ADD KEY</span></div>
-              <div id="keywrap-rpdb" style="display:none;margin-top:8px">
-                <input type="text" id="rpdb-key" placeholder="your-rpdb-api-key" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" style="width:100%;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:monospace" />
-                <div class="field-hint" style="margin-top:4px">RatingPosterDB key for catalog poster images</div>
-              </div>
-            </div>
-          </div>
+          <!-- ===== Connections moved to the API Keys page ===== -->
 
           <!-- ===== Filters ===== -->
           <h3 class="block-title">Filters</h3>
@@ -661,9 +630,44 @@
         <div class="refresh-bar" id="refresh-bar"></div>
       </section>
       <section class="page" id="page-install">
-        <h2 class="page-title">Install to Stremio</h2>
-        <p class="page-sub">Generate your install link and open it in Stremio.</p>
-        <button class="btn-generate" onclick="generateLinks()">Generate Install Link</button>
+        <div class="ak-head">
+          <div>
+            <h2 class="page-title">API Keys &amp; Manifest</h2>
+            <p class="page-sub">Stored encrypted · generates your unique Stremio link</p>
+          </div>
+          <span class="ak-badge">🔒 Encrypted at rest</span>
+        </div>
+        <div class="ak-grid">
+          <div class="card">
+            <div class="label">Your keys</div>
+            <div class="field"><div class="field-label">Trakt Client ID</div>
+              <input class="input ak-key" id="trakt-client-id" placeholder="Paste Trakt client id" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
+            <div class="field"><div class="field-label">TMDB API key</div>
+              <input class="input ak-key" id="tmdb-api-key" placeholder="Paste API Read Access Token (eyJ...)" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
+            <div class="field"><div class="field-label">MDBList API key</div>
+              <input class="input ak-key" id="mdblist-api-key" placeholder="Paste MDBList key" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
+            <div class="field"><div class="field-label">RPDB key <span class="field-opt">(optional · poster art)</span></div>
+              <input class="input ak-key" id="rpdb-key" placeholder="Paste RatingPosterDB key" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
+            <div class="field-hint">Keys are AES-encrypted before they touch the database. Decrypted only when serving your manifest.</div>
+            <button class="btn-generate" id="ak-save" type="button">Save keys</button>
+            <div class="auth-err" id="acct-msg"></div>
+          </div>
+          <div class="card">
+            <div class="label">Manifest URL</div>
+            <div id="acct-link-wrap">
+              <div class="field-label">Your unique link</div>
+              <div style="display:flex;gap:8px">
+                <input class="input allow-select" id="acct-url" readonly placeholder="Save your keys to generate your link" />
+                <button class="btn-soft" id="acct-copy" type="button">Copy</button>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:14px">
+              <button class="btn-generate" id="acct-regen" type="button" style="flex:1;margin-bottom:0">Regenerate</button>
+              <button class="btn-soft" id="acct-install" type="button">Install →</button>
+            </div>
+            <div class="field-hint" style="margin-top:8px">Regenerating invalidates the old link immediately.</div>
+          </div>
+        </div>
         <div id="result-section"></div>
       </section>
       <section class="page" id="page-ping">

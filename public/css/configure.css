@@ -1056,6 +1056,23 @@ body.noanim .acc2-body{ transition:none; }
 .acct-card{ margin-bottom:14px; }
 .acct-card .btn-soft{ padding:.55rem .9rem; }
 
+/* ===================== API Keys & Manifest page ===================== */
+.ak-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+.ak-badge{ flex:none; font-size:.72rem; font-weight:700; color:var(--accent); white-space:nowrap;
+  background:color-mix(in srgb,var(--accent) 13%,transparent);
+  border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border)); border-radius:999px; padding:6px 12px; }
+.ak-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:18px; align-items:start; }
+.ak-grid .card{ background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:20px 18px; }
+.ak-grid .label{ font-size:.66rem; font-weight:700; text-transform:uppercase; letter-spacing:.09em; color:var(--text-dim); margin-bottom:14px; }
+.ak-grid .field{ margin-bottom:13px; }
+.ak-grid .field-opt{ color:var(--text-mute); font-weight:500; }
+.ak-key{ font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.8rem; }
+.ak-grid .btn-generate{ margin-top:4px; }
+@media (max-width:760px){ .ak-grid{ grid-template-columns:1fr; } }
+
+/* dashboard stat tiles are navigable */
+.tile-link{ cursor:pointer; }
+
 /* billing access gate: lock app to Billing page when unsubscribed */
 body.locked-billing .nav, body.locked-billing .foot-link:not(.billing-link), body.locked-billing .quick-install{ display:none !important; }
 body.locked-billing .pin-btn{ display:none; }
@@ -1063,7 +1080,7 @@ body.locked-billing .pin-btn{ display:none; }
 .bill-price{ font-size:2rem; font-weight:800; background:linear-gradient(135deg,var(--accent),var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; margin:2px 0 8px; }
 .bill-feat{ list-style:none; padding:0; margin:0 0 14px; }
 .bill-feat li{ font-size:.82rem; color:var(--text-secondary); padding:3px 0 3px 20px; position:relative; }
-.bill-feat li::before{ content:"¹3"; position:absolute; left:0; color:var(--accent); font-weight:700; }
+.bill-feat li::before{ content:"ï¿½3"; position:absolute; left:0; color:var(--accent); font-weight:700; }
 
 /* ===================== layout polish: centered content + admin gauges ===================== */
 /* Keep page content in a comfortable centered column instead of sprawling on wide screens */
