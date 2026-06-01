@@ -111,6 +111,11 @@ function decodeConfig(encoded) {
   return JSON.parse(json);
 }
 
+function encodeConfig(obj) {
+  return Buffer.from(JSON.stringify(obj), 'utf8').toString('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 // ─── CORS (required by Stremio) ───────────────────────────────────────────────
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -126,6 +131,34 @@ app.use(express.static(path.join(__dirname, 'public')));
 const { makeAuthRouter, attachUser } = require('./routes/auth');
 app.use(attachUser());
 app.use('/api/auth', makeAuthRouter());
+
+// ─── Authenticated user config / encrypted keys / manifest token ─────────────
+const dbLib = require('./lib/db');
+const { makeUserConfig } = require('./lib/userConfig');
+const { makeManifestStore } = require('./lib/manifestStore');
+const { hasActiveAccess } = require('./lib/manifest');
+const { makeUserRouter } = require('./routes/user');
+app.use('/api/user', makeUserRouter());
+
+// ─── Per-user manifest: /u/:token/* → load the user's stored config (keys
+// decrypted in-memory) and re-dispatch to the existing /:config/* handlers. ──
+app.use('/u/:token', async (req, res, next) => {
+  if (req.method !== 'GET') return next();
+  if (!dbLib.isConfigured()) return res.status(404).json({ error: 'not found' });
+  try {
+    const rec = await makeManifestStore(dbLib).lookup(req.params.token);
+    if (!rec) return res.status(410).json({ error: 'link invalid or revoked' });
+    if (!hasActiveAccess(rec)) return res.status(402).json({ error: 'subscription required' }); // stub: always allowed until billing
+    const cfg = await makeUserConfig(dbLib).getForServe(rec.user_id);
+    if (!cfg) return res.status(404).json({ error: 'no configuration saved' });
+    const rest = req.url === '/' ? '/manifest.json' : req.url; // req.url is post-mount remainder
+    req.url = '/' + encodeConfig(cfg) + rest;
+    return app.handle(req, res); // re-route through the existing /:config/* handlers
+  } catch (e) {
+    console.error('[u/token] error:', e.message);
+    return res.status(500).json({ error: 'server error' });
+  }
+});
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
