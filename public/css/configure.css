@@ -1097,3 +1097,12 @@ body.locked-billing .pin-btn{ display:none; }
 .nav-sec{ font-size:10px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--text-mute);
   padding:10px 0 4px 18px; white-space:nowrap; opacity:0; transition:opacity .25s var(--ease); }
 .sidebar:hover .nav-sec, .sidebar.locked .nav-sec{ opacity:1; }
+
+/* Dashboard server cards → prototype chip layout */
+.gcard{ cursor:pointer; }
+.gcard-head{ display:flex; align-items:center; gap:11px; }
+.gchips{ display:flex; gap:8px; margin-top:14px; }
+.gchip{ flex:1; background:rgba(0,0,0,.28); border-radius:var(--radius-sm); padding:10px 6px; text-align:center; }
+.gchip .cn{ font-weight:800; font-size:1.05rem; }
+.gchip .ct{ font-size:.6rem; color:var(--text-mute); text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
+.gcard-hint{ font-size:.66rem; color:var(--text-mute); text-align:center; margin-top:12px; }
