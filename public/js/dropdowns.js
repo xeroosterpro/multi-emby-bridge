@@ -12,10 +12,14 @@
   function positionMenu(dd) {
     const btn = dd.querySelector('.dd-btn'), menu = dd.querySelector('.dd-menu');
     const r = btn.getBoundingClientRect();
+    // getBoundingClientRect returns post-zoom (visual) coords, but a fixed element's
+    // CSS px length is itself multiplied by the root `zoom` (UI-scale preference).
+    // Divide by zoom so the menu lands exactly under its button at any UI scale.
+    const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     menu.style.position = 'fixed';
-    menu.style.left = r.left + 'px';
-    menu.style.top = (r.bottom + 6) + 'px';
-    menu.style.width = r.width + 'px';
+    menu.style.left = (r.left / zoom) + 'px';
+    menu.style.top = ((r.bottom + 6) / zoom) + 'px';
+    menu.style.width = (r.width / zoom) + 'px';
   }
 
   function enhance(sel) {
