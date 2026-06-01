@@ -122,6 +122,11 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ─── Accounts / auth (no-ops gracefully without DATABASE_URL) ───────────────
+const { makeAuthRouter, attachUser } = require('./routes/auth');
+app.use(attachUser());
+app.use('/api/auth', makeAuthRouter());
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 app.get('/', (req, res) => res.redirect('/configure'));
@@ -767,5 +772,10 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`Multi-Emby Bridge running → http://localhost:${PORT}/configure`);
 });
+
+// ─── Database init (migrations + admin seed); no-ops without DATABASE_URL ────
+const { runMigrations } = require('./lib/migrate');
+const { seedAdmin } = require('./lib/seed');
+runMigrations().then(() => seedAdmin()).catch(e => console.error('[boot] db init failed:', e.message));
 
 

@@ -8,6 +8,23 @@
 </head>
 <body>
   <div class="bg" id="bg"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="stipple" id="stipple"></div></div>
+
+  <div class="auth-overlay" id="auth-overlay" style="display:none">
+    <div class="auth-card">
+      <div class="auth-logo">◢</div>
+      <div class="auth-head"><h1 id="auth-title">Welcome back</h1><p class="auth-sub" id="auth-sub">Sign in to manage your bridge</p></div>
+      <div class="auth-tabs" id="auth-tabs"><div class="pill-slide"></div><button class="on" type="button" data-auth="login">Log in</button><button type="button" data-auth="register">Register</button></div>
+      <form id="auth-form" autocomplete="on">
+        <label class="field-label" for="au-user">Username</label>
+        <input class="input" id="au-user" name="username" autocomplete="username" />
+        <label class="field-label" for="au-pass">Password</label>
+        <input class="input" id="au-pass" name="password" type="password" autocomplete="current-password" />
+        <div class="auth-err" id="au-err"></div>
+        <button class="btn-generate" id="au-submit" type="submit" style="width:100%;margin-top:6px">Log in</button>
+      </form>
+    </div>
+  </div>
+
   <div class="app">
     <aside class="sidebar" id="sidebar">
       <button class="pin-btn" id="pin-btn" title="Lock sidebar open"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 10.8V4h6v6.8c0 .5.2.9.5 1.2L17 14H7l1.5-2c.3-.3.5-.7.5-1.2Z"/></svg></button>
@@ -704,5 +721,6 @@
   <script src="/js/accordionize.js"></script>
   <script src="/js/dropdowns.js"></script>
   <script src="/js/dashboard-modal.js"></script>
+  <script src="/js/auth-ui.js"></script>
 </body>
 </html>

@@ -1032,3 +1032,23 @@ body.noanim .acc2-body{ transition:none; }
 .mchip .cn{ font-weight:800; font-size:1.05rem; } .mchip .ct{ font-size:.62rem; color:var(--text-mute); text-transform:uppercase; letter-spacing:.05em; }
 .mrow{ display:flex; justify-content:space-between; gap:10px; padding:9px 11px; border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:7px; font-size:.82rem; }
 .mrow .mtag{ color:var(--text-mute); flex:none; }
+
+/* ===================== login / register overlay ===================== */
+.auth-overlay{ position:fixed; inset:0; z-index:500; display:grid; place-items:center; padding:20px;
+  background:rgba(4,4,10,.7); backdrop-filter:blur(8px); }
+.auth-card{ width:100%; max-width:380px; background:var(--bg-surface); backdrop-filter:blur(18px);
+  border:1px solid color-mix(in srgb,var(--accent) 30%,var(--border)); border-radius:20px; padding:32px 28px;
+  box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 50px var(--glow); }
+.auth-logo{ width:52px; height:52px; border-radius:14px; margin:0 auto 16px; display:grid; place-items:center;
+  font-size:1.4rem; color:#0a0a12; font-weight:900; background:linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow:0 0 26px var(--glow); }
+.auth-head{ text-align:center; transition:opacity .2s; }
+.auth-card h1{ font-size:1.3rem; font-weight:800; margin:0 0 2px; }
+.auth-sub{ color:var(--text-dim); font-size:.82rem; margin:0 0 20px; }
+.auth-tabs{ position:relative; display:flex; background:rgba(0,0,0,.25); border-radius:12px; padding:4px; margin-bottom:18px; }
+.auth-tabs .pill-slide{ position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px); border-radius:9px;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2)); transition:transform .32s var(--ease); }
+.auth-tabs.reg .pill-slide{ transform:translateX(100%); }
+.auth-tabs button{ position:relative; z-index:1; flex:1; padding:9px; border:0; background:transparent; color:var(--text-dim);
+  font-family:inherit; font-weight:600; font-size:.82rem; cursor:pointer; transition:color .25s; }
+.auth-tabs button.on{ color:#0a0a12; }
+.auth-err{ color:var(--error,#e05555); font-size:.76rem; min-height:16px; margin:6px 0; text-align:center; }

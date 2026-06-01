@@ -5,11 +5,12 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/utils.test.js && node test/streams.test.js && node test/crypto.test.js && node test/manifest.test.js && node test/accounts.test.js && node test/metrics.test.js"
+    "test": "node test/utils.test.js && node test/streams.test.js && node test/crypto.test.js && node test/manifest.test.js && node test/accounts.test.js && node test/metrics.test.js && node test/db.test.js && node test/users.test.js && node test/sessions.test.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "pg": "^8.21.0"
   },
   "engines": {
     "node": ">=18.0.0"
