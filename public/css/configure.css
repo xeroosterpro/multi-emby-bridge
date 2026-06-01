@@ -31,7 +31,11 @@ body {
 @keyframes pulse   { 0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.5)} 50%{box-shadow:0 0 0 6px rgba(52,211,153,0)} }
 @keyframes sheen   { 0%{transform:translateX(-120%)} 60%,100%{transform:translateX(220%)} }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  /* Stop auto-playing / looping motion (background orbs, particles, gradient
+     flow, page entrances) which can trigger motion discomfort — but keep the
+     brief, user-initiated UI transitions (sidebar, hovers, accordions) so
+     controls glide smoothly instead of snapping. */
+  *, *::before, *::after { animation: none !important; }
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
