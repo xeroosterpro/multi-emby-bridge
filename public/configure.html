@@ -41,6 +41,7 @@
         <button class="quick-install" id="quick-install">⬇ Quick Install</button>
         <div class="foot-links">
           <a class="foot-link" data-page="install">Install</a>
+          <a class="foot-link billing-link" data-page="billing" style="display:none">Billing</a>
           <a class="foot-link" data-page="ping">Ping</a>
           <a class="foot-link" data-page="log">Log</a>
           <a class="foot-link" data-page="settings">Settings</a>
@@ -708,6 +709,12 @@
         <div class="pref-row"><div class="switch" id="motion-switch"></div><div><div class="field-label" style="margin:0">Reduce motion</div><div class="field-hint">Pause the animated background</div></div></div>
       </section>
 
+      <section class="page" id="page-billing">
+        <h2 class="page-title">Billing</h2>
+        <p class="page-sub" id="billing-sub">Subscription &amp; payment</p>
+        <div id="billing-body"></div>
+      </section>
+
       <section class="page" id="page-admin">
         <h2 class="page-title">Admin · System</h2>
         <p class="page-sub">Live resource usage for this deployment. <span id="admin-live" style="color:var(--accent)">●</span></p>
@@ -744,5 +751,6 @@
   <script src="/js/auth-ui.js"></script>
   <script src="/js/user-account.js"></script>
   <script src="/js/admin.js"></script>
+  <script src="/js/billing-ui.js"></script>
 </body>
 </html>

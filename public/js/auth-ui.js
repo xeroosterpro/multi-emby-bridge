@@ -25,8 +25,7 @@
       if (r.status === 503) { hide(); return; }
       const data = await r.json();
       if (!r.ok) { $('#au-err').textContent = data.error || 'Something went wrong'; return; }
-      hide();
-      if (window.toast) window.toast('Signed in as ' + data.username);
+      location.reload(); // re-init all modules (billing gate, admin, account) with the new session
     } catch {
       $('#au-err').textContent = 'Network error';
     }
