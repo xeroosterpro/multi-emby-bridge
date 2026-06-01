@@ -1157,3 +1157,24 @@ body.locked-billing .pin-btn{ display:none; }
 .seg button, .modal-tabs button{ transition:all .18s var(--ease) !important; }
 .seg button:hover{ border-color:var(--accent) !important; color:var(--text) !important; }
 .modal-tabs button:hover{ color:var(--text) !important; }
+
+/* ===================== prototype accordions (icon header + meta + masonry + smooth) ===================== */
+.acc-grid{ column-count:2; column-gap:14px; }
+@media (max-width:900px){ .acc-grid{ column-count:1; } }
+.acc-grid .acc{ break-inside:avoid; width:100%; margin:0 0 14px; display:inline-block; }
+.acc{ background:var(--bg-surface); backdrop-filter:blur(12px); border:1px solid var(--border); border-radius:var(--r-lg); transition:border-color .2s var(--ease); position:relative; }
+.acc.open{ border-color:color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.acc-head{ display:flex; align-items:center; gap:13px; padding:15px 16px; cursor:pointer; border-radius:var(--r-lg); user-select:none; }
+.acc-head:hover{ background:var(--bg-hover); }
+.acc-ic{ width:34px; height:34px; border-radius:10px; display:grid; place-items:center; flex:none; background:rgba(0,0,0,.25); }
+.acc-ic svg{ width:18px; height:18px; stroke:var(--accent); stroke-width:1.8; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+.acc-title{ font-weight:600; font-size:.9rem; color:var(--text); }
+.acc-meta{ font-size:.72rem; color:var(--text-dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.acc-right{ margin-left:auto; display:flex; align-items:center; gap:10px; }
+.acc .chev{ width:18px; height:18px; stroke:var(--text-dim); stroke-width:2; fill:none; stroke-linecap:round; stroke-linejoin:round; transition:transform .32s var(--ease); }
+.acc.open .chev{ transform:rotate(180deg); }
+.acc-body{ display:grid; grid-template-rows:0fr; transition:grid-template-rows .34s var(--ease); }
+.acc.open .acc-body{ grid-template-rows:1fr; }
+.acc-inner{ overflow:hidden; min-height:0; }
+.acc.menu-space .acc-inner{ overflow:visible; }
+.acc-pad{ padding:6px 16px 16px; border-top:1px solid var(--border); }
