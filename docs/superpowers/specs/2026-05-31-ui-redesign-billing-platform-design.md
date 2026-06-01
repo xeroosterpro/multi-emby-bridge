@@ -49,14 +49,23 @@ A self-contained visual overhaul of the existing client-side configurator. Every
 
 ### 1.4 Components
 - **Server cards**: accent top-bar, branded Emby/Jellyfin line-icons, live status badge, library stat chips; lift + glow on hover. On the Dashboard, clicking a card opens a **detail modal** (tabs: Overview / Health / Ping / Watching).
-- **Accordions** (Catalogs, Streaming): collapsible sections, status pills on headers, fluid open/close animation. Overflow is enabled only after the open transition settles (timer-based, cancel-safe) so dropdowns can escape without the "snap" bug. **Multiple open allowed.** Wide screens use a 2-column grid so the collapsed page fits one viewport.
-- **Custom dropdowns**: replace all native `<select>`s. Transparent button with theme-tinted border (no solid black box), animated popup list with accent checkmark on the selected option; opening one closes others; click-outside closes.
+- **Accordions** (Catalogs, Streaming): collapsible sections, status pills on headers, fluid open/close animation. Overflow is enabled only after the open transition settles (timer-based, cancel-safe) so dropdowns can escape without the "snap" bug. **Multiple open allowed.** Wide screens use an **independent masonry-column layout** (`column-count`) so expanding one accordion only grows its own column (no linked-row gaps/overlap).
+- **Custom dropdowns**: replace all native `<select>`s. Transparent button with theme-tinted border (no solid black box), animated popup list with accent checkmark on the selected option; opening one closes others; click-outside closes. The card/accordion containing an open dropdown is elevated (`:has(.dd.open) → z-index`) so the menu paints over neighbors, and its container allows overflow.
 - **Brand marks**: Trakt / MDBList / IMDb / Letterboxd rendered as inline SVG (`<symbol>` + `<use>`). For production these become bundled official brand SVGs under `public/img/brands/`.
 - **No emoji** in UI chrome — all line-art SVG icons.
 - **Selection hygiene**: `user-select:none` on chrome (buttons, nav, labels, cards); inputs and `.allow-select` (e.g. manifest URL) stay selectable/copyable.
 
 ### 1.5 Pages (Phase 1 versions, client-side)
-Dashboard, Servers, Catalogs, Streaming, Appearance, Health, Ping test, Request log, Install, Settings. The Dashboard stat cards are clickable shortcuts (Fastest ping → Ping test, etc.). Dashboard auto-refreshes every 5s (no manual refresh button) — in Phase 1 this re-pings client-side like the existing Ping Test.
+Dashboard, Servers, Catalogs, Streaming, Appearance, Health, Ping test, Request log, Install, Settings. The Dashboard stat cards are clickable shortcuts (Fastest ping → Ping test, etc.). Dashboard auto-refreshes every 5s (no manual refresh button) — in Phase 1 this re-pings client-side like the existing Ping Test. Server cards open a detail modal (Overview/Health/Ping/Watching).
+
+### 1.5a User preferences (Settings)
+- **UI scale**: a slider (80%–130%) that scales the whole interface via `document.documentElement.style.zoom`. Persisted in `localStorage`.
+- **Sidebar lock (pin)**: a pin button in the sidebar + a matching Settings toggle keep the sidebar expanded persistently (`.locked`); content margin shifts to the expanded width. Persisted in `localStorage`.
+- **Reduce motion** and **theme** also persisted in `localStorage`.
+
+### 1.5b Access-gating scaffold (UI only in Phase 1; enforced server-side in Phase 4)
+- The shell supports a `subscribed` state: when **unsubscribed**, only the **Billing** nav item is shown (raised to the top of the rail by collapsing the flex spacer) and all other pages are hidden; when **subscribed**, all tabs show, the **Billing tab is hidden**, and subscription management (plan change / cancel) lives in **Settings**.
+- In Phase 1 this state is a client flag for layout; in Phase 4 it is driven by real subscription status from the server. Admin users bypass the gate.
 
 ### 1.6 Files touched (Phase 1)
 - `public/configure.html` — restructure into sidebar + sections.
