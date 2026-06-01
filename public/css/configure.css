@@ -1064,3 +1064,16 @@ body.locked-billing .pin-btn{ display:none; }
 .bill-feat{ list-style:none; padding:0; margin:0 0 14px; }
 .bill-feat li{ font-size:.82rem; color:var(--text-secondary); padding:3px 0 3px 20px; position:relative; }
 .bill-feat li::before{ content:"¹3"; position:absolute; left:0; color:var(--accent); font-weight:700; }
+
+/* ===================== layout polish: centered content + admin gauges ===================== */
+/* Keep page content in a comfortable centered column instead of sprawling on wide screens */
+.content > .page{ max-width:1180px; margin-left:auto; margin-right:auto; }
+
+/* Admin System gauges (CPU / RAM) */
+.admin-gauges{ display:flex; gap:20px; flex-wrap:wrap; margin-bottom:18px; }
+.gauge{ width:150px; height:150px; border-radius:50%; display:grid; place-items:center; flex:none;
+  background:conic-gradient(var(--accent) calc(var(--v,0)*1%), rgba(255,255,255,.08) 0);
+  transition:background .6s var(--ease); box-shadow:0 0 26px var(--glow); }
+.gauge-in{ width:116px; height:116px; border-radius:50%; background:#0c0c14; display:grid; place-items:center; text-align:center; }
+.gauge .gv{ font-size:1.8rem; font-weight:800; letter-spacing:-.02em; }
+.gauge .gl{ font-size:.68rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; margin-top:2px; }

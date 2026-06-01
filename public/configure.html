@@ -719,12 +719,14 @@
       <section class="page" id="page-admin">
         <h2 class="page-title">Admin · System</h2>
         <p class="page-sub">Live resource usage for this deployment. <span id="admin-live" style="color:var(--accent)">●</span></p>
+        <div class="admin-gauges">
+          <div class="gauge" id="g-cpu" style="--v:0"><div class="gauge-in"><div class="gv" id="m-cpu">—</div><div class="gl">CPU</div></div></div>
+          <div class="gauge" id="g-ram" style="--v:0"><div class="gauge-in"><div class="gv" id="m-ram">—</div><div class="gl">RAM</div></div></div>
+        </div>
         <div class="tiles">
-          <div class="tile"><div class="n" id="m-cpu">—</div><div class="l">CPU</div></div>
-          <div class="tile"><div class="n" id="m-ram">—</div><div class="l">RAM</div></div>
-          <div class="tile"><div class="n" id="m-mem">—</div><div class="l">Memory used</div></div>
-          <div class="tile"><div class="n" id="m-up">—</div><div class="l">Uptime</div></div>
-          <div class="tile"><div class="n" id="m-cpus">—</div><div class="l">CPU cores</div></div>
+          <div class="tile t3"><div class="n" id="m-mem">—</div><div class="l">Memory used</div></div>
+          <div class="tile t4"><div class="n" id="m-up">—</div><div class="l">Uptime</div></div>
+          <div class="tile t5"><div class="n" id="m-cpus">—</div><div class="l">CPU cores</div></div>
         </div>
       </section>
 
