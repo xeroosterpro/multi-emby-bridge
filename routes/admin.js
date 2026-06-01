@@ -18,8 +18,14 @@ function makeAdminRouter() {
   }
 
   r.get('/users', requireAdmin, async (req, res) => {
-    try { res.json({ users: await users.listAll() }); }
-    catch (e) { console.error('[admin/users:get]', e.message); res.status(500).json({ error: 'load failed' }); }
+    try {
+      const q = await db.query(
+        `SELECT u.id, u.username, u.role, u.created_at, u.last_seen_at,
+                COALESCE(s.status,'none') AS sub_status
+           FROM users u LEFT JOIN subscriptions s ON s.user_id = u.id
+          ORDER BY u.created_at ASC`);
+      res.json({ users: q.rows });
+    } catch (e) { console.error('[admin/users:get]', e.message); res.status(500).json({ error: 'load failed' }); }
   });
 
   r.post('/users/:id/role', requireAdmin, async (req, res) => {
