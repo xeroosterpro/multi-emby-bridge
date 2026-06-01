@@ -56,9 +56,9 @@ console.log('\nformatFileSize');
 
 assertEqual(formatFileSize(0),          null,        'zero → null');
 assertEqual(formatFileSize(null),       null,        'null → null');
-assertEqual(formatFileSize(500000),     '500.0 MB',  '500 MB');
+assertEqual(formatFileSize(500000000),  '500.0 MB',  '500 MB');
 assertEqual(formatFileSize(1500000000), '1.50 GB',   '1.5 GB');
-assertEqual(formatFileSize(900000),     '900.0 MB',  '900 MB');
+assertEqual(formatFileSize(900000000),  '900.0 MB',  '900 MB');
 assertEqual(formatFileSize(50000),      '50 KB',     '50 KB');
 assert(formatFileSize(53687091200).endsWith('GB'), '50 GB shows GB');
 

@@ -74,7 +74,7 @@ console.log('\nmediaSourcesToStreams — standard preset');
   assert(s.name.startsWith('TEST'), 'name starts with server label');
   assert(s.name.includes('4K'), 'name includes resolution');
   assert(s.name.includes('HDR10'), 'name includes HDR');
-  assert(typeof s.title === 'string', 'has title field');
+  assert(typeof s.description === 'string', 'has description field');
   assert(typeof s.url === 'string' && s.url.includes('http'), 'url is a string with http');
 }
 
@@ -84,7 +84,7 @@ console.log('\nmediaSourcesToStreams — compact preset');
 {
   const [s] = mediaSourcesToStreams(server, 'item1', [makeSource()], 'compact');
   assert(s.name.includes('HEVC'), 'compact: codec in name');
-  assert(!s.title.includes('\n'), 'compact: single-line description');
+  assert(!s.description.includes('\n'), 'compact: single-line description');
 }
 
 // ─── Detailed preset ─────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ console.log('\nmediaSourcesToStreams — minimal preset');
 {
   const [s] = mediaSourcesToStreams(server, 'item1', [makeSource()], 'minimal');
   assert(s.name.includes('4K'), 'minimal: res in name');
-  assert(s.title.includes('GB'), 'minimal: size in desc');
+  assert(s.description.includes('GB'), 'minimal: size in desc');
 }
 
 // ─── Empty mediaSources ───────────────────────────────────────────────────────
