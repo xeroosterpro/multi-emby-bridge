@@ -7,7 +7,9 @@ const { makeBilling } = require('../lib/billing');
 const PLAN_PRICE = process.env.PLAN_PRICE || '$4/mo';
 
 function makeBillingRouter() {
-  const billing = makeBilling(db);
+  const { makePayments } = require('../lib/payments');
+  const payments = makePayments(db);
+  const billing = makeBilling(db, payments); // events sink
   const r = express.Router();
 
   function requireAuth(req, res, next) {
@@ -25,6 +27,18 @@ function makeBillingRouter() {
       const hasAccess = (req.user.role === 'admin') || await billing.hasAccess(req.user.id);
       res.json({ status: sub.status, periodEnd: sub.current_period_end || null, hasAccess, planPrice: PLAN_PRICE });
     } catch (e) { console.error('[billing/status]', e.message); res.status(500).json({ error: 'status failed' }); }
+  });
+
+  r.get('/history', requireAuth, async (req, res) => {
+    try {
+      const sub = await billing.get(req.user.id);
+      const list = await payments.listForUser(req.user.id);
+      const events = await payments.listEvents(req.user.id);
+      const upcoming = sub.current_period_end
+        ? { date: sub.current_period_end, amount: PLAN_PRICE }
+        : null;
+      res.json({ status: sub.status, periodEnd: sub.current_period_end || null, planPrice: PLAN_PRICE, upcoming, payments: list, events });
+    } catch (e) { console.error('[billing/history]', e.message); res.status(500).json({ error: 'history failed' }); }
   });
 
   // verify the approved PayPal subscription server-side, then record it
@@ -68,7 +82,19 @@ function makeBillingRouter() {
         if (type === 'BILLING.SUBSCRIPTION.ACTIVATED') await billing.setByPaypalSub(subId, 'active', resource.billing_info && resource.billing_info.next_billing_time);
         else if (type === 'BILLING.SUBSCRIPTION.CANCELLED' || type === 'BILLING.SUBSCRIPTION.EXPIRED') await billing.setByPaypalSub(subId, 'cancelled', null);
         else if (type === 'BILLING.SUBSCRIPTION.SUSPENDED') await billing.setByPaypalSub(subId, 'past_due', null);
-        else if (type === 'PAYMENT.SALE.COMPLETED' && resource.billing_agreement_id) await billing.setByPaypalSub(resource.billing_agreement_id, 'active', null);
+        else if (type === 'PAYMENT.SALE.COMPLETED' && resource.billing_agreement_id) {
+          await billing.setByPaypalSub(resource.billing_agreement_id, 'active', null);
+          try {
+            const u = await db.query('SELECT user_id FROM subscriptions WHERE paypal_subscription_id=$1', [resource.billing_agreement_id]);
+            if (u.rowCount) {
+              const userId = u.rows[0].user_id;
+              const amt = resource.amount && (resource.amount.total || resource.amount.value);
+              const cur = (resource.amount && (resource.amount.currency || resource.amount.currency_code)) || 'USD';
+              await payments.record({ userId, paypalSaleId: resource.id, amount: amt, currency: cur, paidAt: resource.create_time || null });
+              await payments.addEvent({ userId, type: 'payment', detail: { saleId: resource.id, amount: amt, currency: cur } });
+            }
+          } catch (e) { console.error('[webhook/payment-record]', e.message); }
+        }
       }
       res.json({ ok: true });
     } catch (e) { console.error('[billing/webhook]', e.message); res.json({ ok: true }); } // always 200 so PayPal doesn't retry-storm
