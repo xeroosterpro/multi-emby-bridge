@@ -16,7 +16,7 @@
   --grad-accent: linear-gradient(90deg, var(--accent-a), var(--accent-b));
   --grad-rgb: linear-gradient(90deg, #fb923c, #f472b6, #818cf8, #34d399, #fb923c);
   --r-sm: 11px; --r-md: 14px; --r-lg: 17px;
-  --side-w: 210px;
+  --side-w: 232px;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
