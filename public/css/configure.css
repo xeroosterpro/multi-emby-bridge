@@ -1290,3 +1290,7 @@ body.locked-billing .pin-btn{ display:none; }
 .uh-bars{ display:flex; gap:2px; align-items:flex-end; height:40px; }
 .uh-day{ flex:1; height:100%; display:flex; align-items:flex-end; background:rgba(255,255,255,.04); border-radius:2px; }
 .uh-bar{ width:100%; background:linear-gradient(180deg,var(--accent),var(--accent-2)); border-radius:2px; min-height:2px; }
+
+/* Center narrow single-column page content so it isn't pinned to the left.
+   Grid pages (dashboard tiles, dash-cards, server-grid, ak-grid) are unaffected. */
+#page-appearance, #page-settings, #page-streaming, #page-catalogs { max-width: 860px; margin-inline: auto; }
