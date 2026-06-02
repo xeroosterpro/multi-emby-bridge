@@ -1294,3 +1294,10 @@ body.locked-billing .pin-btn{ display:none; }
 /* Center narrow single-column page content so it isn't pinned to the left.
    Grid pages (dashboard tiles, dash-cards, server-grid, ak-grid) are unaffected. */
 #page-appearance, #page-settings, #page-streaming, #page-catalogs { max-width: 860px; margin-inline: auto; }
+
+.top-server{ display:flex; align-items:center; gap:12px; margin:0 0 16px; padding:13px 18px; border-radius:var(--r-lg);
+  background:linear-gradient(120deg, color-mix(in srgb,var(--accent) 16%,var(--bg-surface)), var(--bg-surface));
+  border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border)); box-shadow:0 0 22px var(--glow); }
+.top-server .ts-trophy{ font-size:1.4rem; }
+.top-server .ts-name{ color:var(--accent); font-weight:800; }
+.top-server .ts-stat{ color:var(--text-dim); margin-left:8px; font-size:.85rem; }
