@@ -1164,8 +1164,8 @@ window.onPageShow = function(name) {
   if (window.Controls) Controls.syncAll();
 };
 
-const EMBY_SVG = '<svg viewBox="0 0 100 100" aria-label="Emby"><circle cx="50" cy="50" r="40" fill="none" stroke="#fff" stroke-width="9" stroke-dasharray="188 64" transform="rotate(-32 50 50)"/><path d="M41 33 L70 50 L41 67 Z" fill="#fff"/></svg>';
-const JELLYFIN_SVG = '<svg viewBox="0 0 100 100" aria-label="Jellyfin"><path d="M50 14C44 30 30 41 30 59a20 20 0 0 0 40 0C70 41 56 30 50 14Z" fill="#fff"/><path d="M50 42c-3 8-9 12-9 20a9 9 0 0 0 18 0c0-8-6-12-9-20Z" fill="#6a3a8c"/></svg>';
+const EMBY_LOGO = '<img class="brandimg" src="/img/emby.png" alt="Emby" loading="lazy">';
+const JELLYFIN_LOGO = '<img class="brandimg" src="/img/jellyfin.png" alt="Jellyfin" loading="lazy">';
 
 function openServerManage(index) {
   location.hash = '#/servers';
@@ -1206,7 +1206,7 @@ async function renderDashboard(force = false) {
       ];
       const [bar, glow] = PALETTE[idx % PALETTE.length];
       const isJelly = (s.type === 'jellyfin');
-      const brandSvg = isJelly ? JELLYFIN_SVG : EMBY_SVG;
+      const brandSvg = isJelly ? JELLYFIN_LOGO : EMBY_LOGO;
       const brandName = isJelly ? 'Jellyfin' : 'Emby';
       const badgeBg = isJelly ? 'linear-gradient(135deg,#aa5cc3,#00a4dc)' : 'linear-gradient(135deg,#52b54b,#2f8f3e)';
       const costStr = (s.cost && s.costPeriod)
@@ -1221,7 +1221,7 @@ async function renderDashboard(force = false) {
         <div class="gcard-top"></div>
         <div class="gcard-pad">
           <div class="gcard-head">
-            <div class="gbrand">${brandSvg}</div>
+            <div class="gbrand" style="--accentglow:${isJelly ? 'rgba(122,70,200,.7)' : 'rgba(82,181,75,.7)'}">${brandSvg}</div>
             <div style="flex:1;min-width:0">
               <div class="gcard-nm">${escHtml(s.label)}</div>
               <div class="gcard-host">${escHtml((s.url||'').replace(/^https?:\/\//,''))}</div>

@@ -1088,6 +1088,16 @@ body.noanim .acc2-body{ transition:none; }
    `* { animation:none !important }` rule by specificity) because the user
    explicitly requested a blinking indicator. */
 @keyframes status-blink{ 0%,100%{ opacity:1 } 50%{ opacity:.2 } }
+
+/* Real brand logos (Emby / Jellyfin) as the card icon, type-driven. The box's
+   float/glow/sheen + a gentle logo "breathe" are re-enabled even under
+   prefers-reduced-motion (class+!important beats the universal animation:none),
+   because the user explicitly asked for animated logos. */
+.gbrand .brandimg{ width:100%; height:100%; object-fit:cover; border-radius:inherit; position:relative; z-index:1;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.4)); animation:brandBreathe 3.4s ease-in-out infinite !important; }
+.gbrand{ animation:floaty 3.6s ease-in-out infinite, haloPulse 2.4s ease-in-out infinite !important; }
+.gbrand::after{ z-index:2; animation:brandSheen 4s ease-in-out infinite !important; }
+@keyframes brandBreathe{ 0%,100%{ transform:scale(1) } 50%{ transform:scale(1.05) } }
 .gstatus{ display:inline-flex; flex-direction:column; align-items:flex-end; gap:4px; flex:none; margin-left:auto; }
 .gpill{ display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:3px 10px;
   font-weight:800; font-size:.6rem; letter-spacing:.06em; white-space:nowrap; }
