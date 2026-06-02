@@ -39,6 +39,23 @@
     document.querySelectorAll('.bill-cancel').forEach(b => b.addEventListener('click', async () => {
       await api('/api/billing/cancel', { method: 'POST' }); if (window.toast) window.toast('Subscription cancelled'); init();
     }));
+    renderHistory();
+  }
+
+  async function renderHistory() {
+    const body = $('#billing-body');
+    if (!body) return;
+    const h = (await api('/api/billing/history')).body;
+    if (!h) return;
+    const money = p => (p.amount != null ? '$' + Number(p.amount).toFixed(2) : '—') + (p.currency && p.currency !== 'USD' ? ' ' + p.currency : '');
+    const date = d => d ? new Date(d).toLocaleDateString() : '—';
+    const rows = (h.payments || []).map(p => `<tr><td>${date(p.paid_at)}</td><td>${money(p)}</td><td><span class="pay-status ${p.status}">${p.status}</span></td></tr>`).join('')
+      || '<tr><td colspan="3" class="log-empty">No payments yet.</td></tr>';
+    body.insertAdjacentHTML('beforeend', `
+      <div class="card" style="margin-top:14px"><div class="label">Next payment</div>
+        <div class="bill-statusrow">Upcoming <span class="mtag">${h.upcoming ? date(h.upcoming.date) + ' · ' + h.upcoming.amount : '—'}</span></div></div>
+      <div class="card" style="margin-top:14px"><div class="label">Past payments</div>
+        <div class="log-table-wrap"><table class="log-table"><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div></div>`);
   }
 
   async function renderLocked(cfg) {
@@ -89,6 +106,7 @@
       applyGate(false);
       if (link) link.style.display = 'none';
       if (settings) settings.innerHTML = '<div class="card"><div class="label">Subscription</div><div class="mrow">Access<span class="mtag" style="color:var(--success)">● Admin · full access</span></div></div>';
+      if ($('#billing-body')) { $('#billing-body').innerHTML = '<div class="card"><div class="label">Subscription</div><div class="mrow">Access<span class="mtag" style="color:var(--success)">● Admin · full access</span></div></div>'; renderHistory(); }
     } else {                                         // no access → lock to Billing
       if (settings) settings.innerHTML = '';
       applyGate(true);
