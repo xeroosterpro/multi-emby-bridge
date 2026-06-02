@@ -30,15 +30,16 @@
     const wrap = $('#admin-users-list'); if (!wrap) return;
     const r = await api('/api/admin/users');
     if (r.status !== 200 || !r.body) { wrap.innerHTML = '<p class="page-sub">Unable to load users.</p>'; return; }
+    const escU = x => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     wrap.innerHTML = r.body.users.map(u => {
       const comped = u.sub_status === 'comped' || u.sub_status === 'active';
       return `<div class="mrow" data-uid="${u.id}">
-        <span><strong>${u.username}</strong> <span class="mtag">${u.role}</span>${comped ? ' <span class="mtag" style="color:var(--success)">● ' + u.sub_status + '</span>' : ''}</span>
+        <span><strong>${escU(u.username)}</strong> <span class="mtag">${escU(u.role)}</span>${comped ? ' <span class="mtag" style="color:var(--success)">● ' + escU(u.sub_status) + '</span>' : ''}</span>
         <span style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn-soft acct-manage" data-uid="${u.id}">Manage</button>
           <button class="btn-soft acct-role" data-uid="${u.id}" data-role="${u.role === 'admin' ? 'user' : 'admin'}">${u.role === 'admin' ? 'Demote' : 'Make admin'}</button>
           <button class="btn-soft acct-comp" data-uid="${u.id}" data-act="${comped ? 'uncomp' : 'comp'}">${comped ? 'Remove access' : 'Comp access'}</button>
-          <button class="btn-soft acct-del" data-uid="${u.id}" data-name="${u.username}" style="border-color:var(--error,#e05555);color:var(--error,#e05555)">Delete</button>
+          <button class="btn-soft acct-del" data-uid="${u.id}" data-name="${escU(u.username)}" style="border-color:var(--error,#e05555);color:var(--error,#e05555)">Delete</button>
         </span>
       </div>`;
     }).join('');
@@ -66,11 +67,12 @@
 
   function openUserManageModal(id, d) {
     if (!window.openModal) return;
+    const esc = x => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const money = p => (p.amount != null ? '$' + Number(p.amount).toFixed(2) : '—');
     const date = x => x ? new Date(x).toLocaleString() : '—';
-    const pays = (d.payments || []).map(p => `<div class="mrow">${date(p.paid_at)}<span class="mtag">${money(p)} · ${p.status}</span></div>`).join('') || '<div class="field-hint">No payments.</div>';
-    const evs = (d.events || []).map(e => `<div class="mrow">${date(e.created_at)}<span class="mtag">${e.type}</span></div>`).join('') || '<div class="field-hint">No events.</div>';
-    const servers = (d.servers || []).map(s => { const t = (s.daily||[]).reduce((a,x)=>a+x.checks,0), u = (s.daily||[]).reduce((a,x)=>a+x.up_checks,0); return `<div class="mrow">${s.label || s.url}<span class="mtag">${t?Math.round(u/t*100):0}% up</span></div>`; }).join('') || '<div class="field-hint">No history.</div>';
+    const pays = (d.payments || []).map(p => `<div class="mrow">${date(p.paid_at)}<span class="mtag">${money(p)} · ${esc(p.status)}</span></div>`).join('') || '<div class="field-hint">No payments.</div>';
+    const evs = (d.events || []).map(e => `<div class="mrow">${date(e.created_at)}<span class="mtag">${esc(e.type)}</span></div>`).join('') || '<div class="field-hint">No events.</div>';
+    const servers = (d.servers || []).map(s => { const t = (s.daily||[]).reduce((a,x)=>a+x.checks,0), u = (s.daily||[]).reduce((a,x)=>a+x.up_checks,0); return `<div class="mrow">${esc(s.label || s.url)}<span class="mtag">${t?Math.round(u/t*100):0}% up</span></div>`; }).join('') || '<div class="field-hint">No history.</div>';
     window.openModal(`
       <div class="modal-head"><div><div class="modal-nm">Manage user</div><div class="modal-sub">${(d.subscription&&d.subscription.status)||'none'}</div></div><div class="modal-x" data-close>✕</div></div>
       <div class="modal-tabs"><button class="on" data-mt="sub">Subscription</button><button data-mt="pay">Payments</button><button data-mt="act">Activity</button><button data-mt="srv">Servers</button></div>

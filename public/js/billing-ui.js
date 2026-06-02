@@ -47,9 +47,10 @@
     if (!body) return;
     const h = (await api('/api/billing/history')).body;
     if (!h) return;
-    const money = p => (p.amount != null ? '$' + Number(p.amount).toFixed(2) : '—') + (p.currency && p.currency !== 'USD' ? ' ' + p.currency : '');
+    const esc = x => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const money = p => (p.amount != null ? '$' + Number(p.amount).toFixed(2) : '—') + (p.currency && p.currency !== 'USD' ? ' ' + esc(p.currency) : '');
     const date = d => d ? new Date(d).toLocaleDateString() : '—';
-    const rows = (h.payments || []).map(p => `<tr><td>${date(p.paid_at)}</td><td>${money(p)}</td><td><span class="pay-status ${p.status}">${p.status}</span></td></tr>`).join('')
+    const rows = (h.payments || []).map(p => `<tr><td>${date(p.paid_at)}</td><td>${money(p)}</td><td><span class="pay-status ${esc(p.status)}">${esc(p.status)}</span></td></tr>`).join('')
       || '<tr><td colspan="3" class="log-empty">No payments yet.</td></tr>';
     body.insertAdjacentHTML('beforeend', `
       <div class="card" style="margin-top:14px"><div class="label">Next payment</div>
