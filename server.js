@@ -166,6 +166,7 @@ app.use('/u/:token', async (req, res, next) => {
     }
     const cfg = await makeUserConfig(dbLib).getForServe(rec.user_id);
     if (!cfg) return res.status(404).json({ error: 'no configuration saved' });
+    req._mebUserId = rec.user_id;
     const rest = req.url === '/' ? '/manifest.json' : req.url; // req.url is post-mount remainder
     req.url = '/' + encodeConfig(cfg) + rest;
     return app.handle(req, res); // re-route through the existing /:config/* handlers
@@ -788,6 +789,7 @@ app.get('/:config/stream/:type/:id.json', streamLimiter, async (req, res) => {
     }
 
     addLogEntry({
+      userId:       req._mebUserId || null,
       ts:           new Date().toISOString(),
       type,
       imdbId,
