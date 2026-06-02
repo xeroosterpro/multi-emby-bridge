@@ -1223,10 +1223,10 @@ async function renderDashboard(force = false) {
           <div class="gcard-head">
             <div class="gbrand">${brandSvg}</div>
             <div style="flex:1;min-width:0">
-              <div class="gcard-nm"><span class="status-dot" data-dot></span>${escHtml(s.label)}</div>
+              <div class="gcard-nm">${escHtml(s.label)}</div>
               <div class="gcard-host">${escHtml((s.url||'').replace(/^https?:\/\//,''))}</div>
             </div>
-            <span class="sc-badge unknown">● …</span>
+            <div class="gstatus"><span class="gpill loading" data-pill>…</span><span class="gpill-ms" data-ms></span></div>
           </div>
           <div class="gtype" style="display:none">${brandName}</div>
           <div class="gchips">
@@ -1242,16 +1242,18 @@ async function renderDashboard(force = false) {
         card.querySelector('[data-st=shows]').textContent    = (st.shows||0).toLocaleString();
         card.querySelector('[data-st=episodes]').textContent = (st.episodes||0).toLocaleString();
       };
+      const setStatus = (online, ms) => {
+        const pill = card.querySelector('[data-pill]'), msEl = card.querySelector('[data-ms]');
+        if (pill) { pill.className = 'gpill ' + (online ? 'online' : 'offline'); pill.textContent = online ? 'ONLINE' : 'OFFLINE'; }
+        if (msEl) msEl.textContent = (online && ms != null) ? ms + 'ms' : '';
+      };
       const k = _libKey(s);
       const cached = _libStatsCache[k];
       if (!force && cached && (now - cached.ts < LIB_TTL_MS)) {
         setStats(cached);
         upCount++; movieTotal += (cached.movies||0);
         if (fastest === null || cached.ms < fastest) fastest = cached.ms;
-        const badge = card.querySelector('.sc-badge');
-        badge.textContent = cached.ms < 400 ? '● UP ' + cached.ms + 'ms' : '● SLOW ' + cached.ms + 'ms';
-        badge.className = 'sc-badge ' + (cached.ms < 400 ? 'up' : 'unknown');
-        const cdot = card.querySelector('[data-dot]'); if (cdot) cdot.className = 'status-dot online';
+        setStatus(true, cached.ms);
         return;
       }
       const t0 = performance.now();
@@ -1259,19 +1261,16 @@ async function renderDashboard(force = false) {
         const r = await fetch('/api/library-stats', { method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: s.url, type: s.type, apiKey: s.apiKey, userId: s.userId }) });
         const ms = Math.round(performance.now() - t0);
-        const badge = card.querySelector('.sc-badge');
         if (r.ok) {
           const st = await r.json();
           setStats(st);
           upCount++; movieTotal += (st.movies||0);
           if (fastest === null || ms < fastest) fastest = ms;
-          badge.textContent = ms < 400 ? '● UP ' + ms + 'ms' : '● SLOW ' + ms + 'ms';
-          badge.className = 'sc-badge ' + (ms < 400 ? 'up' : 'unknown');
-          const sdot = card.querySelector('[data-dot]'); if (sdot) sdot.className = 'status-dot online';
+          setStatus(true, ms);
           _libStatsCache[k] = { movies: st.movies||0, shows: st.shows||0, episodes: st.episodes||0, ms, ts: now };
           _saveLibCache();
-        } else { badge.textContent = '● Auth failed'; badge.className = 'sc-badge down'; const od = card.querySelector('[data-dot]'); if (od) od.className = 'status-dot offline'; }
-      } catch { const b = card.querySelector('.sc-badge'); b.textContent='● Down'; b.className='sc-badge down'; const od2 = card.querySelector('[data-dot]'); if (od2) od2.className = 'status-dot offline'; }
+        } else { setStatus(false); }
+      } catch { setStatus(false); }
     }));
     const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     setTxt('tile-servers', upCount);

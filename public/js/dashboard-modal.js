@@ -13,7 +13,7 @@
     const host = txt('.gcard-host', '');
     const type = txt('.gtype', '');
     const brand = q('.gbrand') ? q('.gbrand').innerHTML : '';
-    const status = txt('.sc-badge', '');
+    const status = txt('.gpill', '');
     const movies = txt('[data-st=movies]');
     const shows = txt('[data-st=shows]');
     const eps = txt('[data-st=episodes]');
