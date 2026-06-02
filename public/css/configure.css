@@ -1082,8 +1082,11 @@ body.noanim .acc2-body{ transition:none; }
 .ak-grid .btn-generate{ margin-top:4px; }
 @media (max-width:760px){ .ak-grid{ grid-template-columns:1fr; } }
 
-/* dashboard stat tiles are navigable */
-.tile-link{ cursor:pointer; }
+/* dashboard stat tiles are navigable — subtle arrow affordance */
+.tile-link{ cursor:pointer; position:relative; }
+.tile-link::after{ content:'\2192'; position:absolute; top:14px; right:15px; font-size:.85rem; line-height:1;
+  color:var(--text-mute); opacity:.45; transition:opacity .2s var(--ease), transform .2s var(--ease), color .2s var(--ease); }
+.tile-link:hover::after{ opacity:1; color:var(--accent); transform:translateX(2px); }
 
 /* billing access gate: lock app to Billing page when unsubscribed */
 body.locked-billing .nav, body.locked-billing .foot-link:not(.billing-link), body.locked-billing .quick-install{ display:none !important; }

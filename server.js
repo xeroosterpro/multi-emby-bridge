@@ -214,7 +214,7 @@ app.get('/:config/servers', (req, res) => {
 app.post('/api/health/register', apiLimiter, express.json(), (req, res) => {
   const { servers } = req.body || {};
   if (!Array.isArray(servers)) return res.status(400).json({ error: 'servers must be array' });
-  registerHealthServers(servers);
+  registerHealthServers(servers, req.user && req.user.id);
   res.json({ ok: true, monitoring: healthServers.length });
 });
 
