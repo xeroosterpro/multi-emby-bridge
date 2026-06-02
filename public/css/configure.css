@@ -1222,3 +1222,14 @@ body.locked-billing .pin-btn{ display:none; }
 .ping-origin-pill{ padding:3px 10px; border-radius:20px; background:var(--glow); color:var(--accent); font-weight:700; font-size:.72rem; }
 #main-content, #ping-results, .log-table-wrap, .refresh-bar{ background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:16px; }
 .log-empty, .loader{ color:var(--text-dim); text-align:center; padding:24px; }
+.bill-statusrow{ display:flex; justify-content:space-between; align-items:center; padding:7px 0; font-size:.85rem; }
+.pay-status{ font-size:.7rem; font-weight:700; text-transform:uppercase; padding:2px 8px; border-radius:999px; }
+.pay-status.completed{ color:#34d399; background:rgba(52,211,153,.14); }
+.pay-status.refunded{ color:#fbbf24; background:rgba(251,191,36,.14); }
+.pay-status.failed{ color:#f87171; background:rgba(248,113,113,.14); }
+.uptime-hist{ margin:10px 0; padding-bottom:10px; border-bottom:1px solid var(--border); }
+.uh-head{ font-size:.78rem; font-weight:700; margin-bottom:8px; }
+.uh-sub{ color:var(--text-dim); font-weight:400; font-size:.7rem; }
+.uh-bars{ display:flex; gap:2px; align-items:flex-end; height:40px; }
+.uh-day{ flex:1; height:100%; display:flex; align-items:flex-end; background:rgba(255,255,255,.04); border-radius:2px; }
+.uh-bar{ width:100%; background:linear-gradient(180deg,var(--accent),var(--accent-2)); border-radius:2px; min-height:2px; }

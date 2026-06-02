@@ -3,6 +3,7 @@ const express = require('express');
 const db = require('../lib/db');
 const { makeUserConfig } = require('../lib/userConfig');
 const { makeManifestStore } = require('../lib/manifestStore');
+const { makeServerHistory } = require('../lib/serverHistory');
 
 function manifestUrl(req, token) {
   const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0];
@@ -13,6 +14,7 @@ function makeUserRouter() {
   const uc = makeUserConfig(db);
   const store = makeManifestStore(db);
   const r = express.Router();
+  const serverHistory = makeServerHistory(db);
   r.use(express.json({ limit: '1mb' }));
 
   function requireAuth(req, res, next) {
@@ -41,6 +43,11 @@ function makeUserRouter() {
   r.post('/manifest', requireAuth, async (req, res) => {
     try { const t = await store.regenerate(req.user.id); res.json({ url: manifestUrl(req, t) }); }
     catch (e) { console.error('[user/manifest:post]', e.message); res.status(500).json({ error: 'generate failed' }); }
+  });
+
+  r.get('/server-history', requireAuth, async (req, res) => {
+    try { res.json(await serverHistory.listForUser(req.user.id)); }
+    catch (e) { console.error('[user/server-history]', e.message); res.status(500).json({ error: 'history failed' }); }
   });
 
   return r;

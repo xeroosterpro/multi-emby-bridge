@@ -20,6 +20,7 @@ function fakeDb() {
     if (/UPDATE discount_codes SET uses=uses\+1/i.test(text)) { const c = codes.get(params[0]); if (c) c.uses++; return { rowCount: 1 }; }
     if (/UPDATE discount_codes SET active=false/i.test(text)) { const c = codes.get(params[0]); if (c) c.active = false; return { rowCount: 1 }; }
     if (/SELECT .* FROM discount_codes ORDER BY/i.test(text)) { return { rows: [...codes.values()], rowCount: codes.size }; }
+    if (/INSERT INTO billing_events/i.test(text)) { return { rowCount: 1 }; }
     return { rows: [], rowCount: 0 };
   } };
 }
@@ -46,6 +47,14 @@ function fakeDb() {
   A((await b.redeemCode('u4', 'NOPE')).applied === false, 'invalid code rejected');
   await b.deactivateCode('FAMILY100');
   A((await b.redeemCode('u5', 'FAMILY100')).applied === false, 'deactivated code rejected');
+
+  // events: pass an event sink and verify status changes emit audit rows
+  const events = [];
+  const b2 = makeBilling(fakeDb(), { addEvent: (e) => events.push(e) });
+  await b2.comp('u9');
+  A(events.some(e => e.type === 'comped' && e.userId === 'u9'), 'comp emits a comped billing event');
+  await b2.cancel('u9');
+  A(events.some(e => e.type === 'cancelled'), 'cancel emits a cancelled billing event');
 
   console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
   if (failed) process.exit(1);
