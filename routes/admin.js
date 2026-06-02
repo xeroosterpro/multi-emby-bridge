@@ -5,6 +5,7 @@ const { makeUsers } = require('../lib/users');
 const { makeBilling } = require('../lib/billing');
 const { makePayments } = require('../lib/payments');
 const { makeServerHistory } = require('../lib/serverHistory');
+const { forgetUser } = require('../lib/health');
 const paypal = require('../lib/paypal');
 
 function makeAdminRouter() {
@@ -47,7 +48,7 @@ function makeAdminRouter() {
 
   r.delete('/users/:id', requireAdmin, async (req, res) => {
     if (req.params.id === req.user.id) return res.status(400).json({ error: 'cannot delete yourself' });
-    try { const ok = await users.remove(req.params.id); res.json({ ok }); }
+    try { const ok = await users.remove(req.params.id); try { forgetUser(req.params.id); } catch {} res.json({ ok }); }
     catch (e) { res.status(500).json({ error: 'delete failed' }); }
   });
 

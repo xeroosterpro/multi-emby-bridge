@@ -16,9 +16,9 @@ function fakeDb() {
         const key = `${params[0]}|${params[1]}|${params[3]}`;
         const up = params[4] ? 1 : 0; const ms = params[5];
         const cur = daily.get(key) || { user_id: params[0], server_url: params[1], label: params[2], day: params[3], checks: 0, up_checks: 0, avg_ms: 0 };
-        const newChecks = cur.checks + 1;
-        cur.avg_ms = ms == null ? cur.avg_ms : Math.round((cur.avg_ms * cur.checks + ms) / newChecks);
-        cur.checks = newChecks; cur.up_checks += up;
+        // avg_ms averages over SUCCESSFUL checks only (denominator = up_checks), mirroring the SQL
+        cur.avg_ms = ms == null ? cur.avg_ms : Math.round((cur.avg_ms * cur.up_checks + ms) / (cur.up_checks + 1));
+        cur.checks += 1; cur.up_checks += up;
         daily.set(key, cur);
         return { rowCount: 1, rows: [] };
       }
@@ -46,7 +46,7 @@ function fakeDb() {
   A(db._log.length === 3, 'logCheck writes a raw row each call');
   const d = [...db._daily.values()][0];
   A(d.checks === 3 && d.up_checks === 2, 'daily rollup counts checks and up_checks');
-  A(d.avg_ms === 133, 'daily rollup averages response_ms over non-null checks');
+  A(d.avg_ms === 150, 'daily rollup averages response_ms over successful checks only (100,200 → 150, ignoring the down check)');
 
   const out = await sh.listForUser('u1');
   A(Array.isArray(out.servers) && out.servers[0].url === 'http://a', 'listForUser groups by server');
