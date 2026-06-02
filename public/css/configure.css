@@ -224,6 +224,24 @@ input[type="text"], input[type="password"], input[type="url"] {
 input:focus { border-color: var(--border-focus); }
 input::placeholder { color: var(--text-muted); }
 
+/* .input CLASS styling — many inputs omit a type attribute, so input[type=text]
+   above doesn't match them and they fell back to a white browser default. Style
+   the class directly so every editable box matches the dark theme, with a hover
+   + focus animation. */
+.input {
+  width: 100%; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-primary); font-size: .85rem; padding: .5rem .7rem; outline: none; font-family: inherit;
+  transition: border-color .16s var(--ease), box-shadow .16s var(--ease), background-color .16s var(--ease);
+}
+.input::placeholder { color: var(--text-muted); }
+.input:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); background: var(--bg-elevated); }
+/* keep Chrome autofill from painting fields white/yellow */
+.input:-webkit-autofill, .input:-webkit-autofill:hover, .input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-primary); caret-color: var(--text-primary);
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-input) inset; transition: background-color 9999s;
+}
+
 /* ── Credential / Test / Stats ── */
 .cred-section {
   background: var(--bg-input); border: 1px solid var(--border);
@@ -1182,7 +1200,7 @@ body.locked-billing .pin-btn{ display:none; }
   padding:16px 18px; margin-top:18px; backdrop-filter:blur(12px); }
 
 /* ===================== sidebar brand + user button (prototype) ===================== */
-.brand{ display:flex !important; align-items:center; gap:11px; background:none !important; -webkit-text-fill-color:initial !important; color:var(--text) !important; animation:none !important; padding:0 14px 16px !important; }
+.brand{ display:flex !important; align-items:center; gap:11px; background:none !important; -webkit-text-fill-color:initial !important; color:var(--text) !important; animation:none !important; padding:0 42px 16px 14px !important; }
 .brand-logo{ width:30px; height:30px; border-radius:9px; display:grid; place-items:center; flex:none; background:linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow:0 0 16px var(--glow); }
 .brand-logo svg{ width:17px; height:17px; }
 .brand-name{ font-weight:800; font-size:1rem; white-space:nowrap; }
