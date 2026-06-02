@@ -7,8 +7,14 @@ const { makePayments } = require('../lib/payments');
 const { makeServerHistory } = require('../lib/serverHistory');
 const { forgetUser } = require('../lib/health');
 const paypal = require('../lib/paypal');
+const { makeUserConfig } = require('../lib/userConfig');
+const { makeLiveSessions } = require('../lib/sessions');
+const { summarizeRequestLog, userActivity } = require('../lib/adminStats');
 
-function makeAdminRouter() {
+function makeAdminRouter(opts = {}) {
+  const getRequestLog = typeof opts.getRequestLog === 'function' ? opts.getRequestLog : () => [];
+  const userConfig = makeUserConfig(db);
+  const liveSessions = makeLiveSessions();
   const users = makeUsers(db);
   const payments = makePayments(db);
   const serverHistory = makeServerHistory(db);
@@ -27,8 +33,11 @@ function makeAdminRouter() {
     try {
       const q = await db.query(
         `SELECT u.id, u.username, u.role, u.created_at, u.last_seen_at,
-                COALESCE(s.status,'none') AS sub_status
-           FROM users u LEFT JOIN subscriptions s ON s.user_id = u.id
+                COALESCE(s.status,'none') AS sub_status, s.current_period_end AS period_end,
+                COALESCE(jsonb_array_length(uc.config_json->'servers'),0) AS server_count
+           FROM users u
+           LEFT JOIN subscriptions s ON s.user_id = u.id
+           LEFT JOIN user_config uc ON uc.user_id = u.id
           ORDER BY u.created_at ASC`);
       res.json({ users: q.rows });
     } catch (e) { console.error('[admin/users:get]', e.message); res.status(500).json({ error: 'load failed' }); }
@@ -144,6 +153,44 @@ function makeAdminRouter() {
       await payments.addEvent({ userId: req.params.id, type: 'admin_password_reset', detail: {}, actorId: req.user.id });
       res.json({ ok: true });
     } catch (e) { console.error('[admin/password]', e.message); res.status(500).json({ error: 'reset failed' }); }
+  });
+
+  r.get('/overview', requireAdmin, async (req, res) => {
+    try {
+      const u = await db.query(
+        `SELECT COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE u.role='admin')::int AS admins,
+                COUNT(*) FILTER (WHERE s.status IN ('active','comped'))::int AS active,
+                COUNT(*) FILTER (WHERE s.status='comped')::int AS comped,
+                COUNT(*) FILTER (WHERE u.created_at > now() - interval '7 days')::int AS new_this_week
+           FROM users u LEFT JOIN subscriptions s ON s.user_id=u.id`);
+      const rev = await db.query(
+        `SELECT COALESCE(SUM(amount) FILTER (WHERE paid_at > now() - interval '30 days'),0) AS monthly,
+                COALESCE(SUM(amount),0) AS lifetime FROM payments`);
+      const pays = await db.query(
+        `SELECT p.amount, p.currency, p.status, p.paid_at, us.username
+           FROM payments p LEFT JOIN users us ON us.id=p.user_id
+          ORDER BY p.paid_at DESC LIMIT 10`);
+      const activity = summarizeRequestLog(getRequestLog());
+      res.json({
+        users: u.rows[0],
+        revenue: { monthly: Number(rev.rows[0].monthly), lifetime: Number(rev.rows[0].lifetime), currency: 'USD' },
+        recentPayments: pays.rows,
+        activity,
+      });
+    } catch (e) { console.error('[admin/overview]', e.message); res.status(500).json({ error: 'overview failed' }); }
+  });
+
+  r.get('/users/:id/activity', requireAdmin, async (req, res) => {
+    try {
+      const act = userActivity(getRequestLog(), req.params.id);
+      let live = [];
+      try {
+        const cfg = await userConfig.getForServe(req.params.id);
+        if (cfg && Array.isArray(cfg.servers)) live = await liveSessions.forUser(cfg.servers);
+      } catch (e) { console.error('[admin/activity:live]', e.message); }
+      res.json({ recent: act.recent, totals: act.totals, live });
+    } catch (e) { console.error('[admin/activity]', e.message); res.status(500).json({ error: 'activity failed' }); }
   });
 
   return r;

@@ -140,7 +140,7 @@ const { hasActiveAccess } = require('./lib/manifest');
 const { makeUserRouter } = require('./routes/user');
 app.use('/api/user', makeUserRouter());
 const { makeAdminRouter } = require('./routes/admin');
-app.use('/api/admin', makeAdminRouter());
+app.use('/api/admin', makeAdminRouter({ getRequestLog: () => REQUEST_LOG }));
 const paypal = require('./lib/paypal');
 const { makeBilling } = require('./lib/billing');
 const { makeBillingRouter } = require('./routes/billing');
