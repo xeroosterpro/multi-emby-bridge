@@ -1164,8 +1164,8 @@ window.onPageShow = function(name) {
   if (window.Controls) Controls.syncAll();
 };
 
-const EMBY_LOGO = '<img class="brandimg" src="/img/emby.png" alt="Emby" loading="lazy">';
-const JELLYFIN_LOGO = '<img class="brandimg" src="/img/jellyfin.png" alt="Jellyfin" loading="lazy">';
+const EMBY_LOGO = '<img class="brandimg" src="/img/emby.png" alt="Emby" decoding="async">';
+const JELLYFIN_LOGO = '<img class="brandimg" src="/img/jellyfin.png" alt="Jellyfin" decoding="async">';
 
 function openServerManage(index) {
   location.hash = '#/servers';
