@@ -170,6 +170,12 @@
     const me = await api('/api/auth/me');
     if (!me.body || me.body.user?.role !== 'admin') return; // not an admin → admin pages stay hidden
     document.querySelectorAll('.admin-only').forEach(el => { el.style.display = ''; });
+    // delegated: open the manage modal for any user row's Manage button
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.acct-manage'); if (!btn) return;
+      const r = await api('/api/admin/users/' + btn.dataset.uid + '/detail');
+      if (r.status === 200 && r.body) openUserManageModal(btn.dataset.uid, r.body);
+    });
     window.addEventListener('hashchange', onRoute);
     onRoute();
   });
