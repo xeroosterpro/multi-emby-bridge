@@ -27,12 +27,14 @@
   function stopMetrics() { clearInterval(metricsTimer); metricsTimer = null; }
 
   let _adminUsers = [];
+  let _adminPage = 0;
   const escU = x => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const fmtAgo = x => { if(!x) return 'never'; const d=Date.now()-new Date(x).getTime(); const h=Math.floor(d/3600000); if(h<1) return 'just now'; if(h<24) return h+'h ago'; return Math.floor(h/24)+'d ago'; };
   const statusPill = s => `<span class="pay-status ${s==='active'||s==='comped'?'completed':(s==='past_due'?'refunded':'failed')}">${escU(s)}</span>`;
 
   async function loadOverview() {
     const wrap = $('#adm-overview'); if (!wrap) return;
+    if (!wrap.dataset.loaded) wrap.innerHTML = Array(4).fill('<div class="adm-card skel"><div class="skel-line lg"></div><div class="skel-line"></div></div>').join('');
     const r = await api('/api/admin/overview');
     if (r.status !== 200 || !r.body) { wrap.innerHTML = ''; return; }
     const o = r.body, money = n => '$' + Number(n||0).toFixed(0);
@@ -41,6 +43,7 @@
       <div class="adm-card"><div class="adm-card-n">${money(o.revenue.monthly)}</div><div class="adm-card-l">Revenue (30d) · ${money(o.revenue.lifetime)} lifetime</div></div>
       <div class="adm-card"><div class="adm-card-n">${o.activity.requests24h}</div><div class="adm-card-l">Stream requests (24h)</div></div>
       <div class="adm-card"><div class="adm-card-n">${o.activity.busiestServer?escU(o.activity.busiestServer.server):'—'}</div><div class="adm-card-l">Busiest server (24h)</div></div>`;
+    wrap.dataset.loaded = '1';
   }
 
   function renderUsersTable() {
@@ -55,22 +58,39 @@
       sort === 'status' ? String(a.sub_status).localeCompare(String(b.sub_status)) :
       sort === 'newest' ? ts(b.created_at) - ts(a.created_at) :
       ts(b.last_seen_at) - ts(a.last_seen_at));
-    tbody.innerHTML = rows.map(u => `<tr data-uid="${u.id}">
+    const PER = 25;
+    const pages = Math.max(1, Math.ceil(rows.length / PER));
+    if (_adminPage >= pages) _adminPage = pages - 1;
+    const pageRows = rows.slice(_adminPage * PER, _adminPage * PER + PER);
+    tbody.innerHTML = pageRows.map(u => `<tr data-uid="${u.id}">
       <td><div class="adm-user"><span class="adm-avatar">${escU((u.username||'?')[0].toUpperCase())}</span><span><strong>${escU(u.username)}</strong><span class="adm-role">${escU(u.role)}</span></span></div></td>
       <td>${statusPill(u.sub_status)}</td>
       <td class="adm-dim">${fmtAgo(u.last_seen_at)}</td>
       <td class="adm-dim">${u.server_count||0}</td>
       <td><button class="btn-soft acct-manage" data-uid="${u.id}">Manage</button></td>
-    </tr>`).join('') || '<tr><td colspan="5" class="log-empty">No users match.</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="5" class="log-empty">No users match your filters.</td></tr>';
+    const pager = $('#adm-pager');
+    if (pager) {
+      pager.innerHTML = pages > 1
+        ? `<button class="btn-soft" id="adm-prev" ${_adminPage===0?'disabled':''}>← Prev</button>
+           <span class="adm-dim">Page ${_adminPage+1} of ${pages} · ${rows.length} users</span>
+           <button class="btn-soft" id="adm-next" ${_adminPage>=pages-1?'disabled':''}>Next →</button>`
+        : '';
+      const prev=$('#adm-prev'), next=$('#adm-next');
+      if (prev) prev.onclick = () => { _adminPage--; renderUsersTable(); };
+      if (next) next.onclick = () => { _adminPage++; renderUsersTable(); };
+    }
   }
 
   async function loadUsers() {
     loadOverview();
+    const tb = $('#adm-users-rows');
+    if (tb && !_adminUsers.length) tb.innerHTML = Array(4).fill('<tr class="skel-row"><td colspan="5"><div class="skel-line"></div></td></tr>').join('');
     const r = await api('/api/admin/users');
     if (r.status !== 200 || !r.body) { const t=$('#adm-users-rows'); if(t) t.innerHTML='<tr><td colspan="5">Unable to load users.</td></tr>'; return; }
     _adminUsers = r.body.users || [];
     renderUsersTable();
-    ['adm-search','adm-filter','adm-sort'].forEach(id => { const el=document.getElementById(id); if(el&&!el._w){ el._w=1; el.addEventListener('input', renderUsersTable); el.addEventListener('change', renderUsersTable); } });
+    ['adm-search','adm-filter','adm-sort'].forEach(id => { const el=document.getElementById(id); if(el&&!el._w){ el._w=1; const h=()=>{ _adminPage=0; renderUsersTable(); }; el.addEventListener('input', h); el.addEventListener('change', h); } });
   }
 
   function openUserManageModal(id, d) {

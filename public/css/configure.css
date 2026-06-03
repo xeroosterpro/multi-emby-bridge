@@ -1323,3 +1323,21 @@ body.locked-billing .pin-btn{ display:none; }
 .adm-section{ margin-top:16px; background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:4px 16px; }
 .adm-section summary{ cursor:pointer; padding:12px 0; font-weight:700; font-size:.85rem; }
 .adm-section-body{ padding:0 0 14px; }
+
+/* admin: skeletons */
+@keyframes adm-shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+.skel-line { height:12px; border-radius:6px; background:linear-gradient(90deg,var(--border) 25%,var(--bg-hover) 50%,var(--border) 75%); background-size:400px 100%; animation:adm-shimmer 1.2s infinite linear; }
+.skel-line.lg { height:20px; width:60%; margin-bottom:8px; }
+.adm-card.skel { pointer-events:none; }
+.skel-row td { padding:14px; }
+/* admin: pager */
+.adm-pager { display:flex; align-items:center; gap:12px; justify-content:flex-end; margin-top:12px; }
+.adm-pager:empty { display:none; }
+/* responsive */
+@media (max-width:720px){
+  .adm-overview { grid-template-columns:1fr 1fr; }
+  .adm-bar { flex-direction:column; }
+  .adm-bar .adm-filter, .adm-bar .adm-sort, .adm-bar .adm-search { width:100%; }
+  .adm-table-wrap { overflow-x:auto; }
+  .adm-table { min-width:560px; }
+}
