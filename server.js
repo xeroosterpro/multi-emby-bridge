@@ -75,7 +75,7 @@ const authLimiter = createRateLimiter(60 * 1000, 10);     // 10 req/min for auth
 
 // ─── Request log (persisted to disk, capped at 50) ──────────────────────────
 const REQUEST_LOG_FILE = path.join(DATA_DIR, 'request-log.json');
-const MAX_LOG = 50;
+const MAX_LOG = 500;  // keep more history so per-user admin activity is meaningful
 let REQUEST_LOG = [];
 
 function loadRequestLog() {

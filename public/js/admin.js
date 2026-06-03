@@ -128,9 +128,9 @@
     if (r.status !== 200 || !r.body) { wrap.innerHTML = ''; return; }
     wrap.innerHTML = r.body.codes.map(c => `
       <div class="mrow">
-        <span><strong>${c.code}</strong> <span class="mtag">${c.type}</span> <span class="mtag">${c.uses}${c.max_uses ? '/' + c.max_uses : ''} used</span></span>
+        <span><strong>${escU(c.code)}</strong> <span class="mtag">${escU(c.type)}</span> <span class="mtag">${c.uses}${c.max_uses ? '/' + c.max_uses : ''} used</span></span>
         <span><span class="mtag" style="color:${c.active ? 'var(--success)' : 'var(--text-mute)'}">${c.active ? 'active' : 'inactive'}</span>
-          ${c.active ? `<button class="btn-soft code-off" data-code="${c.code}" style="margin-left:8px">Deactivate</button>` : ''}</span>
+          ${c.active ? `<button class="btn-soft code-off" data-code="${escU(c.code)}" style="margin-left:8px">Deactivate</button>` : ''}</span>
       </div>`).join('') || '<p class="page-sub">No codes yet.</p>';
     wrap.querySelectorAll('.code-off').forEach(btn => btn.addEventListener('click', async () => {
       await api('/api/admin/codes/' + encodeURIComponent(btn.dataset.code) + '/deactivate', { method: 'POST' });
