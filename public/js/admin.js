@@ -26,43 +26,51 @@
   function startMetrics() { if (!metricsTimer) { tickMetrics(); metricsTimer = setInterval(tickMetrics, 3000); } }
   function stopMetrics() { clearInterval(metricsTimer); metricsTimer = null; }
 
+  let _adminUsers = [];
+  const escU = x => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const fmtAgo = x => { if(!x) return 'never'; const d=Date.now()-new Date(x).getTime(); const h=Math.floor(d/3600000); if(h<1) return 'just now'; if(h<24) return h+'h ago'; return Math.floor(h/24)+'d ago'; };
+  const statusPill = s => `<span class="pay-status ${s==='active'||s==='comped'?'completed':(s==='past_due'?'refunded':'failed')}">${escU(s)}</span>`;
+
+  async function loadOverview() {
+    const wrap = $('#adm-overview'); if (!wrap) return;
+    const r = await api('/api/admin/overview');
+    if (r.status !== 200 || !r.body) { wrap.innerHTML = ''; return; }
+    const o = r.body, money = n => '$' + Number(n||0).toFixed(0);
+    wrap.innerHTML = `
+      <div class="adm-card"><div class="adm-card-n">${o.users.total}</div><div class="adm-card-l">Users · ${o.users.active} active · ${o.users.comped} comped</div></div>
+      <div class="adm-card"><div class="adm-card-n">${money(o.revenue.monthly)}</div><div class="adm-card-l">Revenue (30d) · ${money(o.revenue.lifetime)} lifetime</div></div>
+      <div class="adm-card"><div class="adm-card-n">${o.activity.requests24h}</div><div class="adm-card-l">Stream requests (24h)</div></div>
+      <div class="adm-card"><div class="adm-card-n">${o.activity.busiestServer?escU(o.activity.busiestServer.server):'—'}</div><div class="adm-card-l">Busiest server (24h)</div></div>`;
+  }
+
+  function renderUsersTable() {
+    const tbody = $('#adm-users-rows'); if (!tbody) return;
+    const term = ($('#adm-search')?.value || '').toLowerCase();
+    const filter = $('#adm-filter')?.value || 'all';
+    const sort = $('#adm-sort')?.value || 'activity';
+    let rows = _adminUsers.filter(u => (!term || u.username.toLowerCase().includes(term)) && (filter === 'all' || u.sub_status === filter));
+    const ts = x => x ? new Date(x).getTime() : 0;
+    rows.sort((a,b) =>
+      sort === 'name' ? a.username.localeCompare(b.username) :
+      sort === 'status' ? String(a.sub_status).localeCompare(String(b.sub_status)) :
+      sort === 'newest' ? ts(b.created_at) - ts(a.created_at) :
+      ts(b.last_seen_at) - ts(a.last_seen_at));
+    tbody.innerHTML = rows.map(u => `<tr data-uid="${u.id}">
+      <td><div class="adm-user"><span class="adm-avatar">${escU((u.username||'?')[0].toUpperCase())}</span><span><strong>${escU(u.username)}</strong><span class="adm-role">${escU(u.role)}</span></span></div></td>
+      <td>${statusPill(u.sub_status)}</td>
+      <td class="adm-dim">${fmtAgo(u.last_seen_at)}</td>
+      <td class="adm-dim">${u.server_count||0}</td>
+      <td><button class="btn-soft acct-manage" data-uid="${u.id}">Manage</button></td>
+    </tr>`).join('') || '<tr><td colspan="5" class="log-empty">No users match.</td></tr>';
+  }
+
   async function loadUsers() {
-    const wrap = $('#admin-users-list'); if (!wrap) return;
+    loadOverview();
     const r = await api('/api/admin/users');
-    if (r.status !== 200 || !r.body) { wrap.innerHTML = '<p class="page-sub">Unable to load users.</p>'; return; }
-    const escU = x => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    wrap.innerHTML = r.body.users.map(u => {
-      const comped = u.sub_status === 'comped' || u.sub_status === 'active';
-      return `<div class="mrow" data-uid="${u.id}">
-        <span><strong>${escU(u.username)}</strong> <span class="mtag">${escU(u.role)}</span>${comped ? ' <span class="mtag" style="color:var(--success)">● ' + escU(u.sub_status) + '</span>' : ''}</span>
-        <span style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn-soft acct-manage" data-uid="${u.id}">Manage</button>
-          <button class="btn-soft acct-role" data-uid="${u.id}" data-role="${u.role === 'admin' ? 'user' : 'admin'}">${u.role === 'admin' ? 'Demote' : 'Make admin'}</button>
-          <button class="btn-soft acct-comp" data-uid="${u.id}" data-act="${comped ? 'uncomp' : 'comp'}">${comped ? 'Remove access' : 'Comp access'}</button>
-          <button class="btn-soft acct-del" data-uid="${u.id}" data-name="${escU(u.username)}" style="border-color:var(--error,#e05555);color:var(--error,#e05555)">Delete</button>
-        </span>
-      </div>`;
-    }).join('');
-    wrap.querySelectorAll('.acct-del').forEach(btn => btn.addEventListener('click', async () => {
-      if (!confirm('Delete user "' + btn.dataset.name + '"? This cannot be undone.')) return;
-      const res = await api('/api/admin/users/' + btn.dataset.uid, { method: 'DELETE' });
-      if (res.status === 200) { if (window.toast) window.toast('User deleted'); loadUsers(); }
-      else if (window.toast) window.toast((res.body && res.body.error) || 'Failed');
-    }));
-    wrap.querySelectorAll('.acct-role').forEach(btn => btn.addEventListener('click', async () => {
-      const res = await api('/api/admin/users/' + btn.dataset.uid + '/role', { method: 'POST', body: JSON.stringify({ role: btn.dataset.role }) });
-      if (res.status === 200) { if (window.toast) window.toast('Role updated'); loadUsers(); }
-      else if (window.toast) window.toast((res.body && res.body.error) || 'Failed');
-    }));
-    wrap.querySelectorAll('.acct-comp').forEach(btn => btn.addEventListener('click', async () => {
-      const res = await api('/api/admin/users/' + btn.dataset.uid + '/' + btn.dataset.act, { method: 'POST' });
-      if (res.status === 200) { if (window.toast) window.toast(btn.dataset.act === 'comp' ? 'Access granted' : 'Access removed'); loadUsers(); }
-      else if (window.toast) window.toast((res.body && res.body.error) || 'Failed');
-    }));
-    wrap.querySelectorAll('.acct-manage').forEach(btn => btn.addEventListener('click', async () => {
-      const r = await api('/api/admin/users/' + btn.dataset.uid + '/detail');
-      if (r.status === 200 && r.body) openUserManageModal(btn.dataset.uid, r.body);
-    }));
+    if (r.status !== 200 || !r.body) { const t=$('#adm-users-rows'); if(t) t.innerHTML='<tr><td colspan="5">Unable to load users.</td></tr>'; return; }
+    _adminUsers = r.body.users || [];
+    renderUsersTable();
+    ['adm-search','adm-filter','adm-sort'].forEach(id => { const el=document.getElementById(id); if(el&&!el._w){ el._w=1; el.addEventListener('input', renderUsersTable); el.addEventListener('change', renderUsersTable); } });
   }
 
   function openUserManageModal(id, d) {
@@ -75,22 +83,25 @@
     const servers = (d.servers || []).map(s => { const t = (s.daily||[]).reduce((a,x)=>a+x.checks,0), u = (s.daily||[]).reduce((a,x)=>a+x.up_checks,0); return `<div class="mrow">${esc(s.label || s.url)}<span class="mtag">${t?Math.round(u/t*100):0}% up</span></div>`; }).join('') || '<div class="field-hint">No history.</div>';
     window.openModal(`
       <div class="modal-head"><div><div class="modal-nm">Manage user</div><div class="modal-sub">${(d.subscription&&d.subscription.status)||'none'}</div></div><div class="modal-x" data-close>✕</div></div>
-      <div class="modal-tabs"><button class="on" data-mt="sub">Subscription</button><button data-mt="pay">Payments</button><button data-mt="act">Activity</button><button data-mt="srv">Servers</button></div>
+      <div class="modal-tabs"><button class="on" data-mt="act">Activity</button><button data-mt="srv">Servers</button><button data-mt="sub">Subscription</button><button data-mt="pay">Payments</button><button data-mt="acct">Account</button></div>
       <div class="modal-body">
-        <div class="mtab on" id="mt-sub">
+        <div class="mtab on" id="mt-act"><div class="field-hint">Loading activity…</div></div>
+        <div class="mtab" id="mt-srv">${servers}</div>
+        <div class="mtab" id="mt-sub">
           <div class="field"><div class="field-label">Status</div>
-            <select id="adm-status"><option>none</option><option>active</option><option>cancelled</option><option>past_due</option><option>comped</option></select></div>
+            <select class="input" id="adm-status"><option>none</option><option>active</option><option>cancelled</option><option>past_due</option><option>comped</option></select></div>
           <div class="field"><div class="field-label">Access until (period end)</div><input class="input" id="adm-period" type="datetime-local" /></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn-generate" id="adm-save" style="flex:1">Save override</button>
             <button class="btn-soft" id="adm-resync">Re-sync from PayPal</button></div>
-          <h3 class="block-title" style="margin-top:16px">Reset password</h3>
-          <div style="display:flex;gap:8px"><input class="input" id="adm-pass" type="text" placeholder="new password (min 6)"/><button class="btn-soft" id="adm-pass-btn">Set</button></div>
           <div class="auth-err" id="adm-msg"></div>
         </div>
         <div class="mtab" id="mt-pay">${pays}</div>
-        <div class="mtab" id="mt-act">${evs}</div>
-        <div class="mtab" id="mt-srv">${servers}</div>
+        <div class="mtab" id="mt-acct">
+          <div class="mrow">Username<span class="mtag">${esc(d.username || (d.subscription && d.subscription.username) || '—')}</span></div>
+          <h3 class="block-title" style="margin-top:14px">Reset password</h3>
+          <div style="display:flex;gap:8px"><input class="input" id="adm-pass" type="text" placeholder="new password (min 6)"/><button class="btn-soft" id="adm-pass-btn">Set</button></div>
+        </div>
       </div>`);
     const sel = document.getElementById('adm-status'); if (sel && d.subscription) sel.value = d.subscription.status || 'none';
     const post = (path, body) => api('/api/admin/users/' + id + '/' + path, { method: 'POST', body: JSON.stringify(body || {}) });
@@ -98,6 +109,17 @@
     document.getElementById('adm-save').onclick = async () => { const pe = document.getElementById('adm-period').value; const r = await post('subscription', { status: sel.value, periodEnd: pe ? new Date(pe).toISOString() : null }); msg(r.status === 200 ? 'Saved' : ((r.body && r.body.error) || 'failed')); if (r.status === 200 && window.toast) window.toast('Subscription updated'); };
     document.getElementById('adm-resync').onclick = async () => { const r = await post('resync'); msg(r.status === 200 ? ('Re-synced: ' + r.body.status) : ((r.body && r.body.error) || 'failed')); };
     document.getElementById('adm-pass-btn').onclick = async () => { const r = await post('password', { password: document.getElementById('adm-pass').value }); msg(r.status === 200 ? 'Password set' : ((r.body && r.body.error) || 'failed')); };
+    (async () => {
+      const r = await api('/api/admin/users/' + id + '/activity');
+      const el = document.getElementById('mt-act'); if (!el) return;
+      if (r.status !== 200 || !r.body) { el.innerHTML = '<div class="field-hint">Activity unavailable.</div>'; return; }
+      const a = r.body, esc2 = esc;
+      const live = (a.live || []).map(s => `<div class="mrow"><span>▶ ${esc2(s.title)} <span class="adm-dim">on ${esc2(s.server)}</span></span><span class="mtag">${esc2(s.user||'')}</span></div>`).join('');
+      const recent = (a.recent || []).map(e => `<div class="mrow"><span>${esc2(e.title||'—')}${e.season?` S${e.season}E${e.episode||''}`:''} <span class="adm-dim">· ${esc2(e.server||'—')}</span></span><span class="mtag">${date(e.ts)}</span></div>`).join('') || '<div class="field-hint">No recent activity.</div>';
+      el.innerHTML = `<div class="mrow">Totals<span class="mtag">${a.totals.requests24h} (24h) · ${a.totals.requests7d} (7d)</span></div>
+        ${live ? `<h3 class="block-title" style="margin-top:12px;color:var(--accent)">● Now playing</h3>${live}` : ''}
+        <h3 class="block-title" style="margin-top:12px">Recent watches</h3>${recent}`;
+    })();
   }
 
   async function loadCodes() {

@@ -1301,3 +1301,25 @@ body.locked-billing .pin-btn{ display:none; }
 .top-server .ts-trophy{ font-size:1.4rem; }
 .top-server .ts-name{ color:var(--accent); font-weight:800; }
 .top-server .ts-stat{ color:var(--text-dim); margin-left:8px; font-size:.85rem; }
+
+.adm-overview{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:13px; margin-bottom:18px; }
+.adm-card{ background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:16px 18px; }
+.adm-card-n{ font-size:1.4rem; font-weight:800; background:linear-gradient(135deg,var(--accent),var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.adm-card-l{ font-size:.66rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.05em; margin-top:4px; }
+.adm-bar{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.adm-bar .adm-search{ flex:1; min-width:180px; }
+.adm-bar .adm-filter, .adm-bar .adm-sort{ width:auto; min-width:150px; }
+.adm-table-wrap{ background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; }
+.adm-table{ width:100%; border-collapse:collapse; font-size:.84rem; }
+.adm-table th{ text-align:left; padding:11px 14px; font-size:.64rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-mute); border-bottom:1px solid var(--border); }
+.adm-table td{ padding:11px 14px; border-bottom:1px solid var(--border); }
+.adm-table tr:last-child td{ border-bottom:0; }
+.adm-table tbody tr{ transition:background .15s var(--ease); }
+.adm-table tbody tr:hover{ background:var(--bg-hover); }
+.adm-user{ display:flex; align-items:center; gap:10px; }
+.adm-avatar{ width:30px; height:30px; border-radius:50%; flex:none; display:grid; place-items:center; font-weight:800; font-size:.8rem; color:#0a0a12; background:linear-gradient(135deg,var(--accent),var(--accent-2)); }
+.adm-role{ display:block; font-size:.66rem; color:var(--text-mute); text-transform:uppercase; letter-spacing:.04em; }
+.adm-dim{ color:var(--text-dim); }
+.adm-section{ margin-top:16px; background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:4px 16px; }
+.adm-section summary{ cursor:pointer; padding:12px 0; font-weight:700; font-size:.85rem; }
+.adm-section-body{ padding:0 0 14px; }
