@@ -1876,7 +1876,8 @@ Continue anyway?`;
     if (rpdbKey) config.rpdbKey = rpdbKey;
     if (traktClientId) config.traktClientId = traktClientId;
     if (tmdbApiKey) config.tmdbApiKey = tmdbApiKey;
-    if (externalCatalogs.length) { config.externalCatalogs = externalCatalogs; if (mdblistApiKey) config.mdblistApiKey = mdblistApiKey; }
+    if (mdblistApiKey) config.mdblistApiKey = mdblistApiKey;   // save unconditionally (was gated behind externalCatalogs)
+    if (externalCatalogs.length) config.externalCatalogs = externalCatalogs;
     var _clVal = document.getElementById("catalog-lang") ? document.getElementById("catalog-lang").value : "";
     if (_clVal) config.catalogLang = _clVal;
     const _ndVal2 = document.getElementById("no-dupes")?.checked;
