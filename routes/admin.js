@@ -10,10 +10,12 @@ const paypal = require('../lib/paypal');
 const { makeUserConfig } = require('../lib/userConfig');
 const { makeLiveSessions } = require('../lib/sessions');
 const { summarizeRequestLog, userActivity } = require('../lib/adminStats');
+const { makeRequestLog } = require('../lib/requestLog');
 
 function makeAdminRouter(opts = {}) {
   const getRequestLog = typeof opts.getRequestLog === 'function' ? opts.getRequestLog : () => [];
   const userConfig = makeUserConfig(db);
+  const requestLog = makeRequestLog(db);
   const liveSessions = makeLiveSessions();
   const users = makeUsers(db);
   const payments = makePayments(db);
@@ -175,7 +177,8 @@ function makeAdminRouter(opts = {}) {
         `SELECT p.amount, p.currency, p.status, p.paid_at, us.username
            FROM payments p LEFT JOIN users us ON us.id=p.user_id
           ORDER BY p.paid_at DESC LIMIT 10`);
-      const activity = summarizeRequestLog(getRequestLog());
+      const logRows = (await requestLog.recent(1000)).map(r => ({ ...r, contentName: r.title, bestServer: r.server }));
+      const activity = summarizeRequestLog(logRows);
       res.json({
         users: u.rows[0],
         revenue: { monthly: Number(rev.rows[0].monthly), lifetime: Number(rev.rows[0].lifetime), currency: 'USD' },
@@ -187,7 +190,8 @@ function makeAdminRouter(opts = {}) {
 
   r.get('/users/:id/activity', requireAdmin, async (req, res) => {
     try {
-      const act = userActivity(getRequestLog(), req.params.id);
+      const rows = (await requestLog.forUser(req.params.id, 200)).map(r => ({ ...r, contentName: r.title, bestServer: r.server }));
+      const act = userActivity(rows, req.params.id);
       let live = [];
       try {
         const cfg = await userConfig.getForServe(req.params.id);

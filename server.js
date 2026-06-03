@@ -98,6 +98,13 @@ function addLogEntry(entry) {
   REQUEST_LOG.unshift(entry);
   if (REQUEST_LOG.length > MAX_LOG) REQUEST_LOG.pop();
   saveRequestLog();
+  if (dbLib.isConfigured()) {
+    _requestLogDb.record({
+      userId: entry.userId || null, ts: entry.ts, type: entry.type, imdbId: entry.imdbId,
+      contentName: entry.contentName, bestServer: entry.bestServer,
+      season: entry.season, episode: entry.episode, ms: entry.ms, found: entry.found,
+    }).catch(() => {});
+  }
 }
 
 loadRequestLog();
@@ -127,6 +134,7 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+const { makeRequestLog } = require('./lib/requestLog');
 // ─── Accounts / auth (no-ops gracefully without DATABASE_URL) ───────────────
 const { makeAuthRouter, attachUser } = require('./routes/auth');
 app.use(attachUser());
@@ -134,6 +142,7 @@ app.use('/api/auth', makeAuthRouter());
 
 // ─── Authenticated user config / encrypted keys / manifest token ─────────────
 const dbLib = require('./lib/db');
+const _requestLogDb = makeRequestLog(dbLib);
 const { makeUserConfig } = require('./lib/userConfig');
 const { makeManifestStore } = require('./lib/manifestStore');
 const { hasActiveAccess } = require('./lib/manifest');
@@ -258,7 +267,14 @@ app.post('/api/health/ping-now', apiLimiter, async (req, res) => {
 });
 
 // ─── Request log routes ───────────────────────────────────────────────────────
-app.get('/api/request-log', (req, res) => {
+app.get('/api/request-log', async (req, res) => {
+  if (dbLib.isConfigured()) {
+    try {
+      const rows = await _requestLogDb.recent(50);
+      // shape back to what the Request-log page expects (it reads contentName/bestServer/ts/ms/found)
+      return res.json(rows.map(r => ({ ts: r.ts, type: r.type, contentName: r.title, bestServer: r.server, season: r.season, episode: r.episode, ms: r.ms, found: r.found })));
+    } catch (e) { /* fall through to in-memory */ }
+  }
   res.json(REQUEST_LOG);
 });
 app.post('/api/clear-request-log', apiLimiter, (req, res) => {
