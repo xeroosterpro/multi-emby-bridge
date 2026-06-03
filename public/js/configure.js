@@ -1177,6 +1177,14 @@ async function renderDashActivity() {
     <h3 class="block-title" style="margin-top:16px">Recent activity</h3><div class="da-list">${recent || '<div class="da-empty">Nothing yet.</div>'}</div>`;
 }
 
+// Real-time: refresh the dashboard now-playing/activity widget every 45s while the
+// dashboard is the active page (lightweight — only re-fetches /api/user/activity,
+// not the per-server library pings).
+setInterval(() => {
+  const dash = document.getElementById('page-dashboard');
+  if (dash && dash.classList.contains('on')) renderDashActivity();
+}, 45000);
+
 const EMBY_LOGO = '<img class="brandimg" src="/img/emby.png" alt="Emby" decoding="async">';
 const JELLYFIN_LOGO = '<img class="brandimg" src="/img/jellyfin.png" alt="Jellyfin" decoding="async">';
 
