@@ -736,30 +736,55 @@
       </section>
 
       <section class="page" id="page-users">
-        <h2 class="page-title">Admin · Users</h2>
-        <p class="page-sub">All accounts — roles &amp; comp access.</p>
-        <div class="card" style="margin-bottom:14px"><div class="label">Add user</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <h2 class="page-title">Admin · Console</h2>
+        <p class="page-sub">Users, activity, servers &amp; billing.</p>
+
+        <div class="adm-overview" id="adm-overview"></div>
+
+        <div class="adm-bar">
+          <input class="input adm-search" id="adm-search" placeholder="Search users…" autocomplete="off" />
+          <select class="input adm-filter" id="adm-filter">
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="comped">Comped</option>
+            <option value="none">No subscription</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="past_due">Past due</option>
+          </select>
+          <select class="input adm-sort" id="adm-sort">
+            <option value="activity">Sort: recent activity</option>
+            <option value="name">Sort: name</option>
+            <option value="status">Sort: status</option>
+            <option value="newest">Sort: newest</option>
+          </select>
+        </div>
+
+        <div class="adm-table-wrap"><table class="adm-table">
+          <thead><tr><th>User</th><th>Status</th><th>Last active</th><th>Servers</th><th></th></tr></thead>
+          <tbody id="adm-users-rows"></tbody>
+        </table></div>
+
+        <details class="adm-section"><summary>Add user</summary>
+          <div class="adm-section-body" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
             <div style="flex:1;min-width:140px"><div class="field-label">Username</div><input class="input" id="nu-name" placeholder="username" autocomplete="off"/></div>
             <div style="flex:1;min-width:140px"><div class="field-label">Password</div><input class="input" id="nu-pass" type="password" placeholder="temp password" autocomplete="new-password"/></div>
-            <div><div class="field-label">Role</div><select id="nu-role"><option value="user">User</option><option value="admin">Admin</option></select></div>
+            <div><div class="field-label">Role</div><select class="input" id="nu-role"><option value="user">User</option><option value="admin">Admin</option></select></div>
             <button class="btn-soft" id="nu-create" type="button">Add</button>
+            <div class="auth-err" id="nu-msg"></div>
           </div>
-          <div class="auth-err" id="nu-msg"></div>
-        </div>
-        <div id="admin-users-list"></div>
-        <h3 class="block-title" style="margin-top:22px">Discount codes</h3>
-        <div class="card" style="margin-bottom:12px">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-            <div style="flex:1;min-width:160px"><div class="field-label">Code</div><input class="input" id="dc-code" placeholder="e.g. FAMILY100" autocomplete="off"/></div>
-            <div><div class="field-label">Type</div>
-              <select id="dc-type"><option value="comp_100">100% off (comp)</option><option value="percent_50">50% off</option><option value="first_month_free">First month free</option></select>
+        </details>
+
+        <details class="adm-section"><summary>Discount codes</summary>
+          <div class="adm-section-body">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+              <div style="flex:1;min-width:160px"><div class="field-label">Code</div><input class="input" id="dc-code" placeholder="e.g. FAMILY100" autocomplete="off"/></div>
+              <div><div class="field-label">Type</div>
+                <select class="input" id="dc-type"><option value="comp_100">100% off (comp)</option><option value="percent_50">50% off</option><option value="first_month_free">First month free</option></select></div>
+              <button class="btn-soft" id="dc-create" type="button">Create</button>
             </div>
-            <button class="btn-soft" id="dc-create" type="button">Create</button>
+            <div id="admin-codes-list"></div>
           </div>
-          <div class="auth-err" id="dc-msg"></div>
-        </div>
-        <div id="admin-codes-list"></div>
+        </details>
       </section>
     </main>
   </div>
