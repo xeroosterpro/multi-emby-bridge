@@ -1748,12 +1748,13 @@ function onShowPingChange() {
 }
 
 // ── Generate links ────────────────────────────────────────────────────────
-function generateLinks() {
+function generateLinks(opts = {}) {
+  const silent = opts.silent === true;   // silent: rebuild config + meb-last-config for account auto-sync, no prompts/render/scroll
   hideError();
-  const config = collectConfig();
+  const config = collectConfig(silent);
   if (!config) return;
   const noAuto = config.servers.filter(s => s.apiKey && !(s.username && s.password));
-  if (noAuto.length) {
+  if (noAuto.length && !silent) {
     const names = noAuto.map(s => s.label).join(', ');
     const verb = noAuto.length > 1 ? ' have' : ' has';
     const msg = `Heads up: ${names}${verb} an API key but no saved login.
@@ -1766,7 +1767,7 @@ Continue anyway?`;
     if (!confirm(msg)) return;
   }
 
-  const mode = document.querySelector('input[name="perf-mode"]:checked').value;
+  const mode = silent ? 'normal' : document.querySelector('input[name="perf-mode"]:checked').value;
   const sortOrder = document.getElementById('sort-order').value;
   const excludeRes = [...document.querySelectorAll('.res-cb:checked')].map(cb => cb.value);
   const recommend = document.getElementById('show-recommend').checked;
@@ -1794,10 +1795,12 @@ Continue anyway?`;
   const { protocol, host } = window.location;
   const section = document.getElementById('result-section');
 
-  const s3 = document.getElementById('step-3');
-  if (s3) { s3.className = 'step active'; }
-  const s2 = document.getElementById('step-2');
-  if (s2) s2.className = 'step done';
+  if (!silent) {
+    const s3 = document.getElementById('step-3');
+    if (s3) { s3.className = 'step active'; }
+    const s2 = document.getElementById('step-2');
+    if (s2) s2.className = 'step done';
+  }
 
   if (mode === 'split') {
     const rows = config.servers.map(server => {
@@ -1888,18 +1891,21 @@ Continue anyway?`;
     }
 
     const encoded = encodeConfig(config);
-    const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
-    const deepLink = `stremio://${host}/${encoded}/manifest.json`;
-
-    section.innerHTML = `
-      <h2>Ready to install${mode === 'timeout' ? ' — Fast Timeout' : ''}</h2>
-      <div class="url-row"><input type="text" readonly value="${escHtml(manifestUrl)}" /><button class="btn-copy" data-url="${escHtml(manifestUrl)}" onclick="copySpecific(this)">Copy</button></div>
-      <a class="btn-install" href="${escHtml(deepLink)}">Install in Stremio</a>
-      <p class="install-note">Opens Stremio and installs the addon automatically.<br/>Or copy the URL and paste it into Stremio → Add Addon.</p>`;
+    if (!silent) {
+      const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
+      const deepLink = `stremio://${host}/${encoded}/manifest.json`;
+      section.innerHTML = `
+        <h2>Ready to install${mode === 'timeout' ? ' — Fast Timeout' : ''}</h2>
+        <div class="url-row"><input type="text" readonly value="${escHtml(manifestUrl)}" /><button class="btn-copy" data-url="${escHtml(manifestUrl)}" onclick="copySpecific(this)">Copy</button></div>
+        <a class="btn-install" href="${escHtml(deepLink)}">Install in Stremio</a>
+        <p class="install-note">Opens Stremio and installs the addon automatically.<br/>Or copy the URL and paste it into Stremio → Add Addon.</p>`;
+    }
   }
 
-  section.style.display = 'block';
-  section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (!silent) {
+    section.style.display = 'block';
+    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 
   try {
     if (mode !== 'split') {

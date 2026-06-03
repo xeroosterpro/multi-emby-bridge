@@ -34,6 +34,20 @@
     } else {
       const cur = await api('/api/user/manifest');
       if (cur.body) showUrl(cur.body.url);
+      // Auto-sync config → account on any change (debounced, silent) so the saved
+      // account config (which drives the manifest + admin views) never drifts stale.
+      let syncT;
+      const syncToAccount = async () => {
+        try {
+          if (typeof window.generateLinks === 'function') window.generateLinks({ silent: true });
+          const enc = localStorage.getItem('meb-last-config');
+          if (!enc) return;
+          await api('/api/user/config', { method: 'POST', body: JSON.stringify(b64urlToObj(enc)) });
+        } catch { /* best-effort */ }
+      };
+      const scheduleSync = () => { clearTimeout(syncT); syncT = setTimeout(syncToAccount, 1500); };
+      document.addEventListener('input', scheduleSync, true);
+      document.addEventListener('change', scheduleSync, true);
     }
 
     async function saveSetup() {
