@@ -1341,3 +1341,12 @@ body.locked-billing .pin-btn{ display:none; }
   .adm-table-wrap { overflow-x:auto; }
   .adm-table { min-width:560px; }
 }
+
+.dash-activity { margin-top:24px; }
+.da-list { background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; }
+.da-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 15px; border-bottom:1px solid var(--border); font-size:.85rem; }
+.da-row:last-child { border-bottom:0; }
+.da-dim { color:var(--text-dim); font-size:.8rem; }
+.da-live { color:var(--accent); }
+.da-dot { width:8px; height:8px; border-radius:50%; background:#34d399; box-shadow:0 0 6px #34d399; flex:none; animation:status-blink 1.4s ease-in-out infinite !important; }
+.da-empty { background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:18px; color:var(--text-dim); font-size:.85rem; text-align:center; }
