@@ -130,11 +130,17 @@
       <div class="mrow">
         <span><strong>${escU(c.code)}</strong> <span class="mtag">${escU(c.type)}</span> <span class="mtag">${c.uses}${c.max_uses ? '/' + c.max_uses : ''} used</span></span>
         <span><span class="mtag" style="color:${c.active ? 'var(--success)' : 'var(--text-mute)'}">${c.active ? 'active' : 'inactive'}</span>
-          ${c.active ? `<button class="btn-soft code-off" data-code="${escU(c.code)}" style="margin-left:8px">Deactivate</button>` : ''}</span>
+          ${c.active ? `<button class="btn-soft code-off" data-code="${escU(c.code)}" style="margin-left:8px">Deactivate</button>` : ''}
+          <button class="btn-soft code-del" data-code="${escU(c.code)}" style="margin-left:8px;border-color:var(--error,#e05555);color:var(--error,#e05555)">Delete</button></span>
       </div>`).join('') || '<p class="page-sub">No codes yet.</p>';
     wrap.querySelectorAll('.code-off').forEach(btn => btn.addEventListener('click', async () => {
       await api('/api/admin/codes/' + encodeURIComponent(btn.dataset.code) + '/deactivate', { method: 'POST' });
       if (window.toast) window.toast('Code deactivated'); loadCodes();
+    }));
+    wrap.querySelectorAll('.code-del').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm('Delete code "' + btn.dataset.code + '"? This cannot be undone.')) return;
+      await api('/api/admin/codes/' + encodeURIComponent(btn.dataset.code), { method: 'DELETE' });
+      if (window.toast) window.toast('Code deleted'); loadCodes();
     }));
   }
 

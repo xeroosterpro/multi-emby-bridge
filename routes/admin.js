@@ -90,6 +90,10 @@ function makeAdminRouter(opts = {}) {
     try { await billing.deactivateCode(req.params.code); res.json({ ok: true }); }
     catch (e) { res.status(500).json({ error: 'deactivate failed' }); }
   });
+  r.delete('/codes/:code', requireAdmin, async (req, res) => {
+    try { const ok = await billing.deleteCode(req.params.code); res.json({ ok }); }
+    catch (e) { res.status(500).json({ error: 'delete failed' }); }
+  });
 
   // ── comp / uncomp a user (grant access without payment) ──
   r.post('/users/:id/comp', requireAdmin, async (req, res) => {
