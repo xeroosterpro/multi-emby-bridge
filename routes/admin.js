@@ -201,6 +201,19 @@ function makeAdminRouter(opts = {}) {
     } catch (e) { console.error('[admin/activity]', e.message); res.status(500).json({ error: 'activity failed' }); }
   });
 
+  r.get('/audit', requireAdmin, async (req, res) => {
+    try {
+      const q = await db.query(
+        `SELECT be.created_at, be.type, be.detail, be.user_id,
+                tu.username AS target, au.username AS actor
+           FROM billing_events be
+           LEFT JOIN users tu ON tu.id = be.user_id
+           LEFT JOIN users au ON au.id = be.actor_id
+          ORDER BY be.created_at DESC LIMIT 100`);
+      res.json({ events: q.rows });
+    } catch (e) { console.error('[admin/audit]', e.message); res.status(500).json({ error: 'audit failed' }); }
+  });
+
   return r;
 }
 

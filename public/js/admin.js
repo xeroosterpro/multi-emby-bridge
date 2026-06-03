@@ -144,6 +144,19 @@
     }));
   }
 
+  async function loadAudit() {
+    const wrap = $('#admin-audit-list'); if (!wrap) return;
+    const r = await api('/api/admin/audit');
+    if (r.status !== 200 || !r.body) { wrap.innerHTML = '<p class="page-sub">Unable to load activity.</p>'; return; }
+    const date = x => x ? new Date(x).toLocaleString() : '—';
+    const label = { activated:'Subscription activated', cancelled:'Cancelled', comped:'Comped', code_redeemed:'Code redeemed', payment:'Payment', admin_override:'Admin override', resync:'PayPal re-sync', admin_password_reset:'Password reset' };
+    wrap.innerHTML = (r.body.events || []).map(e => {
+      const who = e.actor ? escU(e.actor) : 'system';
+      const tgt = e.target ? escU(e.target) : '—';
+      return `<div class="mrow"><span><strong>${escU(label[e.type] || e.type)}</strong> <span class="adm-dim">· ${tgt}</span></span><span class="mtag">${who} · ${date(e.created_at)}</span></div>`;
+    }).join('') || '<p class="page-sub">No activity yet.</p>';
+  }
+
   function wireCodeCreate() {
     const btn = $('#dc-create'); if (!btn || btn._w) return; btn._w = 1;
     btn.addEventListener('click', async () => {
@@ -169,7 +182,7 @@
   function onRoute() {
     const page = (location.hash || '').replace(/^#\//, '');
     if (page === 'admin') startMetrics(); else stopMetrics();
-    if (page === 'users') { loadUsers(); loadCodes(); wireCodeCreate(); wireAddUser(); }
+    if (page === 'users') { loadUsers(); loadCodes(); loadAudit(); wireCodeCreate(); wireAddUser(); }
   }
 
   document.addEventListener('DOMContentLoaded', async () => {
