@@ -101,7 +101,7 @@ function addLogEntry(entry) {
   if (dbLib.isConfigured()) {
     _requestLogDb.record({
       userId: entry.userId || null, ts: entry.ts, type: entry.type, imdbId: entry.imdbId,
-      contentName: entry.contentName, bestServer: entry.bestServer,
+      contentName: entry.contentName, bestServer: entry.bestServer, serverStatus: entry.serverStatus,
       season: entry.season, episode: entry.episode, ms: entry.ms, found: entry.found,
     }).catch(() => {});
   }
@@ -271,8 +271,9 @@ app.get('/api/request-log', async (req, res) => {
   if (dbLib.isConfigured()) {
     try {
       const rows = await _requestLogDb.recent(50);
-      // shape back to what the Request-log page expects (it reads contentName/bestServer/ts/ms/found)
-      return res.json(rows.map(r => ({ ts: r.ts, type: r.type, contentName: r.title, bestServer: r.server, season: r.season, episode: r.episode, ms: r.ms, found: r.found })));
+      // shape back to what the Request-log page expects: it renders bestServer as a
+      // rich object ({label,size,bitrate}) and serverStatus as a per-server array.
+      return res.json(rows.map(r => ({ ts: r.ts, type: r.type, contentName: r.title, bestServer: r.bestFile, serverStatus: r.serverStatus, season: r.season, episode: r.episode, ms: r.ms, found: r.found })));
     } catch (e) { /* fall through to in-memory */ }
   }
   res.json(REQUEST_LOG);

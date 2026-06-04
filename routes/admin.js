@@ -222,6 +222,31 @@ function makeAdminRouter(opts = {}) {
     } catch (e) { console.error('[admin/audit]', e.message); res.status(500).json({ error: 'audit failed' }); }
   });
 
+  // ── DIAGNOSTIC (temporary): reveal request_log attribution so we can see why a
+  // user's streams may not appear in their per-account "Recent activity". Read-only.
+  r.get('/diag/requestlog', requireAdmin, async (req, res) => {
+    try {
+      const tot = await db.query(`SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE user_id IS NULL)::int AS null_user FROM request_log`);
+      const byUser = await db.query(
+        `SELECT COALESCE(u.username,'(no user_id)') AS who, COUNT(*)::int AS n
+           FROM request_log rl LEFT JOIN users u ON u.id = rl.user_id
+          GROUP BY 1 ORDER BY n DESC LIMIT 10`);
+      const recent = await db.query(
+        `SELECT rl.ts, rl.content_name, rl.user_id, u.username,
+                (rl.best_file IS NOT NULL) AS has_best_file,
+                (rl.server_status IS NOT NULL) AS has_server_status
+           FROM request_log rl LEFT JOIN users u ON u.id = rl.user_id
+          ORDER BY rl.ts DESC LIMIT 10`);
+      res.json({
+        total: tot.rows[0].n,
+        nullUserId: tot.rows[0].null_user,
+        you: { id: req.user.id, username: req.user.username },
+        byUser: byUser.rows,
+        recent: recent.rows,
+      });
+    } catch (e) { console.error('[admin/diag/requestlog]', e.message); res.status(500).json({ error: 'diag failed' }); }
+  });
+
   return r;
 }
 
