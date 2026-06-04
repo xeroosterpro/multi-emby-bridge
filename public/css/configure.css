@@ -1362,3 +1362,13 @@ body.locked-billing .pin-btn{ display:none; }
 .cmdk-hint { font-size:.7rem; color:var(--text-mute); text-transform:uppercase; letter-spacing:.05em; }
 .cmdk-empty { padding:18px; text-align:center; color:var(--text-dim); font-size:.85rem; }
 .cmdk-foot { display:flex; gap:16px; justify-content:center; padding:9px; border-top:1px solid var(--border); font-size:.66rem; color:var(--text-mute); }
+
+.onboard { background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 14%,var(--bg-surface)),var(--bg-surface)); border:1px solid color-mix(in srgb,var(--accent) 30%,var(--border)); border-radius:var(--r-lg); padding:16px 18px; margin-bottom:20px; }
+.ob-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.ob-dismiss { background:none; border:0; color:var(--text-mute); cursor:pointer; font-size:.78rem; }
+.ob-steps { display:flex; flex-direction:column; gap:8px; }
+.ob-step { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:9px; background:var(--bg-base); cursor:pointer; font-size:.86rem; transition:background .15s var(--ease); }
+.ob-step:hover { background:var(--bg-hover); }
+.ob-step.done { opacity:.6; }
+.ob-check { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--border); display:grid; place-items:center; font-size:.7rem; color:#0a0a12; flex:none; }
+.ob-step.done .ob-check { background:var(--accent); border-color:var(--accent); }

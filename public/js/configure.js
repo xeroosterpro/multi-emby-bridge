@@ -1154,10 +1154,30 @@ function renderServersPage() {
   document.querySelectorAll('#servers-container .server-card').forEach(refreshServerCard);
 }
 
+function renderOnboarding() {
+  const el = document.getElementById('onboard'); if (!el) return;
+  if (localStorage.getItem('meb-onboard-done')) { el.style.display = 'none'; return; }
+  let cfg = {}; try { cfg = (typeof collectConfig === 'function' && collectConfig(true)) || {}; } catch {}
+  const hasServer = !!(cfg.servers && cfg.servers.length);
+  const hasKeys = !!(cfg.traktClientId || cfg.tmdbApiKey || cfg.mdblistApiKey);
+  const hasInstall = !!localStorage.getItem('meb-last-config');
+  if (hasServer && hasInstall) { el.style.display = 'none'; localStorage.setItem('meb-onboard-done', '1'); return; }
+  const step = (done, label, page) => `<div class="ob-step${done ? ' done' : ''}" data-goto="${page}"><span class="ob-check">${done ? '✓' : ''}</span><span>${label}</span></div>`;
+  el.style.display = 'block';
+  el.innerHTML = `<div class="ob-head"><strong>Get started</strong><button class="ob-dismiss" id="ob-dismiss">Dismiss</button></div>
+    <div class="ob-steps">
+      ${step(hasServer, 'Add your first server', 'servers')}
+      ${step(hasKeys, 'Add catalog API keys (optional)', 'install')}
+      ${step(hasInstall, 'Install to Stremio', 'install')}
+    </div>`;
+  el.querySelector('#ob-dismiss').onclick = () => { localStorage.setItem('meb-onboard-done', '1'); el.style.display = 'none'; };
+  el.querySelectorAll('.ob-step').forEach(s => s.addEventListener('click', e => { if (e.target.id !== 'ob-dismiss') location.hash = '#/' + s.dataset.goto; }));
+}
+
 // ── Page-show hook (router calls this when a page is shown) ────────────────
 window.onPageShow = function(name) {
   if (name === 'servers') renderServersPage();
-  if (name === 'dashboard') { renderDashboard(); renderDashActivity(); }
+  if (name === 'dashboard') { renderDashboard(); renderDashActivity(); renderOnboarding(); }
   if (name === 'health' && window.startHealth) window.startHealth();
   if (name === 'log' && typeof refreshLog === 'function') refreshLog();
   if (name === 'catalogs' && typeof refreshKeyPills === 'function') refreshKeyPills();

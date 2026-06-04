@@ -90,5 +90,23 @@
       const res = document.getElementById('result-section');
       if (res) res.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+
+    // QR code toggle for mobile install
+    const linkWrap = document.getElementById('acct-link-wrap');
+    if (linkWrap && loggedIn) {
+      const qrBtn = document.createElement('button');
+      qrBtn.className = 'btn-soft'; qrBtn.type = 'button'; qrBtn.textContent = 'Show QR';
+      qrBtn.style.marginTop = '10px';
+      const qrBox = document.createElement('div'); qrBox.id = 'acct-qr'; qrBox.style.marginTop = '10px';
+      linkWrap.appendChild(qrBtn); linkWrap.appendChild(qrBox);
+      qrBtn.addEventListener('click', async () => {
+        if (qrBox.dataset.shown) { qrBox.innerHTML = ''; delete qrBox.dataset.shown; qrBtn.textContent = 'Show QR'; return; }
+        const r = await api('/api/user/manifest-qr');
+        if (r.status === 200 && r.body && r.body.dataUrl) {
+          qrBox.innerHTML = `<img src="${r.body.dataUrl}" alt="Install QR" style="width:200px;height:200px;border-radius:10px;background:#fff;padding:6px"/><div class="field-hint" style="margin-top:6px">Scan in your phone's camera to install on a mobile device.</div>`;
+          qrBox.dataset.shown = '1'; qrBtn.textContent = 'Hide QR';
+        } else { qrBox.innerHTML = '<div class="field-hint">Save your keys first to generate a link.</div>'; }
+      });
+    }
   });
 })();

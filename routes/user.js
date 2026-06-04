@@ -1,5 +1,6 @@
 // ─── Authenticated user routes: stored config, encrypted keys, manifest token ──
 const express = require('express');
+const QRCode = require('qrcode');
 const db = require('../lib/db');
 const { makeUserConfig } = require('../lib/userConfig');
 const { makeManifestStore } = require('../lib/manifestStore');
@@ -64,6 +65,16 @@ function makeUserRouter() {
       } catch (e) { /* best-effort */ }
       res.json({ recent, live });
     } catch (e) { console.error('[user/activity]', e.message); res.status(500).json({ error: 'activity failed' }); }
+  });
+
+  r.get('/manifest-qr', requireAuth, async (req, res) => {
+    try {
+      const token = await store.current(req.user.id);
+      if (!token) return res.status(404).json({ error: 'no manifest yet' });
+      const url = manifestUrl(req, token);
+      const dataUrl = await QRCode.toDataURL(url, { width: 240, margin: 1, color: { dark: '#0a0a12', light: '#ffffff' } });
+      res.json({ dataUrl, url });
+    } catch (e) { console.error('[user/manifest-qr]', e.message); res.status(500).json({ error: 'qr failed' }); }
   });
 
   return r;
