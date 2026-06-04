@@ -1357,6 +1357,17 @@ body.locked-billing .pin-btn{ display:none; }
   .adm-table { min-width:560px; }
 }
 
+/* ── Accessibility: shared focus-visible ring ───────────────────────────── */
+.nav-item:focus-visible, button:focus-visible, .swatch:focus-visible,
+.range-tab:focus-visible, a.btn:focus-visible, .input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Hover lift: btn-soft and card (tile already has its own lift) ────────── */
+.btn-soft:hover, .card:hover { transform: translateY(-1px); }
+.btn-soft:active, .card:active { transform: translateY(0); }
+
 .dash-activity { margin-top:24px; }
 .da-list { background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; }
 .da-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 15px; border-bottom:1px solid var(--border); font-size:.85rem; }
