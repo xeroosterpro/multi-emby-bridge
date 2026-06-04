@@ -54,6 +54,20 @@
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', revealActive);
       else revealActive();
       window.addEventListener('hashchange', revealActive);
+      // re-scan after late/async content renders so dynamically-filled blocks get observed
+      window.addEventListener('load', function () { setTimeout(observeAll, 0); });
+
+      // SAFETY NET: a [data-reveal] block that is at/above the fold but somehow never
+      // got observed (late render, clipping quirk) is force-revealed after a beat so
+      // content can never be left stuck hidden. Truly below-fold blocks still wait for
+      // scroll. Runs a few times to cover async content.
+      function rescueVisible() {
+        document.querySelectorAll('[data-reveal]:not(.revealed)').forEach(function (el) {
+          if (el.getBoundingClientRect().top < window.innerHeight) el.classList.add('revealed');
+        });
+      }
+      setTimeout(rescueVisible, 1200);
+      setTimeout(rescueVisible, 3000);
 
       var ticking = false;
       function onScroll() {
