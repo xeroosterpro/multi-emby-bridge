@@ -17,6 +17,9 @@
   --grad-rgb: linear-gradient(90deg, #fb923c, #f472b6, #818cf8, #34d399, #fb923c);
   --r-sm: 11px; --r-md: 14px; --r-lg: 17px;
   --side-w: 232px;
+  --accent-2: #c4b5ff;
+  --glow: var(--accent-glow);
+  --side-collapsed: 66px;
 }
 
 /* ============ Motion system (single source of truth) ============ */
@@ -30,10 +33,6 @@
   --t-colors: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
   --t-transform: transform var(--dur-base) var(--ease);
   --t-pop: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease);
-  /* Phase 1 re-skin tokens (consolidated here) */
-  --accent-2: #c4b5ff;
-  --glow: var(--accent-glow);
-  --side-collapsed: 66px;
 }
 
 * { box-sizing: border-box; }
