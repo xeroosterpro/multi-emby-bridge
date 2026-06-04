@@ -36,19 +36,24 @@
 
       function staggerPage(page) {
         if (!page) return;
+        // Re-trigger the entrance animation on every visit: drop the class, force a
+        // reflow, re-add — so switching tabs replays the stagger, not just first load.
+        page.classList.remove('reveal-seq');
+        void page.offsetWidth;
         page.classList.add('reveal-seq');
         var kids = page.children;
         for (var k = 0; k < kids.length && k < 12; k++) kids[k].style.setProperty('--i', k);
         observeAll();
       }
 
-      // Run init now if the DOM is already parsed, else wait for it. (This script
-      // is synchronous and near </body>, but readyState-guarding removes any risk
-      // of leaving [data-reveal] elements stuck hidden if load timing changes.)
-      function init() { observeAll(); staggerPage(document.querySelector('.page.on')); }
-      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-      else init();
-      window.addEventListener('hashchange', function () { staggerPage(document.querySelector('.page.on')); });
+      // Reveal the currently-active page. Deferred via rAF so it runs AFTER the
+      // shell router (shell.js, also on hashchange) has toggled `.page.on` for this
+      // route — otherwise we'd stagger the previous page. readyState-guarded so
+      // [data-reveal] elements are never left stuck hidden if load timing changes.
+      function revealActive() { requestAnimationFrame(function () { observeAll(); staggerPage(document.querySelector('.page.on')); }); }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', revealActive);
+      else revealActive();
+      window.addEventListener('hashchange', revealActive);
 
       var ticking = false;
       function onScroll() {
