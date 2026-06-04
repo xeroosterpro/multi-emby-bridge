@@ -21,32 +21,41 @@
       var root = document.documentElement;
       root.classList.add('js-reveal');
 
-      var io = ('IntersectionObserver' in window) ? new IntersectionObserver(function (entries) {
-        entries.forEach(function (en) {
-          if (en.isIntersecting) { en.target.classList.add('revealed'); io.unobserve(en.target); }
-        });
-      }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }) : null;
+      var io = null;
+      if ('IntersectionObserver' in window) {
+        io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (en) {
+            if (en.isIntersecting) { en.target.classList.add('revealed'); io.unobserve(en.target); }
+          });
+        }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+      }
       function observeAll() {
         if (!io) return;
         document.querySelectorAll('[data-reveal]:not(.revealed)').forEach(function (el) { io.observe(el); });
       }
-      document.addEventListener('DOMContentLoaded', observeAll);
 
       function staggerPage(page) {
         if (!page) return;
         page.classList.add('reveal-seq');
-        var kids = page.children, i = 0;
-        for (var k = 0; k < kids.length && i < 12; k++, i++) kids[k].style.setProperty('--i', i);
+        var kids = page.children;
+        for (var k = 0; k < kids.length && k < 12; k++) kids[k].style.setProperty('--i', k);
         observeAll();
       }
+
+      // Run init now if the DOM is already parsed, else wait for it. (This script
+      // is synchronous and near </body>, but readyState-guarding removes any risk
+      // of leaving [data-reveal] elements stuck hidden if load timing changes.)
+      function init() { observeAll(); staggerPage(document.querySelector('.page.on')); }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+      else init();
       window.addEventListener('hashchange', function () { staggerPage(document.querySelector('.page.on')); });
-      document.addEventListener('DOMContentLoaded', function () { staggerPage(document.querySelector('.page.on')); });
 
       var ticking = false;
       function onScroll() {
         if (ticking) return; ticking = true;
         requestAnimationFrame(function () {
           var y = window.scrollY || 0;
+          // 0.04 = parallax depth (background drifts at 4% of scroll distance)
           document.documentElement.style.setProperty('--par', (y * 0.04).toFixed(1) + 'px');
           ticking = false;
         });
