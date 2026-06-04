@@ -18,6 +18,24 @@
   --r-sm: 11px; --r-md: 14px; --r-lg: 17px;
   --side-w: 232px;
 }
+
+/* ============ Motion system (single source of truth) ============ */
+:root {
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --side-ease: cubic-bezier(.33,0,.2,1);
+  --ease-out: cubic-bezier(.16,1,.3,1);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 280ms;
+  --t-colors: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  --t-transform: transform var(--dur-base) var(--ease);
+  --t-pop: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease);
+  /* Phase 1 re-skin tokens (consolidated here) */
+  --accent-2: #c4b5ff;
+  --glow: var(--accent-glow);
+  --side-collapsed: 66px;
+}
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
@@ -892,7 +910,6 @@ input[type=range][data-slider] { flex: 1; accent-color: var(--accent-a); }
 /* ===================== Phase 1 re-skin: themes, font, animated bg, sidebar ===================== */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-:root{ --accent-2:#c4b5ff; --glow:var(--accent-glow); --side-collapsed:66px; --ease:cubic-bezier(.22,.61,.36,1); }
 @property --hue{ syntax:'<number>'; inherits:true; initial-value:280; }
 @keyframes huecycle{ from{--hue:0} to{--hue:360} }
 
@@ -935,7 +952,6 @@ body.noanim .orb, body.noanim .flake{ animation:none !important } body.noanim .f
 /* Smooth, gentle sidebar expand/collapse. The collapse is delayed (a grace
    period) so brushing past the rail doesn't snap it shut; the open is instant
    and eased. --side-ease is a soft ease-in-out used for the width + margin. */
-:root{ --side-ease:cubic-bezier(.33,0,.2,1); }
 .sidebar{ position:fixed; top:0; left:0; bottom:0; width:var(--side-collapsed); overflow:hidden; z-index:30;
   background:rgba(14,14,22,.82); backdrop-filter:blur(16px); border-right:1px solid var(--border);
   transition:width .46s var(--side-ease) .28s, box-shadow .46s var(--side-ease) .28s; }
