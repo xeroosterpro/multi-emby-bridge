@@ -1231,12 +1231,12 @@ body.locked-billing .pin-btn{ display:none; }
 .content .tiles .tile{ transition:transform .2s var(--ease), border-color .2s var(--ease), box-shadow .2s var(--ease); }
 .content .tiles .tile:hover{ transform:translateY(-3px); border-color:color-mix(in srgb,var(--accent) 45%,var(--border)) !important; box-shadow:0 10px 26px rgba(0,0,0,.4); }
 .nav-item{ transition:background .22s var(--ease), color .22s var(--ease) !important; }
-.btn-soft, .btn-add, .btn-generate, .seg button, .pick, select, .input{ transition:all .18s var(--ease) !important; }
+.btn-soft, .btn-add, .btn-generate, .seg button, .pick, select, .input{ transition: var(--t-colors), var(--t-pop) !important; }
 /* make the falling particles a touch more visible so the motion reads */
 .bg .flake{ box-shadow:0 0 7px var(--glow); }
 .bg .orb{ opacity:.55 !important; }
 /* smoother theme recolor across surfaces */
-.tile, .gcard, .card, .acc2, .server-block{ transition:background-color .5s var(--ease), border-color .3s var(--ease); }
+.tile, .gcard, .card, .acc2, .server-block{ transition:background-color .5s var(--ease), border-color .3s var(--ease), transform var(--dur-base) var(--ease); }
 
 /* ===================== nav tab hover + active transitions (match prototype) ===================== */
 .nav-item{ transition:background .22s var(--ease), color .22s var(--ease) !important; }
@@ -1250,7 +1250,7 @@ body.locked-billing .pin-btn{ display:none; }
 .nav-item.on{ background:var(--glow) !important; color:var(--text) !important; }
 /* footer + segmented + modal tab hovers */
 .foot-link{ transition:color .2s var(--ease); } .foot-link:hover{ color:var(--accent) !important; }
-.seg button, .modal-tabs button{ transition:all .18s var(--ease) !important; }
+.seg button, .modal-tabs button{ transition: var(--t-colors) !important; }
 .seg button:hover{ border-color:var(--accent) !important; color:var(--text) !important; }
 .modal-tabs button:hover{ color:var(--text) !important; }
 
@@ -1280,7 +1280,7 @@ body.locked-billing .pin-btn{ display:none; }
 
 /* ===================== monitoring pages (Health / Ping / Log) → prototype glassy ===================== */
 .ping-origin-bar, .toolbar, .ping-controls, .log-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
-.range-tab{ padding:7px 13px; border-radius:20px; border:1px solid color-mix(in srgb,var(--accent) 22%,var(--border)); background:transparent; color:var(--text-dim); cursor:pointer; font-family:inherit; font-size:.8rem; transition:all .18s var(--ease); }
+.range-tab{ padding:7px 13px; border-radius:20px; border:1px solid color-mix(in srgb,var(--accent) 22%,var(--border)); background:transparent; color:var(--text-dim); cursor:pointer; font-family:inherit; font-size:.8rem; transition: var(--t-colors); }
 .range-tab:hover{ color:var(--text); border-color:color-mix(in srgb,var(--accent) 50%,var(--border)); }
 .range-tab.active{ background:var(--glow) !important; border-color:var(--accent) !important; color:var(--text) !important; }
 .btn.primary, .btn-ping-test{ background:linear-gradient(135deg,var(--accent),var(--accent-2)) !important; color:#0a0a12 !important; border:0 !important; border-radius:var(--r-md) !important; font-weight:700 !important; padding:9px 16px !important; cursor:pointer; }
