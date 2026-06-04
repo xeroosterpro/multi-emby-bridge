@@ -115,7 +115,7 @@ body {
 .btn-profile {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary);
   border-radius: var(--radius-sm); padding: 0.45rem 0.75rem; font-size: 0.78rem; font-weight: 600;
-  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  cursor: pointer; transition: var(--t-colors); white-space: nowrap;
 }
 .btn-profile:hover { background: var(--bg-hover); color: #fff; border-color: var(--accent); }
 .btn-profile:disabled { opacity: 0.4; cursor: default; }
@@ -199,7 +199,7 @@ label.toggle-switch {
   background: none; border: 1px solid var(--border); color: var(--text-muted);
   border-radius: 5px; width: 22px; height: 22px; font-size: 0.55rem;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s; padding: 0; line-height: 1;
+  transition: var(--t-colors); padding: 0; line-height: 1;
 }
 .btn-reorder:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-secondary); }
 .btn-reorder:disabled { opacity: 0.2; cursor: default; }
@@ -273,7 +273,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-fetch, .btn-test {
   width: 100%; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary);
   border-radius: var(--radius-sm); padding: 0.4rem; font-size: 0.78rem;
-  cursor: pointer; transition: all 0.15s;
+  cursor: pointer; transition: var(--t-colors);
 }
 .btn-fetch:hover, .btn-test:hover { background: var(--bg-hover); color: #fff; border-color: var(--accent-dim); }
 .btn-fetch:disabled, .btn-test:disabled { opacity: 0.4; cursor: default; }
@@ -293,7 +293,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-stats {
   width: 100%; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary);
   border-radius: var(--radius-sm); padding: 0.4rem; font-size: 0.78rem;
-  cursor: pointer; transition: all 0.15s; margin-top: 0.5rem;
+  cursor: pointer; transition: var(--t-colors); margin-top: 0.5rem;
 }
 .btn-stats:hover { background: #1a2a2a; color: var(--success); border-color: #2a5a4a; }
 .btn-stats:disabled { opacity: 0.4; cursor: default; }
@@ -309,7 +309,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-add {
   width: 100%; background: transparent; border: 1.5px dashed var(--border);
   color: var(--text-muted); border-radius: var(--radius-md); padding: 0.65rem;
-  font-size: 0.85rem; cursor: pointer; transition: all 0.15s; margin-bottom: 1rem;
+  font-size: 0.85rem; cursor: pointer; transition: var(--t-colors); margin-bottom: 1rem;
 }
 .btn-add:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .btn-add:disabled { opacity: 0.35; cursor: default; }
@@ -355,7 +355,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-ping-test {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary);
   border-radius: var(--radius-sm); padding: 0.35rem 0.75rem; font-size: 0.78rem;
-  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  cursor: pointer; transition: var(--t-colors); white-space: nowrap;
 }
 .btn-ping-test:hover { background: var(--bg-hover); color: #fff; }
 .btn-ping-test:disabled { opacity: 0.4; cursor: default; }
@@ -377,7 +377,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-log {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-muted);
   border-radius: var(--radius-sm); padding: 0.24rem 0.55rem; font-size: 0.7rem;
-  font-weight: 600; cursor: pointer; transition: all 0.15s; text-decoration: none; display: inline-block;
+  font-weight: 600; cursor: pointer; transition: var(--t-colors); text-decoration: none; display: inline-block;
 }
 .btn-log:hover { background: var(--bg-hover); color: var(--text-secondary); }
 .btn-log.danger:hover { color: var(--error); border-color: var(--error); }
@@ -404,7 +404,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-page {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-muted);
   border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.68rem;
-  font-weight: 600; cursor: pointer; transition: all 0.12s;
+  font-weight: 600; cursor: pointer; transition: var(--t-colors);
 }
 .btn-page:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-secondary); }
 .btn-page:disabled { opacity: 0.25; cursor: default; }
@@ -433,7 +433,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-copy {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary);
   border-radius: var(--radius-sm); padding: 0 0.75rem; font-size: 0.78rem;
-  cursor: pointer; white-space: nowrap; transition: all 0.15s;
+  cursor: pointer; white-space: nowrap; transition: var(--t-colors);
 }
 .btn-copy:hover { background: var(--bg-hover); color: #fff; }
 .btn-copy.copied { color: var(--success); border-color: var(--success); }
@@ -503,18 +503,18 @@ input::placeholder { color: var(--text-muted); }
 .cat-remove-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 0.85rem; padding: 0 0.2rem; flex-shrink: 0; opacity: 0.6; transition: opacity 0.15s, color 0.15s; }
 .cat-remove-btn:hover { opacity: 1; color: var(--error, #e55); }
 /* Catalog count badge */
-.cat-count-badge { font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 10px; flex-shrink: 0; min-width: 3rem; text-align: center; transition: all 0.2s; }
+.cat-count-badge { font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 10px; flex-shrink: 0; min-width: 3rem; text-align: center; transition: var(--t-colors); }
 .cat-count-badge:empty { display: none; }
 .cat-count-ok { background: rgba(76, 175, 125, 0.15); color: var(--success); border: 1px solid rgba(76, 175, 125, 0.3); }
 .cat-count-error { background: rgba(224, 85, 85, 0.15); color: var(--error); border: 1px solid rgba(224, 85, 85, 0.3); }
 .cat-count-badge:not(.cat-count-ok):not(.cat-count-error) { background: var(--bg-base); color: var(--text-muted); border: 1px solid var(--border); }
 
 /* Catalog test button */
-.cat-test-btn { background: var(--bg-base); border: 1px solid var(--border); color: var(--text-secondary); font-size: 0.65rem; font-weight: 600; padding: 0.25rem 0.55rem; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; transition: all 0.15s; }
+.cat-test-btn { background: var(--bg-base); border: 1px solid var(--border); color: var(--text-secondary); font-size: 0.65rem; font-weight: 600; padding: 0.25rem 0.55rem; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; transition: var(--t-colors); }
 .cat-test-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .cat-test-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .cat-test-btn.cat-test-ok { background: #0d2e1a; color: #4ade80; border-color: #166534; }
-.cat-shuffle-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.75rem; padding: 0.2rem 0.4rem; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; opacity: 0.45; transition: all 0.15s; }
+.cat-shuffle-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.75rem; padding: 0.2rem 0.4rem; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; opacity: 0.45; transition: var(--t-colors); }
 .cat-shuffle-btn:hover { opacity: 0.9; border-color: var(--accent); }
 .cat-shuffle-btn.cat-shuffle-on { opacity: 1; border-color: #7b61ff; color: #7b61ff; background: #1a1a30; }
 
@@ -776,7 +776,7 @@ select, input[type=text], input[type=password], input[type=number] {
 #page-health .btn.primary:hover { background: #1a1a30; }
 #page-health .toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.1rem; }
 .range-tabs { display: flex; gap: 0.3rem; }
-.range-tab { background: #13131e; border: 1px solid #1e1e2e; color: #888; border-radius: 6px; padding: 0.3rem 0.75rem; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.range-tab { background: #13131e; border: 1px solid #1e1e2e; color: #888; border-radius: 6px; padding: 0.3rem 0.75rem; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: var(--t-colors); }
 .range-tab:hover { color: #ccc; border-color: #2a2a3a; }
 .range-tab.active { background: #1a1a28; border-color: #7b61ff; color: #7b61ff; }
 .status-bar { display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; color: #888; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
@@ -810,7 +810,7 @@ select, input[type=text], input[type=password], input[type=number] {
 .ping-loc .loc-label { color: #888; }
 .ping-loc .loc-ms { font-weight: 700; }
 .ping-loc .loc-ms.fast { color: #4caf7d; } .ping-loc .loc-ms.ok { color: #f0a500; } .ping-loc .loc-ms.slow { color: #e05555; } .ping-loc .loc-ms.none { color: #666; }
-.browser-ping-btn { background: none; border: 1px solid #222232; color: #6a6a99; border-radius: 5px; padding: 0.15rem 0.45rem; font-size: 0.7rem; cursor: pointer; transition: all 0.15s; }
+.browser-ping-btn { background: none; border: 1px solid #222232; color: #6a6a99; border-radius: 5px; padding: 0.15rem 0.45rem; font-size: 0.7rem; cursor: pointer; transition: var(--t-colors); }
 .browser-ping-btn:hover { border-color: #7b61ff; color: #7b61ff; }
 .rt-graph-wrap { margin-bottom: 0.5rem; }
 .rt-graph-label { display: flex; justify-content: space-between; font-size: 0.67rem; color: #6a6a99; margin-bottom: 0.2rem; }
