@@ -42,7 +42,9 @@
       <div class="adm-card"><div class="adm-card-n">${o.users.total}</div><div class="adm-card-l">Users · ${o.users.active} active · ${o.users.comped} comped</div></div>
       <div class="adm-card"><div class="adm-card-n">${money(o.revenue.monthly)}</div><div class="adm-card-l">Revenue (30d) · ${money(o.revenue.lifetime)} lifetime</div></div>
       <div class="adm-card"><div class="adm-card-n">${o.activity.requests24h}</div><div class="adm-card-l">Stream requests (24h)</div></div>
-      <div class="adm-card"><div class="adm-card-n">${o.activity.busiestServer?escU(o.activity.busiestServer.server):'—'}</div><div class="adm-card-l">Busiest server (24h)</div></div>`;
+      <div class="adm-card"><div class="adm-card-n">${o.activity.busiestServer?escU(o.activity.busiestServer.server):'—'}</div><div class="adm-card-l">Busiest server (24h)</div></div>
+      <div class="adm-card"><div class="adm-card-n">${o.successRate != null ? o.successRate + '%' : '—'}</div><div class="adm-card-l">Stream success (24h)</div></div>
+      <div class="adm-card"><div class="adm-card-n">${o.upcomingRenewals ?? 0}</div><div class="adm-card-l">Renewals (next 7d)${o.failedPayments ? ' · ' + o.failedPayments + ' failed' : ''}</div></div>`;
     wrap.dataset.loaded = '1';
   }
 
@@ -137,6 +139,9 @@
       const live = (a.live || []).map(s => `<div class="mrow"><span>▶ ${esc2(s.title)} <span class="adm-dim">on ${esc2(s.server)}</span></span><span class="mtag">${esc2(s.user||'')}</span></div>`).join('');
       const recent = (a.recent || []).map(e => `<div class="mrow"><span>${esc2(e.title||'—')}${e.season?` S${e.season}E${e.episode||''}`:''} <span class="adm-dim">· ${esc2(e.server||'—')}</span></span><span class="mtag">${date(e.ts)}</span></div>`).join('') || '<div class="field-hint">No recent activity.</div>';
       el.innerHTML = `<div class="mrow">Totals<span class="mtag">${a.totals.requests24h} (24h) · ${a.totals.requests7d} (7d)</span></div>
+        ${a.analytics ? `<div class="mrow">Success rate<span class="mtag">${a.analytics.successRate != null ? a.analytics.successRate + '%' : '—'}</span></div>
+        ${a.analytics.topServer ? `<div class="mrow">Most-used server<span class="mtag">${esc2(a.analytics.topServer.server)}</span></div>` : ''}
+        ${(a.analytics.topTitles||[]).length ? `<div class="mrow">Top titles<span class="mtag">${esc2(a.analytics.topTitles.map(t=>t.title).slice(0,3).join(', '))}</span></div>` : ''}` : ''}
         ${live ? `<h3 class="block-title" style="margin-top:12px;color:var(--accent)">● Now playing</h3>${live}` : ''}
         <h3 class="block-title" style="margin-top:12px">Recent watches</h3>${recent}`;
     })();

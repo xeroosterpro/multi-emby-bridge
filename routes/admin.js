@@ -9,7 +9,7 @@ const { forgetUser } = require('../lib/health');
 const paypal = require('../lib/paypal');
 const { makeUserConfig } = require('../lib/userConfig');
 const { makeLiveSessions } = require('../lib/sessions');
-const { summarizeRequestLog, userActivity } = require('../lib/adminStats');
+const { summarizeRequestLog, userActivity, userAnalytics } = require('../lib/adminStats');
 const { makeRequestLog } = require('../lib/requestLog');
 
 function makeAdminRouter(opts = {}) {
@@ -179,11 +179,18 @@ function makeAdminRouter(opts = {}) {
           ORDER BY p.paid_at DESC LIMIT 10`);
       const logRows = (await requestLog.recent(1000)).map(r => ({ ...r, contentName: r.title, bestServer: r.server }));
       const activity = summarizeRequestLog(logRows);
+      const found24 = logRows.filter(e => e.found && (Date.now() - new Date(e.ts).getTime()) <= 86400000).length;
+      const total24 = activity.requests24h || 0;
+      const renew = await db.query(`SELECT COUNT(*)::int AS n FROM subscriptions WHERE status='active' AND current_period_end IS NOT NULL AND current_period_end BETWEEN now() AND now() + interval '7 days'`);
+      const failed = await db.query(`SELECT COUNT(*)::int AS n FROM payments WHERE status <> 'completed'`);
       res.json({
         users: u.rows[0],
         revenue: { monthly: Number(rev.rows[0].monthly), lifetime: Number(rev.rows[0].lifetime), currency: 'USD' },
         recentPayments: pays.rows,
         activity,
+        successRate: total24 ? Math.round(found24/total24*100) : null,
+        upcomingRenewals: renew.rows[0].n,
+        failedPayments: failed.rows[0].n,
       });
     } catch (e) { console.error('[admin/overview]', e.message); res.status(500).json({ error: 'overview failed' }); }
   });
@@ -197,7 +204,8 @@ function makeAdminRouter(opts = {}) {
         const cfg = await userConfig.getForServe(req.params.id);
         if (cfg && Array.isArray(cfg.servers)) live = await liveSessions.forUser(cfg.servers);
       } catch (e) { console.error('[admin/activity:live]', e.message); }
-      res.json({ recent: act.recent, totals: act.totals, live });
+      const analytics = userAnalytics(rows);
+      res.json({ recent: act.recent, totals: act.totals, live, analytics });
     } catch (e) { console.error('[admin/activity]', e.message); res.status(500).json({ error: 'activity failed' }); }
   });
 

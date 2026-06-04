@@ -25,6 +25,16 @@ const log = [
   A(a.totals.requests24h === 1 && a.totals.requests7d === 2, 'per-user 24h/7d totals correct');
   A(a.totals.lastActive === log[0].ts, 'lastActive is the newest u1 entry ts');
 
+  const { userAnalytics } = require('../lib/adminStats');
+  const an = userAnalytics([
+    { contentName: 'Dune', bestServer: 'ARCTV', found: true },
+    { contentName: 'Dune', bestServer: 'ARCTV', found: true },
+    { contentName: 'Heat', bestServer: 'EAGLE', found: false },
+  ]);
+  A(an.topTitles[0].title === 'Dune' && an.topTitles[0].count === 2, 'userAnalytics top title = Dune x2');
+  A(an.topServer && an.topServer.server === 'ARCTV', 'userAnalytics top server = ARCTV');
+  A(an.successRate === 67, 'userAnalytics successRate = round(2/3*100) = 67');
+
   console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
   if (failed) process.exit(1);
 })();
