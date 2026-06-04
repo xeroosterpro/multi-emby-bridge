@@ -17,24 +17,7 @@
   --grad-rgb: linear-gradient(90deg, #fb923c, #f472b6, #818cf8, #34d399, #fb923c);
   --r-sm: 11px; --r-md: 14px; --r-lg: 17px;
   --side-w: 232px;
-  --accent-2: #c4b5ff;
-  --glow: var(--accent-glow);
-  --side-collapsed: 66px;
 }
-
-/* ============ Motion system (single source of truth) ============ */
-:root {
-  --ease: cubic-bezier(.22,.61,.36,1);
-  --side-ease: cubic-bezier(.33,0,.2,1);
-  --ease-out: cubic-bezier(.16,1,.3,1);
-  --dur-fast: 120ms;
-  --dur-base: 180ms;
-  --dur-slow: 280ms;
-  --t-colors: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-  --t-transform: transform var(--dur-base) var(--ease);
-  --t-pop: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease);
-}
-
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
@@ -43,16 +26,6 @@ body {
   background: linear-gradient(160deg, var(--bg-grad-a), var(--bg-grad-b)) fixed;
   min-height: 100vh;
 }
-
-/* ---- scroll flow ---- */
-html { scrollbar-width: thin; scrollbar-color: var(--border) transparent; scrollbar-gutter: stable; }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); background-clip: padding-box; }
-html.js-reveal { scroll-behavior: smooth; }
-.mdblist-browse-grid, .log-table-wrap { overscroll-behavior: contain; }
-
 @keyframes rgbflow { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
 @keyframes spin    { to { transform: rotate(360deg); } }
 @keyframes pulse   { 0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.5)} 50%{box-shadow:0 0 0 6px rgba(52,211,153,0)} }
@@ -61,12 +34,8 @@ html.js-reveal { scroll-behavior: smooth; }
   /* Stop auto-playing / looping motion (background orbs, particles, gradient
      flow, page entrances) which can trigger motion discomfort — but keep the
      brief, user-initiated UI transitions (sidebar, hovers, accordions) so
-     controls glide smoothly instead of snapping.
-     .force-motion (set by reveal.js via ?motion=force) lets the user opt back
-     in from the keyboard / URL without touching OS settings. */
-  html:not(.force-motion) *,
-  html:not(.force-motion) *::before,
-  html:not(.force-motion) *::after { animation: none !important; }
+     controls glide smoothly instead of snapping. */
+  *, *::before, *::after { animation: none !important; }
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -129,7 +98,7 @@ body {
 .btn-profile {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary);
   border-radius: var(--radius-sm); padding: 0.45rem 0.75rem; font-size: 0.78rem; font-weight: 600;
-  cursor: pointer; transition: var(--t-colors); white-space: nowrap;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
 }
 .btn-profile:hover { background: var(--bg-hover); color: #fff; border-color: var(--accent); }
 .btn-profile:disabled { opacity: 0.4; cursor: default; }
@@ -213,7 +182,7 @@ label.toggle-switch {
   background: none; border: 1px solid var(--border); color: var(--text-muted);
   border-radius: 5px; width: 22px; height: 22px; font-size: 0.55rem;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: var(--t-colors); padding: 0; line-height: 1;
+  transition: all 0.15s; padding: 0; line-height: 1;
 }
 .btn-reorder:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-secondary); }
 .btn-reorder:disabled { opacity: 0.2; cursor: default; }
@@ -287,7 +256,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-fetch, .btn-test {
   width: 100%; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary);
   border-radius: var(--radius-sm); padding: 0.4rem; font-size: 0.78rem;
-  cursor: pointer; transition: var(--t-colors);
+  cursor: pointer; transition: all 0.15s;
 }
 .btn-fetch:hover, .btn-test:hover { background: var(--bg-hover); color: #fff; border-color: var(--accent-dim); }
 .btn-fetch:disabled, .btn-test:disabled { opacity: 0.4; cursor: default; }
@@ -307,7 +276,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-stats {
   width: 100%; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary);
   border-radius: var(--radius-sm); padding: 0.4rem; font-size: 0.78rem;
-  cursor: pointer; transition: var(--t-colors); margin-top: 0.5rem;
+  cursor: pointer; transition: all 0.15s; margin-top: 0.5rem;
 }
 .btn-stats:hover { background: #1a2a2a; color: var(--success); border-color: #2a5a4a; }
 .btn-stats:disabled { opacity: 0.4; cursor: default; }
@@ -323,7 +292,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-add {
   width: 100%; background: transparent; border: 1.5px dashed var(--border);
   color: var(--text-muted); border-radius: var(--radius-md); padding: 0.65rem;
-  font-size: 0.85rem; cursor: pointer; transition: var(--t-colors); margin-bottom: 1rem;
+  font-size: 0.85rem; cursor: pointer; transition: all 0.15s; margin-bottom: 1rem;
 }
 .btn-add:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .btn-add:disabled { opacity: 0.35; cursor: default; }
@@ -369,7 +338,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-ping-test {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary);
   border-radius: var(--radius-sm); padding: 0.35rem 0.75rem; font-size: 0.78rem;
-  cursor: pointer; transition: var(--t-colors); white-space: nowrap;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
 }
 .btn-ping-test:hover { background: var(--bg-hover); color: #fff; }
 .btn-ping-test:disabled { opacity: 0.4; cursor: default; }
@@ -391,7 +360,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-log {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-muted);
   border-radius: var(--radius-sm); padding: 0.24rem 0.55rem; font-size: 0.7rem;
-  font-weight: 600; cursor: pointer; transition: var(--t-colors); text-decoration: none; display: inline-block;
+  font-weight: 600; cursor: pointer; transition: all 0.15s; text-decoration: none; display: inline-block;
 }
 .btn-log:hover { background: var(--bg-hover); color: var(--text-secondary); }
 .btn-log.danger:hover { color: var(--error); border-color: var(--error); }
@@ -418,7 +387,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-page {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-muted);
   border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.68rem;
-  font-weight: 600; cursor: pointer; transition: var(--t-colors);
+  font-weight: 600; cursor: pointer; transition: all 0.12s;
 }
 .btn-page:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-secondary); }
 .btn-page:disabled { opacity: 0.25; cursor: default; }
@@ -447,7 +416,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-copy {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary);
   border-radius: var(--radius-sm); padding: 0 0.75rem; font-size: 0.78rem;
-  cursor: pointer; white-space: nowrap; transition: var(--t-colors);
+  cursor: pointer; white-space: nowrap; transition: all 0.15s;
 }
 .btn-copy:hover { background: var(--bg-hover); color: #fff; }
 .btn-copy.copied { color: var(--success); border-color: var(--success); }
@@ -517,18 +486,18 @@ input::placeholder { color: var(--text-muted); }
 .cat-remove-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 0.85rem; padding: 0 0.2rem; flex-shrink: 0; opacity: 0.6; transition: opacity 0.15s, color 0.15s; }
 .cat-remove-btn:hover { opacity: 1; color: var(--error, #e55); }
 /* Catalog count badge */
-.cat-count-badge { font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 10px; flex-shrink: 0; min-width: 3rem; text-align: center; transition: var(--t-colors); }
+.cat-count-badge { font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 10px; flex-shrink: 0; min-width: 3rem; text-align: center; transition: all 0.2s; }
 .cat-count-badge:empty { display: none; }
 .cat-count-ok { background: rgba(76, 175, 125, 0.15); color: var(--success); border: 1px solid rgba(76, 175, 125, 0.3); }
 .cat-count-error { background: rgba(224, 85, 85, 0.15); color: var(--error); border: 1px solid rgba(224, 85, 85, 0.3); }
 .cat-count-badge:not(.cat-count-ok):not(.cat-count-error) { background: var(--bg-base); color: var(--text-muted); border: 1px solid var(--border); }
 
 /* Catalog test button */
-.cat-test-btn { background: var(--bg-base); border: 1px solid var(--border); color: var(--text-secondary); font-size: 0.65rem; font-weight: 600; padding: 0.25rem 0.55rem; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; transition: var(--t-colors); }
+.cat-test-btn { background: var(--bg-base); border: 1px solid var(--border); color: var(--text-secondary); font-size: 0.65rem; font-weight: 600; padding: 0.25rem 0.55rem; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; transition: all 0.15s; }
 .cat-test-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .cat-test-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .cat-test-btn.cat-test-ok { background: #0d2e1a; color: #4ade80; border-color: #166534; }
-.cat-shuffle-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.75rem; padding: 0.2rem 0.4rem; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; opacity: 0.45; transition: var(--t-colors), opacity var(--dur-fast) var(--ease); }
+.cat-shuffle-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.75rem; padding: 0.2rem 0.4rem; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; opacity: 0.45; transition: all 0.15s; }
 .cat-shuffle-btn:hover { opacity: 0.9; border-color: var(--accent); }
 .cat-shuffle-btn.cat-shuffle-on { opacity: 1; border-color: #7b61ff; color: #7b61ff; background: #1a1a30; }
 
@@ -790,7 +759,7 @@ select, input[type=text], input[type=password], input[type=number] {
 #page-health .btn.primary:hover { background: #1a1a30; }
 #page-health .toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.1rem; }
 .range-tabs { display: flex; gap: 0.3rem; }
-.range-tab { background: #13131e; border: 1px solid #1e1e2e; color: #888; border-radius: 6px; padding: 0.3rem 0.75rem; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: var(--t-colors); }
+.range-tab { background: #13131e; border: 1px solid #1e1e2e; color: #888; border-radius: 6px; padding: 0.3rem 0.75rem; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
 .range-tab:hover { color: #ccc; border-color: #2a2a3a; }
 .range-tab.active { background: #1a1a28; border-color: #7b61ff; color: #7b61ff; }
 .status-bar { display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; color: #888; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
@@ -824,7 +793,7 @@ select, input[type=text], input[type=password], input[type=number] {
 .ping-loc .loc-label { color: #888; }
 .ping-loc .loc-ms { font-weight: 700; }
 .ping-loc .loc-ms.fast { color: #4caf7d; } .ping-loc .loc-ms.ok { color: #f0a500; } .ping-loc .loc-ms.slow { color: #e05555; } .ping-loc .loc-ms.none { color: #666; }
-.browser-ping-btn { background: none; border: 1px solid #222232; color: #6a6a99; border-radius: 5px; padding: 0.15rem 0.45rem; font-size: 0.7rem; cursor: pointer; transition: var(--t-colors); }
+.browser-ping-btn { background: none; border: 1px solid #222232; color: #6a6a99; border-radius: 5px; padding: 0.15rem 0.45rem; font-size: 0.7rem; cursor: pointer; transition: all 0.15s; }
 .browser-ping-btn:hover { border-color: #7b61ff; color: #7b61ff; }
 .rt-graph-wrap { margin-bottom: 0.5rem; }
 .rt-graph-label { display: flex; justify-content: space-between; font-size: 0.67rem; color: #6a6a99; margin-bottom: 0.2rem; }
@@ -923,6 +892,7 @@ input[type=range][data-slider] { flex: 1; accent-color: var(--accent-a); }
 /* ===================== Phase 1 re-skin: themes, font, animated bg, sidebar ===================== */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
+:root{ --accent-2:#c4b5ff; --glow:var(--accent-glow); --side-collapsed:66px; --ease:cubic-bezier(.22,.61,.36,1); }
 @property --hue{ syntax:'<number>'; inherits:true; initial-value:280; }
 @keyframes huecycle{ from{--hue:0} to{--hue:360} }
 
@@ -965,6 +935,7 @@ body.noanim .orb, body.noanim .flake{ animation:none !important } body.noanim .f
 /* Smooth, gentle sidebar expand/collapse. The collapse is delayed (a grace
    period) so brushing past the rail doesn't snap it shut; the open is instant
    and eased. --side-ease is a soft ease-in-out used for the width + margin. */
+:root{ --side-ease:cubic-bezier(.33,0,.2,1); }
 .sidebar{ position:fixed; top:0; left:0; bottom:0; width:var(--side-collapsed); overflow:hidden; z-index:30;
   background:rgba(14,14,22,.82); backdrop-filter:blur(16px); border-right:1px solid var(--border);
   transition:width .46s var(--side-ease) .28s, box-shadow .46s var(--side-ease) .28s; }
@@ -1245,13 +1216,12 @@ body.locked-billing .pin-btn{ display:none; }
 .content .tiles .tile{ transition:transform .2s var(--ease), border-color .2s var(--ease), box-shadow .2s var(--ease); }
 .content .tiles .tile:hover{ transform:translateY(-3px); border-color:color-mix(in srgb,var(--accent) 45%,var(--border)) !important; box-shadow:0 10px 26px rgba(0,0,0,.4); }
 .nav-item{ transition:background .22s var(--ease), color .22s var(--ease) !important; }
-.btn-soft, .btn-add, .btn-generate, .seg button, .pick{ transition: var(--t-colors), var(--t-pop) !important; }
-select, .input{ transition: var(--t-colors), box-shadow var(--dur-base) var(--ease) !important; }
+.btn-soft, .btn-add, .btn-generate, .seg button, .pick, select, .input{ transition:all .18s var(--ease) !important; }
 /* make the falling particles a touch more visible so the motion reads */
 .bg .flake{ box-shadow:0 0 7px var(--glow); }
 .bg .orb{ opacity:.55 !important; }
 /* smoother theme recolor across surfaces */
-.tile, .gcard, .card, .acc2, .server-block{ transition:background-color .5s var(--ease), border-color .3s var(--ease), transform var(--dur-base) var(--ease); }
+.tile, .gcard, .card, .acc2, .server-block{ transition:background-color .5s var(--ease), border-color .3s var(--ease); }
 
 /* ===================== nav tab hover + active transitions (match prototype) ===================== */
 .nav-item{ transition:background .22s var(--ease), color .22s var(--ease) !important; }
@@ -1265,7 +1235,7 @@ select, .input{ transition: var(--t-colors), box-shadow var(--dur-base) var(--ea
 .nav-item.on{ background:var(--glow) !important; color:var(--text) !important; }
 /* footer + segmented + modal tab hovers */
 .foot-link{ transition:color .2s var(--ease); } .foot-link:hover{ color:var(--accent) !important; }
-.seg button, .modal-tabs button{ transition: var(--t-colors) !important; }
+.seg button, .modal-tabs button{ transition:all .18s var(--ease) !important; }
 .seg button:hover{ border-color:var(--accent) !important; color:var(--text) !important; }
 .modal-tabs button:hover{ color:var(--text) !important; }
 
@@ -1295,7 +1265,7 @@ select, .input{ transition: var(--t-colors), box-shadow var(--dur-base) var(--ea
 
 /* ===================== monitoring pages (Health / Ping / Log) → prototype glassy ===================== */
 .ping-origin-bar, .toolbar, .ping-controls, .log-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
-.range-tab{ padding:7px 13px; border-radius:20px; border:1px solid color-mix(in srgb,var(--accent) 22%,var(--border)); background:transparent; color:var(--text-dim); cursor:pointer; font-family:inherit; font-size:.8rem; transition: var(--t-colors); }
+.range-tab{ padding:7px 13px; border-radius:20px; border:1px solid color-mix(in srgb,var(--accent) 22%,var(--border)); background:transparent; color:var(--text-dim); cursor:pointer; font-family:inherit; font-size:.8rem; transition:all .18s var(--ease); }
 .range-tab:hover{ color:var(--text); border-color:color-mix(in srgb,var(--accent) 50%,var(--border)); }
 .range-tab.active{ background:var(--glow) !important; border-color:var(--accent) !important; color:var(--text) !important; }
 .btn.primary, .btn-ping-test{ background:linear-gradient(135deg,var(--accent),var(--accent-2)) !important; color:#0a0a12 !important; border:0 !important; border-radius:var(--r-md) !important; font-weight:700 !important; padding:9px 16px !important; cursor:pointer; }
@@ -1372,17 +1342,6 @@ select, .input{ transition: var(--t-colors), box-shadow var(--dur-base) var(--ea
   .adm-table { min-width:560px; }
 }
 
-/* ── Accessibility: shared focus-visible ring ───────────────────────────── */
-.nav-item:focus-visible, button:focus-visible, .swatch:focus-visible,
-.range-tab:focus-visible, a.btn:focus-visible, .input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* ── Hover lift: btn-soft and card (tile already has its own lift) ────────── */
-.btn-soft:hover, .card:hover { transform: translateY(-1px); }
-.btn-soft:active, .card:active { transform: translateY(0); }
-
 .dash-activity { margin-top:24px; }
 .da-list { background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; }
 .da-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 15px; border-bottom:1px solid var(--border); font-size:.85rem; }
@@ -1413,22 +1372,3 @@ select, .input{ transition: var(--t-colors), box-shadow var(--dur-base) var(--ea
 .ob-step.done { opacity:.6; }
 .ob-check { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--border); display:grid; place-items:center; font-size:.7rem; color:#0a0a12; flex:none; }
 .ob-step.done .ob-check { background:var(--accent); border-color:var(--accent); }
-
-/* ── Task 6: Staggered tab-open reveal ─────────────────────────────────── */
-@keyframes reveal-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-/* :not([data-reveal]) so a direct-child block opts into EITHER stagger OR
-   scroll-reveal, never both (avoids double-animating the same element). */
-html.js-reveal .page.reveal-seq > *:not([data-reveal]) {
-  animation: reveal-rise var(--dur-slow) var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 40ms);
-}
-
-/* ── Task 7: On-scroll reveal ───────────────────────────────────────────── */
-html.js-reveal [data-reveal] { opacity: 0; transform: translateY(20px); transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out); will-change: opacity, transform; }
-html.js-reveal [data-reveal].revealed { opacity: 1; transform: none; will-change: auto; }
-
-/* ── Task 8: Parallax accents ───────────────────────────────────────────── */
-/* Orbs animate transform via @keyframes orb1/orb2/orb3; applying transform   */
-/* directly on .o1/.o2/.o3 would conflict with those keyframes. Apply to the  */
-/* .bg wrapper instead so the orb keyframes remain unaffected.                */
-html.js-reveal .bg { transform: translateY(calc(var(--par, 0px) * 0.5)); }

@@ -68,13 +68,13 @@
     <div class="tile t5 tile-link" data-goto="servers"><div class="n" id="tile-cost">$0</div><div class="l" id="tile-cost-l">Server costs</div></div>
   </div>
   <h3 class="block-title">Your servers</h3>
-  <div class="dash-cards" id="dash-cards" data-reveal></div>
-  <div class="dash-activity" id="dash-activity" data-reveal></div>
+  <div class="dash-cards" id="dash-cards"></div>
+  <div class="dash-activity" id="dash-activity"></div>
 </section>
       <section class="page" id="page-servers">
         <h2 class="page-title">Servers</h2>
         <p class="page-sub">Manage your Emby &amp; Jellyfin connections.</p>
-        <div id="servers-container" data-reveal></div>
+        <div id="servers-container"></div>
         <button class="btn-add" id="btn-add" onclick="addServer()">+ Add Server</button>
 
         <div class="profile-block">
@@ -803,7 +803,6 @@
   <div class="toast-wrap" id="toast-wrap"></div>
 
   <script src="/js/theme.js"></script>
-  <script src="/js/reveal.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/configure.js"></script>
   <script src="/js/controls.js"></script>
