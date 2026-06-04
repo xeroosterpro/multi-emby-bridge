@@ -41,8 +41,13 @@
         page.classList.remove('reveal-seq');
         void page.offsetWidth;
         page.classList.add('reveal-seq');
-        var kids = page.children;
-        for (var k = 0; k < kids.length && k < 12; k++) kids[k].style.setProperty('--i', k);
+        // Index only the children that actually stagger (data-reveal children are
+        // excluded from the animation), so delays stay contiguous.
+        var kids = page.children, idx = 0;
+        for (var k = 0; k < kids.length && idx < 12; k++) {
+          if (kids[k].hasAttribute && kids[k].hasAttribute('data-reveal')) continue;
+          kids[k].style.setProperty('--i', idx++);
+        }
         observeAll();
       }
 
@@ -63,7 +68,8 @@
       // scroll. Runs a few times to cover async content.
       function rescueVisible() {
         document.querySelectorAll('[data-reveal]:not(.revealed)').forEach(function (el) {
-          if (el.getBoundingClientRect().top < window.innerHeight) el.classList.add('revealed');
+          var r = el.getBoundingClientRect();
+          if (r.top < window.innerHeight && r.bottom > 0) el.classList.add('revealed');
         });
       }
       setTimeout(rescueVisible, 1200);
