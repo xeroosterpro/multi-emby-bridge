@@ -43,6 +43,16 @@ body {
   background: linear-gradient(160deg, var(--bg-grad-a), var(--bg-grad-b)) fixed;
   min-height: 100vh;
 }
+
+/* ---- scroll flow ---- */
+html { scrollbar-width: thin; scrollbar-color: var(--border) transparent; scrollbar-gutter: stable; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); background-clip: padding-box; }
+html.js-reveal { scroll-behavior: smooth; }
+.mdblist-browse-grid, .log-table-wrap { overscroll-behavior: contain; }
+
 @keyframes rgbflow { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
 @keyframes spin    { to { transform: rotate(360deg); } }
 @keyframes pulse   { 0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.5)} 50%{box-shadow:0 0 0 6px rgba(52,211,153,0)} }
