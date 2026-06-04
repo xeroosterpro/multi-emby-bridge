@@ -1413,3 +1413,20 @@ select, .input{ transition: var(--t-colors), box-shadow var(--dur-base) var(--ea
 .ob-step.done { opacity:.6; }
 .ob-check { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--border); display:grid; place-items:center; font-size:.7rem; color:#0a0a12; flex:none; }
 .ob-step.done .ob-check { background:var(--accent); border-color:var(--accent); }
+
+/* ── Task 6: Staggered tab-open reveal ─────────────────────────────────── */
+@keyframes reveal-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+html.js-reveal .page.reveal-seq > * {
+  animation: reveal-rise var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+
+/* ── Task 7: On-scroll reveal ───────────────────────────────────────────── */
+html.js-reveal [data-reveal] { opacity: 0; transform: translateY(20px); transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out); will-change: opacity, transform; }
+html.js-reveal [data-reveal].revealed { opacity: 1; transform: none; will-change: auto; }
+
+/* ── Task 8: Parallax accents ───────────────────────────────────────────── */
+/* Orbs animate transform via @keyframes orb1/orb2/orb3; applying transform   */
+/* directly on .o1/.o2/.o3 would conflict with those keyframes. Apply to the  */
+/* .bg wrapper instead so the orb keyframes remain unaffected.                */
+html.js-reveal .bg { transform: translateY(calc(var(--par, 0px) * 0.5)); }
