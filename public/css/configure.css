@@ -61,8 +61,12 @@ html.js-reveal { scroll-behavior: smooth; }
   /* Stop auto-playing / looping motion (background orbs, particles, gradient
      flow, page entrances) which can trigger motion discomfort — but keep the
      brief, user-initiated UI transitions (sidebar, hovers, accordions) so
-     controls glide smoothly instead of snapping. */
-  *, *::before, *::after { animation: none !important; }
+     controls glide smoothly instead of snapping.
+     .force-motion (set by reveal.js via ?motion=force) lets the user opt back
+     in from the keyboard / URL without touching OS settings. */
+  html:not(.force-motion) *,
+  html:not(.force-motion) *::before,
+  html:not(.force-motion) *::after { animation: none !important; }
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
