@@ -1231,7 +1231,8 @@ body.locked-billing .pin-btn{ display:none; }
 .content .tiles .tile{ transition:transform .2s var(--ease), border-color .2s var(--ease), box-shadow .2s var(--ease); }
 .content .tiles .tile:hover{ transform:translateY(-3px); border-color:color-mix(in srgb,var(--accent) 45%,var(--border)) !important; box-shadow:0 10px 26px rgba(0,0,0,.4); }
 .nav-item{ transition:background .22s var(--ease), color .22s var(--ease) !important; }
-.btn-soft, .btn-add, .btn-generate, .seg button, .pick, select, .input{ transition: var(--t-colors), var(--t-pop) !important; }
+.btn-soft, .btn-add, .btn-generate, .seg button, .pick{ transition: var(--t-colors), var(--t-pop) !important; }
+select, .input{ transition: var(--t-colors), box-shadow var(--dur-base) var(--ease) !important; }
 /* make the falling particles a touch more visible so the motion reads */
 .bg .flake{ box-shadow:0 0 7px var(--glow); }
 .bg .orb{ opacity:.55 !important; }
