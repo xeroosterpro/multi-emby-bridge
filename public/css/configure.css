@@ -1416,7 +1416,9 @@ select, .input{ transition: var(--t-colors), box-shadow var(--dur-base) var(--ea
 
 /* ── Task 6: Staggered tab-open reveal ─────────────────────────────────── */
 @keyframes reveal-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-html.js-reveal .page.reveal-seq > * {
+/* :not([data-reveal]) so a direct-child block opts into EITHER stagger OR
+   scroll-reveal, never both (avoids double-animating the same element). */
+html.js-reveal .page.reveal-seq > *:not([data-reveal]) {
   animation: reveal-rise var(--dur-slow) var(--ease-out) both;
   animation-delay: calc(var(--i, 0) * 40ms);
 }
