@@ -1346,6 +1346,12 @@ body.locked-billing .pin-btn{ display:none; }
 .da-list { background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; }
 .da-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 15px; border-bottom:1px solid var(--border); font-size:.85rem; }
 .da-row:last-child { border-bottom:0; }
+/* left group (dot + title) takes available width; title ellipsizes if too long */
+.da-main { display:flex; align-items:center; gap:8px; min-width:0; flex:1 1 auto; }
+.da-title { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.da-svr { flex:none; }
+/* right-hand meta (server·user, or timestamp) never shrinks or wraps */
+.da-meta { flex:none; white-space:nowrap; }
 .da-dim { color:var(--text-dim); font-size:.8rem; }
 .da-live { color:var(--accent); }
 .da-dot { width:8px; height:8px; border-radius:50%; background:#34d399; box-shadow:0 0 6px #34d399; flex:none; animation:status-blink 1.4s ease-in-out infinite !important; }
