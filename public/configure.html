@@ -38,7 +38,8 @@
         <a class="nav-item" data-page="catalogs"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h3v18H6a2 2 0 0 1-2-2V5Z"/><path d="M9 3h4l5 1.5-3.5 16L9 19"/></svg><span>Catalogs</span></a>
         <a class="nav-item" data-page="streaming"><svg class="nav-ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m10 9 5 3-5 3V9Z"/></svg><span>Streaming</span></a>
         <a class="nav-item" data-page="appearance"><svg class="nav-ic" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 22a10 10 0 1 1 0-20c5 0 8 3 8 7 0 3-2 4-4 4h-2c-1 0-2 1-2 2s1 2 0 4Z"/></svg><span>Appearance</span></a>
-        <a class="nav-item" data-page="install"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 1-7.1 7.1 5 5 0 0 1 7.1-7.1Zm0 0L15 8m0 0 3 3 3-3-3-3"/></svg><span>API Keys</span></a>
+        <a class="nav-item" data-page="install"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg><span>Install</span></a>
+        <a class="nav-item" data-page="apikeys"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 1-7.1 7.1 5 5 0 0 1 7.1-7.1Zm0 0L15 8m0 0 3 3 3-3-3-3"/></svg><span>API Keys</span></a>
         <div class="nav-sec">Monitoring</div>
         <a class="nav-item" data-page="health"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M3 12h4l2 5 4-12 2 7h6"/></svg><span>Health</span></a>
         <a class="nav-item" data-page="ping"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M2 12h4l3 8 4-16 3 8h6"/></svg><span>Ping test</span></a>
@@ -633,28 +634,9 @@
         <div class="refresh-bar" id="refresh-bar"></div>
       </section>
       <section class="page" id="page-install">
-        <div class="ak-head">
-          <div>
-            <h2 class="page-title">API Keys &amp; Manifest</h2>
-            <p class="page-sub">Stored encrypted · generates your unique Stremio link</p>
-          </div>
-          <span class="ak-badge">🔒 Encrypted at rest</span>
-        </div>
+        <h2 class="page-title">Install</h2>
+        <p class="page-sub">Generate your unique Stremio link</p>
         <div class="ak-grid">
-          <div class="card">
-            <div class="label">Your keys</div>
-            <div class="field"><div class="field-label">Trakt Client ID</div>
-              <input class="input ak-key" id="trakt-client-id" placeholder="Paste Trakt client id" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
-            <div class="field"><div class="field-label">TMDB API key</div>
-              <input class="input ak-key" id="tmdb-api-key" placeholder="Paste API Read Access Token (eyJ...)" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
-            <div class="field"><div class="field-label">MDBList API key</div>
-              <input class="input ak-key" id="mdblist-api-key" placeholder="Paste MDBList key" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
-            <div class="field"><div class="field-label">RPDB key <span class="field-opt">(optional · poster art)</span></div>
-              <input class="input ak-key" id="rpdb-key" placeholder="Paste RatingPosterDB key" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
-            <div class="field-hint">Keys are AES-encrypted before they touch the database. Decrypted only when serving your manifest.</div>
-            <button class="btn-generate" id="ak-save" type="button">Save keys</button>
-            <div class="auth-err" id="acct-msg"></div>
-          </div>
           <div class="card">
             <div class="label">Manifest URL</div>
             <div id="acct-link-wrap">
@@ -672,6 +654,26 @@
           </div>
         </div>
         <div id="result-section"></div>
+      </section>
+      <section class="page" id="page-apikeys">
+        <h2 class="page-title">API Keys</h2>
+        <p class="page-sub">Catalog source keys · stored encrypted</p>
+        <div class="ak-grid">
+          <div class="card">
+            <div class="label">Your keys</div>
+            <div class="field"><div class="field-label">Trakt Client ID</div>
+              <input class="input ak-key" id="trakt-client-id" placeholder="Paste Trakt client id" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
+            <div class="field"><div class="field-label">TMDB API key</div>
+              <input class="input ak-key" id="tmdb-api-key" placeholder="Paste API Read Access Token (eyJ...)" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
+            <div class="field"><div class="field-label">MDBList API key</div>
+              <input class="input ak-key" id="mdblist-api-key" placeholder="Paste MDBList key" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
+            <div class="field"><div class="field-label">RPDB key <span class="field-opt">(optional · poster art)</span></div>
+              <input class="input ak-key" id="rpdb-key" placeholder="Paste RatingPosterDB key" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
+            <div class="field-hint">Keys are AES-encrypted before they touch the database. Decrypted only when serving your manifest.</div>
+            <button class="btn-generate" id="ak-save" type="button">Save keys</button>
+            <div class="auth-err" id="acct-msg"></div>
+          </div>
+        </div>
       </section>
       <section class="page" id="page-ping">
         <h2 class="page-title">Ping test</h2>
@@ -735,6 +737,16 @@
           <div class="tile t3"><div class="n" id="m-mem">—</div><div class="l">Memory used</div></div>
           <div class="tile t4"><div class="n" id="m-up">—</div><div class="l">Uptime</div></div>
           <div class="tile t5"><div class="n" id="m-cpus">—</div><div class="l">CPU cores</div></div>
+        </div>
+        <div class="adm-section">
+          <h3 class="block-title">Site controls</h3>
+          <div class="field" style="display:flex;align-items:center;justify-content:space-between">
+            <div><div class="field-label">View as normal user</div><div class="field-hint">Preview the site without admin UI. You keep admin access.</div></div>
+            <button type="button" class="switch" id="view-as-switch" role="switch" aria-checked="false"></button>
+          </div>
+          <h4 class="block-title" style="margin-top:14px;font-size:.85rem">Visible tabs</h4>
+          <div class="field-hint">Turn a tab off to hide it from normal users. You still see it (badged) so you can re-enable.</div>
+          <div id="site-tabs-list"></div>
         </div>
       </section>
 
@@ -807,6 +819,7 @@
   <script src="/js/configure.js"></script>
   <script src="/js/controls.js"></script>
   <script src="/js/shell.js"></script>
+  <script src="js/site-controls.js"></script>
   <script src="/js/health.js"></script>
   <script src="/js/accordionize.js"></script>
   <script src="/js/dropdowns.js"></script>

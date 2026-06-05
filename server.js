@@ -135,6 +135,8 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 
 const { makeRequestLog } = require('./lib/requestLog');
+const { makeSiteSettings } = require('./lib/siteSettings');
+const _siteSettings = makeSiteSettings();
 // ─── Accounts / auth (no-ops gracefully without DATABASE_URL) ───────────────
 const { makeAuthRouter, attachUser } = require('./routes/auth');
 app.use(attachUser());
@@ -282,6 +284,12 @@ app.post('/api/clear-request-log', apiLimiter, (req, res) => {
   REQUEST_LOG.length = 0;
   saveRequestLog();
   res.json({ ok: true });
+});
+
+// Public: every visitor's frontend needs to know which tabs are hidden.
+app.get('/api/site-config', async (req, res) => {
+  const { TOGGLEABLE_TABS } = require('./lib/siteSettings');
+  res.json({ disabledTabs: await _siteSettings.getDisabledTabs(), toggleable: TOGGLEABLE_TABS });
 });
 
 
