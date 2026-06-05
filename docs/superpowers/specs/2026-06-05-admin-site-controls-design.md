@@ -3,7 +3,7 @@
 **Date:** 2026-06-05
 **Status:** Approved (pending spec review)
 **Branch:** `feat/admin-site-controls`
-**Scope:** Two admin features — "view as normal user" preview, and global per-tab enable/disable.
+**Scope:** Two admin features — "view as normal user" preview, and global per-tab enable/disable — plus splitting the combined "API Keys & Manifest" tab into separate **Install** and **API Keys** pages.
 
 ## Goal
 
@@ -27,8 +27,12 @@ configured); this is purely website navigation/visibility.
   (`nav.offsetParent === null`).
 - **No global site-settings store exists** — all config today is per-user
   (`user_config`). This feature needs a new global store.
-- User-facing tabs (toggleable): `dashboard, servers, catalogs, streaming, appearance,
-  install` (API Keys), `health, ping, log, settings, billing`.
+- The current `data-page="install"` page (`#page-install`, titled "API Keys & Manifest")
+  bundles two unrelated things: the catalog **API keys** (Trakt/TMDB/MDBList/RPDB +
+  `#ak-save`) and the **manifest install** link (`#acct-link-wrap`: `#acct-url`,
+  `#acct-copy`, `#acct-regen`, `#acct-install`). These get split (see §7).
+- User-facing tabs (toggleable), after the split: `dashboard, servers, catalogs,
+  streaming, appearance, install, apikeys, health, ping, log, settings, billing`.
   Admin tabs (`admin`, `users`) are NOT toggleable here — already admin-gated.
 
 ## Constraints
@@ -101,6 +105,22 @@ A new **"Site controls"** card (admin page markup + `admin.js` wiring):
 - Server validates tab names (whitelist) — can't disable admin tabs or inject pages.
 - If a disabled page is deep-linked, `applyTabs()` redirects users to Dashboard.
 - View-as banner guarantees the admin always knows + can exit.
+
+### 7. Split "API Keys & Manifest" into Install + API Keys
+The current `#page-install` (nav label "API Keys") conflates two concerns. Split into:
+- **Install** page — `data-page="install"`, `#page-install`, title "Install". Holds the
+  manifest install block (`#acct-link-wrap`: `#acct-url`, `#acct-copy`, `#acct-regen`,
+  `#acct-install`, plus the QR if present) and the `#result-section`. This is the
+  "add to Stremio" page.
+- **API Keys** page — `data-page="apikeys"`, `#page-apikeys`, title "API Keys". Holds the
+  catalog key fields (`#trakt-client-id`, `#tmdb-api-key`, `#mdblist-api-key`,
+  `#rpdb-key`) + `#ak-save` + the encryption hint. Sits under "Configuration".
+- **Nav:** Install gets its own item; API Keys keeps its item (relabeled from the old
+  combined one). Existing IDs (`#acct-*`, `#ak-*`, `#trakt-client-id`, etc.) are
+  preserved so `configure.js` wiring keeps working — only their parent `.page`/nav
+  changes. Any internal links/redirects to `#/install` that meant the keys page are
+  repointed appropriately.
+- Both new pages are in `TOGGLEABLE_TABS` (replacing the single `install`).
 
 ## Testing & verification
 - **Unit:** `test/siteSettings.test.js` (added to `npm test`): get/set round-trip via a
