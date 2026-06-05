@@ -11,6 +11,7 @@ const { makeUserConfig } = require('../lib/userConfig');
 const { makeLiveSessions } = require('../lib/sessions');
 const { summarizeRequestLog, userActivity, userAnalytics } = require('../lib/adminStats');
 const { makeRequestLog } = require('../lib/requestLog');
+const { makeSiteSettings, TOGGLEABLE_TABS } = require('../lib/siteSettings');
 
 function makeAdminRouter(opts = {}) {
   const getRequestLog = typeof opts.getRequestLog === 'function' ? opts.getRequestLog : () => [];
@@ -21,6 +22,7 @@ function makeAdminRouter(opts = {}) {
   const payments = makePayments(db);
   const serverHistory = makeServerHistory(db);
   const billing = makeBilling(db, payments); // events sink
+  const siteSettings = makeSiteSettings(db);
   const r = express.Router();
   r.use(express.json());
 
@@ -245,6 +247,18 @@ function makeAdminRouter(opts = {}) {
         recent: recent.rows,
       });
     } catch (e) { console.error('[admin/diag/requestlog]', e.message); res.status(500).json({ error: 'diag failed' }); }
+  });
+
+  r.get('/site-config', requireAdmin, async (req, res) => {
+    res.json({ disabledTabs: await siteSettings.getDisabledTabs(), toggleable: TOGGLEABLE_TABS });
+  });
+  r.post('/site-config', requireAdmin, async (req, res) => {
+    const tabs = (req.body && req.body.disabledTabs) || [];
+    if (!Array.isArray(tabs) || tabs.some(t => !TOGGLEABLE_TABS.includes(t))) {
+      return res.status(400).json({ error: 'invalid tab list' });
+    }
+    try { res.json({ disabledTabs: await siteSettings.setDisabledTabs(tabs) }); }
+    catch (e) { console.error('[admin/site-config]', e.message); res.status(500).json({ error: 'save failed' }); }
   });
 
   return r;
