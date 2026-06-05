@@ -1,5 +1,5 @@
 // ── Hash router + sidebar behavior + preference controls ─────────────────────
-const PAGES = ['dashboard','servers','catalogs','streaming','appearance','health','install','ping','log','settings','admin','users','billing'];
+const PAGES = ['dashboard','servers','catalogs','streaming','appearance','health','install','apikeys','ping','log','settings','admin','users','billing'];
 
 function showPage(name) {
   if (!PAGES.includes(name)) name = 'dashboard';
