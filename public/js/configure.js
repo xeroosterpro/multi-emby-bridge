@@ -1190,8 +1190,8 @@ async function renderDashActivity() {
   if (!a) { el.innerHTML = ''; return; }
   const esc = (typeof escHtml === 'function') ? escHtml : (x => String(x == null ? '' : x));
   const when = t => { if (!t) return ''; const d = Date.now() - new Date(t).getTime(); const h = Math.floor(d/3600000); return h < 1 ? 'just now' : h < 24 ? h+'h ago' : Math.floor(h/24)+'d ago'; };
-  const live = (a.live || []).map(s => `<div class="da-row da-live"><span class="da-dot"></span><span>▶ <strong>${esc(s.title)}</strong> <span class="da-dim">on ${esc(s.server)}${s.user ? ' · ' + esc(s.user) : ''}</span></span></div>`).join('');
-  const recent = (a.recent || []).map(e => `<div class="da-row"><span>${esc(e.title || '—')}${e.season ? ` S${e.season}E${e.episode || ''}` : ''} <span class="da-dim">· ${esc(e.server || '—')}</span></span><span class="da-dim">${when(e.ts)}</span></div>`).join('');
+  const live = (a.live || []).map(s => `<div class="da-row da-live"><span class="da-main"><span class="da-dot"></span><span class="da-title" title="${esc(s.title)}">▶ <strong>${esc(s.title)}</strong></span></span><span class="da-dim da-meta">on ${esc(s.server)}${s.user ? ' · ' + esc(s.user) : ''}</span></div>`).join('');
+  const recent = (a.recent || []).map(e => `<div class="da-row"><span class="da-main"><span class="da-title" title="${esc(e.title || '')}">${esc(e.title || '—')}${e.season ? ` S${e.season}E${e.episode || ''}` : ''}</span><span class="da-dim da-svr">· ${esc(e.server || '—')}</span></span><span class="da-dim da-meta">${when(e.ts)}</span></div>`).join('');
   if (!live && !recent) { el.innerHTML = `<h3 class="block-title">Activity</h3><div class="da-empty">No recent streaming activity yet.</div>`; return; }
   el.innerHTML = `${live ? `<h3 class="block-title">Now playing</h3><div class="da-list">${live}</div>` : ''}
     <h3 class="block-title" style="margin-top:16px">Recent activity</h3><div class="da-list">${recent || '<div class="da-empty">Nothing yet.</div>'}</div>`;
