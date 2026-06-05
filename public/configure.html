@@ -738,6 +738,16 @@
           <div class="tile t4"><div class="n" id="m-up">—</div><div class="l">Uptime</div></div>
           <div class="tile t5"><div class="n" id="m-cpus">—</div><div class="l">CPU cores</div></div>
         </div>
+        <div class="adm-section">
+          <h3 class="block-title">Site controls</h3>
+          <div class="field" style="display:flex;align-items:center;justify-content:space-between">
+            <div><div class="field-label">View as normal user</div><div class="field-hint">Preview the site without admin UI. You keep admin access.</div></div>
+            <button type="button" class="switch" id="view-as-switch" role="switch" aria-checked="false"></button>
+          </div>
+          <h4 class="block-title" style="margin-top:14px;font-size:.85rem">Visible tabs</h4>
+          <div class="field-hint">Turn a tab off to hide it from normal users. You still see it (badged) so you can re-enable.</div>
+          <div id="site-tabs-list"></div>
+        </div>
       </section>
 
       <section class="page" id="page-users">

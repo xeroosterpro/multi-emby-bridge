@@ -204,9 +204,43 @@
     });
   }
 
+  const TAB_LABELS = { dashboard:'Dashboard', servers:'Servers', catalogs:'Catalogs', streaming:'Streaming', appearance:'Appearance', install:'Install', apikeys:'API Keys', health:'Health', ping:'Ping test', log:'Request log', settings:'Settings', billing:'Billing' };
+
+  async function loadSiteControls() {
+    const list = $('#site-tabs-list'); if (!list) return;
+    const vs = $('#view-as-switch');
+    if (vs) {
+      const on = window.MEBSite && window.MEBSite.isViewAs();
+      vs.classList.toggle('on', !!on); vs.setAttribute('aria-checked', on ? 'true' : 'false');
+      if (!vs._w) { vs._w = 1; vs.addEventListener('click', () => {
+        const next = !vs.classList.contains('on');
+        vs.classList.toggle('on', next); vs.setAttribute('aria-checked', next ? 'true' : 'false');
+        if (window.MEBSite) window.MEBSite.setViewAs(next);
+      }); }
+    }
+    const r = await api('/api/admin/site-config');
+    if (r.status !== 200 || !r.body) { list.innerHTML = '<div class="field-hint">Site config unavailable.</div>'; return; }
+    const disabled = new Set(r.body.disabledTabs || []);
+    const tabs = r.body.toggleable || [];
+    list.innerHTML = tabs.map(t => `<div class="field" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <span>${escU(TAB_LABELS[t] || t)}</span>
+    <button type="button" class="switch site-tab-switch ${disabled.has(t) ? '' : 'on'}" data-tab="${escU(t)}" role="switch" aria-checked="${disabled.has(t) ? 'false' : 'true'}"></button></div>`).join('');
+    list.querySelectorAll('.site-tab-switch').forEach(sw => sw.addEventListener('click', async () => {
+      const enabled = !sw.classList.contains('on');
+      sw.classList.toggle('on', enabled); sw.setAttribute('aria-checked', enabled ? 'true' : 'false');
+      const next = tabs.filter(t => {
+        const el = list.querySelector(`.site-tab-switch[data-tab="${t}"]`);
+        return el && !el.classList.contains('on'); // not-on => disabled
+      });
+      const res = await api('/api/admin/site-config', { method: 'POST', body: JSON.stringify({ disabledTabs: next }) });
+      if (res.status === 200) { if (window.toast) window.toast('Tabs updated'); if (window.MEBSite) await window.MEBSite.refresh(); }
+      else if (window.toast) window.toast('Update failed');
+    }));
+  }
+
   function onRoute() {
     const page = (location.hash || '').replace(/^#\//, '');
-    if (page === 'admin') startMetrics(); else stopMetrics();
+    if (page === 'admin') { startMetrics(); loadSiteControls(); } else stopMetrics();
     if (page === 'users') { loadUsers(); loadCodes(); loadAudit(); wireCodeCreate(); wireAddUser(); }
   }
 
