@@ -912,6 +912,7 @@ const { initHealthDB } = require('./lib/health');
 runMigrations()
   .then(() => seedAdmin())
   .then(() => initHealthDB())
+  .then(() => console.log('[ready] Server fully initialized (DB init complete, accepting connections)'))
   .catch(e => console.error('[boot] db init failed:', e.message));
 
 
