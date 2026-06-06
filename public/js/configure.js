@@ -2230,6 +2230,7 @@ function collectFormState() {
     audioDisabled: [...document.querySelectorAll('#audio-rank-list .arl-disable:checked')].map(cb => cb.closest('.audio-rank-row').dataset.token),
     audioRankMode: document.getElementById('audio-rank-mode')?.value,
     audioDisableAction: document.getElementById('audio-disable-action')?.value,
+    audioPresets: [...document.querySelectorAll('#audio-preset-chips .chip.on')].map(c => c.dataset.preset),
     maxBitrate: document.getElementById('max-bitrate')?.value,
     autoSelect: document.getElementById('auto-select')?.checked,
     labelPreset: document.getElementById('label-preset')?.value,
@@ -2350,6 +2351,12 @@ function restoreFromLocalStorage() {
     setVal('audio-disable-action', state.audioDisableAction || 'hide');
     const _audioOrder = (state.audioOrder && state.audioOrder.length) ? state.audioOrder : AUDIO_FORMATS.map(f => f.token);
     renderAudioRankList(_audioOrder, state.audioDisabled || []);
+    // Re-highlight the device-preset chips that were selected (visual state only;
+    // saved order/disabled are restored above, so manual tweaks aren't clobbered).
+    (state.audioPresets || []).forEach(id => {
+      const chip = document.querySelector('#audio-preset-chips .chip[data-preset="' + id + '"]');
+      if (chip) chip.classList.add('on');
+    });
     setVal('max-bitrate', state.maxBitrate);
     setVal('label-preset', state.labelPreset);
     setVal('ping-origin', state.pingOrigin);
