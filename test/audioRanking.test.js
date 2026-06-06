@@ -87,5 +87,10 @@ assertEqual(streams[1]._demoted, 1, 'aac stream demoted (action=bottom)');
 assertEqual(streams[0]._demoted, 0, 'atmos stream not demoted');
 assertEqual(streams[1]._resRank, 0, 'resRank attached (4K=0)');
 
+const hideStreams = [{ _audioFormats: ['aac'], _resLabel: '4K' }];
+A.attachAudioKeys(hideStreams, { audioDisabled: ['aac'], audioDisableAction: 'hide' });
+assertEqual(hideStreams[0]._isDisabledClass, true, 'hide: still flagged disabled-class');
+assertEqual(hideStreams[0]._demoted, 0, 'hide action -> not demoted (only bottom demotes)');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
