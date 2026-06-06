@@ -151,6 +151,21 @@ console.log('\nmediaSourcesToStreams — quality badge tags');
   assert(s.name.includes('['), 'tags badge uses bracket notation');
 }
 
+// ── _audioFormats attached from MediaStreams ──
+console.log('\nmediaSourcesToStreams — _audioFormats');
+
+{
+  const multiAudioSource = makeSource({
+    MediaStreams: [
+      { Type: 'Video', Codec: 'hevc', Width: 3840, Height: 2160 },
+      { Type: 'Audio', Codec: 'truehd', Channels: 8, Profile: 'Atmos', Language: 'eng' },
+      { Type: 'Audio', Codec: 'ac3', Channels: 6, Language: 'eng' },
+    ],
+  });
+  const af = mediaSourcesToStreams(server, 'itemX', [multiAudioSource], 'standard');
+  assertEqual(af[0]._audioFormats.sort().join(','), 'atmos,dd', '_audioFormats lists all tracks classified');
+}
+
 // ─── Results ─────────────────────────────────────────────────────────────────
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
