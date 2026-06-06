@@ -401,6 +401,44 @@
           </div>
 
           <div class="field">
+            <div class="field-label">🔊 Audio ranking</div>
+            <div class="seg" data-target="#audio-rank" style="max-width:220px;margin-bottom:8px">
+              <button data-val="off">Off</button><button data-val="on">On</button>
+            </div>
+            <select id="audio-rank" class="hidden-canonical">
+              <option value="off">Off</option>
+              <option value="on">On</option>
+            </select>
+
+            <div class="audio-presets" style="margin-bottom:8px">
+              <div class="field-label" style="font-size:0.72rem">Device presets (multi-select)</div>
+              <div id="audio-preset-chips" class="chips"></div>
+              <div class="sw-sub">Presets reflect typical decode support — adjust to your gear.</div>
+            </div>
+
+            <ol id="audio-rank-list" class="audio-rank-list"></ol>
+            <div class="sw-sub" id="audio-rank-hint">Drag to set priority. Disable toggles work even with ranking off. If hiding would leave no results for a title, all are shown instead.</div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+              <div>
+                <div class="field-label" style="font-size:0.72rem">Priority mode</div>
+                <select id="audio-rank-mode" class="pick">
+                  <option value="audioFirst">Audio first</option>
+                  <option value="resFirst">Resolution first</option>
+                  <option value="tiebreak">Tiebreaker only</option>
+                </select>
+              </div>
+              <div>
+                <div class="field-label" style="font-size:0.72rem">When disabled</div>
+                <select id="audio-disable-action" class="pick">
+                  <option value="hide">Hide file</option>
+                  <option value="bottom">Send to bottom</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
             <div class="field-label">🎬 Prefer codec</div>
             <div class="seg" data-target="#pref-codec" style="margin-bottom:8px">
               <button data-val="any">Any</button><button data-val="h264">H.264</button><button data-val="hevc">HEVC</button><button data-val="av1">AV1</button><button data-val="vp9">VP9</button>

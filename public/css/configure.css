@@ -1463,3 +1463,14 @@ html.view-as-user .admin-only { display: none !important; }
 #page-appearance .appr-pv-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); animation: status-blink 1.6s ease-in-out infinite !important; }
 #page-appearance .appr-pv-lbl { font-size: .66rem; color: var(--text-mute); margin: 0 0 5px; text-transform: uppercase; letter-spacing: .04em; }
 /* reduced-motion safety: the preview sheen/dot pause unless force-motion (handled by global rule) */
+
+/* Audio ranking card */
+.audio-rank-list { list-style: none; margin: 0; padding: 0; }
+.audio-rank-list .arl-cat { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin: 8px 0 2px; }
+.audio-rank-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--card, #1a1a1f); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 4px; cursor: grab; }
+.audio-rank-row.dragging { opacity: 0.5; }
+.audio-rank-row .arl-handle { color: var(--text-muted); cursor: grab; user-select: none; }
+.audio-rank-row .arl-label { font-weight: 600; }
+.audio-rank-row .arl-chans { font-size: 0.7rem; color: var(--text-muted); margin-left: auto; }
+.audio-rank-row.disabled-fmt { opacity: 0.55; }
+#audio-preset-chips .chip.active { background: var(--accent); color: #fff; }
