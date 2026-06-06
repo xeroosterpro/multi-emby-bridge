@@ -10,12 +10,21 @@ const fs = require('fs');
 // port still responds but the app is broken, so Railway never triggers a restart.
 // Always exit(1) so Railway immediately restarts into a clean process.
 process.on('uncaughtException', (err) => {
-  console.error('[fatal] Uncaught Exception — exiting for clean restart:', err);
-  process.exit(1);
+  console.error('[fatal] Uncaught Exception — exiting for clean restart:');
+  console.error('[fatal] message:', err && err.message);
+  console.error('[fatal] stack:', err && err.stack);
+  // Delay 1s so Railway flushes logs before the process dies
+  setTimeout(() => process.exit(1), 1000).unref();
 });
-process.on('unhandledRejection', (reason) => {
-  console.error('[fatal] Unhandled Promise Rejection — exiting for clean restart:', reason);
-  process.exit(1);
+process.on('unhandledRejection', (reason, promise) => {
+  const msg   = reason instanceof Error ? reason.message : String(reason);
+  const stack = reason instanceof Error ? reason.stack   : '(no stack)';
+  console.error('[fatal] Unhandled Promise Rejection — exiting for clean restart:');
+  console.error('[fatal] reason:', msg);
+  console.error('[fatal] stack:', stack);
+  console.error('[fatal] promise:', promise);
+  // Delay 1s so Railway flushes logs before the process dies
+  setTimeout(() => process.exit(1), 1000).unref();
 });
 
 // ─── Modules ─────────────────────────────────────────────────────────────────
@@ -214,7 +223,8 @@ app.get('/configure', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'configure.html'));
 });
 
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/health',  (req, res) => res.json({ status: 'ok' }));
+app.get('/healthz', (req, res) => res.json({ status: 'ok' }));
 
 // ─── System metrics (CPU/RAM/uptime) for the admin panel ─────────────────────
 // NOTE: unauthenticated for now (returns only non-sensitive resource numbers).
@@ -874,7 +884,7 @@ app.use((err, req, res, _next) => {
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Multi-Emby Bridge running → http://localhost:${PORT}/configure`);
+  console.log(`[startup] Multi-Emby Bridge READY → http://0.0.0.0:${PORT}/configure`);
 });
 
 // Graceful shutdown to avoid abrupt DB connection resets on Railway deploys/restarts
