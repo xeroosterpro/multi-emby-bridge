@@ -1,0 +1,40 @@
+// ─── Unit tests for lib/audioRanking.js ──────────────────────────────────────
+// Run with: node test/audioRanking.test.js
+const A = require('../lib/audioRanking');
+
+let passed = 0, failed = 0;
+function assert(cond, msg) {
+  if (cond) { console.log(`  ✓ ${msg}`); passed++; }
+  else      { console.error(`  ✗ ${msg}`); failed++; }
+}
+function assertEqual(actual, expected, msg) {
+  const ok = JSON.stringify(actual) === JSON.stringify(expected);
+  if (ok) { console.log(`  ✓ ${msg}`); passed++; }
+  else    { console.error(`  ✗ ${msg} — expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`); failed++; }
+}
+
+console.log('\nTaxonomy & order:');
+assertEqual(A.AUDIO_FORMATS.length, 11, '11 formats defined');
+assertEqual(A.DEFAULT_ORDER, ['atmos','dtsx','truehd','dtshd_ma','lpcm','flac','ddplus','dts','dd','aac','other'], 'default order ids');
+assert(A.AUDIO_FORMATS.every(f => f.id && f.token && f.label && f.chans), 'every row has id/token/label/chans');
+
+console.log('\nToken converters:');
+assertEqual(A.idsToTokens(['atmos','aac']), ['atm','aac'], 'idsToTokens');
+assertEqual(A.tokensToIds(['atm','aac']), ['atmos','aac'], 'tokensToIds');
+assertEqual(A.tokensToIds(['atm','BOGUS','aac']), ['atmos','aac'], 'tokensToIds drops unknown tokens');
+
+console.log('\nresolveOrder:');
+assertEqual(A.resolveOrder(undefined), A.DEFAULT_ORDER, 'undefined -> default order');
+assertEqual(A.resolveOrder(['aac','atm']).slice(0,2), ['aac','atmos'], 'user order honored, then defaults appended');
+assertEqual(A.resolveOrder(['aac','atm']).length, 11, 'resolveOrder always returns all 11 ids');
+assertEqual(A.resolveOrder(['BOGUS']), A.DEFAULT_ORDER, 'all-garbage -> default order');
+
+console.log('\nresRank:');
+assertEqual(A.resRank('4K'), 0, '4K -> 0');
+assertEqual(A.resRank('1080p'), 1, '1080p -> 1');
+assertEqual(A.resRank('720p'), 2, '720p -> 2');
+assertEqual(A.resRank(null), 3, 'null -> 3');
+assertEqual(A.resRank('480p'), 3, 'other -> 3');
+
+console.log(`\n${passed} passed, ${failed} failed`);
+process.exit(failed ? 1 : 0);
