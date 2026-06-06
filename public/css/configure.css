@@ -1182,7 +1182,7 @@ body.locked-billing .pin-btn{ display:none; }
   padding:10px 0 4px 18px; white-space:nowrap; opacity:0; transition:opacity .25s var(--ease); }
 .sidebar:hover .nav-sec, .sidebar.locked .nav-sec{ opacity:1; }
 
-/* === Smooth collapsible sub-sections (nav groups) === */
+/* === Smooth collapsible sub-sections (nav groups) - polished to match mockups === */
 .nav-sec-toggle {
   all: unset;
   display: flex;
@@ -1194,17 +1194,17 @@ body.locked-billing .pin-btn{ display:none; }
   letter-spacing: .13em;
   text-transform: uppercase;
   color: var(--text-mute);
-  padding: 9px 10px 4px 18px;
+  padding: 8px 12px 4px 18px;
   margin: 0;
   white-space: nowrap;
   cursor: pointer;
   border-radius: 4px;
   user-select: none;
-  transition: color .15s var(--ease), background .15s var(--ease);
+  transition: color .15s var(--ease), background .15s var(--ease), border-color .15s var(--ease);
 }
 .nav-sec-toggle:hover {
   color: var(--text);
-  background: rgba(255,255,255,0.035);
+  background: rgba(255,255,255,0.04);
 }
 .nav-sec-toggle:focus-visible {
   outline: 2px solid var(--accent);
@@ -1213,18 +1213,20 @@ body.locked-billing .pin-btn{ display:none; }
 
 .nav-chev {
   flex: 0 0 auto;
-  margin-left: 6px;
-  opacity: .55;
-  transition: transform .22s var(--ease);
+  margin-left: 8px;
+  opacity: .75;
+  transition: transform .2s var(--ease);
   transform-origin: 50% 50%;
+  width: 12px;
+  height: 12px;
 }
 .nav-group.collapsed .nav-chev {
-  transform: rotate(-90deg);
+  transform: rotate(90deg); /* points right when collapsed (matches common mockup patterns) */
 }
 
 .nav-group-items {
   overflow: hidden;
-  transition: max-height .24s var(--ease), opacity .18s var(--ease);
+  transition: max-height .22s var(--ease), opacity .16s var(--ease);
   max-height: 900px;
   opacity: 1;
 }
@@ -1234,7 +1236,7 @@ body.locked-billing .pin-btn{ display:none; }
   pointer-events: none;
 }
 
-/* Respect the narrow sidebar rail: hide toggles when collapsed, just like old .nav-sec */
+/* Always show chevrons when sidebar is wide (hovered or locked) - always-visible arrows per mockups */
 .sidebar:not(:hover):not(.locked) .nav-sec-toggle {
   opacity: 0;
   pointer-events: none;
@@ -1243,6 +1245,22 @@ body.locked-billing .pin-btn{ display:none; }
 .sidebar.locked .nav-sec-toggle {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* Subtle visual polish for headers to feel more like the mockup (right-aligned arrow, clean separation) */
+.nav-sec-toggle::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 10px;
+  background: var(--border);
+  opacity: 0.3;
+}
+.nav-sec-toggle:hover::after {
+  opacity: 0.5;
 }
 
 /* Dashboard server cards → prototype chip layout */
