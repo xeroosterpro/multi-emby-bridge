@@ -69,7 +69,9 @@ function initShell() {
   // sidebar user button: show + populate when logged in; click logs out
   fetch('/api/auth/me', { credentials: 'same-origin' }).then(r => r.json()).then(d => {
     const btn = document.getElementById('logout');
-    if (btn && d && d.user) {
+    const loggedIn = !!(d && d.user);
+
+    if (btn && loggedIn) {
       btn.style.display = 'flex';
       const av = document.getElementById('side-avatar'); if (av) av.textContent = (d.user.username || '?')[0].toUpperCase();
       const nm = document.getElementById('side-username'); if (nm) nm.textContent = d.user.username + ' · Log out';
@@ -78,7 +80,25 @@ function initShell() {
         location.reload();
       });
     }
-  }).catch(() => {});
+
+    // Hide nav items that require an account when not signed in.
+    // This prevents users from landing on pages that will 401 (tickets, billing, admin, users, etc.)
+    // and getting stuck on "Loading..." placeholders.
+    const authGatedPages = ['tickets', 'billing', 'admin', 'users'];
+    authGatedPages.forEach(p => {
+      document.querySelectorAll(`.nav-item[data-page="${p}"], .foot-link[data-page="${p}"]`).forEach(el => {
+        el.style.display = loggedIn ? '' : 'none';
+      });
+    });
+  }).catch(() => {
+    // On error assume not logged in → hide gated nav items
+    const authGatedPages = ['tickets', 'billing', 'admin', 'users'];
+    authGatedPages.forEach(p => {
+      document.querySelectorAll(`.nav-item[data-page="${p}"], .foot-link[data-page="${p}"]`).forEach(el => {
+        el.style.display = 'none';
+      });
+    });
+  });
 
   routeFromHash();
 }

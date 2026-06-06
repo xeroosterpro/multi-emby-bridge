@@ -35,7 +35,11 @@
     body.innerHTML = '<div class="tkt-loading">Loading…</div>';
     const { status, body: tickets } = await api('/api/tickets');
     if (status === 401 || status === 503) {
-      body.innerHTML = '<div class="tkt-empty">Sign in to view your tickets.</div>';
+      // Hide the New Ticket button when not authenticated (the nav itself should be hidden too,
+      // but this guards direct access or stale sessions).
+      const newBtn = document.getElementById('tkt-new-btn');
+      if (newBtn) newBtn.style.display = 'none';
+      body.innerHTML = '<div class="tkt-empty">Sign in using the account icon in the sidebar to view and open support tickets.</div>';
       return;
     }
     if (!tickets || !Array.isArray(tickets)) {
@@ -223,14 +227,19 @@
   const origShow = window.onPageShow;
   window.onPageShow = function (name) {
     if (origShow) origShow(name);
-    if (name === 'tickets') {
-      document.getElementById('tkt-list-view').style.display = 'block';
-      document.getElementById('tkt-thread-view').style.display = 'none';
-      document.getElementById('tkt-form') && (document.getElementById('tkt-form').style.display = 'none');
-      _currentTicketId = null;
-      loadTickets();
-    }
+    if (name === 'tickets') activateTicketsPage();
   };
+
+  function activateTicketsPage() {
+    const listView = document.getElementById('tkt-list-view');
+    const threadView = document.getElementById('tkt-thread-view');
+    const form = document.getElementById('tkt-form');
+    if (listView) listView.style.display = 'block';
+    if (threadView) threadView.style.display = 'none';
+    if (form) form.style.display = 'none';
+    _currentTicketId = null;
+    loadTickets();
+  }
 
   // ── Guide page: wire internal links ────────────────────────────────────────
   function setupGuideLinks() {
@@ -255,5 +264,22 @@
     // Pre-load ticket count for nav badge on home page load
     const { body: tickets } = await api('/api/tickets');
     if (Array.isArray(tickets)) updateNavBadge(tickets);
+
+    // Self-activate on initial load (defends against onPageShow clobbering by configure.js / other modules
+    // and direct deep links like /configure#/tickets). The global hook is fragile because multiple
+    // scripts assign to window.onPageShow without (or with late) chaining.
+    const hash = (location.hash || '').replace(/^#\/?/, '');
+    if (hash === 'tickets') {
+      // small delay to ensure all static sections are queryable
+      setTimeout(activateTicketsPage, 0);
+    }
+  });
+
+  // Also react to hash changes directly (belt + suspenders)
+  window.addEventListener('hashchange', () => {
+    const hash = (location.hash || '').replace(/^#\/?/, '');
+    if (hash === 'tickets') {
+      setTimeout(activateTicketsPage, 0);
+    }
   });
 })();
