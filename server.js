@@ -14,6 +14,7 @@ const { healthServers, healthHistory, registerHealthServers, unregisterHealthSer
 const { hashPassword, loadProfiles, saveProfiles } = require('./lib/profiles');
 const { snapshot: systemMetrics } = require('./lib/metrics');
 const { ROW_NAMES, deriveLibraryRows } = require('./server-helpers');
+const audioRanking = require('./lib/audioRanking');
 
 // Cross-row deduplication cache (60s TTL per config)
 const _dedupCache = new Map();
@@ -214,6 +215,11 @@ app.get('/api/server-info', (req, res) => {
     service: service || null,
     host:    req.hostname || null,
   });
+});
+
+// Audio taxonomy + device presets — single source of truth for the configure UI.
+app.get('/api/audio-formats', (req, res) => {
+  res.json({ formats: audioRanking.AUDIO_FORMATS, presets: audioRanking.AUDIO_PRESETS });
 });
 
 // ─── Server health dashboard ──────────────────────────────────────────────────
@@ -735,6 +741,11 @@ app.get('/:config/stream/:type/:id.json', streamLimiter, async (req, res) => {
       subsStyle:    cfg.hideSubs     === true ? 'hidden' : (cfg.subsStyle    || 'full'),
       customNameFields: cfg.customNameFields || [],
       customDescFields: cfg.customDescFields || [],
+      audioRank:          cfg.audioRank === true,
+      audioOrder:         cfg.audioOrder || undefined,
+      audioDisabled:      cfg.audioDisabled || [],
+      audioRankMode:      cfg.audioRankMode || 'audioFirst',
+      audioDisableAction: cfg.audioDisableAction || 'hide',
     });
 
     // ── Results summary card (optional — pinned to top of stream list) ──────────
