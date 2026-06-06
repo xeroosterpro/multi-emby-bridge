@@ -1838,6 +1838,117 @@ function onShowPingChange() {
   autoSave();
 }
 
+// ─── Audio ranking card ──────────────────────────────────────────────────────
+let AUDIO_FORMATS = [];
+let AUDIO_PRESETS = [];
+const AUDIO_CAT_LABEL = { object: 'Object-Based', lossless: 'Lossless', lossy: 'Lossy', other: 'Other' };
+
+// Set the #audio-rank seg + its hidden-canonical <select> programmatically.
+// Mirrors the file's convention: set the canonical .value, then Controls.syncAll()
+// repaints the .seg[data-target] buttons (see controls.js syncSegment).
+function setAudioRankToggle(v) {
+  const sel = document.getElementById('audio-rank');
+  if (sel) sel.value = v;
+  if (window.Controls) Controls.syncAll();
+}
+
+async function initAudioCard() {
+  try {
+    const r = await fetch('/api/audio-formats');
+    const data = await r.json();
+    AUDIO_FORMATS = data.formats || [];
+    AUDIO_PRESETS = data.presets || [];
+  } catch { AUDIO_FORMATS = []; AUDIO_PRESETS = []; }
+  renderAudioPresetChips();
+  renderAudioRankList(AUDIO_FORMATS.map(f => f.token), []);
+}
+
+function tokenMeta(token) { return AUDIO_FORMATS.find(f => f.token === token) || null; }
+
+function renderAudioRankList(orderTokens, disabledTokens) {
+  const ol = document.getElementById('audio-rank-list');
+  if (!ol) return;
+  const disabled = new Set(disabledTokens || []);
+  ol.innerHTML = '';
+  let lastCat = null;
+  (orderTokens || []).forEach(token => {
+    const meta = tokenMeta(token);
+    if (!meta) return;
+    if (meta.cat !== lastCat) {
+      const cat = document.createElement('li');
+      cat.className = 'arl-cat';
+      cat.textContent = AUDIO_CAT_LABEL[meta.cat] || '';
+      ol.appendChild(cat);
+      lastCat = meta.cat;
+    }
+    const li = document.createElement('li');
+    li.className = 'audio-rank-row' + (disabled.has(token) ? ' disabled-fmt' : '');
+    li.draggable = true;
+    li.dataset.token = token;
+    li.innerHTML =
+      '<span class="arl-handle">⠿</span>' +
+      '<span class="arl-label"></span>' +
+      '<span class="arl-chans"></span>' +
+      '<label style="margin-left:8px;display:inline-flex;align-items:center;gap:4px;font-size:.7rem"><input type="checkbox" class="arl-disable"> disable</label>';
+    li.querySelector('.arl-label').textContent = meta.label;
+    li.querySelector('.arl-chans').textContent = meta.chans;
+    if (disabled.has(token)) li.querySelector('.arl-disable').checked = true;
+    ol.appendChild(li);
+  });
+  wireAudioDrag(ol);
+  ol.querySelectorAll('.arl-disable').forEach(cb => cb.addEventListener('change', e => {
+    e.target.closest('.audio-rank-row').classList.toggle('disabled-fmt', e.target.checked);
+  }));
+}
+
+function wireAudioDrag(ol) {
+  let dragEl = null;
+  ol.querySelectorAll('.audio-rank-row').forEach(row => {
+    row.addEventListener('dragstart', () => { dragEl = row; row.classList.add('dragging'); });
+    row.addEventListener('dragend', () => { row.classList.remove('dragging'); dragEl = null; });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (!dragEl || dragEl === row) return;
+      const rect = row.getBoundingClientRect();
+      const after = (e.clientY - rect.top) > rect.height / 2;
+      ol.insertBefore(dragEl, after ? row.nextSibling : row);
+    });
+  });
+}
+
+function renderAudioPresetChips() {
+  const wrap = document.getElementById('audio-preset-chips');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  AUDIO_PRESETS.forEach(p => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.dataset.preset = p.id;
+    chip.textContent = p.label;
+    chip.addEventListener('click', () => { chip.classList.toggle('on'); applyAudioPresets(); });
+    wrap.appendChild(chip);
+  });
+}
+
+function selectedPresetIds() {
+  return [...document.querySelectorAll('#audio-preset-chips .chip.on')].map(c => c.dataset.preset);
+}
+
+// Mirror of server resolvePreset for instant UI feedback.
+function applyAudioPresets() {
+  const ids = selectedPresetIds();
+  if (ids.length === 0) return;
+  const chosen = ids.map(id => AUDIO_PRESETS.find(p => p.id === id)).filter(Boolean);
+  const allIds = AUDIO_FORMATS.map(f => f.id);
+  const supportedAll = allIds.filter(fmt => chosen.every(p => p.supports.includes(fmt)));
+  const disabledIds = allIds.filter(fmt => !supportedAll.includes(fmt));
+  const orderIds = [...supportedAll, ...disabledIds];
+  const toToken = id => (AUDIO_FORMATS.find(f => f.id === id) || {}).token;
+  renderAudioRankList(orderIds.map(toToken), disabledIds.map(toToken));
+  setAudioRankToggle('on');
+  document.getElementById('audio-disable-action').value = ids.length > 1 ? 'bottom' : 'hide';
+}
+
 // ── Generate links ────────────────────────────────────────────────────────
 function generateLinks(opts = {}) {
   const silent = opts.silent === true;   // silent: rebuild config + meb-last-config for account auto-sync, no prompts/render/scroll
@@ -1867,6 +1978,12 @@ Continue anyway?`;
   const audioLang = document.getElementById('audio-lang').value;
   const prefCodec = document.getElementById('pref-codec').value;
   const codecMode = document.getElementById('codec-mode').value;
+  const audioRank = document.getElementById('audio-rank').value === 'on';
+  const audioOrder = [...document.querySelectorAll('#audio-rank-list .audio-rank-row')].map(r => r.dataset.token);
+  const audioDisabled = [...document.querySelectorAll('#audio-rank-list .arl-disable:checked')].map(cb => cb.closest('.audio-rank-row').dataset.token);
+  const audioRankMode = document.getElementById('audio-rank-mode').value;
+  const audioDisableAction = document.getElementById('audio-disable-action').value;
+  const audioOrderChanged = audioOrder.length > 0 && audioOrder.join(',') !== AUDIO_FORMATS.map(f => f.token).join(',');
   const maxBitrate = document.getElementById('max-bitrate').value;
   const autoSelect = document.getElementById('auto-select').checked;
   const labelPreset = document.getElementById('label-preset').value;
@@ -1904,6 +2021,11 @@ Continue anyway?`;
       if (audioLang !== 'any') sc.audioLang = audioLang;
       if (maxBitrate) sc.maxBitrate = parseInt(maxBitrate, 10);
       if (prefCodec !== 'any') { sc.prefCodec = prefCodec; sc.codecMode = codecMode; }
+      if (audioRank) sc.audioRank = true;
+      if (audioRank && audioRankMode !== 'audioFirst') sc.audioRankMode = audioRankMode;
+      if (audioOrderChanged) sc.audioOrder = audioOrder;
+      if (audioDisabled.length) sc.audioDisabled = audioDisabled;
+      if (audioDisabled.length && audioDisableAction !== 'hide') sc.audioDisableAction = audioDisableAction;
       if (labelPreset !== 'standard') sc.labelPreset = labelPreset;
       if (autoSelect) sc.autoSelect = true;
       if (showSummary) { sc.showSummary = true; if (summaryStyle !== 'compact') sc.summaryStyle = summaryStyle; }
@@ -1954,6 +2076,11 @@ Continue anyway?`;
     if (audioLang !== 'any') config.audioLang = audioLang;
     if (maxBitrate) config.maxBitrate = parseInt(maxBitrate, 10);
     if (prefCodec !== 'any') { config.prefCodec = prefCodec; config.codecMode = codecMode; }
+    if (audioRank) config.audioRank = true;
+    if (audioRank && audioRankMode !== 'audioFirst') config.audioRankMode = audioRankMode;
+    if (audioOrderChanged) config.audioOrder = audioOrder;
+    if (audioDisabled.length) config.audioDisabled = audioDisabled;
+    if (audioDisabled.length && audioDisableAction !== 'hide') config.audioDisableAction = audioDisableAction;
     if (labelPreset !== 'standard') config.labelPreset = labelPreset;
     if (autoSelect) config.autoSelect = true;
     if (showSummary) { config.showSummary = true; if (summaryStyle !== 'compact') config.summaryStyle = summaryStyle; }
@@ -2095,6 +2222,11 @@ function collectFormState() {
     audioLang: document.getElementById('audio-lang')?.value,
     prefCodec: document.getElementById('pref-codec')?.value,
     codecMode: document.getElementById('codec-mode')?.value,
+    audioRank: document.getElementById('audio-rank')?.value === 'on',
+    audioOrder: [...document.querySelectorAll('#audio-rank-list .audio-rank-row')].map(r => r.dataset.token),
+    audioDisabled: [...document.querySelectorAll('#audio-rank-list .arl-disable:checked')].map(cb => cb.closest('.audio-rank-row').dataset.token),
+    audioRankMode: document.getElementById('audio-rank-mode')?.value,
+    audioDisableAction: document.getElementById('audio-disable-action')?.value,
     maxBitrate: document.getElementById('max-bitrate')?.value,
     autoSelect: document.getElementById('auto-select')?.checked,
     labelPreset: document.getElementById('label-preset')?.value,
@@ -2210,6 +2342,11 @@ function restoreFromLocalStorage() {
     setVal('audio-lang', state.audioLang);
     setVal('pref-codec', state.prefCodec);
     setVal('codec-mode', state.codecMode);
+    setAudioRankToggle(state.audioRank ? 'on' : 'off');
+    setVal('audio-rank-mode', state.audioRankMode || 'audioFirst');
+    setVal('audio-disable-action', state.audioDisableAction || 'hide');
+    const _audioOrder = (state.audioOrder && state.audioOrder.length) ? state.audioOrder : AUDIO_FORMATS.map(f => f.token);
+    renderAudioRankList(_audioOrder, state.audioDisabled || []);
     setVal('max-bitrate', state.maxBitrate);
     setVal('label-preset', state.labelPreset);
     setVal('ping-origin', state.pingOrigin);
@@ -2269,8 +2406,9 @@ function restoreFromLocalStorage() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   if (!document.getElementById('servers-container')) return; // shell not ready / page absent
+  await initAudioCard();   // populate AUDIO_FORMATS/PRESETS + render card before restore reads them
   if (!restoreFromLocalStorage()) addServer();
   // TEMP scaffold: these page-init calls belong to Catalogs/Appearance/Streaming
   // pages not yet migrated; their target DOM is absent now, so guard each call.
