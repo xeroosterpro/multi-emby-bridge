@@ -34,8 +34,11 @@ body {
   /* Stop auto-playing / looping motion (background orbs, particles, gradient
      flow, page entrances) which can trigger motion discomfort — but keep the
      brief, user-initiated UI transitions (sidebar, hovers, accordions) so
-     controls glide smoothly instead of snapping. */
-  *, *::before, *::after { animation: none !important; }
+     controls glide smoothly instead of snapping. The user can override this
+     from Appearance → Animated background (adds body.force-motion). */
+  body:not(.force-motion) *,
+  body:not(.force-motion) *::before,
+  body:not(.force-motion) *::after { animation: none !important; }
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -928,7 +931,7 @@ body{ font-family:'Inter',system-ui,sans-serif !important; letter-spacing:-.01em
 .bg .flake{ position:absolute; top:-5vh; border-radius:50%; background:var(--accent-2); box-shadow:0 0 5px var(--glow); animation:fall linear infinite; }
 @keyframes fall{ 0%{transform:translateY(-6vh) translateX(0);opacity:0} 10%{opacity:var(--o,.4)} 50%{transform:translateY(50vh) translateX(var(--sway,14px))} 90%{opacity:var(--o,.4)} 100%{transform:translateY(106vh) translateX(0);opacity:0} }
 body.noanim .orb, body.noanim .flake{ animation:none !important } body.noanim .flake{ opacity:0 !important }
-@media (prefers-reduced-motion: reduce){ .orb,.flake{ animation:none !important } .flake{ opacity:0 !important } }
+@media (prefers-reduced-motion: reduce){ body:not(.force-motion) .orb, body:not(.force-motion) .flake{ animation:none !important } body:not(.force-motion) .flake{ opacity:0 !important } }
 
 /* hover-expand + lockable sidebar (overrides the flex shell layout) */
 .app{ background:transparent; }
