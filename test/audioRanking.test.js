@@ -140,5 +140,27 @@ arr = attach([
 arr.sort(A.audioComparator({ sortOrder: 'size', audioRank: true, audioRankMode: 'tiebreak' }));
 assertEqual(arr[0]._audioFormats[0], 'atmos', 'tiebreak: equal size -> audio breaks the tie (atmos wins)');
 
+console.log('\nfilterDisabledHide:');
+function mk(fmts) { return { _audioFormats: fmts }; }
+// hide action removes disabled-class files
+let input = A.attachAudioKeys([mk(['atmos']), mk(['aac'])], { audioDisabled:['aac'], audioDisableAction:'hide' });
+let r = A.filterDisabledHide(input, { audioDisabled:['aac'], audioDisableAction:'hide' });
+assertEqual(r.streams.length, 1, 'hide: aac file removed');
+assertEqual(r.streams[0]._audioFormats[0], 'atmos', 'hide: atmos file kept');
+assertEqual(r.hiddenFallback, false, 'no fallback when results remain');
+// zero-result fallback: all files disabled -> restore originals
+input = A.attachAudioKeys([mk(['aac']), mk(['dd'])], { audioDisabled:['aac','dd'], audioDisableAction:'hide' });
+r = A.filterDisabledHide(input, { audioDisabled:['aac','dd'], audioDisableAction:'hide' });
+assertEqual(r.streams.length, 2, 'fallback: all-disabled -> originals restored');
+assertEqual(r.hiddenFallback, true, 'fallback flag set');
+// action=bottom -> no removal
+input = A.attachAudioKeys([mk(['atmos']), mk(['aac'])], { audioDisabled:['aac'], audioDisableAction:'bottom' });
+r = A.filterDisabledHide(input, { audioDisabled:['aac'], audioDisableAction:'bottom' });
+assertEqual(r.streams.length, 2, 'bottom: nothing removed');
+// no disabled set -> passthrough
+input = A.attachAudioKeys([mk(['atmos'])], { audioDisabled:[] });
+r = A.filterDisabledHide(input, { audioDisabled:[] });
+assertEqual(r.streams.length, 1, 'empty disabled set: passthrough');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
