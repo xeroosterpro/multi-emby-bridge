@@ -92,5 +92,45 @@ A.attachAudioKeys(hideStreams, { audioDisabled: ['aac'], audioDisableAction: 'hi
 assertEqual(hideStreams[0]._isDisabledClass, true, 'hide: still flagged disabled-class');
 assertEqual(hideStreams[0]._demoted, 0, 'hide action -> not demoted (only bottom demotes)');
 
+console.log('\ncompareSortOrder (mirrors legacy sort):');
+const big = { _sizeBytes: 100, _bitrate: 10, _audioRank: 50 };
+const small = { _sizeBytes: 10, _bitrate: 99, _audioRank: 5 };
+assert(A.compareSortOrder(big, small, 'size') < 0, 'size: bigger first');
+assert(A.compareSortOrder(small, big, 'bitrate') < 0, 'bitrate: higher first');
+assert(A.compareSortOrder(small, big, 'audio') < 0, 'audio: lower _audioRank first');
+
+console.log('\naudioComparator — backward compat (ranking OFF):');
+function attach(s, opts) { A.attachAudioKeys(s, opts); return s; }
+let arr = attach([
+  { _audioFormats:['aac'],  _resLabel:'1080p', _sizeBytes:10, _bitrate:5, _audioRank:60 },
+  { _audioFormats:['atmos'],_resLabel:'1080p', _sizeBytes:99, _bitrate:5, _audioRank:0 },
+], { audioDisabled: [] });
+arr.sort(A.audioComparator({ sortOrder: 'size', audioRank: false }));
+assertEqual(arr[0]._sizeBytes, 99, 'ranking off + sort=size -> biggest first (unchanged)');
+
+console.log('\naudioComparator — audioFirst:');
+arr = attach([
+  { _audioFormats:['aac'],  _resLabel:'4K',    _sizeBytes:99, _audioRank:60 },
+  { _audioFormats:['atmos'],_resLabel:'1080p', _sizeBytes:10, _audioRank:0 },
+], { audioDisabled: [] });
+arr.sort(A.audioComparator({ sortOrder: 'size', audioRank: true, audioRankMode: 'audioFirst' }));
+assertEqual(arr[0]._audioFormats[0], 'atmos', 'audioFirst: atmos beats higher-res aac');
+
+console.log('\naudioComparator — resFirst:');
+arr = attach([
+  { _audioFormats:['aac'],  _resLabel:'4K',    _sizeBytes:10, _audioRank:60 },
+  { _audioFormats:['atmos'],_resLabel:'1080p', _sizeBytes:99, _audioRank:0 },
+], { audioDisabled: [] });
+arr.sort(A.audioComparator({ sortOrder: 'size', audioRank: true, audioRankMode: 'resFirst' }));
+assertEqual(arr[0]._resLabel, '4K', 'resFirst: 4K beats 1080p Atmos');
+
+console.log('\naudioComparator — tier 0 demotion (independent of ranking toggle):');
+arr = attach([
+  { _audioFormats:['aac'],  _resLabel:'4K', _sizeBytes:99, _audioRank:60 },
+  { _audioFormats:['atmos'],_resLabel:'4K', _sizeBytes:10, _audioRank:0 },
+], { audioDisabled: ['aac'], audioDisableAction: 'bottom' });
+arr.sort(A.audioComparator({ sortOrder: 'size', audioRank: false }));
+assertEqual(arr[0]._audioFormats[0], 'atmos', 'demoted aac sinks below atmos even with ranking off');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
