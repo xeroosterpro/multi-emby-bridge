@@ -1254,7 +1254,7 @@ async function renderDashboard(force = false) {
     const wrap = document.getElementById('dash-cards');
     if (!wrap) return;
     wrap.innerHTML = '';
-    let upCount = 0, movieTotal = 0, fastest = null;
+    let upCount = 0, movieTotal = 0, showTotal = 0, fastest = null;
     await Promise.all(servers.map(async (s, idx) => {
       const PALETTE = [
         ['linear-gradient(135deg,#fb923c,#f472b6)','rgba(244,114,182,.5)'],
@@ -1310,7 +1310,7 @@ async function renderDashboard(force = false) {
       const cached = _libStatsCache[k];
       if (!force && cached && (now - cached.ts < LIB_TTL_MS)) {
         setStats(cached);
-        upCount++; movieTotal += (cached.movies||0);
+        upCount++; movieTotal += (cached.movies||0); showTotal += (cached.shows||0);
         if (fastest === null || cached.ms < fastest) fastest = cached.ms;
         setStatus(true, cached.ms);
         return;
@@ -1323,7 +1323,7 @@ async function renderDashboard(force = false) {
         if (r.ok) {
           const st = await r.json();
           setStats(st);
-          upCount++; movieTotal += (st.movies||0);
+          upCount++; movieTotal += (st.movies||0); showTotal += (st.shows||0);
           if (fastest === null || ms < fastest) fastest = ms;
           setStatus(true, ms);
           _libStatsCache[k] = { movies: st.movies||0, shows: st.shows||0, episodes: st.episodes||0, ms, ts: now };
@@ -1334,6 +1334,7 @@ async function renderDashboard(force = false) {
     const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     setTxt('tile-servers', upCount);
     setTxt('tile-movies', movieTotal.toLocaleString());
+    setTxt('tile-shows', showTotal.toLocaleString());
     setTxt('tile-ping', fastest != null ? fastest + 'ms' : '—');
     const totalMo = servers.reduce((a, s) => a + monthlyCost(s.cost, s.costPeriod), 0);
     setTxt('tile-cost', '$' + Math.round(totalMo) + (totalMo > 0 ? '/mo' : ''));

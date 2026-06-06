@@ -1,8 +1,8 @@
 // ── Hash router + sidebar behavior + preference controls ─────────────────────
-const PAGES = ['dashboard','servers','catalogs','streaming','appearance','health','install','apikeys','ping','log','settings','admin','users','billing'];
+const PAGES = ['home','dashboard','servers','catalogs','streaming','appearance','health','install','apikeys','ping','log','settings','admin','users','billing'];
 
 function showPage(name) {
-  if (!PAGES.includes(name)) name = 'dashboard';
+  if (!PAGES.includes(name)) name = 'home';
   PAGES.forEach(p => {
     const sec = document.getElementById('page-' + p);
     if (sec) sec.classList.toggle('on', p === name);
@@ -14,7 +14,7 @@ function showPage(name) {
 }
 
 function routeFromHash() {
-  const name = (location.hash || '#/dashboard').replace(/^#\//, '');
+  const name = (location.hash || '#/home').replace(/^#\//, '');
   showPage(name);
 }
 
