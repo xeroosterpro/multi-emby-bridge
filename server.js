@@ -859,7 +859,7 @@ app.use((err, req, res, _next) => {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Multi-Emby Bridge running → http://localhost:${PORT}/configure`);
 });
 
