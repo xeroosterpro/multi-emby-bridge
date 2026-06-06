@@ -218,7 +218,7 @@ app.get('/api/server-info', (req, res) => {
 });
 
 // Audio taxonomy + device presets — single source of truth for the configure UI.
-app.get('/api/audio-formats', (req, res) => {
+app.get('/api/audio-formats', apiLimiter, (req, res) => {
   res.json({ formats: audioRanking.AUDIO_FORMATS, presets: audioRanking.AUDIO_PRESETS });
 });
 
