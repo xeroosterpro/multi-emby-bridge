@@ -4,6 +4,15 @@ const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
 
+// Global handlers to surface hidden errors that could cause early process exit on Railway
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  // Log but let the platform handle restart; do not exit here to allow graceful paths
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 // ─── Modules ─────────────────────────────────────────────────────────────────
 const { parseStreamId } = require('./lib/utils');
 const { fetchWithTimeout, authHeaders, appendAuth, apiFetch, pingServer, buildStreamUrl, getEffectiveApiKey, BROWSER_UA } = require('./lib/auth');
