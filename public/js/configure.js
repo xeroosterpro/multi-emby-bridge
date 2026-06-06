@@ -1193,7 +1193,11 @@ window.onPageShow = function(name) {
   if (name === 'servers') renderServersPage();
   if (name === 'appearance') {
     if (typeof updateLabelPreview === 'function') updateLabelPreview();
-    if (typeof updateSummaryPreview === 'function') updateSummaryPreview();
+    // sync the summary-preview section's visibility to the toggle (and populate if on)
+    const sumOn = document.getElementById('show-summary')?.checked;
+    const pvWrap = document.getElementById('pv-summary-wrap');
+    if (pvWrap) pvWrap.style.display = sumOn ? '' : 'none';
+    if (sumOn && typeof updateSummaryPreview === 'function') updateSummaryPreview();
   }
   if (name === 'dashboard') { renderDashboard(); renderDashActivity(); renderOnboarding(); }
   if (name === 'health' && window.startHealth) window.startHealth();
@@ -1694,14 +1698,36 @@ function updateLabelPreview() {
   };
   const p = previews[preset] || previews.standard;
   const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const descHtml = esc(p.desc).split('\n')
+  // Reflect the "Badges & extras" choices live in the preview.
+  const v = id => document.getElementById(id)?.value;
+  const qb = v('quality-badge'), fl = v('flag-emoji'), br = v('bitrate-bar'), ss = v('subs-style');
+  let name = p.name;
+  if (qb === 'emoji') name = '💎 ' + name;
+  else if (qb === 'tags') name = '[REMUX][4K][HDR] ' + name;
+  // For custom preset keep its own descriptive text; otherwise compose desc from the badges.
+  let descSource = p.desc;
+  if (preset !== 'custom') {
+    const parts = [];
+    if (fl === '') parts.push('ENG');
+    else if (fl === 'flag') parts.push('🇬🇧');
+    else if (fl === 'both') parts.push('🇬🇧 ENG');
+    if (br === '') parts.push('85.2 Mbps');
+    else if (br === 'blocks') parts.push('▰▰▰▱');
+    else if (br === 'segments') parts.push('▰▰▱▱');
+    if (ss === 'full') parts.push('Subs: EN · FR · ES');
+    else if (ss === 'count') parts.push('Subs ×3');
+    else if (ss === 'icons') parts.push('Subs 🇬🇧 🇫🇷 🇪🇸');
+    parts.push('58.32 GB');
+    descSource = parts.join(' · ');
+  }
+  const descHtml = esc(descSource).split('\n')
     .map(l => `<div style="color:var(--text-muted);font-size:0.72rem;line-height:1.55">${l}</div>`)
     .join('');
   previewEl.innerHTML = `
     <div style="display:flex;align-items:flex-start;gap:0.6rem;padding:0.1rem 0">
       <div style="flex-shrink:0;width:26px;height:26px;background:var(--bg-elevated);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:var(--text-muted);margin-top:0.1rem">&#9654;</div>
       <div style="min-width:0">
-        <div style="color:#d0c8ff;font-weight:600;font-size:0.8rem;line-height:1.4;margin-bottom:0.1rem">${esc(p.name)}</div>
+        <div style="color:#d0c8ff;font-weight:600;font-size:0.8rem;line-height:1.4;margin-bottom:0.1rem">${esc(name)}</div>
         ${descHtml}
       </div>
     </div>`;
@@ -1719,6 +1745,8 @@ function toggleSummaryStyle() {
   const show = document.getElementById('show-summary').checked;
   const opts = document.getElementById('summary-options');
   if (opts) opts.style.display = show ? 'flex' : 'none';
+  const pvWrap = document.getElementById('pv-summary-wrap');   // hide the preview's summary section when off
+  if (pvWrap) pvWrap.style.display = show ? '' : 'none';
   if (show) updateSummaryPreview();
   autoSave();
 }

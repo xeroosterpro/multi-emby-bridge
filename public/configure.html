@@ -534,7 +534,7 @@
       <button data-val="emoji">Emoji</button>
       <button data-val="tags">Tags</button>
     </div>
-    <select id="quality-badge" class="hidden-canonical" onchange="autoSave()">
+    <select id="quality-badge" class="hidden-canonical" onchange="autoSave();updateLabelPreview()">
       <option value="">Off</option>
       <option value="emoji">Emoji — before name</option>
       <option value="tags">Tags — [REMUX][4K][HDR]</option>
@@ -550,7 +550,7 @@
       <button data-val="flag">Flags</button>
       <button data-val="both">Flags + Codes</button>
     </div>
-    <select id="flag-emoji" class="hidden-canonical" onchange="autoSave()">
+    <select id="flag-emoji" class="hidden-canonical" onchange="autoSave();updateLabelPreview()">
       <option value="none">None — hidden</option>
       <option value="">Codes — ENG, RUS</option>
       <option value="flag">Flags only</option>
@@ -567,7 +567,7 @@
       <button data-val="blocks">Blocks</button>
       <button data-val="segments">Segments</button>
     </div>
-    <select id="bitrate-bar" class="hidden-canonical" onchange="autoSave()">
+    <select id="bitrate-bar" class="hidden-canonical" onchange="autoSave();updateLabelPreview()">
       <option value="none">None — hidden</option>
       <option value="">Mbps only</option>
       <option value="blocks">Blocks bar</option>
@@ -584,7 +584,7 @@
       <button data-val="icons">Icons</button>
       <button data-val="hidden">Hidden</button>
     </div>
-    <select id="subs-style" class="hidden-canonical" onchange="autoSave()">
+    <select id="subs-style" class="hidden-canonical" onchange="autoSave();updateLabelPreview()">
       <option value="full">Full list</option>
       <option value="count">Count only</option>
       <option value="icons">Flag icons</option>
@@ -634,8 +634,10 @@
       <div class="appr-pv-h"><span class="appr-pv-dot"></span> Live preview</div>
       <div class="appr-pv-lbl">Stream label</div>
       <div id="label-preview" style="margin:0 0 0.85rem;padding:0.5rem 0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)"></div>
-      <div class="appr-pv-lbl">Summary card</div>
-      <div id="summary-preview" style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.6rem 0.75rem"></div>
+      <div id="pv-summary-wrap">
+        <div class="appr-pv-lbl">Summary card</div>
+        <div id="summary-preview" style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.6rem 0.75rem"></div>
+      </div>
     </div>
    </div>
 
