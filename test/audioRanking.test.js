@@ -36,5 +36,22 @@ assertEqual(A.resRank('720p'), 2, '720p -> 2');
 assertEqual(A.resRank(null), 3, 'null -> 3');
 assertEqual(A.resRank('480p'), 3, 'other -> 3');
 
+console.log('\nclassifyAudio:');
+assertEqual(A.classifyAudio('truehd', 'Atmos'), 'atmos', 'TrueHD+Atmos -> atmos');
+assertEqual(A.classifyAudio('truehd', ''), 'truehd', 'TrueHD plain -> truehd');
+assertEqual(A.classifyAudio('eac3', 'Dolby Atmos'), 'atmos', 'EAC3+Atmos -> atmos');
+assertEqual(A.classifyAudio('eac3', ''), 'ddplus', 'EAC3 plain -> ddplus');
+assertEqual(A.classifyAudio('dca', 'DTS:X'), 'dtsx', 'DTS profile DTS:X -> dtsx');
+assertEqual(A.classifyAudio('dts', 'DTS-HD MA'), 'dtshd_ma', 'DTS profile MA -> dtshd_ma');
+assertEqual(A.classifyAudio('dtshd', ''), 'dtshd_ma', 'dtshd codec -> dtshd_ma');
+assertEqual(A.classifyAudio('dts', ''), 'dts', 'DTS plain -> dts');
+assertEqual(A.classifyAudio('pcm_s24le', ''), 'lpcm', 'pcm -> lpcm');
+assertEqual(A.classifyAudio('flac', ''), 'flac', 'flac -> flac');
+assertEqual(A.classifyAudio('ac3', ''), 'dd', 'ac3 -> dd');
+assertEqual(A.classifyAudio('aac', ''), 'aac', 'aac -> aac');
+assertEqual(A.classifyAudio('opus', ''), 'other', 'opus -> other');
+assertEqual(A.classifyAudio('', ''), 'other', 'empty -> other');
+assertEqual(A.classifyAudio(null, null), 'other', 'null -> other (no throw)');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
