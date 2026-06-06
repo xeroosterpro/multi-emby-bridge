@@ -162,5 +162,34 @@ input = A.attachAudioKeys([mk(['atmos'])], { audioDisabled:[] });
 r = A.filterDisabledHide(input, { audioDisabled:[] });
 assertEqual(r.streams.length, 1, 'empty disabled set: passthrough');
 
+console.log('\nAUDIO_PRESETS:');
+assert(A.AUDIO_PRESETS.some(p => p.id === 'shield'), 'shield preset exists');
+assert(A.AUDIO_PRESETS.some(p => p.id === 'sonos'), 'sonos preset exists');
+assert(A.AUDIO_PRESETS.some(p => p.id === 'firestick'), 'firestick preset exists');
+assertEqual(A.AUDIO_PRESETS.length, 8, '8 device presets defined');
+
+console.log('\nresolvePreset:');
+// none selected -> no change
+let pr = A.resolvePreset([]);
+assertEqual(pr, null, 'no devices -> null (Custom, no change)');
+// single device: shield supports everything
+pr = A.resolvePreset(['shield']);
+assertEqual(pr.disabled, [], 'shield disables nothing');
+assertEqual(pr.action, 'hide', 'single-select default action = hide');
+// single device: firestick disables lossless/object
+pr = A.resolvePreset(['firestick']);
+assert(pr.disabled.includes('thd') && pr.disabled.includes('dtx'), 'firestick disables truehd + dtsx (tokens)');
+// multi-select: intersection (union of each device disabled set) + action=bottom
+pr = A.resolvePreset(['shield','browser']);
+assert(pr.disabled.includes('atm'), 'multi: browser unsupported (atmos) disabled even though shield supports it');
+assertEqual(pr.action, 'bottom', 'multi-select default action = bottom');
+// order: enabled formats first, disabled sink to end, all 11 present (tokens)
+pr = A.resolvePreset(['firestick']);
+assertEqual(pr.order.length, 11, 'preset order has all 11 tokens');
+const dSet = new Set(pr.disabled);
+const firstDisabledPos = pr.order.findIndex(t => dSet.has(t));
+const lastEnabledPos = pr.order.map(t => dSet.has(t)).lastIndexOf(false);
+assert(firstDisabledPos > lastEnabledPos, 'enabled formats ordered before disabled ones');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
