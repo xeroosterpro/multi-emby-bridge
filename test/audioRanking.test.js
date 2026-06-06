@@ -132,5 +132,13 @@ arr = attach([
 arr.sort(A.audioComparator({ sortOrder: 'size', audioRank: false }));
 assertEqual(arr[0]._audioFormats[0], 'atmos', 'demoted aac sinks below atmos even with ranking off');
 
+console.log('\naudioComparator — tiebreak mode:');
+arr = attach([
+  { _audioFormats:['aac'],  _resLabel:'1080p', _sizeBytes:50, _bitrate:5, _audioRank:50 },
+  { _audioFormats:['atmos'],_resLabel:'1080p', _sizeBytes:50, _bitrate:5, _audioRank:50 },
+], { audioDisabled: [] });
+arr.sort(A.audioComparator({ sortOrder: 'size', audioRank: true, audioRankMode: 'tiebreak' }));
+assertEqual(arr[0]._audioFormats[0], 'atmos', 'tiebreak: equal size -> audio breaks the tie (atmos wins)');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
