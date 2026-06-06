@@ -45,6 +45,8 @@
         <a class="nav-item" data-page="health"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M3 12h4l2 5 4-12 2 7h6"/></svg><span>Health</span></a>
         <a class="nav-item" data-page="ping"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M2 12h4l3 8 4-16 3 8h6"/></svg><span>Ping test</span></a>
         <a class="nav-item" data-page="log"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Request log</span></a>
+        <div class="nav-sec">Support</div>
+        <a class="nav-item" data-page="tickets" id="nav-tickets"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Tickets <span class="nav-ticket-badge" id="nav-ticket-count" style="display:none"></span></span></a>
         <div class="nav-sec admin-only" style="display:none">Administration</div>
         <a class="nav-item admin-only" data-page="admin" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M12 2 4 6v6c0 5 8 8 8 8s8-3 8-8V6l-8-4Z"/></svg><span>System</span></a>
         <a class="nav-item admin-only" data-page="users" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><span>Users</span></a>
@@ -143,22 +145,7 @@
                 <span class="home-panel-btn-mute">Updates</span>
               </div>
               <div class="home-panel-body" id="home-news-body">
-                <div class="home-news-item">
-                  <div class="home-news-title">New: Sport Fixtures &amp; PPV Schedule Website</div>
-                  <div class="home-news-date">31/03/2026</div>
-                </div>
-                <div class="home-news-item">
-                  <div class="home-news-title">New Add-on: Enable Downloads</div>
-                  <div class="home-news-date">16/03/2026</div>
-                </div>
-                <div class="home-news-item">
-                  <div class="home-news-title">Multi-server health monitoring now live</div>
-                  <div class="home-news-date">01/02/2026</div>
-                </div>
-                <div class="home-news-item">
-                  <div class="home-news-title">Thank you for choosing Emby Bridge!</div>
-                  <div class="home-news-date">13/01/2026</div>
-                </div>
+                <div class="home-news-empty">No news yet.</div>
               </div>
             </div>
 
@@ -978,10 +965,151 @@
           </div>
         </details>
 
+        <details class="adm-section" open><summary>News posts</summary>
+          <div class="adm-section-body">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+              <div style="flex:1;min-width:200px"><div class="field-label">Title</div><input class="input" id="news-title-inp" placeholder="Announcement title" autocomplete="off"/></div>
+              <div style="flex:2;min-width:200px"><div class="field-label">Body (optional)</div><input class="input" id="news-body-inp" placeholder="Short description…" autocomplete="off"/></div>
+              <button class="btn-soft" id="news-add-btn" type="button">Post</button>
+            </div>
+            <div class="auth-err" id="news-msg"></div>
+            <div id="admin-news-list"></div>
+          </div>
+        </details>
+
         <details class="adm-section"><summary>Activity log</summary>
           <div class="adm-section-body"><div id="admin-audit-list"></div></div>
         </details>
       </section>
+
+      <!-- ── TICKETS PAGE ── -->
+      <section class="page" id="page-tickets">
+        <div class="tkt-wrap">
+          <div class="tkt-list-view" id="tkt-list-view">
+            <div class="tkt-header">
+              <div>
+                <h2 class="page-title">Support Tickets</h2>
+                <p class="page-sub">Open a ticket and we'll get back to you.</p>
+              </div>
+              <button class="btn-generate tkt-new-btn" id="tkt-new-btn" type="button">+ New Ticket</button>
+            </div>
+
+            <!-- New ticket form (hidden by default) -->
+            <div class="tkt-form-card" id="tkt-form" style="display:none">
+              <div class="tkt-form-title">New Ticket</div>
+              <div class="field-label" style="margin-top:10px">Subject</div>
+              <input class="input" id="tkt-subject" placeholder="What do you need help with?" autocomplete="off"/>
+              <div class="field-label" style="margin-top:10px">Message</div>
+              <textarea class="input tkt-textarea" id="tkt-body" placeholder="Describe your issue in detail…" rows="5"></textarea>
+              <div class="tkt-form-actions">
+                <button class="btn-soft" id="tkt-cancel" type="button">Cancel</button>
+                <button class="btn-generate" id="tkt-submit" type="button">Submit Ticket</button>
+              </div>
+              <div class="auth-err" id="tkt-err"></div>
+            </div>
+
+            <div id="tkt-list-body">
+              <div class="tkt-loading">Loading tickets…</div>
+            </div>
+          </div>
+
+          <!-- Thread view (slides in) -->
+          <div class="tkt-thread-view" id="tkt-thread-view" style="display:none">
+            <button class="tkt-back-btn" id="tkt-back">← Back to tickets</button>
+            <div class="tkt-thread-header" id="tkt-thread-header"></div>
+            <div class="tkt-messages" id="tkt-messages"></div>
+            <div class="tkt-reply-box" id="tkt-reply-box">
+              <textarea class="input tkt-textarea" id="tkt-reply-body" placeholder="Write a reply…" rows="3"></textarea>
+              <div class="tkt-reply-actions">
+                <div style="display:flex;gap:8px;align-items:center" id="tkt-admin-actions"></div>
+                <button class="btn-generate" id="tkt-reply-submit" type="button">Send Reply</button>
+              </div>
+              <div class="auth-err" id="tkt-reply-err"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── GUIDE PAGE (hidden from sidebar, linked from Getting Started card) ── -->
+      <section class="page" id="page-guide">
+        <div class="guide-wrap">
+          <button class="guide-back" data-page="home">← Back to Home</button>
+          <h2 class="page-title">Getting Started Guide</h2>
+          <p class="page-sub">Follow these steps to connect your media servers to Stremio.</p>
+
+          <div class="guide-steps">
+
+            <div class="guide-step">
+              <div class="guide-step-num">1</div>
+              <div class="guide-step-body">
+                <div class="guide-step-title">Create your account &amp; sign in</div>
+                <p class="guide-step-desc">Click the avatar icon in the sidebar to register or log in. An account lets you save your config to the cloud and generate your personal Stremio install link.</p>
+              </div>
+            </div>
+
+            <div class="guide-step">
+              <div class="guide-step-num">2</div>
+              <div class="guide-step-body">
+                <div class="guide-step-title">Add your Emby or Jellyfin servers</div>
+                <p class="guide-step-desc">Go to <a class="guide-link" data-page="servers" href="#">Servers</a> and click <strong>+ Add Server</strong>. Enter your server URL, API key, and user ID. You can add as many servers as you have — they'll all be bridged together in Stremio.</p>
+                <div class="guide-tip">💡 Your API key is in Emby/Jellyfin under <em>Dashboard → API Keys</em>.</div>
+              </div>
+            </div>
+
+            <div class="guide-step">
+              <div class="guide-step-num">3</div>
+              <div class="guide-step-body">
+                <div class="guide-step-title">Configure your streaming preferences</div>
+                <p class="guide-step-desc">Visit <a class="guide-link" data-page="streaming" href="#">Streaming</a> to choose your preferred video quality, audio language, subtitle settings, and stream source priority. Streams are sorted by file size by default — largest = best quality.</p>
+              </div>
+            </div>
+
+            <div class="guide-step">
+              <div class="guide-step-num">4</div>
+              <div class="guide-step-body">
+                <div class="guide-step-title">Set up external catalogs (optional)</div>
+                <p class="guide-step-desc">In <a class="guide-link" data-page="catalogs" href="#">Catalogs</a> you can add Trakt lists, MDBList collections, IMDb RSS feeds, and Letterboxd lists as rows on your Stremio home screen. Requires a free API key from each provider.</p>
+                <div class="guide-tip">💡 The shuffle button on each row randomises the order every time Stremio refreshes.</div>
+              </div>
+            </div>
+
+            <div class="guide-step">
+              <div class="guide-step-num">5</div>
+              <div class="guide-step-body">
+                <div class="guide-step-title">Get your API keys</div>
+                <p class="guide-step-desc">Head to <a class="guide-link" data-page="apikeys" href="#">API Keys</a> to enter your Trakt Client ID, MDBList API key, and any other integration keys. These are stored encrypted and never shared.</p>
+              </div>
+            </div>
+
+            <div class="guide-step">
+              <div class="guide-step-num">6</div>
+              <div class="guide-step-body">
+                <div class="guide-step-title">Install into Stremio</div>
+                <p class="guide-step-desc">Go to <a class="guide-link" data-page="install" href="#">Install</a> and click <strong>Generate Install Link</strong>. Copy the link into Stremio's addon search bar, or scan the QR code on mobile. Done — your bridge is live.</p>
+                <div class="guide-tip">💡 Every time you change settings, your install link updates automatically.</div>
+              </div>
+            </div>
+
+            <div class="guide-step">
+              <div class="guide-step-num">7</div>
+              <div class="guide-step-body">
+                <div class="guide-step-title">Monitor your servers</div>
+                <p class="guide-step-desc">Use <a class="guide-link" data-page="health" href="#">Health</a> to see uptime and response time history for each server. The <a class="guide-link" data-page="ping" href="#">Ping test</a> lets you compare latency from your browser vs the server — useful for troubleshooting slow streams.</p>
+              </div>
+            </div>
+
+            <div class="guide-step">
+              <div class="guide-step-num">8</div>
+              <div class="guide-step-body">
+                <div class="guide-step-title">Need help?</div>
+                <p class="guide-step-desc">Open a <a class="guide-link" data-page="tickets" href="#">Support Ticket</a> and we'll assist you. Include your server type (Emby/Jellyfin), what you're seeing in Stremio, and any error messages.</p>
+              </div>
+            </div>
+
+          </div><!-- /guide-steps -->
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -990,6 +1118,7 @@
   <div class="toast-wrap" id="toast-wrap"></div>
 
   <script src="/js/home-ui.js"></script>
+  <script src="/js/tickets-ui.js"></script>
   <script src="/js/theme.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/configure.js"></script>

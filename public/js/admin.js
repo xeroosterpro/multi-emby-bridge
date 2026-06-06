@@ -238,10 +238,59 @@
     }));
   }
 
+  // ── News management (admin section on users page) ──────────────────────────
+  const fmtDate = x => x ? new Date(x).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+  async function loadNews() {
+    const wrap = $('#admin-news-list'); if (!wrap) return;
+    wrap.innerHTML = '<div class="tkt-loading">Loading…</div>';
+    const r = await api('/api/news');
+    if (r.status !== 200 || !r.body) { wrap.innerHTML = '<p class="page-sub">Unable to load news.</p>'; return; }
+    const items = r.body;
+    if (!items.length) { wrap.innerHTML = '<p class="page-sub" style="margin:0">No news posts yet.</p>'; return; }
+    wrap.innerHTML = items.map(n => `
+      <div class="adm-news-row">
+        <div class="adm-news-row-body">
+          <div class="adm-news-row-title">${escU(n.title)}</div>
+          ${n.body ? `<div class="adm-news-row-meta">${escU(n.body.slice(0,120))}${n.body.length > 120 ? '…' : ''}</div>` : ''}
+          <div class="adm-news-row-meta" style="margin-top:4px">${fmtDate(n.created_at)}</div>
+        </div>
+        <button class="adm-news-row-del" data-id="${escU(n.id)}">Delete</button>
+      </div>`).join('');
+    wrap.querySelectorAll('.adm-news-row-del').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm('Delete this news post?')) return;
+      const res = await api('/api/news/' + encodeURIComponent(btn.dataset.id), { method: 'DELETE' });
+      if (res.status === 200) { if (window.toast) window.toast('Post deleted'); loadNews(); }
+      else if (window.toast) window.toast('Delete failed');
+    }));
+  }
+
+  function wireNewsCreate() {
+    const btn = $('#news-add-btn'); if (!btn || btn._w) return; btn._w = 1;
+    btn.addEventListener('click', async () => {
+      const title = ($('#news-title-inp')?.value || '').trim();
+      const body = ($('#news-body-inp')?.value || '').trim();
+      const msg = $('#news-msg');
+      if (!title) { if (msg) msg.textContent = 'Title is required'; return; }
+      if (msg) msg.textContent = '';
+      btn.disabled = true; btn.textContent = 'Posting…';
+      const res = await api('/api/news', { method: 'POST', body: JSON.stringify({ title, body }) });
+      btn.disabled = false; btn.textContent = 'Post';
+      if (res.status === 200) {
+        const ti = $('#news-title-inp'); if (ti) ti.value = '';
+        const bi = $('#news-body-inp'); if (bi) bi.value = '';
+        if (window.toast) window.toast('News posted');
+        loadNews();
+      } else {
+        if (msg) msg.textContent = (res.body && res.body.error) || 'Failed to post';
+      }
+    });
+  }
+
   function onRoute() {
     const page = (location.hash || '').replace(/^#\//, '');
     if (page === 'admin') { startMetrics(); loadSiteControls(); } else stopMetrics();
-    if (page === 'users') { loadUsers(); loadCodes(); loadAudit(); wireCodeCreate(); wireAddUser(); }
+    if (page === 'users') { loadUsers(); loadCodes(); loadAudit(); wireCodeCreate(); wireAddUser(); loadNews(); wireNewsCreate(); }
   }
 
   document.addEventListener('DOMContentLoaded', async () => {

@@ -157,6 +157,10 @@ const paypal = require('./lib/paypal');
 const { makeBilling } = require('./lib/billing');
 const { makeBillingRouter } = require('./routes/billing');
 app.use('/api/billing', makeBillingRouter());
+const { makeNewsRouter } = require('./routes/news');
+app.use('/api/news', makeNewsRouter());
+const { makeTicketsRouter } = require('./routes/tickets');
+app.use('/api/tickets', makeTicketsRouter());
 
 // ─── Per-user manifest: /u/:token/* → load the user's stored config (keys
 // decrypted in-memory) and re-dispatch to the existing /:config/* handlers. ──
