@@ -14,23 +14,22 @@
 
   // ── Greeting ────────────────────────────────────────────────────────────────
   function loadGreeting() {
-    const titleEl = document.getElementById('home-title');
-    if (!titleEl) return;
+    const el = document.getElementById('home-title');
+    if (!el) return;
     if (_me && _me.user) {
-      const name = _me.user.username || 'there';
-      const cap = name.charAt(0).toUpperCase() + name.slice(1);
-      const hour = new Date().getHours();
-      const tod = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-      titleEl.textContent = `${tod}, ${cap} 👋`;
+      const cap = (_me.user.username||'there')[0].toUpperCase() + (_me.user.username||'there').slice(1);
+      const h = new Date().getHours();
+      const tod = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+      el.textContent = `${tod}, ${cap} 👋`;
     } else {
-      titleEl.textContent = 'Welcome to Emby Bridge 👋';
+      el.textContent = 'Welcome to Emby Bridge 👋';
     }
   }
 
-  // ── Open Dashboard button — only for admin or active subscriber ─────────────
-  function showDashBtn(isAccess) {
+  // ── Open Dashboard button — admin or active subscriber only ─────────────────
+  function showDashBtn(show) {
     const btn = document.getElementById('home-dash-btn');
-    if (btn) btn.style.display = isAccess ? 'flex' : 'none';
+    if (btn) btn.style.display = show ? 'flex' : 'none';
   }
 
   // ── Active services panel ───────────────────────────────────────────────────
@@ -53,7 +52,6 @@
     ]);
 
     const billingEnabled = cfg && cfg.enabled;
-
     if (!billingEnabled) {
       body.innerHTML = svcRowHTML('Emby Bridge Addon', 'Multi-server Stremio integration · Active', 'Active', 'success');
       wirePageLinks(body);
@@ -72,7 +70,7 @@
 
     if (isActive) {
       const renewal = st.periodEnd
-        ? 'Renews ' + new Date(st.periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        ? 'Renews ' + new Date(st.periodEnd).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })
         : '';
       const planLabel = st.status === 'comped' ? 'Bridge Pro · Comped' : 'Bridge Pro';
       body.innerHTML = svcRowHTML(planLabel, renewal, 'Active', 'success');
@@ -83,7 +81,6 @@
       body.innerHTML = `<div class="home-no-service">No active subscription. <a class="home-panel-btn" data-page="billing" href="#" style="display:inline-flex;margin-left:6px">Subscribe →</a></div>`;
       wirePageLinks(body);
     }
-
     const svcNum = document.getElementById('hc-services-num');
     if (svcNum) svcNum.textContent = isActive ? '1' : '0';
   }
@@ -92,8 +89,7 @@
     const color = badgeType === 'success'
       ? 'color:var(--success);background:color-mix(in srgb,var(--success) 16%,transparent);border-color:color-mix(in srgb,var(--success) 30%,transparent)'
       : 'color:var(--warning);background:color-mix(in srgb,var(--warning) 16%,transparent);border-color:color-mix(in srgb,var(--warning) 30%,transparent)';
-    return `
-      <div class="home-svc-row">
+    return `<div class="home-svc-row">
         <span class="home-svc-badge" style="${color}">${esc(badgeText)}</span>
         <div class="home-svc-info">
           <div class="home-svc-name">${esc(name)}</div>
@@ -104,29 +100,24 @@
       <div class="home-view-more" data-page="billing">View More ›</div>`;
   }
 
-  // ── Recent tickets panel ────────────────────────────────────────────────────
-  async function loadRecentTickets() {
+  // ── Recent tickets — renders pre-fetched data immediately ───────────────────
+  function renderRecentTickets(tickets) {
     const body = document.getElementById('home-recent-tickets-body');
     if (!body) return;
 
-    const tickets = await api('/api/tickets');
-
-    // Update hero card count
+    // Update hero card
     const hcNum = document.querySelector('#hc-discord .hhc-num');
     if (hcNum) hcNum.textContent = Array.isArray(tickets) ? tickets.filter(t => t.status === 'open').length : 0;
 
-    // Update sidebar badge via tickets-ui if loaded
-    if (window._tktBadge && Array.isArray(tickets)) window._tktBadge(tickets);
-
     if (!Array.isArray(tickets) || tickets.length === 0) {
-      body.innerHTML = `<div class="home-empty-state" style="padding:16px 0">No recent tickets yet.<br>Click <strong>+ Open New Ticket</strong> if you need help.</div>`;
+      body.innerHTML = `<div class="home-empty-state" style="padding:16px 0">No tickets yet.<br><small>Click <strong>+ Open New Ticket</strong> if you need help.</small></div>`;
       return;
     }
 
     const tagFor = t => {
-      if (t.status === 'closed')  return ['Closed',     'hrc-tag-closed'];
-      if (t.unread  > 0)          return ['Responded',  'hrc-tag-responded'];
-      return                             ['Waiting',     'hrc-tag-waiting'];
+      if (t.status === 'closed') return ['Closed',    'hrc-tag-closed'];
+      if (t.unread  > 0)         return ['Responded', 'hrc-tag-responded'];
+      return                            ['Waiting',   'hrc-tag-waiting'];
     };
 
     body.innerHTML = tickets.slice(0, 5).map(t => {
@@ -141,21 +132,20 @@
       </div>`;
     }).join('');
 
-    body.querySelectorAll('.hrc-row').forEach(row => {
-      row.addEventListener('click', () => { location.hash = '#/tickets'; });
-    });
+    body.querySelectorAll('.hrc-row').forEach(row =>
+      row.addEventListener('click', () => { location.hash = '#/tickets'; })
+    );
   }
 
-  // ── News feed ───────────────────────────────────────────────────────────────
-  async function loadNews() {
+  // ── News — renders pre-fetched data immediately ─────────────────────────────
+  function renderNews(news) {
     const body = document.getElementById('home-news-body');
     if (!body) return;
-    const news = await api('/api/news');
-    if (!news || !Array.isArray(news) || news.length === 0) {
+    if (!Array.isArray(news) || news.length === 0) {
       body.innerHTML = '<div class="home-news-empty">No news yet.</div>';
       return;
     }
-    const fmtDate = d => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const fmtDate = d => new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
     body.innerHTML = news.slice(0, 8).map(n => `
       <div class="home-news-item">
         <div class="home-news-title">${esc(n.title)}</div>
@@ -164,17 +154,11 @@
       </div>`).join('');
   }
 
-  // ── Wire all data-page links/buttons inside a container ────────────────────
+  // ── Wire all data-page links inside a container ─────────────────────────────
   function wirePageLinks(root) {
-    root.querySelectorAll('[data-page]').forEach(el => {
-      el.addEventListener('click', e => { e.preventDefault(); location.hash = '#/' + el.dataset.page; });
-    });
-  }
-
-  // ── Ticket panel header button ──────────────────────────────────────────────
-  function setupTicketLinks() {
-    const btn = document.getElementById('home-ticket-btn');
-    if (btn) btn.addEventListener('click', e => { e.preventDefault(); location.hash = '#/tickets'; });
+    root.querySelectorAll('[data-page]').forEach(el =>
+      el.addEventListener('click', e => { e.preventDefault(); location.hash = '#/' + el.dataset.page; })
+    );
   }
 
   // ── Hero card click routing ─────────────────────────────────────────────────
@@ -185,7 +169,6 @@
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); location.hash = '#/' + card.dataset.page; }
       });
     });
-
     const supportCard = document.getElementById('hc-discord');
     if (supportCard) {
       supportCard.addEventListener('click', () => { location.hash = '#/tickets'; });
@@ -195,14 +178,18 @@
     }
   }
 
-  // ── Greeting launch button ──────────────────────────────────────────────────
   function setupGreetingBtn() {
-    document.querySelectorAll('.home-launch-btn').forEach(btn => {
-      btn.addEventListener('click', () => { location.hash = '#/' + (btn.dataset.page || 'dashboard'); });
-    });
+    document.querySelectorAll('.home-launch-btn').forEach(btn =>
+      btn.addEventListener('click', () => { location.hash = '#/' + (btn.dataset.page || 'dashboard'); })
+    );
   }
 
-  // ── Re-run animations when home becomes visible ─────────────────────────────
+  function setupTicketLinks() {
+    const btn = document.getElementById('home-ticket-btn');
+    if (btn) btn.addEventListener('click', e => { e.preventDefault(); location.hash = '#/tickets'; });
+  }
+
+  // ── Re-run animations + refresh data when home becomes active ───────────────
   function setupPageTransition() {
     const origShow = window.onPageShow;
     window.onPageShow = function (name) {
@@ -210,29 +197,36 @@
       if (name !== 'home') return;
       const page = document.getElementById('page-home');
       if (!page) return;
-      const animEls = page.querySelectorAll('.home-hero-card, .home-panel, .home-greeting');
-      animEls.forEach(el => { el.style.animation = 'none'; el.offsetHeight; el.style.animation = ''; });
-      // Refresh live data when user returns to home
-      loadRecentTickets();
-      loadNews();
+      page.querySelectorAll('.home-hero-card, .home-panel, .home-greeting')
+          .forEach(el => { el.style.animation = 'none'; el.offsetHeight; el.style.animation = ''; });
+      // Refresh tickets + news when revisiting home
+      Promise.all([api('/api/tickets'), api('/api/news')]).then(([t, n]) => {
+        renderRecentTickets(t);
+        renderNews(n);
+      });
     };
   }
 
-  // ── Boot ───────────────────────────────────────────────────────────────────
+  // ── Boot — fire ALL fetches at the same time ────────────────────────────────
   document.addEventListener('DOMContentLoaded', async () => {
-    _me = await api('/api/auth/me');
+    // All three requests start immediately in parallel — no sequential waiting
+    const [meData, tickets, news] = await Promise.all([
+      api('/api/auth/me'),
+      api('/api/tickets'),
+      api('/api/news'),
+    ]);
+    _me = meData;
 
     setupHeroCards();
     setupGreetingBtn();
     setupTicketLinks();
     setupPageTransition();
-
     const page = document.getElementById('page-home');
     if (page) wirePageLinks(page);
 
     loadGreeting();
-    loadServices();
-    loadRecentTickets();
-    loadNews();
+    loadServices();         // starts billing API calls async
+    renderRecentTickets(tickets);   // instant — data already here
+    renderNews(news);               // instant — data already here
   });
 })();

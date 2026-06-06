@@ -920,7 +920,7 @@ body{ font-family:'Inter',system-ui,sans-serif !important; letter-spacing:-.01em
 
 /* animated background */
 .bg{ position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none;
-  background:radial-gradient(120% 90% at 50% -10%, color-mix(in srgb,var(--accent) 13%, transparent), transparent 60%), linear-gradient(180deg,#080810,#04040a 60%,#030307); }
+  background:radial-gradient(120% 90% at 50% -10%, color-mix(in srgb,var(--accent) 13%, transparent), transparent 60%), #06060b; }
 .bg .orb{ position:absolute; border-radius:50%; filter:blur(70px); opacity:.45; }
 .bg .o1{ width:42vw;height:42vw;left:-8vw;top:-6vw;background:color-mix(in srgb,var(--accent) 55%,transparent); animation:orb1 30s var(--ease) infinite alternate; }
 .bg .o2{ width:36vw;height:36vw;right:-6vw;top:20%;background:color-mix(in srgb,var(--accent-2) 45%,transparent); animation:orb2 38s var(--ease) infinite alternate; }
