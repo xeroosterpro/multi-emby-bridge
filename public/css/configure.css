@@ -1429,3 +1429,33 @@ html.view-as-user .admin-only { display: none !important; }
 #page-servers .server-card.open .sc-edit { display: block; }
 #page-servers .server-card .sc-edit::before { content: ''; position: absolute; left: -22px; top: -10px; width: 22px; height: 26px; border-left: 2px solid var(--border); border-bottom: 2px solid var(--border); border-bottom-left-radius: 10px; }
 @media (max-width: 720px) { #page-servers .server-card .sc-edit { margin-left: 0; } #page-servers .server-card .sc-edit::before { display: none; } }
+
+/* ===================== Appearance re-logic — grouped cards + sticky live preview ===================== */
+#page-appearance .appr-layout { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
+@media (max-width: 880px) { #page-appearance .appr-layout { grid-template-columns: 1fr; } #page-appearance .appr-preview { position: static !important; } }
+
+#page-appearance .appr-card { position: relative; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 15px 17px; margin-bottom: 14px; overflow: hidden; animation: flowin .4s var(--ease) both;
+  transition: transform .24s var(--ease), box-shadow .24s var(--ease), border-color .24s var(--ease); }
+#page-appearance .appr-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(var(--accent), color-mix(in srgb, var(--accent) 30%, transparent)); opacity: .9; }
+#page-appearance .appr-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: 0 14px 32px rgba(0,0,0,.45), 0 0 24px var(--glow); }
+#page-appearance .appr-card:nth-child(2) { animation-delay: .06s; }
+#page-appearance .appr-card:nth-child(3) { animation-delay: .12s; }
+#page-appearance .appr-h { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; }
+#page-appearance .appr-ic { width: 32px; height: 32px; border-radius: 9px; flex: none; display: grid; place-items: center; color: #0a0a12;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 0 16px var(--glow); }
+#page-appearance .appr-ic svg { width: 17px; height: 17px; fill: none; stroke: #0a0a12; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#page-appearance .appr-t { font-size: .95rem; font-weight: 800; }
+#page-appearance .appr-d { font-size: .72rem; color: var(--text-mute); margin-top: 1px; }
+
+/* sticky preview box */
+#page-appearance .appr-preview { position: sticky; top: 16px; }
+#page-appearance .appr-pv { position: relative; background: linear-gradient(160deg, rgba(34,27,45,.92), rgba(16,12,22,.96));
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border)); border-radius: var(--r-lg); padding: 16px; overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0,0,0,.5), 0 0 30px var(--glow); }
+#page-appearance .appr-pv::after { content: ''; position: absolute; top: 0; left: 0; width: 40%; height: 2px; background: linear-gradient(90deg, transparent, var(--accent-2), transparent); animation: sheen-x 5s var(--ease) infinite; }
+@keyframes sheen-x { 0% { transform: translateX(-130%); } 60%, 100% { transform: translateX(320%); } }
+#page-appearance .appr-pv-h { font-size: .62rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-2); font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 7px; }
+#page-appearance .appr-pv-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); animation: status-blink 1.6s ease-in-out infinite !important; }
+#page-appearance .appr-pv-lbl { font-size: .66rem; color: var(--text-mute); margin: 0 0 5px; text-transform: uppercase; letter-spacing: .04em; }
+/* reduced-motion safety: the preview sheen/dot pause unless force-motion (handled by global rule) */

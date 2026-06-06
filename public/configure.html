@@ -459,8 +459,14 @@
 </section>
       <section class="page" id="page-appearance">
   <h2 class="page-title">Appearance</h2>
-  <p class="page-sub">Stream label format and how details are displayed.</p>
-  <h3 class="block-title">Label format</h3>
+  <p class="page-sub">How stream results look in Stremio.</p>
+
+  <div class="appr-layout">
+   <div class="appr-controls">
+
+    <!-- ── Stream label ── -->
+    <div class="appr-card">
+    <div class="appr-h"><span class="appr-ic"><svg viewBox="0 0 24 24"><path d="M3 5h18M3 12h12M3 19h8"/></svg></span><div><div class="appr-t">Stream label</div><div class="appr-d">The title shown on each stream result</div></div></div>
 
   <!-- Label preset: styled pick dropdown (6 options — too many for pills) -->
   <div class="field">
@@ -475,10 +481,8 @@
     </select>
   </div>
 
-  <div id="label-preview" style="margin:0 0 0.75rem;padding:0.5rem 0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)"></div>
-
   <!-- Custom preset panel: checkboxes become chips; original checkboxes hidden-canonical -->
-  <div id="custom-preset-panel" style="display:none;margin-bottom:0.75rem;padding:0.65rem;background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius-sm)">
+  <div id="custom-preset-panel" style="display:none;margin-bottom:0.25rem;padding:0.65rem;background:var(--bg-base);border:1px solid var(--border);border-radius:var(--radius-sm)">
     <div class="hidden-canonical">
       <input type="checkbox" id="cn-res"     class="cn-field" value="res"      checked onchange="autoSave()" />
       <input type="checkbox" id="cn-hdr"     class="cn-field" value="hdr"      checked onchange="autoSave()" />
@@ -516,38 +520,11 @@
       <span class="chip" data-target="#cd-dims">Dimensions</span>
     </div>
   </div>
+    </div><!-- /Stream label card -->
 
-  <div class="options-divider"></div>
-  <h3 class="block-title">Display</h3>
-
-  <!-- Summary switch -->
-  <div class="field">
-    <div class="sw" data-target="#show-summary">
-      <span class="knob"></span>
-      <span><span class="sw-lbl">Results summary card</span><br><span class="sw-sub">Pins a summary at the top showing how many streams each server found.</span></span>
-    </div>
-    <input type="checkbox" id="show-summary" class="hidden-canonical" onchange="toggleSummaryStyle()" />
-  </div>
-
-  <div id="summary-options" style="display:none;flex-direction:column;gap:0.5rem;margin:-6px 0 0.75rem;padding:0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)">
-    <!-- Summary style: hidden select + segment control -->
-    <select id="summary-style" class="hidden-canonical" onchange="updateSummaryPreview();autoSave()">
-      <option value="compact">Compact</option>
-      <option value="detailed">Detailed</option>
-      <option value="minimal">Minimal</option>
-      <option value="bar">Bar chart</option>
-    </select>
-    <div class="field" style="margin-bottom:0">
-      <div class="field-label">Summary style</div>
-      <div class="seg" data-target="#summary-style">
-        <button data-val="compact">Compact</button>
-        <button data-val="detailed">Detailed</button>
-        <button data-val="minimal">Minimal</button>
-        <button data-val="bar">Bar chart</button>
-      </div>
-    </div>
-    <div id="summary-preview" style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.6rem 0.75rem"></div>
-  </div>
+    <!-- ── Badges & extras ── -->
+    <div class="appr-card">
+    <div class="appr-h"><span class="appr-ic"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg></span><div><div class="appr-t">Badges &amp; extras</div><div class="appr-d">Decorations added to each result</div></div></div>
 
   <!-- Quality badge -->
   <div class="field">
@@ -614,6 +591,55 @@
       <option value="hidden">Hidden</option>
     </select>
   </div>
+    </div><!-- /Badges card -->
+
+    <!-- ── Results summary ── -->
+    <div class="appr-card">
+    <div class="appr-h"><span class="appr-ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/></svg></span><div><div class="appr-t">Results summary</div><div class="appr-d">A summary card pinned atop the stream list</div></div></div>
+
+  <!-- Summary switch -->
+  <div class="field">
+    <div class="sw" data-target="#show-summary">
+      <span class="knob"></span>
+      <span><span class="sw-lbl">Results summary card</span><br><span class="sw-sub">Pins a summary at the top showing how many streams each server found.</span></span>
+    </div>
+    <input type="checkbox" id="show-summary" class="hidden-canonical" onchange="toggleSummaryStyle()" />
+  </div>
+
+  <div id="summary-options" style="display:none;flex-direction:column;gap:0.5rem;margin:-6px 0 0;padding:0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)">
+    <!-- Summary style: hidden select + segment control -->
+    <select id="summary-style" class="hidden-canonical" onchange="updateSummaryPreview();autoSave()">
+      <option value="compact">Compact</option>
+      <option value="detailed">Detailed</option>
+      <option value="minimal">Minimal</option>
+      <option value="bar">Bar chart</option>
+    </select>
+    <div class="field" style="margin-bottom:0">
+      <div class="field-label">Summary style</div>
+      <div class="seg" data-target="#summary-style">
+        <button data-val="compact">Compact</button>
+        <button data-val="detailed">Detailed</button>
+        <button data-val="minimal">Minimal</button>
+        <button data-val="bar">Bar chart</button>
+      </div>
+    </div>
+  </div>
+    </div><!-- /Results summary card -->
+
+   </div><!-- /appr-controls -->
+
+   <!-- ── Live preview (separate sticky box) ── -->
+   <div class="appr-preview">
+    <div class="appr-pv">
+      <div class="appr-pv-h"><span class="appr-pv-dot"></span> Live preview</div>
+      <div class="appr-pv-lbl">Stream label</div>
+      <div id="label-preview" style="margin:0 0 0.85rem;padding:0.5rem 0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)"></div>
+      <div class="appr-pv-lbl">Summary card</div>
+      <div id="summary-preview" style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.6rem 0.75rem"></div>
+    </div>
+   </div>
+
+  </div><!-- /appr-layout -->
 </section>
       <section class="page" id="page-health">
         <h2 class="page-title">Server health</h2>

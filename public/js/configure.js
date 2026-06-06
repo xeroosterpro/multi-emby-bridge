@@ -1191,6 +1191,10 @@ function renderOnboarding() {
 // ── Page-show hook (router calls this when a page is shown) ────────────────
 window.onPageShow = function(name) {
   if (name === 'servers') renderServersPage();
+  if (name === 'appearance') {
+    if (typeof updateLabelPreview === 'function') updateLabelPreview();
+    if (typeof updateSummaryPreview === 'function') updateSummaryPreview();
+  }
   if (name === 'dashboard') { renderDashboard(); renderDashActivity(); renderOnboarding(); }
   if (name === 'health' && window.startHealth) window.startHealth();
   if (name === 'log' && typeof refreshLog === 'function') refreshLog();
