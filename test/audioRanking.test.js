@@ -191,5 +191,11 @@ const firstDisabledPos = pr.order.findIndex(t => dSet.has(t));
 const lastEnabledPos = pr.order.map(t => dSet.has(t)).lastIndexOf(false);
 assert(firstDisabledPos > lastEnabledPos, 'enabled formats ordered before disabled ones');
 
+pr = A.resolvePreset(null);
+assertEqual(pr, null, 'null input -> null');
+pr = A.resolvePreset(['shield','totally_bogus']);
+assertEqual(pr.action, 'hide', 'unknown id filtered out -> treated as single-select (hide)');
+assertEqual(pr.disabled, [], 'shield+bogus -> only shield counts -> nothing disabled');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
