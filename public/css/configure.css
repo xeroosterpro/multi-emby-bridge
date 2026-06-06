@@ -1435,12 +1435,14 @@ html.view-as-user .admin-only { display: none !important; }
 @media (max-width: 880px) { #page-appearance .appr-layout { grid-template-columns: 1fr; } #page-appearance .appr-preview { position: static !important; } }
 
 #page-appearance .appr-card { position: relative; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-lg);
-  padding: 15px 17px; margin-bottom: 14px; overflow: visible; animation: flowin .4s var(--ease) both;
-  transition: transform .24s var(--ease), box-shadow .24s var(--ease), border-color .24s var(--ease); }
-/* inset + rounded so the accent bar stays inside the rounded corners without needing overflow:hidden
-   (overflow:hidden would clip the fixed-positioned custom dropdown menu when the card is hover-transformed) */
+  padding: 15px 17px; margin-bottom: 14px; overflow: visible; animation: appr-fade .35s var(--ease) both;
+  transition: box-shadow .24s var(--ease), border-color .24s var(--ease); }
+@keyframes appr-fade { from { opacity: 0; } to { opacity: 1; } }
+/* inset + rounded so the accent bar stays inside the rounded corners */
 #page-appearance .appr-card::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: linear-gradient(var(--accent), color-mix(in srgb, var(--accent) 30%, transparent)); opacity: .9; }
-#page-appearance .appr-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: 0 14px 32px rgba(0,0,0,.45), 0 0 24px var(--glow); }
+/* NOTE: no transform here (hover or entrance) — a transformed ancestor re-anchors the
+   fixed-positioned custom dropdown menu to this card and misplaces it. Lift = shadow + border only. */
+#page-appearance .appr-card:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: 0 14px 32px rgba(0,0,0,.45), 0 0 24px var(--glow); }
 #page-appearance .appr-card:nth-child(2) { animation-delay: .06s; }
 #page-appearance .appr-card:nth-child(3) { animation-delay: .12s; }
 #page-appearance .appr-h { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; }
