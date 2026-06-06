@@ -1938,7 +1938,7 @@ function selectedPresetIds() {
 // Mirror of server resolvePreset for instant UI feedback.
 function applyAudioPresets() {
   const ids = selectedPresetIds();
-  if (ids.length === 0) { renderAudioRankList(AUDIO_FORMATS.map(f => f.token), []); return; }
+  if (ids.length === 0) { renderAudioRankList(AUDIO_FORMATS.map(f => f.token), []); autoSave(); return; }
   const chosen = ids.map(id => AUDIO_PRESETS.find(p => p.id === id)).filter(Boolean);
   const allIds = AUDIO_FORMATS.map(f => f.id);
   const supportedAll = allIds.filter(fmt => chosen.every(p => p.supports.includes(fmt)));
@@ -1949,6 +1949,7 @@ function applyAudioPresets() {
   setAudioRankToggle('on');
   const actionEl = document.getElementById('audio-disable-action');
   if (actionEl) actionEl.value = ids.length > 1 ? 'bottom' : 'hide';
+  autoSave();
 }
 
 // ── Generate links ────────────────────────────────────────────────────────

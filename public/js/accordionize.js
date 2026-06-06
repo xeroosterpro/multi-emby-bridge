@@ -28,6 +28,7 @@
     if (t.includes('delivery')) return ['bolt', 'How streams reach Stremio'];
     if (t.includes('sort')) return ['sort', 'Order results within a title'];
     if (t.includes('exclude') || t.includes('resolution')) return ['res', 'Resolutions to hide'];
+    if (t.includes('audio rank')) return ['sort', 'Rank & filter audio formats'];
     if (t.includes('audio')) return ['dft', 'Preferred audio language'];
     if (t.includes('codec')) return ['dft', 'Preferred video codec'];
     if (t.includes('bitrate')) return ['bars', 'Maximum bitrate'];
