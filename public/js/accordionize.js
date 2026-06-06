@@ -4,35 +4,41 @@
 // close animation + overflow handling is driven by ui.js's delegated .acc-head handler.
 (function () {
   const ICONS = {
-    link: '<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>',
-    filter: '<svg viewBox="0 0 24 24"><path d="M3 5h18M6 12h12M10 19h4"/></svg>',
-    add: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
-    rows: '<svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
-    label: '<svg viewBox="0 0 24 24"><path d="M3 5h18M3 12h12M3 19h8"/></svg>',
-    eye: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/></svg>',
-    bolt: '<svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg>',
-    sort: '<svg viewBox="0 0 24 24"><path d="M3 6h18M7 12h10M11 18h2"/></svg>',
-    res: '<svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>',
-    bars: '<svg viewBox="0 0 24 24"><path d="M4 18V8M9 18V4M14 18v-6M19 18v-9"/></svg>',
-    dft: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>',
+    link:    '<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>',
+    filter:  '<svg viewBox="0 0 24 24"><path d="M3 5h18M6 12h12M10 19h4"/></svg>',
+    add:     '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+    rows:    '<svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+    label:   '<svg viewBox="0 0 24 24"><path d="M3 5h18M3 12h12M3 19h8"/></svg>',
+    eye:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/></svg>',
+    bolt:    '<svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg>',
+    sort:    '<svg viewBox="0 0 24 24"><path d="M3 6h18M7 12h10M11 18h2"/></svg>',
+    res:     '<svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>',
+    bars:    '<svg viewBox="0 0 24 24"><path d="M4 18V8M9 18V4M14 18v-6M19 18v-9"/></svg>',
+    globe:   '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg>',
+    film:    '<svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"/></svg>',
+    signal:  '<svg viewBox="0 0 24 24"><path d="M2 20h.01M7 20v-4M12 20V8M17 20V4M22 20V2"/></svg>',
+    stars:   '<svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>',
+    eq:      '<svg viewBox="0 0 24 24"><path d="M2 8h20M2 16h20"/><circle cx="6" cy="8" r="2" fill="currentColor" stroke="none"/><circle cx="18" cy="16" r="2" fill="currentColor" stroke="none"/></svg>',
+    dft:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>',
   };
   function meta(raw) {
     const t = (raw || '').toLowerCase();
-    if (t.includes('connection')) return ['link', 'API keys for Trakt, TMDB, MDBList'];
-    if (t.includes('filter')) return ['filter', 'Language, genre & content rules'];
-    if (t.includes('quick')) return ['add', 'Show a My Media row on Stremio home'];
-    if (t.includes('add a row')) return ['add', 'Pull a list from a source'];
-    if (t.includes('your rows')) return ['rows', 'Reorder, shuffle or remove'];
-    if (t.includes('label')) return ['label', 'How stream labels are formatted'];
-    if (t.includes('display')) return ['eye', 'How details are shown'];
-    if (t.includes('delivery')) return ['bolt', 'How streams reach Stremio'];
-    if (t.includes('sort')) return ['sort', 'Order results within a title'];
+    if (t.includes('connection'))            return ['link',   'API keys for Trakt, TMDB, MDBList'];
+    if (t.includes('filter'))               return ['filter', 'Language, genre & content rules'];
+    if (t.includes('quick'))                return ['add',    'Show a My Media row on Stremio home'];
+    if (t.includes('add a row'))            return ['add',    'Pull a list from any source'];
+    if (t.includes('your rows'))            return ['rows',   'Reorder, shuffle or remove'];
+    if (t.includes('label'))               return ['label',  'How stream labels are formatted'];
+    if (t.includes('display'))              return ['eye',    'How details are shown'];
+    if (t.includes('delivery'))             return ['bolt',   'How streams reach Stremio'];
+    if (t.includes('sort'))                 return ['sort',   'Order results within a title'];
     if (t.includes('exclude') || t.includes('resolution')) return ['res', 'Resolutions to hide'];
-    if (t.includes('audio rank')) return ['sort', 'Rank & filter audio formats'];
-    if (t.includes('audio')) return ['dft', 'Preferred audio language'];
-    if (t.includes('codec')) return ['dft', 'Preferred video codec'];
-    if (t.includes('bitrate')) return ['bars', 'Maximum bitrate'];
-    if (t.includes('extras')) return ['add', 'Extra stream tweaks'];
+    if (t.includes('audio rank'))           return ['eq',     'Rank & filter audio formats'];
+    if (t.includes('audio language') || (t.includes('audio') && t.includes('language'))) return ['globe', 'Preferred audio language'];
+    if (t.includes('audio'))               return ['globe',  'Preferred audio language'];
+    if (t.includes('codec'))               return ['film',   'Preferred video codec'];
+    if (t.includes('bitrate'))             return ['signal', 'Maximum bitrate cap'];
+    if (t.includes('extras'))              return ['stars',  'Stars, ping badges & auto-select'];
     return ['dft', ''];
   }
   function cleanTitle(s) { return (s || '').replace(/^[^A-Za-z0-9]+/, '').trim(); }
