@@ -55,5 +55,37 @@ assertEqual(A.classifyAudio('opus', ''), 'other', 'opus -> other');
 assertEqual(A.classifyAudio('', ''), 'other', 'empty -> other');
 assertEqual(A.classifyAudio(null, null), 'other', 'null -> other (no throw)');
 
+console.log('\nbuildAudioKeys:');
+const order = A.DEFAULT_ORDER; // atmos best ... other worst
+// File with TrueHD + AC3: best track = truehd (idx 2)
+let k = A.buildAudioKeys({ _audioFormats: ['truehd','dd'] }, order, new Set());
+assertEqual(k.bestFormat, 'truehd', 'best of [truehd,dd] = truehd');
+assertEqual(k.audioIdx, 2, 'truehd idx = 2');
+assertEqual(k.isDisabledClass, false, 'not disabled when nothing disabled');
+// Disable truehd -> the TrueHD+AC3 file is disabled-class (best track disabled)
+k = A.buildAudioKeys({ _audioFormats: ['truehd','dd'] }, order, new Set(['truehd']));
+assertEqual(k.isDisabledClass, true, 'disabled-class when best track disabled');
+// Custom order: AC3 ranked above TrueHD -> best becomes dd, not disabled
+const ddFirst = A.resolveOrder(['dd','thd']);
+k = A.buildAudioKeys({ _audioFormats: ['truehd','dd'] }, ddFirst, new Set(['truehd']));
+assertEqual(k.bestFormat, 'dd', 'best follows user order (dd first)');
+assertEqual(k.isDisabledClass, false, 'not disabled — best track (dd) is enabled');
+// No audio formats at all
+k = A.buildAudioKeys({ _audioFormats: [] }, order, new Set());
+assertEqual(k.bestFormat, null, 'no formats -> bestFormat null');
+assertEqual(k.audioIdx, 99, 'no formats -> audioIdx 99 (sorts last)');
+
+console.log('\nattachAudioKeys:');
+const streams = [
+  { _audioFormats: ['atmos'], _resLabel: '1080p' },
+  { _audioFormats: ['aac'],   _resLabel: '4K' },
+];
+A.attachAudioKeys(streams, { audioOrder: undefined, audioDisabled: ['aac'], audioDisableAction: 'bottom' });
+assertEqual(streams[0]._audioIdx, 0, 'atmos stream idx 0');
+assertEqual(streams[1]._isDisabledClass, true, 'aac stream disabled-class');
+assertEqual(streams[1]._demoted, 1, 'aac stream demoted (action=bottom)');
+assertEqual(streams[0]._demoted, 0, 'atmos stream not demoted');
+assertEqual(streams[1]._resRank, 0, 'resRank attached (4K=0)');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
