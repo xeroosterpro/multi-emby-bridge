@@ -1383,3 +1383,46 @@ html.view-as-user .admin-only { display: none !important; }
 .tab-disabled-badge { margin-left: auto; font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--warning); background: color-mix(in srgb, var(--warning) 16%, transparent); padding: 1px 6px; border-radius: 999px; }
 #view-as-banner { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 12px; background: rgba(20,20,30,.96); backdrop-filter: blur(14px); border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); color: var(--text-primary); padding: 10px 14px; border-radius: 999px; box-shadow: 0 16px 40px rgba(0,0,0,.5); font-size: .82rem; }
 #view-as-banner button { background: var(--accent); color: #0a0a12; border: 0; border-radius: 999px; padding: 4px 10px; font-weight: 700; cursor: pointer; }
+
+/* ===================== Servers tab redesign — row + offset drawer ===================== */
+#page-servers .srv-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+#page-servers .srv-head .page-sub { margin: 4px 0 0; }
+.btn-add .plus { font-size: 1.05rem; line-height: 1; }
+
+/* card wrapper becomes just a group; the row + drawer carry the styling */
+#page-servers .server-block.server-card { background: transparent !important; border: 0 !important; border-radius: 0; overflow: visible; backdrop-filter: none; margin-bottom: 12px; padding: 0; }
+#page-servers .server-block.server-card::before { display: none !important; }
+
+/* row */
+#page-servers .sc-row { display: flex; align-items: center; gap: 15px; padding: 13px 16px; cursor: pointer;
+  background: linear-gradient(160deg, rgba(34,27,45,.9), rgba(16,12,22,.95));
+  border: 1px solid rgba(255,255,255,.08); border-left: 3px solid var(--border); border-radius: var(--r-lg);
+  transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s var(--ease); }
+#page-servers .sc-row:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(0,0,0,.5), 0 0 22px var(--glow); border-color: color-mix(in srgb, var(--accent) 45%, rgba(255,255,255,.08)); }
+#page-servers .server-card.ok  .sc-row { border-left-color: var(--success); }
+#page-servers .server-card.bad .sc-row { border-left-color: var(--error); }
+#page-servers .server-card.open .sc-row { border-color: color-mix(in srgb, var(--accent) 50%, rgba(255,255,255,.08)); box-shadow: 0 0 22px var(--glow); }
+
+#page-servers .sc-row .gbrand { width: 46px; height: 46px; flex: none; }
+#page-servers .sc-id { min-width: 0; flex: 1; }
+#page-servers .sc-name { font-size: 1.05rem; font-weight: 800; }
+#page-servers .sc-host { font-size: .72rem; color: var(--text-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+#page-servers .sc-meta { display: flex; align-items: center; gap: 12px; flex: none; }
+#page-servers .sc-ping { font-size: .7rem; color: var(--text-dim); font-weight: 600; }
+#page-servers .sc-badge { font-size: .64rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+#page-servers .sc-badge.up { color: var(--success); background: rgba(76,175,125,.14); }
+#page-servers .sc-badge.down { color: var(--error); background: rgba(224,85,85,.14); }
+#page-servers .sc-badge.unknown { color: var(--text-mute); background: rgba(255,255,255,.05); }
+#page-servers .sc-reconnect { display: none; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); background: transparent; color: var(--accent-2); font-weight: 700; font-size: .74rem; border-radius: 8px; padding: 6px 11px; cursor: pointer; transition: background .15s, border-color .15s; }
+#page-servers .sc-reconnect:hover { background: var(--glow); border-color: var(--accent); }
+#page-servers .server-card.bad .sc-reconnect { display: inline-flex; }
+#page-servers .sc-chev { flex: none; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--accent-2); transition: transform .22s var(--ease), background .15s; }
+#page-servers .server-card.open .sc-chev { transform: rotate(180deg); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+
+/* offset drawer (login / config) — own box, indented from the row, extends to the right */
+#page-servers .server-card .sc-edit { display: none; position: relative; margin: 10px 0 2px 40px;
+  background: var(--bg-surface); border: 1px solid var(--border); border-left: 3px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+  border-radius: var(--r-md); padding: 16px 18px; animation: flowin .26s var(--ease); }
+#page-servers .server-card.open .sc-edit { display: block; }
+#page-servers .server-card .sc-edit::before { content: ''; position: absolute; left: -22px; top: -10px; width: 22px; height: 26px; border-left: 2px solid var(--border); border-bottom: 2px solid var(--border); border-bottom-left-radius: 10px; }
+@media (max-width: 720px) { #page-servers .server-card .sc-edit { margin-left: 0; } #page-servers .server-card .sc-edit::before { display: none; } }

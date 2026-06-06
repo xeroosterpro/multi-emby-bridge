@@ -1099,30 +1099,38 @@ function buildServerBlock(id) {
     </div>
   `;
   div.innerHTML = `
-    <div class="sc-top"></div>
-    <div class="sc-head">
-      <div class="sc-ico">🎬</div>
+    <div class="sc-row" onclick="toggleManage(${id})">
+      <div class="gbrand" data-bind="logo">${EMBY_LOGO}</div>
       <div class="sc-id">
         <div class="sc-name" data-bind="name">New server</div>
         <div class="sc-host" data-bind="host">not configured</div>
       </div>
-      <span class="sc-badge unknown" data-bind="badge">● —</span>
+      <div class="sc-meta">
+        <span class="sc-ping" data-bind="ping"></span>
+        <span class="sc-badge unknown" data-bind="badge">● —</span>
+        <button type="button" class="sc-reconnect" onclick="event.stopPropagation();openManage(${id})">Reconnect</button>
+      </div>
+      <span class="sc-chev">▾</span>
     </div>
-    <div class="sc-stats">
-      <div class="sc-row"><span>🎞 Movies</span><span data-bind="movies">—</span></div>
-      <div class="sc-row"><span>📺 Shows</span><span data-bind="shows">—</span></div>
-      <div class="sc-row"><span>▦ Episodes</span><span data-bind="episodes">—</span></div>
-    </div>
-    <button type="button" class="sc-manage" onclick="toggleManage(${id})">Manage Server →</button>
-    <div class="sc-edit" id="edit-${id}" style="display:none">${fields}</div>
+    <div class="sc-edit" id="edit-${id}">${fields}</div>
   `;
   return div;
 }
 
 // ── Server card (OMEGA) helpers ───────────────────────────────────────────
 function toggleManage(id) {
-  const e = document.getElementById('edit-' + id);
-  if (e) e.style.display = e.style.display === 'none' ? 'block' : 'none';
+  const c = document.getElementById('server-' + id);
+  if (c) c.classList.toggle('open');
+}
+
+// Open a server's drawer and focus the sign-in field (used by "Reconnect").
+function openManage(id) {
+  const c = document.getElementById('server-' + id);
+  if (!c) return;
+  c.classList.add('open');
+  const u = c.querySelector('.f-username') || c.querySelector('.f-url');
+  if (u) u.focus();
+  c.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 async function refreshServerCard(block) {
@@ -1132,22 +1140,28 @@ async function refreshServerCard(block) {
   const apiKey = get('.f-apikey'), userId = get('.f-userid');
   const nameEl = block.querySelector('[data-bind=name]');
   const hostEl = block.querySelector('[data-bind=host]');
+  const logoEl = block.querySelector('[data-bind=logo]');
+  const badge = block.querySelector('[data-bind=badge]');
+  const pingEl = block.querySelector('[data-bind=ping]');
+  if (logoEl) logoEl.innerHTML = type === 'jellyfin' ? JELLYFIN_LOGO : EMBY_LOGO;
   if (nameEl) nameEl.textContent = label || 'New server';
   if (hostEl) hostEl.textContent = url ? url.replace(/^https?:\/\//, '') : 'not configured';
-  if (!url || !apiKey || !userId) return;
+  const setState = (cls, txt) => {
+    if (badge) { badge.textContent = '● ' + txt; badge.className = 'sc-badge ' + cls; }
+    block.classList.toggle('ok', cls === 'up');
+    block.classList.toggle('bad', cls === 'down');
+  };
+  if (pingEl) pingEl.textContent = '';
+  if (!url || !apiKey || !userId) { setState('unknown', 'Not set'); return; }
   try {
+    const t0 = Date.now();
     const r = await fetch('/api/library-stats', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, type, apiKey, userId }) });
-    const badge = block.querySelector('[data-bind=badge]');
-    if (r.ok) {
-      const s = await r.json();
-      block.querySelector('[data-bind=movies]').textContent   = (s.movies||0).toLocaleString();
-      block.querySelector('[data-bind=shows]').textContent    = (s.shows||0).toLocaleString();
-      block.querySelector('[data-bind=episodes]').textContent = (s.episodes||0).toLocaleString();
-      if (badge) { badge.textContent = '● Connected'; badge.className = 'sc-badge up'; }
-    } else if (badge) { badge.textContent = '● Auth failed'; badge.className = 'sc-badge down'; }
-  } catch { const b = block.querySelector('[data-bind=badge]'); if (b){ b.textContent='● Unreachable'; b.className='sc-badge down'; } }
+    const ms = Date.now() - t0;
+    if (r.ok) { setState('up', 'Connected'); if (pingEl) pingEl.textContent = ms + 'ms'; }
+    else setState('down', 'Auth failed');
+  } catch { setState('down', 'Unreachable'); }
 }
 
 function renderServersPage() {
@@ -1214,11 +1228,7 @@ function openServerManage(index) {
     const cards = document.querySelectorAll('#servers-container .server-card');
     const card = cards[index];
     if (!card) return;
-    const edit = card.querySelector('.sc-edit');
-    if (edit && edit.style.display === 'none') {
-      const id = parseInt(card.id.replace('server-', ''), 10);
-      if (typeof toggleManage === 'function') toggleManage(id);
-    }
+    card.classList.add('open');
     card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, 80);
 }
@@ -1351,6 +1361,8 @@ function updateBlockStyle(id) {
   const type = block.querySelector('.f-type').value;
   block.classList.remove('type-emby', 'type-jellyfin');
   block.classList.add(`type-${type}`);
+  const logoEl = block.querySelector('[data-bind=logo]');
+  if (logoEl) logoEl.innerHTML = type === 'jellyfin' ? JELLYFIN_LOGO : EMBY_LOGO;
   if (block.classList.contains('collapsed')) updateSummary(id);
 }
 
@@ -1410,6 +1422,12 @@ function addServer(data = null) {
   }
   renumberBlocks();
   updateCredWarning(id);
+  refreshServerCard(block);
+  if (!data) {
+    block.classList.add('open');          // new manual add → open the drawer to fill in
+    block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const f = block.querySelector('.f-label'); if (f) f.focus();
+  }
 }
 
 function removeServer(id) {

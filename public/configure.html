@@ -73,10 +73,11 @@
   <div class="dash-activity" id="dash-activity"></div>
 </section>
       <section class="page" id="page-servers">
-        <h2 class="page-title">Servers</h2>
-        <p class="page-sub">Manage your Emby &amp; Jellyfin connections.</p>
+        <div class="srv-head">
+          <div><h2 class="page-title">Servers</h2><p class="page-sub" id="srv-sub">Manage your Emby &amp; Jellyfin connections.</p></div>
+          <button class="btn-add" id="btn-add" onclick="addServer()"><span class="plus">+</span> Add Server</button>
+        </div>
         <div id="servers-container"></div>
-        <button class="btn-add" id="btn-add" onclick="addServer()">+ Add Server</button>
 
         <div class="profile-block">
           <h3 class="block-title">Saved profile</h3>
