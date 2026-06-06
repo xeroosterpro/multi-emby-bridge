@@ -4,9 +4,14 @@
 (function () {
   const $$ = s => [...document.querySelectorAll(s)];
   let openDD = null;
+  let openMenu = null;   // the currently-open menu, portaled to <body>
 
   function closeOpen() {
-    if (openDD) { openDD.classList.remove('open'); const m = openDD.querySelector('.dd-menu'); if (m) m.style.display = 'none'; openDD = null; }
+    if (openDD) {
+      openDD.classList.remove('open');
+      if (openMenu) { openMenu.style.display = 'none'; openDD.appendChild(openMenu); } // return menu to its dd
+      openDD = null; openMenu = null;
+    }
   }
 
   function positionMenu(dd) {
@@ -63,7 +68,13 @@
       e.stopPropagation();
       const isOpen = dd.classList.contains('open');
       closeOpen();
-      if (!isOpen) { dd.classList.add('open'); menu.style.display = 'block'; positionMenu(dd); openDD = dd; }
+      if (!isOpen) {
+        dd.classList.add('open');
+        positionMenu(dd);                 // compute fixed coords from the button (menu still in dd)
+        document.body.appendChild(menu);  // portal to <body> so no ancestor can clip/trap its stacking
+        menu.style.display = 'block';
+        openDD = dd; openMenu = menu;
+      }
     });
 
     // keep custom UI in sync if other code changes the native select
