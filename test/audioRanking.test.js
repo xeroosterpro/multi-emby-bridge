@@ -41,6 +41,8 @@ assertEqual(A.classifyAudio('truehd', 'Atmos'), 'atmos', 'TrueHD+Atmos -> atmos'
 assertEqual(A.classifyAudio('truehd', ''), 'truehd', 'TrueHD plain -> truehd');
 assertEqual(A.classifyAudio('eac3', 'Dolby Atmos'), 'atmos', 'EAC3+Atmos -> atmos');
 assertEqual(A.classifyAudio('eac3', ''), 'ddplus', 'EAC3 plain -> ddplus');
+assertEqual(A.classifyAudio('e-ac-3', ''), 'ddplus', 'e-ac-3 -> ddplus');
+assertEqual(A.classifyAudio('eac-3', ''), 'ddplus', 'eac-3 -> ddplus');
 assertEqual(A.classifyAudio('dca', 'DTS:X'), 'dtsx', 'DTS profile DTS:X -> dtsx');
 assertEqual(A.classifyAudio('dts', 'DTS-HD MA'), 'dtshd_ma', 'DTS profile MA -> dtshd_ma');
 assertEqual(A.classifyAudio('dtshd', ''), 'dtshd_ma', 'dtshd codec -> dtshd_ma');
