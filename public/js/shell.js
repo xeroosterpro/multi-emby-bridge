@@ -61,9 +61,9 @@ function initShell() {
     if (window.MEBPrefs) window.MEBPrefs.setLock(!sb.classList.contains('locked'));
   });
   document.getElementById('motion-switch')?.addEventListener('click', function () {
-    const on = !this.classList.contains('on');
+    const on = !this.classList.contains('on');   // on = animate the background
     this.classList.toggle('on', on);
-    if (window.MEBPrefs) window.MEBPrefs.setMotion(on);
+    if (window.MEBPrefs) window.MEBPrefs.setMotion(on ? 'on' : 'off');
   });
 
   // sidebar user button: show + populate when logged in; click logs out
