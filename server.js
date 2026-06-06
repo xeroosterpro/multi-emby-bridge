@@ -859,8 +859,36 @@ app.use((err, req, res, _next) => {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Multi-Emby Bridge running → http://localhost:${PORT}/configure`);
+});
+
+// Graceful shutdown to avoid abrupt DB connection resets on Railway deploys/restarts
+const { getPool, isConfigured } = require('./lib/db');
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('HTTP server closed.');
+    if (isConfigured()) {
+      const pool = getPool();
+      if (pool) {
+        pool.end(() => {
+          console.log('Postgres pool closed.');
+          process.exit(0);
+        });
+      } else {
+        process.exit(0);
+      }
+    } else {
+      process.exit(0);
+    }
+  });
+  // Force exit after timeout if graceful fails
+  setTimeout(() => {
+    console.error('Forcing shutdown after timeout');
+    process.exit(1);
+  }, 10000);
 });
 
 // ─── Database init (migrations + admin seed); no-ops without DATABASE_URL ────
