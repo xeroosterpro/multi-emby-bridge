@@ -1905,7 +1905,7 @@ function wireAudioDrag(ol) {
   let dragEl = null;
   ol.querySelectorAll('.audio-rank-row').forEach(row => {
     row.addEventListener('dragstart', () => { dragEl = row; row.classList.add('dragging'); });
-    row.addEventListener('dragend', () => { row.classList.remove('dragging'); dragEl = null; });
+    row.addEventListener('dragend', () => { row.classList.remove('dragging'); dragEl = null; autoSave(); });
     row.addEventListener('dragover', e => {
       e.preventDefault();
       if (!dragEl || dragEl === row) return;
@@ -1913,6 +1913,7 @@ function wireAudioDrag(ol) {
       const after = (e.clientY - rect.top) > rect.height / 2;
       ol.insertBefore(dragEl, after ? row.nextSibling : row);
     });
+    row.addEventListener('drop', e => { e.preventDefault(); autoSave(); });
   });
 }
 
@@ -1937,7 +1938,7 @@ function selectedPresetIds() {
 // Mirror of server resolvePreset for instant UI feedback.
 function applyAudioPresets() {
   const ids = selectedPresetIds();
-  if (ids.length === 0) return;
+  if (ids.length === 0) { renderAudioRankList(AUDIO_FORMATS.map(f => f.token), []); return; }
   const chosen = ids.map(id => AUDIO_PRESETS.find(p => p.id === id)).filter(Boolean);
   const allIds = AUDIO_FORMATS.map(f => f.id);
   const supportedAll = allIds.filter(fmt => chosen.every(p => p.supports.includes(fmt)));
@@ -1946,7 +1947,8 @@ function applyAudioPresets() {
   const toToken = id => (AUDIO_FORMATS.find(f => f.id === id) || {}).token;
   renderAudioRankList(orderIds.map(toToken), disabledIds.map(toToken));
   setAudioRankToggle('on');
-  document.getElementById('audio-disable-action').value = ids.length > 1 ? 'bottom' : 'hide';
+  const actionEl = document.getElementById('audio-disable-action');
+  if (actionEl) actionEl.value = ids.length > 1 ? 'bottom' : 'hide';
 }
 
 // ── Generate links ────────────────────────────────────────────────────────
