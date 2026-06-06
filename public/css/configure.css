@@ -1182,6 +1182,69 @@ body.locked-billing .pin-btn{ display:none; }
   padding:10px 0 4px 18px; white-space:nowrap; opacity:0; transition:opacity .25s var(--ease); }
 .sidebar:hover .nav-sec, .sidebar.locked .nav-sec{ opacity:1; }
 
+/* === Smooth collapsible sub-sections (nav groups) === */
+.nav-sec-toggle {
+  all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  padding: 9px 10px 4px 18px;
+  margin: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: 4px;
+  user-select: none;
+  transition: color .15s var(--ease), background .15s var(--ease);
+}
+.nav-sec-toggle:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.035);
+}
+.nav-sec-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.nav-chev {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  opacity: .55;
+  transition: transform .22s var(--ease);
+  transform-origin: 50% 50%;
+}
+.nav-group.collapsed .nav-chev {
+  transform: rotate(-90deg);
+}
+
+.nav-group-items {
+  overflow: hidden;
+  transition: max-height .24s var(--ease), opacity .18s var(--ease);
+  max-height: 900px;
+  opacity: 1;
+}
+.nav-group.collapsed .nav-group-items {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Respect the narrow sidebar rail: hide toggles when collapsed, just like old .nav-sec */
+.sidebar:not(:hover):not(.locked) .nav-sec-toggle {
+  opacity: 0;
+  pointer-events: none;
+}
+.sidebar:hover .nav-sec-toggle,
+.sidebar.locked .nav-sec-toggle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Dashboard server cards → prototype chip layout */
 .gcard{ cursor:pointer; }
 .gcard-head{ display:flex; align-items:center; gap:11px; }

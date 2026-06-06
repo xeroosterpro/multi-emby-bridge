@@ -297,6 +297,8 @@
     const me = await api('/api/auth/me');
     if (!me.body || me.body.user?.role !== 'admin') return; // not an admin → admin pages stay hidden
     document.querySelectorAll('.admin-only').forEach(el => { el.style.display = ''; });
+    // Make sure the Administration group (and its toggle) is visible as a unit
+    document.querySelectorAll('.nav-group.admin-only').forEach(g => { g.style.display = ''; });
     // delegated: open the manage modal for any user row's Manage button
     document.addEventListener('click', async (e) => {
       const btn = e.target.closest('.acct-manage'); if (!btn) return;
