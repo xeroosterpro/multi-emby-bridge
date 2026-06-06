@@ -4,13 +4,18 @@ const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
 
-// Global handlers to surface hidden errors that could cause early process exit on Railway
+// ─── Global error handlers — log then EXIT so Railway can restart cleanly ────
+// After an uncaughtException the Node process is in an undefined/corrupted state.
+// Keeping it alive (no exit) causes Railway's health check to see a zombie: the
+// port still responds but the app is broken, so Railway never triggers a restart.
+// Always exit(1) so Railway immediately restarts into a clean process.
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  // Log but let the platform handle restart; do not exit here to allow graceful paths
+  console.error('[fatal] Uncaught Exception — exiting for clean restart:', err);
+  process.exit(1);
 });
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', (reason) => {
+  console.error('[fatal] Unhandled Promise Rejection — exiting for clean restart:', reason);
+  process.exit(1);
 });
 
 // ─── Modules ─────────────────────────────────────────────────────────────────
