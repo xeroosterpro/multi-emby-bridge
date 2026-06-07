@@ -31,6 +31,15 @@
   --success: #3ecf8e;
   --error: #f07070;
   --warning: #f0b848;
+  /* Unified surface tokens (Home panel aesthetic) */
+  --sh-surface: color-mix(in srgb, var(--bg-elevated) 65%, transparent);
+  --sh-surface-deep: color-mix(in srgb, var(--bg-surface) 92%, var(--bg-base));
+  --sh-border: color-mix(in srgb, var(--accent) 20%, var(--border));
+  --sh-shadow: 0 6px 22px rgba(0, 0, 0, 0.32);
+  --sh-hover-bg: color-mix(in srgb, var(--bg-elevated) 58%, var(--accent) 10%);
+  --sh-hover-border: color-mix(in srgb, var(--accent) 52%, var(--border));
+  --sh-chip-bg: color-mix(in srgb, var(--bg-surface) 78%, var(--bg-base));
+  --sh-chip-border: color-mix(in srgb, var(--accent) 18%, var(--border));
 }
 
 /* ── Classic accents ── */
@@ -189,43 +198,110 @@ html[data-theme="streamhub"] { background: var(--bg-base); }
     var(--bg-base);
 }
 
-/* Stream Hub — lift cards off the backdrop so panels don't blend */
+/* Stream Hub — unified surfaces (Home panel aesthetic, darker server cards) */
 [data-theme="streamhub"] .sidebar {
   background: #0a0e14 !important;
   border-right: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border)) !important;
   box-shadow: 8px 0 36px rgba(0, 0, 0, 0.45);
 }
-[data-theme="streamhub"] .content .tiles .tile,
-[data-theme="streamhub"] .gcard,
-[data-theme="streamhub"] .server-block.server-card,
+
+/* Standard glassy panels — all pages */
 [data-theme="streamhub"] .home-panel,
 [data-theme="streamhub"] .home-hero-card,
+[data-theme="streamhub"] .content .tiles .tile,
 [data-theme="streamhub"] .dash-card,
 [data-theme="streamhub"] .dash-act-panel,
+[data-theme="streamhub"] .server-block.server-card,
+[data-theme="streamhub"] .profile-block,
+[data-theme="streamhub"] .card,
+[data-theme="streamhub"] .acc,
+[data-theme="streamhub"] .acc2,
+[data-theme="streamhub"] .bill-card,
+[data-theme="streamhub"] .bill-code-card,
+[data-theme="streamhub"] .sys-panel,
+[data-theme="streamhub"] .adm-card,
+[data-theme="streamhub"] .adm-section,
+[data-theme="streamhub"] .adm-table-wrap,
 [data-theme="streamhub"] .tkt-panel-list,
 [data-theme="streamhub"] .tkt-panel-detail,
 [data-theme="streamhub"] .tkt-stat,
-[data-theme="streamhub"] .card,
-[data-theme="streamhub"] .acc2,
-[data-theme="streamhub"] .bill-card,
-[data-theme="streamhub"] .sys-panel {
-  box-shadow: var(--card-shadow) !important;
-  border-color: color-mix(in srgb, var(--accent) 32%, var(--border-strong)) !important;
+[data-theme="streamhub"] .tkt-card,
+[data-theme="streamhub"] #page-install .inst-card,
+[data-theme="streamhub"] #page-install .inst-stat,
+[data-theme="streamhub"] #main-content,
+[data-theme="streamhub"] #ping-results,
+[data-theme="streamhub"] .log-table-wrap:not(.rlog-list),
+[data-theme="streamhub"] .refresh-bar,
+[data-theme="streamhub"] .top-server,
+[data-theme="streamhub"] .da-empty,
+[data-theme="streamhub"] .da-list {
+  background: var(--sh-surface) !important;
+  border-color: var(--sh-border) !important;
+  box-shadow: var(--sh-shadow) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
-[data-theme="streamhub"] .content .tiles .tile,
+
+/* Server cards — slightly darker than other panels */
 [data-theme="streamhub"] .gcard,
-[data-theme="streamhub"] .dash-card {
-  background: linear-gradient(168deg, color-mix(in srgb, var(--bg-elevated) 78%, #fff 22%), color-mix(in srgb, var(--bg-elevated) 90%, var(--accent) 10%)) !important;
+[data-theme="streamhub"] .home-svc-row {
+  background: var(--sh-surface-deep) !important;
+  border: 1px solid var(--sh-border) !important;
+  box-shadow: var(--sh-shadow) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
-[data-theme="streamhub"] .gchip {
-  background: color-mix(in srgb, var(--bg-hover) 72%, var(--accent) 6%) !important;
-  border: 1px solid color-mix(in srgb, var(--border-strong) 55%, var(--accent) 25%);
+
+[data-theme="streamhub"] .home-panel:hover,
+[data-theme="streamhub"] .home-hero-card:hover,
+[data-theme="streamhub"] .content .tiles .tile:hover,
+[data-theme="streamhub"] .server-block.server-card:hover,
+[data-theme="streamhub"] .acc:hover,
+[data-theme="streamhub"] .acc.open,
+[data-theme="streamhub"] .acc2.open,
+[data-theme="streamhub"] .home-svc-row:hover {
+  border-color: var(--sh-hover-border) !important;
+  background: var(--sh-hover-bg) !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.36), 0 0 20px color-mix(in srgb, var(--accent) 14%, transparent) !important;
+}
+[data-theme="streamhub"] .gcard:hover {
+  border-color: var(--sh-hover-border) !important;
+  background: color-mix(in srgb, var(--sh-surface-deep) 88%, var(--accent) 12%) !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.36), 0 0 20px color-mix(in srgb, var(--accent) 14%, transparent) !important;
+  transform: translateY(-3px);
+}
+
+[data-theme="streamhub"] .gcard .gcard-top,
+[data-theme="streamhub"] .server-block.server-card::before {
+  height: 2px !important;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2)) !important;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 40%, transparent) !important;
+  opacity: 0.9;
+}
+
+[data-theme="streamhub"] .gchip,
+[data-theme="streamhub"] .mchip {
+  background: var(--sh-chip-bg) !important;
+  border: 1px solid var(--sh-chip-border) !important;
   border-radius: var(--radius-sm);
 }
-[data-theme="streamhub"] .content .tiles .tile:hover,
-[data-theme="streamhub"] .gcard:hover {
-  box-shadow: var(--card-shadow-hover) !important;
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-strong)) !important;
+[data-theme="streamhub"] .gchip .cn,
+[data-theme="streamhub"] .mchip .cn {
+  color: var(--text-primary) !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+}
+[data-theme="streamhub"] .gchip .ct,
+[data-theme="streamhub"] .mchip .ct,
+[data-theme="streamhub"] .gcard-host,
+[data-theme="streamhub"] .page-sub {
+  color: var(--text-secondary) !important;
+}
+[data-theme="streamhub"] .gcard-nm,
+[data-theme="streamhub"] .page-title,
+[data-theme="streamhub"] .block-title {
+  color: var(--text-primary);
 }
 [data-theme="streamhub"] .content .tiles .tile .n {
   background: linear-gradient(135deg, #8ec5ff 0%, #c4b0ff 52%, #6ee8c0 100%);
@@ -233,92 +309,23 @@ html[data-theme="streamhub"] { background: var(--bg-base); }
   background-clip: text;
   filter: saturate(1.15) brightness(1.06);
 }
-[data-theme="streamhub"] .content .tiles .tile .l,
-[data-theme="streamhub"] .gchip .ct,
-[data-theme="streamhub"] .page-sub {
+[data-theme="streamhub"] .content .tiles .tile .l {
   color: var(--text-secondary) !important;
 }
-[data-theme="streamhub"] .gchip .cn {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent !important;
+[data-theme="streamhub"] .gcard-rt-canvas,
+[data-theme="streamhub"] .gcard-uptime-bar {
+  background: var(--sh-chip-bg) !important;
+  border-color: var(--sh-chip-border) !important;
 }
-[data-theme="streamhub"] .gcard .gcard-top {
-  height: 6px !important;
-  box-shadow: 0 2px 18px color-mix(in srgb, var(--accent) 50%, transparent) !important;
-}
-[data-theme="streamhub"] .gcard-nm,
-[data-theme="streamhub"] .page-title,
-[data-theme="streamhub"] .block-title {
-  color: var(--text-primary);
-}
-[data-theme="streamhub"] .gpill.online {
-  background: rgba(62, 207, 142, 0.2) !important;
-  border-color: rgba(74, 222, 128, 0.55) !important;
-  color: #4ade80 !important;
-}
-[data-theme="streamhub"] .page-title,
-[data-theme="streamhub"] .block-title {
-  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.4);
-}
-
-/* Dashboard server cards — match Home “Active Products” (.home-svc-row) */
-html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard {
-  background: color-mix(in srgb, var(--bg-elevated) 80%, transparent) !important;
-  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border)) !important;
-  border-radius: var(--r-md) !important;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard:hover {
-  border-color: color-mix(in srgb, var(--accent) 52%, var(--border)) !important;
-  background: color-mix(in srgb, var(--bg-elevated) 78%, var(--accent) 10%) !important;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32), 0 0 20px color-mix(in srgb, var(--accent) 14%, transparent) !important;
-  transform: translateY(-3px);
-}
-html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard .gcard-top {
-  height: 2px !important;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2)) !important;
-  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 40%, transparent) !important;
-  opacity: 0.9;
-}
-html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard-nm {
-  color: var(--text-primary);
-}
-html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard-host {
-  color: var(--text-secondary);
-}
-html[data-theme="streamhub"] #page-dashboard #dash-cards .gchip {
-  background: color-mix(in srgb, var(--bg-elevated) 75%, transparent) !important;
-  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border)) !important;
-}
-html[data-theme="streamhub"] #page-dashboard #dash-cards .gchip .cn {
-  color: var(--text-primary) !important;
-  background: none !important;
-  -webkit-background-clip: unset !important;
-  background-clip: unset !important;
-  filter: none;
-}
-html[data-theme="streamhub"] #page-dashboard #dash-cards .gchip .ct {
-  color: var(--text-secondary) !important;
-}
-html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard-rt-canvas {
-  background: color-mix(in srgb, var(--bg-elevated) 65%, transparent) !important;
-  border-color: color-mix(in srgb, var(--accent) 16%, var(--border)) !important;
-}
-html[data-theme="streamhub"] #page-dashboard #dash-cards .gpill.online {
+[data-theme="streamhub"] .gpill.online,
+[data-theme="streamhub"] .home-svc-badge {
   background: color-mix(in srgb, var(--success) 16%, transparent) !important;
   border: 1px solid color-mix(in srgb, var(--success) 30%, transparent) !important;
   color: var(--success) !important;
 }
-html[data-theme="streamhub"] #page-dashboard .dash-act-panel {
-  background: color-mix(in srgb, var(--bg-elevated) 65%, transparent) !important;
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border)) !important;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+[data-theme="streamhub"] .page-title,
+[data-theme="streamhub"] .block-title {
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.4);
 }
 
 [data-theme="aurora"] .bg {

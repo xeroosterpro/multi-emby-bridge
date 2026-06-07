@@ -2028,9 +2028,9 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
 /* Server cards: uniform theme accent bar (not per-server rainbow) + glassy + ghost Manage */
 .gcard .gcard-top{ background:linear-gradient(90deg,var(--accent),var(--accent-2)) !important; }
 .gcard{
-  background:linear-gradient(168deg, color-mix(in srgb, var(--bg-elevated) 86%, #fff 14%), var(--bg-surface)) !important;
-  border:1px solid color-mix(in srgb, var(--border) 72%, var(--accent) 28%) !important;
-  box-shadow:var(--card-shadow, 0 12px 36px rgba(0,0,0,.45)) !important;
+  background:var(--bg-surface) !important;
+  border:1px solid var(--border) !important;
+  box-shadow:var(--card-shadow, 0 6px 22px rgba(0,0,0,.32)) !important;
 }
 .gmanage{ background:transparent !important; border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)) !important;
   color:var(--text) !important; font-weight:700 !important; transition:.18s; }
