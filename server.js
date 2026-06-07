@@ -39,6 +39,11 @@ const { snapshot: systemMetrics } = require('./lib/metrics');
 const { ROW_NAMES, deriveLibraryRows } = require('./server-helpers');
 const audioRanking = require('./lib/audioRanking');
 const { assertSafeFetchUrl } = require('./lib/urlSafety');
+const {
+  requireAuthInProduction,
+  applyConfigureSecurityHeaders,
+  logStartupSecurityWarnings,
+} = require('./lib/security');
 
 // Cross-row deduplication cache (60s TTL per config)
 const _dedupCache = new Map();
@@ -221,6 +226,7 @@ app.use('/u/:token', async (req, res, next) => {
 app.get('/', (req, res) => res.redirect('/configure'));
 
 app.get('/configure', (req, res) => {
+  applyConfigureSecurityHeaders(res);
   res.sendFile(path.join(__dirname, 'public', 'configure.html'));
 });
 
@@ -461,7 +467,7 @@ app.post('/api/profile/load', authLimiter, express.json(), (req, res) => {
 });
 
 // ─── Credential helper ────────────────────────────────────────────────────────
-app.post('/api/fetch-credentials', authLimiter, express.json(), async (req, res) => {
+app.post('/api/fetch-credentials', authLimiter, requireAuthInProduction, express.json(), async (req, res) => {
   const { url, username, password } = req.body || {};
   if (!url || !username || !password) {
     return res.status(400).json({ error: 'url, username and password are required.' });
@@ -541,7 +547,7 @@ app.post('/api/fetch-credentials', authLimiter, express.json(), async (req, res)
 });
 
 // ─── Test connection ──────────────────────────────────────────────────────────
-app.post('/api/test-connection', apiLimiter, express.json(), async (req, res) => {
+app.post('/api/test-connection', apiLimiter, requireAuthInProduction, express.json(), async (req, res) => {
   const { url, type, apiKey, userId, username, password } = req.body || {};
   if (!url || !apiKey || !userId) {
     return res.status(400).json({ error: 'url, apiKey and userId are required.' });
@@ -710,6 +716,9 @@ app.get('/:config/manifest.json', (req, res) => {
   } catch {
     return res.status(400).json({ error: 'Invalid config' });
   }
+
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('Link', '</configure#/install>; rel="successor-version"');
 
   const names = (cfg.servers || []).map((s) => s.label).join(', ');
 
@@ -1001,6 +1010,7 @@ app.use((err, req, res, _next) => {
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 const server = app.listen(PORT, '0.0.0.0', () => {
+  logStartupSecurityWarnings();
   console.log(`[startup] Multi-Emby Bridge READY → http://0.0.0.0:${PORT}/configure`);
 });
 

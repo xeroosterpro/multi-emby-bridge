@@ -79,11 +79,17 @@ function makeAuthRouter() {
 
   r.get('/me', async (req, res) => {
     if (!db.isConfigured()) return res.json({ user: null, enabled: false });
+    const allowReg = process.env.ALLOW_PUBLIC_REGISTER;
+    const registrationOpen = allowReg !== '0' && allowReg !== 'false';
     try {
       const s = await sessions.lookup(parseCookies(req)[COOKIE]);
-      res.json({ user: s ? { username: s.username, role: s.role } : null, enabled: true });
+      res.json({
+        user: s ? { username: s.username, role: s.role } : null,
+        enabled: true,
+        registrationOpen,
+      });
     } catch (e) {
-      res.json({ user: null, enabled: true });
+      res.json({ user: null, enabled: true, registrationOpen });
     }
   });
 

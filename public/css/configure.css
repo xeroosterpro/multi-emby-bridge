@@ -581,6 +581,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-install:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(123, 97, 255, 0.25); }
 .btn-install:active { transform: translateY(0); }
 .install-note { text-align: center; font-size: 0.74rem; color: var(--text-muted); margin-top: 0.65rem; }
+.legacy-warn { color: #e8a87c; font-size: 0.72rem; line-height: 1.45; }
 
 /* ── Global error ── */
 #global-error {

@@ -962,7 +962,7 @@
                 <button class="inst-regen-btn" id="acct-regen" type="button">Regenerate link</button>
                 <button class="btn-soft inst-install-btn" id="acct-install" type="button">Open in Stremio</button>
               </div>
-              <p class="inst-hint">Regenerating revokes the old link immediately. Bookmark the new one.</p>
+              <p class="inst-hint">Your link uses <code>/u/&lt;token&gt;/manifest.json</code> — API keys stay on the server. Regenerating revokes the old link immediately.</p>
             </div>
           </div>
           <div class="inst-steps">
@@ -1475,8 +1475,8 @@
               <div class="guide-step-num">6</div>
               <div class="guide-step-body">
                 <div class="guide-step-title">Install into Stremio</div>
-                <p class="guide-step-desc">Go to <a class="guide-link" data-page="install" href="#">Install</a> and click <strong>Generate Install Link</strong>. Copy the link into Stremio's addon search bar, or scan the QR code on mobile. Done — your bridge is live.</p>
-                <div class="guide-tip">💡 Every time you change settings, your install link updates automatically.</div>
+                <p class="guide-step-desc">Go to <a class="guide-link" data-page="install" href="#">Install</a>. Copy your personal <strong>/u/&lt;token&gt;/manifest.json</strong> URL into Stremio's addon search bar, or scan the QR code on mobile. Do not share legacy encoded URLs — they expose API keys.</p>
+                <div class="guide-tip">💡 Your token link stays the same; settings sync automatically when you save changes.</div>
               </div>
             </div>
 

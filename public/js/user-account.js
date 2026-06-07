@@ -88,8 +88,13 @@
     });
 
     const installBtn = $('#acct-install');
-    if (installBtn) installBtn.addEventListener('click', () => {
-      if (typeof window.generateLinks === 'function') { try { window.generateLinks(); } catch {} }
+    if (installBtn) installBtn.addEventListener('click', async () => {
+      if (typeof window.generateLinks === 'function') { try { await window.generateLinks(); } catch {} }
+      const url = urlEl && urlEl.value ? urlEl.value.trim() : '';
+      if (url) {
+        window.location.href = url.replace(/^https?:\/\//i, 'stremio://');
+        return;
+      }
       const res = document.getElementById('result-section');
       if (res) res.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });

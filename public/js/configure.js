@@ -1394,7 +1394,7 @@ async function autoNameServer(id) {
   if (!url || labelEl.value.trim()) return;
   try {
     const resp = await fetch('/api/test-connection', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, type: typeEl?.value || 'emby', apiKey: '', userId: '' }),
     });
     const data = await resp.json();
@@ -2389,7 +2389,7 @@ async function fetchCredentials(id) {
   btn.disabled = true; btn.textContent = 'Fetching...';
   statusEl.textContent = ''; statusEl.className = 'cred-status';
   try {
-    const resp = await fetch('/api/fetch-credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, username, password }) });
+    const resp = await fetch('/api/fetch-credentials', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, username, password }) });
     const data = await safeJson(resp);
     if (!resp.ok) throw new Error(data.error || 'Unknown error');
     block.querySelector('.f-apikey').value = data.apiKey;
@@ -2420,7 +2420,7 @@ async function testConnection(id) {
   try {
     const username = block.querySelector('.f-username')?.value.trim() || '';
     const password = block.querySelector('.f-password')?.value || '';
-    const resp = await fetch('/api/test-connection', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const resp = await fetch('/api/test-connection', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, type, apiKey, userId, username, password }) });
     const data = await safeJson(resp);
     if (data.apiKey) _applyRefreshedApiKey(block, data.apiKey);
@@ -2742,7 +2742,81 @@ function applyAudioPresets() {
 }
 
 // ── Generate links ────────────────────────────────────────────────────────
-function generateLinks(opts = {}) {
+const LEGACY_INSTALL_WARN = 'Legacy encoded install URLs embed your config (including API keys) in the link. Use your personal /u/:token manifest instead.';
+
+async function ensureTokenManifestUrl(config) {
+  const save = await fetch('/api/user/config', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  if (!save.ok) {
+    const err = await save.json().catch(() => ({}));
+    throw new Error(err.error || 'Could not save config to your account');
+  }
+  let cur = await fetch('/api/user/manifest', { credentials: 'same-origin' }).then(r => r.json()).catch(() => ({}));
+  if (!cur.url) {
+    cur = await fetch('/api/user/manifest', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()).catch(() => ({}));
+  }
+  if (!cur.url) throw new Error('Could not create your manifest link');
+  return cur.url;
+}
+
+async function renderTokenInstallUI(config, mode) {
+  const section = document.getElementById('result-section');
+  if (!section) return;
+  const auth = await fetch('/api/auth/me', { credentials: 'same-origin' }).then(r => r.json()).catch(() => null);
+  const loggedIn = !!(auth && auth.enabled && auth.user);
+
+  if (!loggedIn) {
+    section.innerHTML = `<h2>Sign in to install</h2>
+      <p class="install-note">Create an account or log in, then return here. Your install link will be a private <code>/u/&lt;token&gt;/manifest.json</code> URL — API keys stay encrypted on the server.</p>
+      <p class="install-note legacy-warn">${escHtml(LEGACY_INSTALL_WARN)}</p>`;
+    section.style.display = 'block';
+    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return;
+  }
+
+  try {
+    const manifestUrl = await ensureTokenManifestUrl(config);
+    const urlEl = document.getElementById('acct-url');
+    if (urlEl) urlEl.value = manifestUrl;
+    if (typeof updateInstallStats === 'function') updateInstallStats();
+    const deepLink = manifestUrl.replace(/^https?:\/\//i, 'stremio://');
+    section.innerHTML = `<h2>Ready to install${mode === 'timeout' ? ' — Fast Timeout' : ''}</h2>
+      <p class="install-note">Use the Manifest URL above — it updates when you change settings. Keys never leave the server.</p>
+      <div class="url-row"><input type="text" readonly value="${escHtml(manifestUrl)}" /><button class="btn-copy" data-url="${escHtml(manifestUrl)}" onclick="copySpecific(this)">Copy</button></div>
+      <a class="btn-install" href="${escHtml(deepLink)}">Install in Stremio</a>
+      <p class="install-note legacy-warn">${escHtml(LEGACY_INSTALL_WARN)}</p>`;
+    section.style.display = 'block';
+    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (err) {
+    section.innerHTML = `<h2>Install link unavailable</h2><p class="install-note">${escHtml(err.message || 'Try again after saving your servers.')}</p>`;
+    section.style.display = 'block';
+  }
+}
+
+function renderLegacySplitInstall(rows) {
+  const section = document.getElementById('result-section');
+  if (!section) return;
+  let html = '<h2>Split mode — legacy install only</h2>';
+  html += `<p class="install-note legacy-warn">${escHtml(LEGACY_INSTALL_WARN)} Split mode still uses per-server encoded URLs until token-based split is supported.</p>`;
+  html += '<p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 1rem;line-height:1.5">Each server is a separate addon. Prefer Normal mode with your personal manifest link when possible.</p>';
+  rows.forEach((row, i) => {
+    if (i > 0) html += '<hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">';
+    html += `<div>
+      <div style="font-size:0.7rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem">${escHtml(row.label)}</div>
+      <div class="url-row"><input type="text" readonly value="${escHtml(row.manifestUrl)}" /><button class="btn-copy" data-url="${escHtml(row.manifestUrl)}" onclick="copySpecific(this)">Copy</button></div>
+      <a class="btn-install" href="${escHtml(row.deepLink)}">Install "${escHtml(row.label)}" in Stremio</a>
+    </div>`;
+  });
+  section.innerHTML = html;
+  section.style.display = 'block';
+  section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function generateLinks(opts = {}) {
   const silent = opts.silent === true;   // silent: rebuild config + meb-last-config for account auto-sync, no prompts/render/scroll
   hideError();
   const config = collectConfig(silent);
@@ -2847,17 +2921,7 @@ Continue anyway?`;
       return { label: server.label, manifestUrl: `${protocol}//${host}/${encoded}/manifest.json`, deepLink: `stremio://${host}/${encoded}/manifest.json` };
     });
 
-    let html = '<h2>Ready to install — Split Mode</h2>';
-    html += '<p style="font-size:0.78rem;color:var(--text-muted);margin:0 0 1rem;line-height:1.5">Each server is a separate addon. Stremio loads results independently.</p>';
-    rows.forEach((row, i) => {
-      if (i > 0) html += '<hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">';
-      html += `<div>
-        <div style="font-size:0.7rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem">${escHtml(row.label)}</div>
-        <div class="url-row"><input type="text" readonly value="${escHtml(row.manifestUrl)}" /><button class="btn-copy" data-url="${escHtml(row.manifestUrl)}" onclick="copySpecific(this)">Copy</button></div>
-        <a class="btn-install" href="${escHtml(row.deepLink)}">Install "${escHtml(row.label)}" in Stremio</a>
-      </div>`;
-    });
-    section.innerHTML = html;
+    if (!silent) renderLegacySplitInstall(rows);
   } else {
     if (mode === 'timeout') config.timeout = parseInt(document.getElementById('timeout-value').value, 10);
     if (sortOrder !== 'size') config.sortOrder = sortOrder;
@@ -2900,21 +2964,7 @@ Continue anyway?`;
       config.customDescFields = Array.from(document.querySelectorAll(".cd-field:checked")).map(function(cb){return cb.value;});
     }
 
-    const encoded = encodeConfig(config);
-    if (!silent) {
-      const manifestUrl = `${protocol}//${host}/${encoded}/manifest.json`;
-      const deepLink = `stremio://${host}/${encoded}/manifest.json`;
-      section.innerHTML = `
-        <h2>Ready to install${mode === 'timeout' ? ' — Fast Timeout' : ''}</h2>
-        <div class="url-row"><input type="text" readonly value="${escHtml(manifestUrl)}" /><button class="btn-copy" data-url="${escHtml(manifestUrl)}" onclick="copySpecific(this)">Copy</button></div>
-        <a class="btn-install" href="${escHtml(deepLink)}">Install in Stremio</a>
-        <p class="install-note">Opens Stremio and installs the addon automatically.<br/>Or copy the URL and paste it into Stremio → Add Addon.</p>`;
-    }
-  }
-
-  if (!silent) {
-    section.style.display = 'block';
-    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (!silent) await renderTokenInstallUI(config, mode);
   }
 
   try {
