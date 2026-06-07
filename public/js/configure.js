@@ -1526,7 +1526,10 @@ function buildServerBlock(id) {
         <span class="srv-name" data-bind="name">New server</span>
         <span class="srv-host" data-bind="host">not configured</span>
       </div>
-      <span class="srv-lat" data-bind="ping"></span>
+      <div class="srv-ping-col">
+        <span class="srv-ping-row" title="Stream Hub addon → your server"><small>Bridge</small><em data-bind="ping-bridge">—</em></span>
+        <span class="srv-ping-row" title="Your browser → your server (direct)"><small>You</small><em data-bind="ping-you">—</em></span>
+      </div>
       <div class="srv-end">
         <span class="srv-status unknown" data-bind="badge"><span class="srv-status-dot"></span><span data-bind="badge-txt">Checking</span></span>
         <button type="button" class="srv-reconnect" onclick="event.stopPropagation();reconnectServer(${id})" title="Fix connection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button>
@@ -1653,16 +1656,43 @@ async function reconnectServer(id) {
 }
 window.reconnectServer = reconnectServer;
 
-function _updateServersHeaderStats(up, total, fastest) {
+let _addonRegionLabel = null;
+
+async function _ensureAddonRegionLabel() {
+  if (_addonRegionLabel) return _addonRegionLabel;
+  try {
+    const info = await fetch('/api/server-info').then(r => r.json());
+    _addonRegionLabel = info.region
+      ? info.region.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      : 'Addon server';
+  } catch {
+    _addonRegionLabel = 'Addon server';
+  }
+  return _addonRegionLabel;
+}
+
+function _updateServersHeaderStats(up, total, fastestBridge) {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('srv-count', total);
   set('srv-up', up);
-  set('srv-fastest', fastest != null ? fastest + 'ms' : '—');
+  set('srv-fastest', fastestBridge != null ? fastestBridge + 'ms' : '—');
   const sub = document.getElementById('srv-sub');
   if (sub) {
+    const region = _addonRegionLabel ? ` · bridge from ${_addonRegionLabel}` : '';
     sub.textContent = total
-      ? `${up} of ${total} online · click a row to edit credentials`
+      ? `${up} of ${total} online${region} · click a row to edit`
       : 'Add Emby or Jellyfin endpoints to bridge into Stremio.';
+  }
+}
+
+function _srvSetPingEm(em, ms) {
+  if (!em) return;
+  if (ms == null || ms === undefined) {
+    em.textContent = '—';
+    em.className = '';
+  } else {
+    em.textContent = ms + 'ms';
+    em.className = _srvPingClass(ms);
   }
 }
 
@@ -1686,7 +1716,6 @@ async function refreshServerCard(block, opts = {}) {
   const logoEl = block.querySelector('[data-bind=logo]');
   const badge = block.querySelector('[data-bind=badge]');
   const badgeTxt = block.querySelector('[data-bind=badge-txt]');
-  const pingEl = block.querySelector('[data-bind=ping]');
   const idxEl = block.querySelector('[data-bind=index]');
   if (logoEl) logoEl.innerHTML = type === 'jellyfin' ? JELLYFIN_LOGO : EMBY_LOGO;
   block.classList.remove('type-emby', 'type-jellyfin');
@@ -1705,16 +1734,13 @@ async function refreshServerCard(block, opts = {}) {
     block.classList.toggle('bad', cls === 'down');
     block.classList.toggle('checking', cls === 'checking');
   };
-  if (pingEl) { pingEl.textContent = '—'; pingEl.className = 'srv-lat'; }
   if (!url || !apiKey || !userId) { setState('unknown', 'Not set'); return null; }
   setState('checking', 'Checking…');
   try {
-    const t0 = Date.now();
     const r = await fetch('/api/test-connection', {
       method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, type, apiKey, userId, username, password }),
     });
-    const ms = Date.now() - t0;
     const data = await r.json().catch(() => ({}));
     if (data.apiKey) {
       _applyRefreshedApiKey(block, data.apiKey);
@@ -1722,8 +1748,7 @@ async function refreshServerCard(block, opts = {}) {
     }
     if (r.ok && data.ok) {
       setState('up', 'Online');
-      if (pingEl) { pingEl.textContent = ms + 'ms'; pingEl.className = 'srv-lat ' + _srvPingClass(ms); }
-      return { up: true, ms };
+      return { up: true };
     }
     if ((r.status === 401 || r.status === 403) && retry && username && password) {
       setState('checking', 'Checking…');
@@ -1731,12 +1756,10 @@ async function refreshServerCard(block, opts = {}) {
       if (refreshed.ok) return refreshServerCard(block, { retry: false });
     }
     setState('down', 'Offline');
-    if (pingEl) { pingEl.textContent = '—'; pingEl.className = 'srv-lat'; }
-    return { up: false, ms: null };
+    return { up: false };
   } catch {
     setState('down', 'Offline');
-    if (pingEl) { pingEl.textContent = '—'; pingEl.className = 'srv-lat'; }
-    return { up: false, ms: null };
+    return { up: false };
   }
 }
 
@@ -1756,15 +1779,62 @@ function _stopServersAutoRefresh() {
 }
 
 function _recomputeServersHeaderStats(blocks) {
-  let up = 0, fastest = null;
+  let up = 0, fastestBridge = null;
   for (const block of blocks) {
     if (!block.classList.contains('ok')) continue;
     up++;
-    const pingTxt = block.querySelector('[data-bind=ping]')?.textContent || '';
+    const pingTxt = block.querySelector('[data-bind=ping-bridge]')?.textContent || '';
     const ms = parseInt(pingTxt, 10);
-    if (!isNaN(ms) && (fastest === null || ms < fastest)) fastest = ms;
+    if (!isNaN(ms) && (fastestBridge === null || ms < fastestBridge)) fastestBridge = ms;
   }
-  _updateServersHeaderStats(up, blocks.length, fastest);
+  _updateServersHeaderStats(up, blocks.length, fastestBridge);
+}
+
+async function _refreshServersPingMetrics(blocks) {
+  const rows = blocks.map(block => ({
+    block,
+    url: block.querySelector('.f-url')?.value.trim().replace(/\/+$/, ''),
+    label: block.querySelector('.f-label')?.value.trim() || 'Server',
+  })).filter(r => r.url);
+
+  for (const { block } of rows) {
+    _srvSetPingEm(block.querySelector('[data-bind=ping-bridge]'), null);
+    const youEl = block.querySelector('[data-bind=ping-you]');
+    if (youEl) { youEl.textContent = '…'; youEl.className = 'ping-pending'; }
+  }
+  if (!rows.length) return;
+
+  try {
+    const resp = await fetch('/api/ping-servers', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ servers: rows.map(r => ({ url: r.url, label: r.label })) }),
+    });
+    const data = resp.ok ? await resp.json().catch(() => ({})) : {};
+    (data.results || []).forEach((r, i) => {
+      const row = rows[i];
+      if (!row) return;
+      _srvSetPingEm(row.block.querySelector('[data-bind=ping-bridge]'), r.ms);
+    });
+  } catch {
+    rows.forEach(r => _srvSetPingEm(r.block.querySelector('[data-bind=ping-bridge]'), null));
+  }
+
+  await Promise.all(rows.map(async row => {
+    const youEl = row.block.querySelector('[data-bind=ping-you]');
+    if (!youEl) return;
+    if (!row.block.classList.contains('ok')) {
+      youEl.textContent = '—';
+      youEl.className = '';
+      return;
+    }
+    const ms = await browserPing(row.url);
+    if (ms == null) {
+      youEl.textContent = 'N/A';
+      youEl.className = 'ping-na';
+    } else {
+      _srvSetPingEm(youEl, ms);
+    }
+  }));
 }
 
 function _startServersAutoRefresh() {
@@ -1790,6 +1860,8 @@ async function renderServersPage(opts = {}) {
     return aBad - bBad;
   });
   await Promise.all(failedFirst.map(block => refreshServerCard(block)));
+  await _ensureAddonRegionLabel();
+  await _refreshServersPingMetrics(blocks);
   _recomputeServersHeaderStats(blocks);
   const healthServers = blocks.map(b => ({
     url: b.querySelector('.f-url')?.value.trim().replace(/\/+$/, ''),

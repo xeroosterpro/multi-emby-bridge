@@ -292,7 +292,7 @@
             <div class="srv-toolbar-stats" id="srv-stats">
               <span class="srv-pill"><svg class="srv-pill-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/></svg><strong id="srv-count">0</strong> configured</span>
               <span class="srv-pill srv-pill-ok"><svg class="srv-pill-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg><strong id="srv-up">0</strong> online</span>
-              <span class="srv-pill srv-pill-ping"><svg class="srv-pill-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg><strong id="srv-fastest">—</strong></span>
+              <span class="srv-pill srv-pill-ping" title="Fastest addon→server ping (bridge path)"><svg class="srv-pill-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg><strong id="srv-fastest">—</strong> bridge</span>
             </div>
             <button class="btn-add srv-add-btn" id="btn-add" onclick="addServer()"><svg class="srv-add-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg> Add connection</button>
           </div>
@@ -317,7 +317,7 @@
         </div>
         <div class="srv-registry">
           <div class="srv-registry-head" aria-hidden="true">
-            <span>#</span><span>Server</span><span>Latency</span><span>Status</span>
+            <span>#</span><span>Server</span><span>Ping</span><span>Status</span>
           </div>
           <div class="srv-list-wrap">
             <div id="servers-container"></div>
