@@ -80,7 +80,7 @@
       title: 'See which server won',
       desc: 'The request log is proof of the bread & butter: for each Stremio play, you see every server searched, what was found, and which file was picked as the winner.',
       bullets: ['Per-server ✓ / miss / offline', 'Best file highlighted', 'Duration & success rate'],
-      highlight: '#rlog-stats',
+      highlight: '#rlog-panel',
     },
     {
       page: 'install',
@@ -123,49 +123,34 @@
 
   function requestLogEntries() {
     const now = Date.now();
+    const mk = (mins, type, name, imdb, best, statuses, ms, season = 0, episode = 0) => ({
+      ts: now - mins * 60000, type, contentName: name, imdbId: imdb, season, episode, ms,
+      bestServer: best,
+      serverStatus: statuses,
+    });
+    const S = [S_CLOUD, S_HOME, S_NAS];
+    const row = (mins, type, name, imdb, winnerIdx, sizes, ms, season = 0, episode = 0) => {
+      const winner = S[winnerIdx];
+      const best = sizes[winnerIdx] ? { label: winner, size: sizes[winnerIdx], bitrate: Math.round(sizes[winnerIdx] / 600) } : null;
+      const statuses = S.map((label, i) => {
+        if (!sizes[i]) return { label, status: i === 1 && mins % 5 === 0 ? 'offline' : 'not_found' };
+        return { label, status: 'found', size: sizes[i], bitrate: Math.round(sizes[i] / 600) };
+      });
+      return mk(mins, type, name, imdb, best, statuses, ms, season, episode);
+    };
     return [
-      { ts: now - 120000, type: 'movie', contentName: 'Dune: Part Two', imdbId: 'tt15239678', season: 0, episode: 0, ms: 842,
-        bestServer: { label: S_CLOUD, size: 26843545600, bitrate: 45000000 },
-        serverStatus: [
-          { label: S_CLOUD, status: 'found', size: 26843545600, bitrate: 45000000 },
-          { label: S_HOME, status: 'not_found' },
-          { label: S_NAS, status: 'found', size: 12884901888, bitrate: 22000000 },
-        ] },
-      { ts: now - 480000, type: 'series', contentName: 'Breaking Bad', imdbId: 'tt0903747', season: 1, episode: 1, ms: 1124,
-        bestServer: { label: S_HOME, size: 2147483648, bitrate: 8500000 },
-        serverStatus: [
-          { label: S_CLOUD, status: 'not_found' },
-          { label: S_HOME, status: 'found', size: 2147483648, bitrate: 8500000 },
-          { label: S_NAS, status: 'offline' },
-        ] },
-      { ts: now - 900000, type: 'movie', contentName: 'Oppenheimer', imdbId: 'tt15398776', ms: 623,
-        bestServer: { label: S_CLOUD, size: 32212254720, bitrate: 52000000 },
-        serverStatus: [
-          { label: S_CLOUD, status: 'found', size: 32212254720, bitrate: 52000000 },
-          { label: S_HOME, status: 'found', size: 16106127360, bitrate: 28000000 },
-          { label: S_NAS, status: 'not_found' },
-        ] },
-      { ts: now - 1800000, type: 'series', contentName: 'The Bear', imdbId: 'tt1442464', season: 2, episode: 4, ms: 1456,
-        bestServer: { label: S_HOME, size: 1073741824, bitrate: 6200000 },
-        serverStatus: [
-          { label: S_CLOUD, status: 'not_found' },
-          { label: S_HOME, status: 'found', size: 1073741824, bitrate: 6200000 },
-          { label: S_NAS, status: 'not_found' },
-        ] },
-      { ts: now - 3600000, type: 'movie', contentName: 'Interstellar', imdbId: 'tt0816692', ms: 391,
-        bestServer: { label: S_NAS, size: 19327352832, bitrate: 38000000 },
-        serverStatus: [
-          { label: S_CLOUD, status: 'found', size: 19327352832, bitrate: 38000000 },
-          { label: S_HOME, status: 'offline' },
-          { label: S_NAS, status: 'found', size: 19327352832, bitrate: 38000000 },
-        ] },
-      { ts: now - 7200000, type: 'movie', contentName: 'Poor Things', imdbId: 'tt14230458', ms: 2103,
-        bestServer: null,
-        serverStatus: [
-          { label: S_CLOUD, status: 'not_found' },
-          { label: S_HOME, status: 'not_found' },
-          { label: S_NAS, status: 'not_found' },
-        ] },
+      row(2, 'movie', 'Dune: Part Two', 'tt15239678', 0, [26843545600, 0, 12884901888], 842),
+      row(8, 'series', 'Breaking Bad', 'tt0903747', 1, [0, 2147483648, 0], 1124, 1, 1),
+      row(15, 'movie', 'Oppenheimer', 'tt15398776', 0, [32212254720, 16106127360, 0], 623),
+      row(30, 'series', 'The Bear', 'tt1442464', 1, [0, 1073741824, 0], 1456, 2, 4),
+      row(60, 'movie', 'Interstellar', 'tt0816692', 2, [19327352832, 0, 19327352832], 391),
+      mk(120, 'movie', 'Poor Things', 'tt14230458', null, S.map(l => ({ label: l, status: 'not_found' })), 2103),
+      row(180, 'movie', 'Blade Runner 2049', 'tt1856101', 0, [23622320128, 12884901888, 0], 512),
+      row(240, 'series', 'Shogun', 'tt2788314', 0, [1610612736, 805306368, 0], 891, 1, 3),
+      row(300, 'movie', 'The Matrix', 'tt0133093', 2, [8589934592, 4294967296, 12884901888], 445),
+      row(360, 'series', 'Severance', 'tt11280740', 1, [0, 939524096, 536870912], 1033, 1, 8),
+      row(420, 'movie', 'Arrival', 'tt2543164', 0, [15032385536, 7516192768, 0], 578),
+      row(480, 'movie', 'Everything Everywhere', 'tt6710474', 1, [0, 18253611008, 9126805504], 734),
     ];
   }
 
@@ -364,8 +349,9 @@
   function getTourFocus(sel) {
     const raw = document.querySelector(sel);
     if (!raw) return null;
-    const groupKids = [...raw.querySelectorAll(':scope > .ms-card')].filter(isVisibleTarget);
-    if (groupKids.length > 1) return { items: groupKids, scroll: groupKids[0] };
+    const groupKids = [...raw.querySelectorAll(':scope > .ms-card, :scope > .rlog-stats, :scope > .rlog-toolbar, :scope > .rlog-list')]
+      .filter(isVisibleTarget);
+    if (groupKids.length > 1) return { items: groupKids, scroll: groupKids.find(el => el.classList.contains('rlog-list')) || groupKids[0] };
     const single = resolveHighlightTarget(raw);
     if (!single) return null;
     return { items: [single], scroll: single };
@@ -477,7 +463,7 @@
 
     const go = () => {
       if (location.hash !== '#/' + step.page) location.hash = '#/' + step.page;
-      const delay = step.page === 'install' ? 500 : step.page === 'streaming' ? 420 : 320;
+      const delay = step.page === 'install' ? 500 : (step.page === 'streaming' || step.page === 'log') ? 420 : 320;
       setTimeout(() => {
         if (window.onPageShow) window.onPageShow(step.page);
         positionSpot(step.highlight);

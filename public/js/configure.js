@@ -1051,6 +1051,8 @@ function updateLogStats(data) {
   set('rlog-st-found', s.foundPct != null ? s.foundPct + '%' : '—');
   set('rlog-st-avg', s.avgMs != null ? (s.avgMs < 1000 ? s.avgMs + 'ms' : (s.avgMs / 1000).toFixed(1) + 's') : '—');
   set('rlog-st-server', s.topServer);
+  const srvEl = document.getElementById('rlog-st-server');
+  if (srvEl) srvEl.classList.toggle('is-long', String(s.topServer || '').length > 10);
 }
 
 function filterLogData() {
@@ -1117,11 +1119,13 @@ function renderLogPage() {
 
     let serversHtml = '';
     if (e.serverStatus?.length) {
+      const winner = e.bestServer?.label;
       serversHtml = `<div class="rlog-srv-pills">${e.serverStatus.map(s => {
         const size = fmtBytes(s.size);
         const mbps = s.bitrate ? `${(s.bitrate/1e6).toFixed(1)}M` : '';
         const meta = [size, mbps].filter(Boolean).join('/');
-        if (s.status === 'found') return `<span class="rlog-srv-chip ok" title="${escHtml(s.label)}${meta ? ' · '+meta : ''}">✓ ${escHtml(s.label)}${meta ? `<em>${meta}</em>` : ''}</span>`;
+        const win = winner && s.label === winner && s.status === 'found';
+        if (s.status === 'found') return `<span class="rlog-srv-chip ok${win ? ' win' : ''}" title="${escHtml(s.label)}${meta ? ' · '+meta : ''}">${win ? '★' : '✓'} ${escHtml(s.label)}${meta ? `<em>${meta}</em>` : ''}</span>`;
         if (s.status === 'offline') return `<span class="rlog-srv-chip off">✕ ${escHtml(s.label)}</span>`;
         if (s.status === 'not_found') return `<span class="rlog-srv-chip miss">– ${escHtml(s.label)}</span>`;
         return `<span class="rlog-srv-chip">${escHtml(s.label)}</span>`;

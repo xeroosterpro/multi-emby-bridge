@@ -1016,24 +1016,26 @@
               <button class="btn-soft rlog-btn rlog-btn-danger" type="button" onclick="clearLog()">Clear</button>
             </div>
           </div>
-          <div class="rlog-stats" id="rlog-stats">
-            <div class="rlog-stat"><div class="rlog-stat-n" id="rlog-st-total">0</div><div class="rlog-stat-l">Total requests</div></div>
-            <div class="rlog-stat"><div class="rlog-stat-n" id="rlog-st-found">—</div><div class="rlog-stat-l">Success rate</div></div>
-            <div class="rlog-stat"><div class="rlog-stat-n" id="rlog-st-avg">—</div><div class="rlog-stat-l">Avg duration</div></div>
-            <div class="rlog-stat"><div class="rlog-stat-n" id="rlog-st-server">—</div><div class="rlog-stat-l">Top server</div></div>
-          </div>
-          <div class="rlog-toolbar">
-            <div class="rlog-search-wrap">
-              <input class="input rlog-search" id="rlog-search" type="search" placeholder="Search content or server…" autocomplete="off"/>
+          <div class="rlog-panel" id="rlog-panel">
+            <div class="rlog-stats" id="rlog-stats">
+              <div class="rlog-stat"><div class="rlog-stat-n" id="rlog-st-total">0</div><div class="rlog-stat-l">Total requests</div></div>
+              <div class="rlog-stat"><div class="rlog-stat-n" id="rlog-st-found">—</div><div class="rlog-stat-l">Success rate</div></div>
+              <div class="rlog-stat"><div class="rlog-stat-n" id="rlog-st-avg">—</div><div class="rlog-stat-l">Avg duration</div></div>
+              <div class="rlog-stat"><div class="rlog-stat-n" id="rlog-st-server">—</div><div class="rlog-stat-l">Top server</div></div>
             </div>
-            <select class="input rlog-filter" id="rlog-filter" title="Filter">
-              <option value="all">All results</option>
-              <option value="found">Found only</option>
-              <option value="miss">Miss / offline</option>
-            </select>
-          </div>
-          <div class="rlog-list" id="log-table-wrap">
-            <div class="rlog-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>
+            <div class="rlog-toolbar">
+              <div class="rlog-search-wrap">
+                <input class="input rlog-search" id="rlog-search" type="search" placeholder="Search content or server…" autocomplete="off"/>
+              </div>
+              <select class="input rlog-filter" id="rlog-filter" title="Filter">
+                <option value="all">All results</option>
+                <option value="found">Found only</option>
+                <option value="miss">Miss / offline</option>
+              </select>
+            </div>
+            <div class="rlog-list" id="log-table-wrap">
+              <div class="rlog-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>
+            </div>
           </div>
         </div>
       </section>

@@ -359,12 +359,12 @@ input::placeholder { color: var(--text-muted); }
 .ping-value.timeout { color: var(--text-muted); }
 
 /* ── Request Log (premium) ── */
-.rlog-shell{ padding:4px 2px 24px; }
+.rlog-shell{ padding:0 2px 12px; }
 .rlog-top{
-  display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:16px;
+  display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px;
 }
-.rlog-title{ margin:0 !important; font-size:1.5rem !important; letter-spacing:-.02em; }
-.rlog-sub{ margin:4px 0 0 !important; font-size:.8rem !important; color:var(--text-mute) !important; }
+.rlog-title{ margin:0 !important; font-size:1.35rem !important; letter-spacing:-.02em; }
+.rlog-sub{ margin:3px 0 0 !important; font-size:.78rem !important; color:var(--text-mute) !important; }
 .rlog-top-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .rlog-btn{ text-decoration:none; font-size:.78rem !important; }
 .rlog-btn-danger:hover{ color:var(--error) !important; border-color:color-mix(in srgb,var(--error) 50%,var(--border)) !important; }
@@ -378,34 +378,43 @@ input::placeholder { color: var(--text-muted); }
   box-shadow:0 0 8px var(--success); animation:rlogPulse 2s ease-in-out infinite;
 }
 @keyframes rlogPulse{ 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.45;transform:scale(.85)} }
+.rlog-panel{ display:flex; flex-direction:column; gap:10px; }
 .rlog-stats{
-  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:14px;
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-bottom:0;
 }
 .rlog-stat{
+  position:relative; overflow:hidden;
   background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-md);
-  padding:14px 16px; text-align:center;
+  padding:10px 12px 10px 15px; text-align:left;
 }
-.rlog-stat-n{ font-size:1.35rem; font-weight:900; letter-spacing:-.02em; line-height:1.1;
+.rlog-stat::before{
+  content:''; position:absolute; left:0; top:7px; bottom:7px; width:3px; border-radius:3px;
+  background:linear-gradient(var(--accent),color-mix(in srgb,var(--accent) 30%,transparent));
+}
+.rlog-stat-n{ font-size:1.15rem; font-weight:900; letter-spacing:-.02em; line-height:1.15;
   background:linear-gradient(135deg,var(--text-primary),color-mix(in srgb,var(--accent) 60%,var(--text-primary)));
   -webkit-background-clip:text; background-clip:text; color:transparent; }
-.rlog-stat-l{ font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-mute); margin-top:4px; }
-.rlog-toolbar{ display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.rlog-stat-n.is-long{ font-size:.88rem; letter-spacing:-.01em; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rlog-stat-l{ font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-mute); margin-top:3px; }
+.rlog-toolbar{ display:flex; gap:10px; margin-bottom:0; flex-wrap:wrap; }
 .rlog-search-wrap{ flex:1; min-width:180px; }
 .rlog-search{ width:100%; font-size:.82rem !important; }
 .rlog-filter{ width:auto; min-width:140px; font-size:.8rem !important; cursor:pointer; }
 .rlog-list{
   background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg);
-  padding:0; overflow:hidden;
+  padding:0; overflow:hidden; display:flex; flex-direction:column;
+  max-height:min(58vh,620px);
 }
 .rlog-head{
-  display:grid; grid-template-columns:110px 1fr 72px 120px 64px; gap:10px; align-items:center;
-  padding:10px 14px; font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.07em;
+  display:grid; grid-template-columns:104px 1fr 68px 116px 60px; gap:8px; align-items:center;
+  padding:8px 12px; font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.07em;
   color:var(--text-mute); border-bottom:1px solid var(--border); background:var(--bg-elevated);
+  position:sticky; top:0; z-index:2; flex:none;
 }
-.rlog-rows{ display:flex; flex-direction:column; }
+.rlog-rows{ display:flex; flex-direction:column; overflow-y:auto; flex:1; min-height:0; }
 .rlog-row{
-  display:grid; grid-template-columns:110px 1fr 72px 120px 64px; gap:10px; align-items:start;
-  padding:12px 14px; border-bottom:1px solid color-mix(in srgb,var(--border) 70%,transparent);
+  display:grid; grid-template-columns:104px 1fr 68px 116px 60px; gap:8px; align-items:center;
+  padding:9px 12px; border-bottom:1px solid color-mix(in srgb,var(--border) 70%,transparent);
   transition:background .15s var(--ease);
 }
 .rlog-row:last-child{ border-bottom:0; }
@@ -431,7 +440,11 @@ input::placeholder { color: var(--text-muted); }
 }
 .rlog-srv-chip em{ font-style:normal; font-weight:500; color:var(--text-mute); font-size:.6rem; margin-left:2px; }
 .rlog-srv-chip.ok{ color:var(--success); border-color:color-mix(in srgb,var(--success) 35%,var(--border)); background:color-mix(in srgb,var(--success) 8%,transparent); }
-.rlog-srv-chip.win{ color:var(--accent); border-color:color-mix(in srgb,var(--accent) 40%,var(--border)); background:color-mix(in srgb,var(--accent) 10%,transparent); }
+.rlog-srv-chip.win{
+  color:var(--accent); border-color:color-mix(in srgb,var(--accent) 45%,var(--border));
+  background:color-mix(in srgb,var(--accent) 12%,transparent);
+  box-shadow:0 0 10px color-mix(in srgb,var(--accent) 22%,transparent);
+}
 .rlog-srv-chip.off{ color:var(--error); border-color:color-mix(in srgb,var(--error) 30%,var(--border)); }
 .rlog-srv-chip.miss{ color:var(--warning); border-color:color-mix(in srgb,var(--warning) 30%,var(--border)); }
 .rlog-best{ display:flex; flex-direction:column; gap:2px; }
