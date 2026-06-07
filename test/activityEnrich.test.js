@@ -29,5 +29,27 @@ A(enriched[0].displayServer === 'Milkyway', 'displayServer prefers live');
 A(enriched[0].isLiveNow === true, 'isLiveNow flag');
 A(enriched[0].availableOn.length === 2, 'availableOn lists found servers');
 
+const bridgeOnly = [{
+  title: 'Triple Audible', server: 'ARCTV', serverStatus: [
+    { label: 'ARCTV', status: 'found' },
+    { label: 'Milkyway', status: 'found' },
+  ],
+}];
+const bridgeLive = [{
+  source: 'bridge', title: 'Triple Audible', pickedServer: 'ARCTV',
+  availableOn: ['ARCTV', 'Milkyway'], serverConfirmed: false, server: null,
+}];
+const bridgeEnriched = enrichRecentEntries(bridgeOnly, bridgeLive);
+A(bridgeEnriched[0].isLiveNow === true, 'bridge match marks live');
+A(bridgeEnriched[0].playingServer == null, 'multi-server bridge does not fake playing server');
+A(bridgeEnriched[0].liveUncertain === true, 'flags uncertain attribution');
+
+const singleBridge = enrichRecentEntries([{
+  title: 'Battleship', server: 'BK', serverStatus: [{ label: 'BK', status: 'found' }],
+}], [{
+  source: 'bridge', title: 'Battleship', server: 'BK', serverConfirmed: true, availableOn: ['BK'],
+}]);
+A(singleBridge[0].playingServer === 'BK', 'single-server bridge is confirmed');
+
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);

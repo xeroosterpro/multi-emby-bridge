@@ -344,6 +344,29 @@ async function fetchBrowserServerSessions(server) {
   return { live: [], probe: { server: label, ok: false, count: 0, error: 'browser blocked', method: null } };
 }
 
+function _availableServersFromStatus(serverStatus) {
+  if (!Array.isArray(serverStatus)) return [];
+  return serverStatus.filter(s => s && s.status === 'found' && s.label).map(s => s.label);
+}
+
+function _resolveBridgePlayback(entry) {
+  const pickedServer = entry?.server || entry?.pickedServer || (entry?.bestFile && entry.bestFile.label) || null;
+  const availableOn = _availableServersFromStatus(entry?.serverStatus);
+  let server = null;
+  let serverConfirmed = false;
+  if (availableOn.length === 1) {
+    server = availableOn[0];
+    serverConfirmed = true;
+  } else if (availableOn.length > 1) {
+    server = null;
+    serverConfirmed = false;
+  } else if (pickedServer) {
+    server = pickedServer;
+    serverConfirmed = false;
+  }
+  return { pickedServer, server, availableOn, serverConfirmed };
+}
+
 function inferBridgeLiveFromRecent(recent) {
   const now = Date.now();
   const seen = new Map();
@@ -353,12 +376,15 @@ function inferBridgeLiveFromRecent(recent) {
     if (!ts) continue;
     const age = now - ts;
     if (age < 0 || age > BRIDGE_LIVE_MAX_AGE_MS) continue;
-    const server = entry.server || entry.pickedServer || null;
-    if (!server) continue;
-    const key = [server, entry.title, entry.season ?? '', entry.episode ?? ''].join('|');
+    const resolved = _resolveBridgePlayback(entry);
+    if (!resolved.pickedServer && !resolved.server && !resolved.availableOn.length) continue;
+    const key = [entry.title, entry.season ?? '', entry.episode ?? ''].join('|');
     if (seen.has(key)) continue;
     seen.set(key, {
-      server,
+      server: resolved.server,
+      pickedServer: resolved.pickedServer,
+      availableOn: resolved.availableOn,
+      serverConfirmed: resolved.serverConfirmed,
       title: entry.title,
       rawTitle: entry.title,
       season: entry.season ?? null,
@@ -388,10 +414,22 @@ function mergeLiveSourcesClient(lists) {
     }
   }
   const out = [...map.values()];
-  const sessionKeys = new Set(
-    out.filter(s => s.source !== 'bridge').map(s => `${s.server}|${s.title}`)
+  const norm = t => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const sessionTitles = new Set(
+    out.filter(s => s.source !== 'bridge').map(s => norm(s.title)).filter(Boolean)
   );
-  return out.filter(s => s.source !== 'bridge' || !sessionKeys.has(`${s.server}|${s.title}`));
+  return out.filter(s => s.source !== 'bridge' || !sessionTitles.has(norm(s.title)));
+}
+
+function formatBridgeServerLabel(s) {
+  if (s.source !== 'bridge') return s.server || '—';
+  if (s.serverConfirmed && s.server) return s.server;
+  if ((s.availableOn || []).length > 1) {
+    const list = s.availableOn.slice(0, 3).join(', ');
+    return s.availableOn.length > 3 ? `${list}…` : list;
+  }
+  if (s.pickedServer) return `picked ${s.pickedServer}`;
+  return s.server || '—';
 }
 
 async function fetchLiveSessionsForServers(servers) {
@@ -733,15 +771,17 @@ function renderDashActivityShell(serverCount) {
 }
 
 function renderLiveProbeStrip(probes) {
-  if (!probes?.length) return '';
+  const list = (probes || []).filter(p => p && (p.server || p.label));
+  if (!list.length) return '';
   const esc = dashActivityEsc;
-  return `<div class="da-probes">${probes.map(p => {
+  return `<div class="da-probes">${list.map(p => {
+    const name = p.server || p.label;
     const cls = p.ok ? ((p.count || 0) > 0 ? 'ok-live' : 'ok-idle') : 'bad';
     const via = p.method ? ` via ${p.method}` : '';
     const detail = p.ok
       ? ((p.count || 0) > 0 ? `${p.count} playing${via}` : `idle${via}`)
       : esc(p.error || 'unreachable');
-    return `<span class="da-probe ${cls}" title="${esc(p.server)} — ${detail}"><span class="da-probe-dot"></span>${esc(p.server)}</span>`;
+    return `<span class="da-probe ${cls}" title="${esc(name)} — ${detail}"><span class="da-probe-dot"></span>${esc(name)}</span>`;
   }).join('')}</div>`;
 }
 
@@ -2561,6 +2601,9 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
       ? `<span class="da-progress" title="${s.progressPct}%"><span class="da-progress-bar" style="width:${s.progressPct}%"></span></span>`
       : '';
     const client = s.client || s.device || '';
+    const serverLabel = formatBridgeServerLabel(s);
+    const bridgeHint = (s.source === 'bridge' && !s.serverConfirmed && s.pickedServer && (s.availableOn || []).length > 1)
+      ? ` <span class="da-hist-pick">ranked ${esc(s.pickedServer)}</span>` : '';
     return `<div class="da-row da-live${s.buffering ? ' da-buffering' : ''}${s.isPaused ? ' da-paused' : ''}">
       <span class="da-main">
         <span class="da-dot${s.buffering ? ' da-dot-warn' : (s.isPaused ? ' da-dot-pause' : '')}"></span>
@@ -2569,7 +2612,7 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
           ${progress}
         </span>
       </span>
-      <span class="da-dim da-meta">${esc(s.server)}${s.user ? ' · ' + esc(s.user) : ''}${client ? ' · ' + esc(client) : ''}</span>
+      <span class="da-dim da-meta">${esc(serverLabel)}${bridgeHint}${s.user ? ' · ' + esc(s.user) : ''}${client ? ' · ' + esc(client) : ''}</span>
     </div>`;
   }).join('');
 
@@ -2578,14 +2621,19 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
     const playing = e.isLiveNow && e.playingServer;
     const picked = e.pickedServer || e.server;
     const showDiff = playing && picked && playing !== picked;
+    const uncertain = e.isLiveNow && e.liveUncertain;
     const serverLine = playing
       ? `<span class="da-hist-live">${esc(playing)} <span class="da-hist-now">▶ now</span></span>`
-      : esc(e.displayServer || picked || '—');
+      : uncertain
+        ? `<span class="da-hist-live"><span class="da-hist-now">▶ now</span> on ${esc((e.availableOn || []).slice(0, 3).join(', ') || 'bridge')}</span>`
+        : esc(e.displayServer || picked || '—');
     const pickNote = showDiff
       ? `<span class="da-hist-pick">bridge picked ${esc(picked)}</span>`
-      : (!playing && (e.availableOn || []).length > 1
-        ? `<span class="da-hist-pick">also on ${esc(e.availableOn.filter(s => s !== picked).slice(0, 2).join(', '))}</span>`
-        : '');
+      : (uncertain && picked
+        ? `<span class="da-hist-pick">ranked ${esc(picked)}</span>`
+        : (!playing && !uncertain && (e.availableOn || []).length > 1
+          ? `<span class="da-hist-pick">also on ${esc(e.availableOn.filter(s => s !== picked).slice(0, 2).join(', '))}</span>`
+          : ''));
     return `<div class="da-row da-history${playing ? ' da-history-live' : ''}">
       <span class="da-main"><span class="da-title" title="${esc(e.title || '')}">${esc(e.title || '—')}${e.season ? ` <span class="da-ep">S${e.season}E${e.episode || ''}</span>` : ''}</span></span>
       <span class="da-dim da-meta da-hist-meta">${serverLine}${pickNote ? `<span class="da-hist-sub">${pickNote}</span>` : ''} · ${when(e.ts)}</span>
@@ -2601,7 +2649,7 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
     </div>
     <div class="dash-act-panel dash-act-history">
       <h3 class="block-title dash-act-title">Watched history</h3>
-      <p class="dash-act-hint">Bridge stream lookups — <strong>▶ now</strong> shows actual server when live</p>
+      <p class="dash-act-hint">Bridge stream lookups — <strong>▶ now</strong> uses Sessions when available; multi-server titles list all copies</p>
       <div class="da-list">${recentRows || '<div class="da-empty">No watch history yet — streams through your bridge appear here.</div>'}</div>
     </div>
   </div>`;
