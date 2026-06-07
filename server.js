@@ -177,7 +177,6 @@ app.use('/api/auth', makeAuthRouter());
 // ─── Authenticated user config / encrypted keys / manifest token ─────────────
 const dbLib = require('./lib/db');
 const _requestLogDb = makeRequestLog(dbLib);
-const { makeUserConfig } = require('./lib/userConfig');
 const { makeManifestStore } = require('./lib/manifestStore');
 const { hasActiveAccess } = require('./lib/manifest');
 const { makeUserRouter } = require('./routes/user');
