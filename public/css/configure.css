@@ -1224,12 +1224,25 @@ body.sb-locked .content{ margin-left:var(--side-w); }
 .sidebar:not(:hover):not(.locked) .nav-item .nav-buffer-badge,
 .sidebar:not(:hover):not(.locked) .brand-text,
 .sidebar:not(:hover):not(.locked) .sidebar-foot{ opacity:0; pointer-events:none; transition:opacity .24s var(--side-ease) .28s; }
+.sidebar:not(:hover):not(.locked) .brand-text{
+  display:none !important;
+  width:0 !important;
+  overflow:hidden !important;
+}
 .sidebar:not(:hover):not(.locked) .brand{
   justify-content:center !important;
-  padding:10px !important;
-  margin:0 8px 14px !important;
-  min-width:0;
+  align-items:center !important;
+  padding:8px 0 !important;
+  margin:10px auto 14px !important;
+  width:52px !important;
+  min-width:52px !important;
+  background:transparent !important;
+  border-color:transparent !important;
+  box-shadow:none !important;
+  animation:none !important;
+  overflow:visible !important;
 }
+.sidebar:not(:hover):not(.locked) .brand::before{ display:none !important; }
 .sidebar:not(:hover):not(.locked) .brand-logo{ flex-shrink:0; }
 .nav{ flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding-bottom:6px; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
 .nav::-webkit-scrollbar{ width:4px; }
@@ -2218,21 +2231,11 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
   70%{ transform:scale(1.18); opacity:0; }
   100%{ transform:scale(1.18); opacity:0; }
 }
+.brand-logo-img,
 .brand-logo-svg{
-  width:40px; height:40px; display:block; position:relative; z-index:1;
+  width:40px; height:40px; display:block; position:relative; z-index:2;
+  border-radius:9px;
   filter:drop-shadow(0 2px 8px rgba(0,0,0,.35));
-}
-.brand-logo-bg{ filter:brightness(1.05); }
-.brand-logo-dot{ animation:brand-dot-pulse 2s ease-in-out infinite; transform-origin:16px 10px; }
-@keyframes brand-dot-pulse{
-  0%,100%{ transform:scale(1); }
-  50%{ transform:scale(1.15); }
-}
-.brand-logo-wave{ animation:brand-wave-drift 2.4s ease-in-out infinite; transform-origin:center; }
-.brand-logo-wave-2{ animation:brand-wave-drift 2.4s ease-in-out infinite reverse; animation-delay:.3s; }
-@keyframes brand-wave-drift{
-  0%,100%{ transform:translateX(0); }
-  50%{ transform:translateX(1.5px); }
 }
 .brand-text{ display:flex; align-items:baseline; gap:0; line-height:1; white-space:nowrap; position:relative; z-index:1; }
 .brand-name{
@@ -4253,8 +4256,7 @@ html.has-live-dock .content { padding-bottom: 72px; }
   body:not(.force-motion) .brand::before,
   body:not(.force-motion) .brand-logo,
   body:not(.force-motion) .brand-logo-ring,
-  body:not(.force-motion) .brand-hub,
-  body:not(.force-motion) .brand-logo-wave { animation: none !important; }
+  body:not(.force-motion) .brand-hub { animation: none !important; }
   body:not(.force-motion) .home-panel-btn:hover::after { transition: none; }
 }
 
@@ -5079,7 +5081,23 @@ html.has-live-dock .content { padding-bottom: 72px; }
   .sidebar:not(:hover):not(.locked) .brand-text,
   .sidebar:not(:hover):not(.locked) .sidebar-foot,
   .sidebar:not(:hover):not(.locked) .nav-sec { opacity: 1 !important; pointer-events: auto !important; }
-  .sidebar:not(:hover):not(.locked) .brand { justify-content: flex-start !important; padding-right: 14px !important; }
+  .sidebar:not(:hover):not(.locked) .brand-text{
+    display:flex !important;
+    width:auto !important;
+    overflow:visible !important;
+  }
+  .sidebar:not(:hover):not(.locked) .brand{
+    justify-content:flex-start !important;
+    width:auto !important;
+    min-width:0 !important;
+    margin:0 10px 16px !important;
+    padding:12px 44px 12px 12px !important;
+    background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--accent-2) 10%, transparent)) !important;
+    border-color:color-mix(in srgb, var(--accent) 42%, var(--border)) !important;
+    box-shadow:0 0 24px color-mix(in srgb, var(--accent) 18%, transparent), inset 0 1px 0 rgba(255,255,255,.06) !important;
+    overflow:hidden !important;
+  }
+  .sidebar:not(:hover):not(.locked) .brand::before{ display:block !important; }
   .content, body.sb-locked .content { margin-left: 0 !important; }
   .content {
     padding: 58px 14px 24px !important;
