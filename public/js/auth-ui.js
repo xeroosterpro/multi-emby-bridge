@@ -63,8 +63,9 @@
 
     const status = await me();
     if (status && status.registrationOpen === false) {
-      document.querySelectorAll('#auth-tabs button[data-auth="register"]').forEach(el => { el.style.display = 'none'; });
-      if (mode === 'register') setMode('login');
+      const tabs = $('#auth-tabs');
+      if (tabs) tabs.hidden = true;
+      setMode('login');
     }
     if (status && status.enabled && status.user === null) show();
   });

@@ -1269,13 +1269,14 @@ body.noanim .acc2-body{ transition:none; }
 .auth-head{ text-align:center; transition:opacity .2s; }
 .auth-card h1{ font-size:1.45rem; font-weight:800; margin:0 0 4px; letter-spacing:-.02em; }
 .auth-sub{ color:var(--text-dim); font-size:.84rem; margin:0 0 22px; }
-.auth-tabs{ position:relative; display:flex; background:rgba(0,0,0,.28); border-radius:12px; padding:4px; margin-bottom:20px; }
+.auth-tabs{ position:relative; display:flex; overflow:hidden; min-height:42px; background:rgba(0,0,0,.28); border-radius:12px; padding:4px; margin-bottom:20px; }
+.auth-tabs[hidden]{ display:none !important; margin:0; min-height:0; }
 .auth-tabs .pill-slide{ position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px); border-radius:9px;
   background:linear-gradient(135deg,var(--accent),var(--accent-2)); transition:transform .32s var(--ease);
-  box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 35%,transparent); }
+  box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 35%,transparent); pointer-events:none; }
 .auth-tabs.reg .pill-slide{ transform:translateX(100%); }
 .auth-tabs button{ position:relative; z-index:1; flex:1; padding:10px; border:0; background:transparent; color:var(--text-dim);
-  font-family:inherit; font-weight:600; font-size:.84rem; cursor:pointer; transition:color .25s; }
+  font-family:inherit; font-weight:600; font-size:.84rem; cursor:pointer; transition:color .25s; white-space:nowrap; }
 .auth-tabs button.on{ color:#0a0a12; }
 .auth-field{ margin-bottom:14px; }
 .auth-field-label{ display:block; font-size:.68rem; font-weight:700; text-transform:uppercase;
@@ -1290,8 +1291,17 @@ body.noanim .acc2-body{ transition:none; }
 }
 .auth-input-ic{ padding:0 0 0 12px; font-size:.82rem; opacity:.55; flex:none; user-select:none; }
 .auth-input.auth-input{
-  flex:1; border:0 !important; background:transparent !important; box-shadow:none !important;
-  padding:11px 10px; font-size:.88rem;
+  flex:1; min-width:0; border:0 !important; background:transparent !important; box-shadow:none !important;
+  padding:11px 10px; font-size:.88rem; color:var(--text-primary);
+}
+.auth-input.auth-input::placeholder{ color:var(--text-mute); opacity:.85; }
+.auth-input.auth-input:-webkit-autofill,
+.auth-input.auth-input:-webkit-autofill:hover,
+.auth-input.auth-input:-webkit-autofill:focus{
+  -webkit-box-shadow:0 0 0 1000px var(--bg-input) inset !important;
+  -webkit-text-fill-color:var(--text-primary) !important;
+  caret-color:var(--text-primary);
+  transition:background-color 9999s ease-out 0s;
 }
 .auth-pass-toggle{
   border:0; background:transparent; padding:0 12px; cursor:pointer; font-size:.9rem; opacity:.55;
