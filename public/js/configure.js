@@ -1019,62 +1019,123 @@ function fmtBytes(b) {
   return `${Math.round(b/1e3)}KB`;
 }
 
-const LOG_PAGE_SIZE = 15;
+const LOG_PAGE_SIZE = 20;
 let logData = [];
 let logPage = 0;
+let logSearch = '';
+let logFilter = 'all';
+
+function logEntryFound(e) {
+  if (e.bestServer) return true;
+  return (e.serverStatus || []).some(s => s.status === 'found');
+}
+
+function computeLogStats(data) {
+  if (!data.length) return { total: 0, foundPct: null, avgMs: null, topServer: '—' };
+  const found = data.filter(logEntryFound).length;
+  const msArr = data.filter(e => e.ms != null).map(e => e.ms);
+  const avgMs = msArr.length ? Math.round(msArr.reduce((a, b) => a + b, 0) / msArr.length) : null;
+  const srvCounts = {};
+  data.forEach(e => {
+    const lbl = e.bestServer?.label || (e.serverStatus || []).find(s => s.status === 'found')?.label;
+    if (lbl) srvCounts[lbl] = (srvCounts[lbl] || 0) + 1;
+  });
+  const top = Object.entries(srvCounts).sort((a, b) => b[1] - a[1])[0];
+  return { total: data.length, foundPct: Math.round(found / data.length * 100), avgMs, topServer: top ? top[0] : '—' };
+}
+
+function updateLogStats(data) {
+  const s = computeLogStats(data);
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('rlog-st-total', s.total);
+  set('rlog-st-found', s.foundPct != null ? s.foundPct + '%' : '—');
+  set('rlog-st-avg', s.avgMs != null ? (s.avgMs < 1000 ? s.avgMs + 'ms' : (s.avgMs / 1000).toFixed(1) + 's') : '—');
+  set('rlog-st-server', s.topServer);
+}
+
+function filterLogData() {
+  const term = logSearch.toLowerCase();
+  return logData.filter(e => {
+    const found = logEntryFound(e);
+    if (logFilter === 'found' && !found) return false;
+    if (logFilter === 'miss' && found) return false;
+    if (!term) return true;
+    const hay = [
+      e.contentName, e.imdbId,
+      e.bestServer?.label,
+      ...(e.serverStatus || []).map(s => s.label),
+    ].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(term);
+  });
+}
+
+function msClass(ms) {
+  if (ms == null) return '';
+  if (ms < 1500) return 'fast';
+  if (ms < 4000) return 'ok';
+  return 'slow';
+}
 
 function renderLogPage() {
   const wrap = document.getElementById('log-table-wrap');
   if (!wrap) return;
+  updateLogStats(logData);
+  const filtered = filterLogData();
+
   if (!logData.length) {
-    wrap.innerHTML = '<div class="log-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>';
+    wrap.innerHTML = '<div class="rlog-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>';
+    return;
+  }
+  if (!filtered.length) {
+    wrap.innerHTML = '<div class="rlog-empty">No entries match your search or filter.</div>';
     return;
   }
 
-  const totalPages = Math.ceil(logData.length / LOG_PAGE_SIZE);
+  const totalPages = Math.ceil(filtered.length / LOG_PAGE_SIZE);
   if (logPage >= totalPages) logPage = totalPages - 1;
-  const slice = logData.slice(logPage * LOG_PAGE_SIZE, (logPage + 1) * LOG_PAGE_SIZE);
+  const slice = filtered.slice(logPage * LOG_PAGE_SIZE, (logPage + 1) * LOG_PAGE_SIZE);
 
   const rows = slice.map(e => {
-    const t = new Date(e.ts).toLocaleTimeString();
-    const d = new Date(e.ts).toLocaleDateString();
+    const t = new Date(e.ts).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const d = new Date(e.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     const ep = e.type === 'series'
-      ? ` S${String(e.season||0).padStart(2,'0')}E${String(e.episode||0).padStart(2,'0')}` : '';
+      ? `<span class="rlog-ep">S${String(e.season||0).padStart(2,'0')}E${String(e.episode||0).padStart(2,'0')}</span>` : '';
+    const typeBadge = e.type ? `<span class="rlog-type">${escHtml(e.type)}</span>` : '';
     const title = e.contentName
-      ? `<strong style="color:#c0b8ff">${escHtml(e.contentName)}</strong>${ep}`
-      : `<span class="log-id">${e.imdbId}</span>${ep}`;
-    const ms = e.ms < 1000 ? `${e.ms}ms` : `${(e.ms/1000).toFixed(1)}s`;
+      ? `<span class="rlog-title-t">${escHtml(e.contentName)}</span>${ep}`
+      : `<span class="rlog-imdb">${escHtml(e.imdbId || '—')}</span>${ep}`;
+    const ms = e.ms == null ? '—' : (e.ms < 1000 ? `${e.ms}ms` : `${(e.ms/1000).toFixed(1)}s`);
+    const msCls = msClass(e.ms);
 
-    let bestHtml = '—';
+    let bestHtml = '<span class="rlog-none">—</span>';
     if (e.bestServer) {
       const size = fmtBytes(e.bestServer.size);
-      const mbps = e.bestServer.bitrate ? `${(e.bestServer.bitrate/1e6).toFixed(1)}Mbps` : null;
-      const detail = [size, mbps].filter(Boolean).join(' · ');
-      bestHtml = `<span style="color:#4caf7d;font-weight:700">${escHtml(e.bestServer.label)}</span>${detail ? `<br><span style="font-size:0.7rem;color:#4a6a55">${detail}</span>` : ''}`;
+      const mbps = e.bestServer.bitrate ? `${(e.bestServer.bitrate/1e6).toFixed(1)} Mbps` : null;
+      bestHtml = `<div class="rlog-best"><span class="rlog-srv-chip win">${escHtml(e.bestServer.label)}</span>
+        ${size || mbps ? `<span class="rlog-best-meta">${[size, mbps].filter(Boolean).join(' · ')}</span>` : ''}</div>`;
     }
 
-    let serversHtml = '—';
+    let serversHtml = '';
     if (e.serverStatus?.length) {
-      serversHtml = e.serverStatus.map(s => {
-        if (s.status === 'found') {
-          const size = fmtBytes(s.size);
-          const mbps = s.bitrate ? `${(s.bitrate/1e6).toFixed(1)}Mbps` : null;
-          const det = [size, mbps].filter(Boolean).join(' / ');
-          return `<div style="margin-bottom:0.15rem"><span style="color:#4caf7d">&#10003;</span> <span style="color:#888">${escHtml(s.label)}</span>${det ? ` <span style="color:#444;font-size:0.7rem">${det}</span>` : ''}</div>`;
-        }
-        if (s.status === 'offline') return `<div><span style="color:#e05555">&#10007;</span> <span style="color:#555">${escHtml(s.label)}</span> <span style="color:#444;font-size:0.7rem">offline</span></div>`;
-        if (s.status === 'not_found') return `<div><span style="color:#c06000">–</span> <span style="color:#555">${escHtml(s.label)}</span> <span style="color:#444;font-size:0.7rem">not in library</span></div>`;
-        return `<div><span style="color:#444">?</span> <span style="color:#444">${escHtml(s.label)}</span></div>`;
-      }).join('');
+      serversHtml = `<div class="rlog-srv-pills">${e.serverStatus.map(s => {
+        const size = fmtBytes(s.size);
+        const mbps = s.bitrate ? `${(s.bitrate/1e6).toFixed(1)}M` : '';
+        const meta = [size, mbps].filter(Boolean).join('/');
+        if (s.status === 'found') return `<span class="rlog-srv-chip ok" title="${escHtml(s.label)}${meta ? ' · '+meta : ''}">✓ ${escHtml(s.label)}${meta ? `<em>${meta}</em>` : ''}</span>`;
+        if (s.status === 'offline') return `<span class="rlog-srv-chip off">✕ ${escHtml(s.label)}</span>`;
+        if (s.status === 'not_found') return `<span class="rlog-srv-chip miss">– ${escHtml(s.label)}</span>`;
+        return `<span class="rlog-srv-chip">${escHtml(s.label)}</span>`;
+      }).join('')}</div>`;
     }
 
-    return `<tr>
-      <td class="log-time">${d}<br>${t}</td>
-      <td>${title}</td>
-      <td class="log-ms">${ms}</td>
-      <td>${bestHtml}</td>
-      <td>${serversHtml}</td>
-    </tr>`;
+    const ok = logEntryFound(e);
+    return `<article class="rlog-row${ok ? '' : ' rlog-row-miss'}">
+      <div class="rlog-row-time"><span class="rlog-date">${d}</span><span class="rlog-clock">${t}</span></div>
+      <div class="rlog-row-main"><div class="rlog-row-title">${typeBadge}${title}</div>${serversHtml || '<span class="rlog-none">No server breakdown</span>'}</div>
+      <div class="rlog-row-dur"><span class="rlog-ms ${msCls}">${ms}</span></div>
+      <div class="rlog-row-best">${bestHtml}</div>
+      <div class="rlog-row-status"><span class="rlog-found ${ok ? 'ok' : 'fail'}">${ok ? 'found' : 'miss'}</span></div>
+    </article>`;
   }).join('');
 
   let pageButtons = '';
@@ -1083,36 +1144,47 @@ function renderLogPage() {
   let end = Math.min(totalPages, start + maxBtns);
   if (end - start < maxBtns) start = Math.max(0, end - maxBtns);
   for (let i = start; i < end; i++) {
-    pageButtons += `<button class="btn-page${i === logPage ? ' active' : ''}" onclick="goLogPage(${i})">${i + 1}</button>`;
+    pageButtons += `<button class="rlog-page-btn${i === logPage ? ' active' : ''}" onclick="goLogPage(${i})">${i + 1}</button>`;
   }
 
-  wrap.innerHTML = `
-    <table class="log-table">
-      <thead><tr><th>Time</th><th>Content</th><th>Duration</th><th>Best File</th><th>Server Results</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div class="log-pagination">
-      <span class="log-page-info">${logPage * LOG_PAGE_SIZE + 1}–${Math.min((logPage + 1) * LOG_PAGE_SIZE, logData.length)} of ${logData.length}</span>
-      <div class="log-page-btns">
-        <button class="btn-page" onclick="goLogPage(${logPage - 1})" ${logPage === 0 ? 'disabled' : ''}>‹</button>
+  wrap.innerHTML = `<div class="rlog-head"><span>Time</span><span>Content &amp; servers</span><span>Duration</span><span>Best file</span><span>Status</span></div>
+    <div class="rlog-rows">${rows}</div>
+    <div class="rlog-pagination">
+      <span class="rlog-page-info">${logPage * LOG_PAGE_SIZE + 1}–${Math.min((logPage + 1) * LOG_PAGE_SIZE, filtered.length)} of ${filtered.length}${filtered.length !== logData.length ? ` (${logData.length} total)` : ''}</span>
+      <div class="rlog-page-btns">
+        <button class="rlog-page-btn" onclick="goLogPage(${logPage - 1})" ${logPage === 0 ? 'disabled' : ''}>‹</button>
         ${pageButtons}
-        <button class="btn-page" onclick="goLogPage(${logPage + 1})" ${logPage >= totalPages - 1 ? 'disabled' : ''}>›</button>
+        <button class="rlog-page-btn" onclick="goLogPage(${logPage + 1})" ${logPage >= totalPages - 1 ? 'disabled' : ''}>›</button>
       </div>
     </div>`;
 }
 
 function goLogPage(p) {
-  const totalPages = Math.ceil(logData.length / LOG_PAGE_SIZE);
+  const totalPages = Math.ceil(filterLogData().length / LOG_PAGE_SIZE);
   logPage = Math.max(0, Math.min(p, totalPages - 1));
   renderLogPage();
+}
+
+function wireLogFilters() {
+  const search = document.getElementById('rlog-search');
+  const filter = document.getElementById('rlog-filter');
+  if (search && !search._w) {
+    search._w = 1;
+    search.addEventListener('input', () => { logSearch = search.value; logPage = 0; renderLogPage(); });
+  }
+  if (filter && !filter._w) {
+    filter._w = 1;
+    filter.addEventListener('change', () => { logFilter = filter.value; logPage = 0; renderLogPage(); });
+  }
 }
 
 async function refreshLog() {
   try {
     const data = await fetch('/api/request-log').then(r => r.json());
     const badge = document.getElementById('log-count-badge');
-    if (badge) badge.textContent = data.length ? `${data.length} entries` : '';
+    if (badge) badge.textContent = data.length ? `${data.length} entries · stream resolution history` : 'Stream resolution history';
     logData = data;
+    wireLogFilters();
     renderLogPage();
   } catch {}
 }

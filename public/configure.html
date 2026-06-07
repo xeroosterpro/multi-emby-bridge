@@ -11,18 +11,51 @@
   <div class="bg" id="bg"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="stipple" id="stipple"></div></div>
 
   <div class="auth-overlay" id="auth-overlay" style="display:none">
-    <div class="auth-card">
-      <div class="auth-logo">◢</div>
-      <div class="auth-head"><h1 id="auth-title">Welcome back</h1><p class="auth-sub" id="auth-sub">Sign in to manage your bridge</p></div>
-      <div class="auth-tabs" id="auth-tabs"><div class="pill-slide"></div><button class="on" type="button" data-auth="login">Log in</button><button type="button" data-auth="register">Register</button></div>
-      <form id="auth-form" autocomplete="on">
-        <label class="field-label" for="au-user">Username</label>
-        <input class="input" id="au-user" name="username" autocomplete="username" />
-        <label class="field-label" for="au-pass">Password</label>
-        <input class="input" id="au-pass" name="password" type="password" autocomplete="current-password" />
-        <div class="auth-err" id="au-err"></div>
-        <button class="btn-generate" id="au-submit" type="submit" style="width:100%;margin-top:6px">Log in</button>
-      </form>
+    <div class="auth-stage">
+      <div class="auth-brand-panel">
+        <div class="auth-brand-glow"></div>
+        <div class="auth-brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <defs><linearGradient id="authLogoGrad" x1="0" y1="0" x2="32" y2="32"><stop offset="0%" stop-color="#7b61ff"/><stop offset="100%" stop-color="#c4b5ff"/></linearGradient></defs>
+            <rect width="32" height="32" rx="9" fill="url(#authLogoGrad)"/>
+            <circle cx="16" cy="10" r="2.5" fill="#0a0a12"/>
+            <path d="M5 17c3.5-4 7-4 10.5 0s7 4 10.5 0" stroke="#0a0a12" stroke-width="2" stroke-linecap="round"/>
+            <path d="M4 22c4-3 8-3 12 0s8 3 12 0" stroke="#0a0a12" stroke-width="1.5" stroke-linecap="round" opacity=".65"/>
+          </svg>
+        </div>
+        <h2 class="auth-brand-title"><span>Stream</span><span class="auth-brand-hub">Hub</span></h2>
+        <p class="auth-brand-tag">Your personal bridge between Stremio and every server you own.</p>
+        <ul class="auth-perks">
+          <li><span class="auth-perk-ic">⬡</span> Multi-server Emby &amp; Jellyfin routing</li>
+          <li><span class="auth-perk-ic">▶</span> Private Stremio manifest URL</li>
+          <li><span class="auth-perk-ic">☁</span> Cloud-synced configuration</li>
+          <li><span class="auth-perk-ic">♥</span> Health monitoring &amp; uptime</li>
+        </ul>
+      </div>
+      <div class="auth-card">
+        <div class="auth-head"><h1 id="auth-title">Welcome back</h1><p class="auth-sub" id="auth-sub">Sign in to manage your bridge</p></div>
+        <div class="auth-tabs" id="auth-tabs"><div class="pill-slide"></div><button class="on" type="button" data-auth="login">Log in</button><button type="button" data-auth="register">Register</button></div>
+        <form id="auth-form" autocomplete="on">
+          <div class="auth-field">
+            <label class="auth-field-label" for="au-user">Username</label>
+            <div class="auth-input-wrap">
+              <span class="auth-input-ic" aria-hidden="true">◎</span>
+              <input class="input auth-input" id="au-user" name="username" placeholder="your username" autocomplete="username" />
+            </div>
+          </div>
+          <div class="auth-field">
+            <label class="auth-field-label" for="au-pass">Password</label>
+            <div class="auth-input-wrap">
+              <span class="auth-input-ic" aria-hidden="true">🔒</span>
+              <input class="input auth-input" id="au-pass" name="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+              <button type="button" class="auth-pass-toggle" id="au-pass-toggle" aria-label="Show password">👁</button>
+            </div>
+          </div>
+          <div class="auth-err" id="au-err"></div>
+          <button class="auth-submit" id="au-submit" type="submit"><span>Log in</span><span class="auth-submit-arrow">→</span></button>
+        </form>
+        <p class="auth-foot">Secure session · encrypted API keys · admin-managed access</p>
+      </div>
     </div>
   </div>
 
@@ -968,15 +1001,38 @@
         <div id="ping-results"></div>
       </section>
       <section class="page" id="page-log">
-        <h2 class="page-title">Request log</h2>
-        <p class="page-sub" id="log-count-badge"></p>
-        <div class="log-actions">
-          <a href="#/dashboard" class="btn-log">Dashboard</a>
-          <button class="btn-log" onclick="refreshLog()">Refresh</button>
-          <button class="btn-log danger" onclick="clearLog()">Clear</button>
-        </div>
-        <div class="log-table-wrap" id="log-table-wrap">
-          <div class="log-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>
+        <div class="rlog-shell">
+          <div class="rlog-top">
+            <div class="rlog-top-main">
+              <h2 class="page-title rlog-title">Request log</h2>
+              <p class="page-sub rlog-sub" id="log-count-badge">Stream resolution history</p>
+            </div>
+            <div class="rlog-top-actions">
+              <span class="rlog-live-pill" id="rlog-live"><span class="rlog-live-dot"></span> Live</span>
+              <a href="#/dashboard" class="btn-soft rlog-btn">Dashboard</a>
+              <button class="btn-soft rlog-btn" type="button" onclick="refreshLog()">↻ Refresh</button>
+              <button class="btn-soft rlog-btn rlog-btn-danger" type="button" onclick="clearLog()">Clear</button>
+            </div>
+          </div>
+          <div class="rlog-stats" id="rlog-stats">
+            <div class="rlog-stat"><div class="rlog-stat-n" id="rlog-st-total">0</div><div class="rlog-stat-l">Total requests</div></div>
+            <div class="rlog-stat"><div class="rlog-stat-n" id="rlog-st-found">—</div><div class="rlog-stat-l">Success rate</div></div>
+            <div class="rlog-stat"><div class="rlog-stat-n" id="rlog-st-avg">—</div><div class="rlog-stat-l">Avg duration</div></div>
+            <div class="rlog-stat"><div class="rlog-stat-n" id="rlog-st-server">—</div><div class="rlog-stat-l">Top server</div></div>
+          </div>
+          <div class="rlog-toolbar">
+            <div class="rlog-search-wrap">
+              <input class="input rlog-search" id="rlog-search" type="search" placeholder="Search content or server…" autocomplete="off"/>
+            </div>
+            <select class="input rlog-filter" id="rlog-filter" title="Filter">
+              <option value="all">All results</option>
+              <option value="found">Found only</option>
+              <option value="miss">Miss / offline</option>
+            </select>
+          </div>
+          <div class="rlog-list" id="log-table-wrap">
+            <div class="rlog-empty">No requests logged yet. Start a stream in Stremio to see activity here.</div>
+          </div>
         </div>
       </section>
       <section class="page" id="page-settings">
