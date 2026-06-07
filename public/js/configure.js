@@ -283,6 +283,120 @@ async function fetchLiveSessionsForServers(servers) {
   }));
   return chunks.flat();
 }
+
+const _livePlaybackPrev = new Map();
+const _bufferingToastKeys = new Set();
+const LIVE_PLAYBACK_POLL_MS = 20000;
+
+function annotateLiveSessions(sessions) {
+  const lp = window.MEBLivePlayback;
+  if (!lp) return (sessions || []).map(s => ({ ...s, buffering: false }));
+  return lp.annotateBuffering(sessions || [], _livePlaybackPrev);
+}
+
+function renderBufferingBanner(buffering) {
+  const list = buffering || [];
+  let el = document.getElementById('buffering-banner');
+  if (!list.length) {
+    if (el) el.remove();
+    document.documentElement.classList.remove('has-buffering-banner');
+    return;
+  }
+  const esc = (t) => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const servers = [...new Set(list.map(s => s.server).filter(Boolean))];
+  const summary = servers.length === 1
+    ? `Buffering on <strong>${esc(servers[0])}</strong>`
+    : `Buffering on <strong>${servers.length} servers</strong> — ${esc(servers.slice(0, 3).join(', '))}${servers.length > 3 ? '…' : ''}`;
+  const detail = list.length === 1
+    ? `${esc(list[0].title)}${list[0].user ? ` · ${esc(list[0].user)}` : ''}`
+    : `${list.length} active stream${list.length === 1 ? '' : 's'} stalled`;
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'buffering-banner';
+    el.setAttribute('role', 'status');
+    el.innerHTML = `<span class="bb-icon" aria-hidden="true">⏳</span>
+      <span class="bb-text"><span class="bb-summary"></span><span class="bb-detail"></span></span>
+      <button type="button" class="bb-action">View</button>`;
+    el.querySelector('.bb-action').addEventListener('click', () => { location.hash = '#/dashboard'; });
+    document.body.appendChild(el);
+  }
+  el.querySelector('.bb-summary').innerHTML = summary;
+  el.querySelector('.bb-detail').textContent = detail;
+  document.documentElement.classList.add('has-buffering-banner');
+}
+
+function updateDashboardBufferBadge(count) {
+  const nav = document.querySelector('.nav-item[data-page="dashboard"]');
+  if (!nav) return;
+  let badge = nav.querySelector('.nav-buffer-badge');
+  if (!count) {
+    if (badge) badge.remove();
+    return;
+  }
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.className = 'nav-buffer-badge';
+    badge.title = 'Playback buffering';
+    nav.appendChild(badge);
+  }
+  badge.textContent = count > 9 ? '9+' : String(count);
+  badge.style.display = 'inline-flex';
+}
+
+function notifyNewBuffering(buffering) {
+  const lp = window.MEBLivePlayback;
+  if (!lp || typeof window.toast !== 'function') return;
+  for (const s of buffering) {
+    const key = lp.liveSessionKey(s);
+    if (_bufferingToastKeys.has(key)) continue;
+    _bufferingToastKeys.add(key);
+    window.toast(`Buffering on ${s.server || 'server'} — ${s.title || 'playback'}`);
+  }
+  for (const key of [..._bufferingToastKeys]) {
+    if (!buffering.some(s => lp.liveSessionKey(s) === key)) _bufferingToastKeys.delete(key);
+  }
+}
+
+let _annotatedLiveInFlight = null;
+
+async function fetchAnnotatedLiveSessions() {
+  if (_annotatedLiveInFlight) return _annotatedLiveInFlight;
+  _annotatedLiveInFlight = (async () => {
+    const demoOn = window.MEBDemo && window.MEBDemo.isActive && window.MEBDemo.isActive();
+    if (!demoOn && !window.currentUser) return [];
+    await ensureAccountConfigLoaded();
+    const cfg = collectConfig(true);
+    const servers = cfg?.servers || [];
+    if (!servers.length) return [];
+    const raw = await fetchLiveSessionsForServers(servers);
+    return annotateLiveSessions(raw);
+  })().finally(() => { _annotatedLiveInFlight = null; });
+  return _annotatedLiveInFlight;
+}
+
+async function getAnnotatedLiveForDashboard() {
+  if (window._mebAnnotatedLive && Date.now() - (window._mebAnnotatedLiveTs || 0) < LIVE_PLAYBACK_POLL_MS) {
+    return window._mebAnnotatedLive;
+  }
+  const live = await fetchAnnotatedLiveSessions();
+  window._mebAnnotatedLive = live;
+  window._mebAnnotatedLiveTs = Date.now();
+  return live;
+}
+
+async function pollLivePlaybackNotifications() {
+  const live = await getAnnotatedLiveForDashboard();
+  const buffering = live.filter(s => s.buffering);
+  renderBufferingBanner(buffering);
+  updateDashboardBufferBadge(buffering.length);
+  notifyNewBuffering(buffering);
+  const dash = document.getElementById('page-dashboard');
+  if (dash && dash.classList.contains('on') && typeof renderDashActivity === 'function') {
+    renderDashActivity();
+  }
+  return live;
+}
+
 try { _libStatsCache = JSON.parse(localStorage.getItem('meb-libstats-cache') || '{}'); } catch { _libStatsCache = {}; }
 function _libKey(s){ return [s.url, s.apiKey, s.userId].join('|'); }
 function _saveLibCache(){ try { localStorage.setItem('meb-libstats-cache', JSON.stringify(_libStatsCache)); } catch {} }
@@ -2086,17 +2200,15 @@ async function renderDashActivity() {
     return;
   }
 
-  const frontendLive = localServers.length ? await fetchLiveSessionsForServers(localServers) : [];
-  const backendLive = Array.isArray(a.live) ? a.live : [];
-  const liveMap = new Map();
-  [...backendLive, ...frontendLive].forEach(s => {
-    const k = (s.server || '') + '|' + (s.title || '');
-    if (!liveMap.has(k)) liveMap.set(k, s);
-  });
-  const live = [...liveMap.values()];
+  let live = [];
+  if (localServers.length) {
+    live = await getAnnotatedLiveForDashboard();
+  } else if (Array.isArray(a.live) && a.live.length) {
+    live = annotateLiveSessions(a.live);
+  }
 
-  const liveRows = live.map(s => `<div class="da-row da-live">
-      <span class="da-main"><span class="da-dot"></span><span class="da-title" title="${esc(s.title)}"><strong>${esc(s.title)}</strong></span></span>
+  const liveRows = live.map(s => `<div class="da-row da-live${s.buffering ? ' da-buffering' : ''}">
+      <span class="da-main"><span class="da-dot${s.buffering ? ' da-dot-warn' : ''}"></span><span class="da-title" title="${esc(s.title)}"><strong>${esc(s.title)}</strong>${s.buffering ? '<span class="da-buffer-tag">Buffering</span>' : ''}</span></span>
       <span class="da-dim da-meta">${esc(s.server)}${s.user ? ' · ' + esc(s.user) : ''}${s.client ? ' · ' + esc(s.client) : ''}</span>
     </div>`).join('');
 
@@ -2127,14 +2239,15 @@ function replayDashTileAnimations() {
   });
 }
 
-// Real-time: refresh live streaming every 20s on the dashboard (auth recovery + now-playing).
+// Real-time: live playback + buffering notifications (all pages when signed in).
+setInterval(() => { pollLivePlaybackNotifications(); }, LIVE_PLAYBACK_POLL_MS);
+setTimeout(() => { pollLivePlaybackNotifications(); }, 3500);
+
+// Dashboard health tiles still refresh on the same cadence while that page is open.
 setInterval(() => {
   const dash = document.getElementById('page-dashboard');
-  if (dash && dash.classList.contains('on')) {
-    renderDashActivity();
-    refreshDashCardHealth();
-  }
-}, 20000);
+  if (dash && dash.classList.contains('on')) refreshDashCardHealth();
+}, LIVE_PLAYBACK_POLL_MS);
 
 const EMBY_LOGO = '<img class="brandimg" src="/img/emby.png" alt="Emby" decoding="async">';
 const JELLYFIN_LOGO = '<img class="brandimg" src="/img/jellyfin.png" alt="Jellyfin" decoding="async">';

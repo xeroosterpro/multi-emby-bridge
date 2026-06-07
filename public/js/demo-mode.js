@@ -58,7 +58,7 @@
       page: 'dashboard',
       title: 'Every server in one place',
       desc: 'Your dashboard shows all connected Emby & Jellyfin servers — library size, uptime, and live activity. This is the hub for everything the bridge monitors.',
-      bullets: ['3 demo servers pre-loaded', 'Live “now playing” sessions', 'Uptime & response charts'],
+      bullets: ['3 demo servers pre-loaded', 'Live “now playing” + buffering alerts', 'Uptime & response charts'],
       highlight: '#dash-cards',
     },
     {
@@ -214,9 +214,9 @@
       let body = {};
       try { body = JSON.parse(init?.body || '{}'); } catch {}
       const live = body.label === S_CLOUD
-        ? [{ title: 'Dune: Part Two', server: S_CLOUD, user: 'Alex', client: 'Apple TV' }]
+        ? [{ title: 'Dune: Part Two', server: S_CLOUD, user: 'Alex', client: 'Apple TV', positionTicks: 120000000000, isPaused: false, playMethod: 'DirectStream' }]
         : body.label === S_HOME
-          ? [{ title: 'Breaking Bad', server: S_HOME, user: 'demo', client: 'Stremio Web' }]
+          ? [{ title: 'Breaking Bad', server: S_HOME, user: 'demo', client: 'Stremio Web', positionTicks: 45000000000, isPaused: false, playMethod: 'Transcode', isTranscoding: true }]
           : [];
       return { body: { live } };
     }
@@ -224,8 +224,8 @@
       return { body: {
         hasServers: true, serverCount: 3,
         live: [
-          { title: 'Dune: Part Two', server: S_CLOUD, user: 'Alex', client: 'Apple TV' },
-          { title: 'Breaking Bad S01E01', server: S_HOME, user: 'demo', client: 'Stremio Web' },
+          { title: 'Dune: Part Two', server: S_CLOUD, user: 'Alex', client: 'Apple TV', positionTicks: 120000000000, isPaused: false },
+          { title: 'Breaking Bad S01E01', server: S_HOME, user: 'demo', client: 'Stremio Web', positionTicks: 45000000000, isPaused: false, isTranscoding: true },
         ],
         recent: [
           { title: 'Oppenheimer', server: S_CLOUD, ts: new Date(Date.now() - 3600000).toISOString() },

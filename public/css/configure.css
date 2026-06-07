@@ -1221,9 +1221,10 @@ body.noanim .bg::after { animation: none !important; }
 body.sb-locked .content{ margin-left:var(--side-w); }
 /* labels fade IN gently once the panel has started widening (delay), and fade
    OUT quickly so they never get clipped by the shrinking rail */
-.brand, .brand-text, .nav-item .nav-label, .nav-item .nav-ticket-badge, .sidebar-foot, .nav-sec{ transition:opacity .3s var(--side-ease) .16s; white-space:nowrap; }
+.brand, .brand-text, .nav-item .nav-label, .nav-item .nav-ticket-badge, .nav-item .nav-buffer-badge, .sidebar-foot, .nav-sec{ transition:opacity .3s var(--side-ease) .16s; white-space:nowrap; }
 .sidebar:not(:hover):not(.locked) .nav-item .nav-label,
 .sidebar:not(:hover):not(.locked) .nav-item .nav-ticket-badge,
+.sidebar:not(:hover):not(.locked) .nav-item .nav-buffer-badge,
 .sidebar:not(:hover):not(.locked) .brand-text,
 .sidebar:not(:hover):not(.locked) .sidebar-foot{ opacity:0; pointer-events:none; transition:opacity .24s var(--side-ease) .28s; }
 .sidebar:not(:hover):not(.locked) .brand{ justify-content:center !important; padding-right:10px !important; }
@@ -2464,6 +2465,13 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
 .da-history .da-title { color:var(--text-primary); }
 .da-ep { font-size:.78rem; color:var(--text-mute); font-weight:600; }
 .da-dot { width:8px; height:8px; border-radius:50%; background:#34d399; box-shadow:0 0 6px #34d399; flex:none; animation:status-blink 1.4s ease-in-out infinite !important; }
+.da-dot-warn { background:#f59e0b; box-shadow:0 0 8px #f59e0b; }
+.da-buffer-tag {
+  display:inline-flex; align-items:center; margin-left:8px; padding:2px 7px; border-radius:999px;
+  font-size:.62rem; font-weight:800; letter-spacing:.03em; text-transform:uppercase;
+  color:#fcd34d; background:color-mix(in srgb,#f59e0b 18%,transparent); border:1px solid color-mix(in srgb,#f59e0b 45%,transparent);
+}
+.da-row.da-buffering { background:color-mix(in srgb,#f59e0b 6%,transparent); border-radius:var(--r-sm); }
 .da-empty { background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--r-md); padding:22px 18px; color:var(--text-dim); font-size:.88rem; text-align:center; line-height:1.5; }
 
 /* Dashboard scale-up, stat-tile sheen + number pop, two-panel activity */
@@ -2684,6 +2692,37 @@ html.view-as-user .admin-only { display: none !important; }
   content: ''; width: 5px; height: 5px; border-radius: 50%; flex: none;
   background: var(--text-mute); margin-left: auto; opacity: .7;
 }
+#buffering-banner {
+  position: fixed; left: 50%; top: 14px; transform: translateX(-50%); z-index: 55;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;
+  max-width: min(640px, calc(100vw - 24px));
+  background: rgba(20,20,30,.96); backdrop-filter: blur(14px);
+  border: 1px solid color-mix(in srgb, #f59e0b 45%, var(--border));
+  border-left: 3px solid #f59e0b;
+  color: var(--text-primary); padding: 10px 14px; border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.45); font-size: .8rem;
+  animation: bb-in .35s var(--ease);
+}
+#buffering-banner .bb-icon { font-size: 1rem; flex: none; }
+#buffering-banner .bb-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#buffering-banner .bb-summary { font-weight: 700; }
+#buffering-banner .bb-summary strong { color: #fcd34d; }
+#buffering-banner .bb-detail { font-size: .72rem; color: var(--text-mute); }
+#buffering-banner .bb-action {
+  flex: none; background: color-mix(in srgb, #f59e0b 22%, transparent); color: #fcd34d;
+  border: 1px solid color-mix(in srgb, #f59e0b 50%, transparent); border-radius: 999px;
+  padding: 5px 12px; font-weight: 700; cursor: pointer; font-size: .72rem;
+}
+#buffering-banner .bb-action:hover { filter: brightness(1.08); }
+@keyframes bb-in { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+.nav-buffer-badge {
+  display: none; align-items: center; justify-content: center; flex: none;
+  min-width: 17px; height: 17px; padding: 0 5px; margin-left: auto;
+  background: #f59e0b; color: #1a1208; border-radius: 20px;
+  font-size: .64rem; font-weight: 800;
+}
+html.has-buffering-banner .content { padding-top: 8px; }
+
 #view-as-banner {
   position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60;
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;
