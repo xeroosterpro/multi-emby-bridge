@@ -6,7 +6,7 @@
   const VALID_THEMES = new Set([
     'purple', 'red', 'pink', 'blue', 'rgb',
     'emerald', 'amber', 'cyan', 'sunset', 'lime',
-    'neon', 'outline', 'glass', 'vapor', 'cyber', 'aurora', 'mono',
+    'family', 'neon', 'outline', 'glass', 'vapor', 'cyber', 'aurora', 'mono',
   ]);
   const root = document.documentElement;
 
