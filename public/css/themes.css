@@ -8,21 +8,24 @@
 
 /* ── Stream Hub default — softer, lighter than classic purple ── */
 [data-theme="streamhub"] {
-  --accent: #4d9ae8;
-  --accent-2: #6ec9b8;
-  --bg-base: #1a2332;
-  --bg-surface: #222d3f;
-  --bg-elevated: #2a374c;
-  --bg-hover: #324158;
-  --bg-input: #161e2a;
-  --border: #3a4a62;
-  --text-primary: #eef3fa;
-  --text-secondary: #9aadc4;
-  --text-muted: #5e7088;
-  --text-dim: #9aadc4;
-  --text: #eef3fa;
-  --surface: #222d3f;
-  --surface-2: #2a374c;
+  --accent: #5aabf0;
+  --accent-2: #5fd4b8;
+  --bg-base: #111824;
+  --bg-surface: #1f2a3c;
+  --bg-elevated: #2a3649;
+  --bg-hover: #354558;
+  --bg-input: #0f1622;
+  --border: #566b84;
+  --border-strong: #6f879f;
+  --text-primary: #f5f9fd;
+  --text-secondary: #c8d4e4;
+  --text-muted: #8aa0b8;
+  --text-dim: #aebccc;
+  --text: #f5f9fd;
+  --surface: #1f2a3c;
+  --surface-2: #2a3649;
+  --card-shadow: 0 12px 36px rgba(0, 0, 0, 0.44), 0 0 0 1px rgba(255, 255, 255, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --card-shadow-hover: 0 16px 44px rgba(0, 0, 0, 0.5), 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --success: #3dba8a;
   --error: #e86a6a;
   --warning: #e8b04a;
@@ -175,16 +178,56 @@ html[data-theme]:not([data-theme="glass"]) { --ui-blur: none; }
   background-size: 32px 32px, 32px 32px, 100% 100%;
 }
 [data-theme="cyber"] .bg .orb { opacity: 0.15; filter: blur(40px); }
+html[data-theme="streamhub"] { background: var(--bg-base); }
+
 [data-theme="streamhub"] .bg {
   background:
-    radial-gradient(ellipse 100% 70% at 18% -8%, rgba(77, 154, 232, 0.14), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 88% 18%, rgba(110, 201, 184, 0.1), transparent 50%),
-    #1a2332;
+    radial-gradient(ellipse 100% 70% at 18% -8%, rgba(90, 171, 240, 0.12), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 88% 18%, rgba(95, 212, 184, 0.08), transparent 50%),
+    var(--bg-base);
 }
-[data-theme="streamhub"] .bg .orb { opacity: 0.42; filter: blur(72px); }
+
+/* Stream Hub — lift cards off the backdrop so panels don't blend */
 [data-theme="streamhub"] .sidebar {
-  background: color-mix(in srgb, var(--bg-surface) 92%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 18%, var(--border));
+  background: color-mix(in srgb, var(--bg-surface) 96%, #000) !important;
+  border-right-color: color-mix(in srgb, var(--accent) 30%, var(--border)) !important;
+  box-shadow: 6px 0 28px rgba(0, 0, 0, 0.28);
+}
+[data-theme="streamhub"] .content .tiles .tile,
+[data-theme="streamhub"] .gcard,
+[data-theme="streamhub"] .server-block.server-card,
+[data-theme="streamhub"] .home-panel,
+[data-theme="streamhub"] .home-hero-card,
+[data-theme="streamhub"] .dash-card,
+[data-theme="streamhub"] .dash-act-panel,
+[data-theme="streamhub"] .tkt-panel-list,
+[data-theme="streamhub"] .tkt-panel-detail,
+[data-theme="streamhub"] .tkt-stat,
+[data-theme="streamhub"] .card,
+[data-theme="streamhub"] .acc2,
+[data-theme="streamhub"] .bill-card,
+[data-theme="streamhub"] .sys-panel {
+  box-shadow: var(--card-shadow) !important;
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border)) !important;
+}
+[data-theme="streamhub"] .content .tiles .tile,
+[data-theme="streamhub"] .gcard,
+[data-theme="streamhub"] .dash-card {
+  background: linear-gradient(168deg, color-mix(in srgb, var(--bg-elevated) 88%, #fff 12%), var(--bg-elevated)) !important;
+}
+[data-theme="streamhub"] .gchip {
+  background: color-mix(in srgb, var(--bg-base) 55%, var(--bg-elevated)) !important;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  border-radius: var(--radius-sm);
+}
+[data-theme="streamhub"] .content .tiles .tile:hover,
+[data-theme="streamhub"] .gcard:hover {
+  box-shadow: var(--card-shadow-hover) !important;
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border)) !important;
+}
+[data-theme="streamhub"] .page-title,
+[data-theme="streamhub"] .block-title {
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
 }
 [data-theme="aurora"] .bg {
   background: radial-gradient(120% 90% at 50% -10%, rgba(86, 255, 168, 0.12), transparent 55%), #040810;

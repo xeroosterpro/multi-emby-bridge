@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="streamhub">
+<html lang="en" data-theme="streamhub" data-bg="orbs">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,6 +9,10 @@
         document.documentElement.classList.add('meb-returning');
       }
       sessionStorage.setItem('meb_session', '1');
+      var bg = localStorage.getItem('meb-bg-style');
+      if (bg && /^(orbs|aurora|mesh|pulse|nebula)$/.test(bg)) {
+        document.documentElement.dataset.bg = bg;
+      }
     } catch (e) {}
   </script>
   <title>Stream Hub — Configure</title>
@@ -1097,6 +1101,17 @@
         </div>
         <div class="pref-row"><div class="switch" id="lock-switch"></div><div><div class="field-label" style="margin:0">Lock sidebar open</div><div class="field-hint">Keep the side menu expanded (same as the pin)</div></div></div>
         <div class="pref-row"><div class="switch" id="motion-switch"></div><div><div class="field-label" style="margin:0">Animated background</div><div class="field-hint">Play the moving background (overrides your system reduce-motion setting)</div></div></div>
+        <div class="theme-section" style="margin-top:18px">
+          <h3 class="block-title">Background style</h3>
+          <p class="theme-section-hint">Pick how the backdrop moves — orbs, aurora bands, mesh drift, pulse rings, or nebula stars.</p>
+          <div class="bg-style-grid" id="bg-styles">
+            <button class="bg-style-chip sel" type="button" data-bg="orbs"><span class="bg-style-preview bg-prev-orbs"></span><span class="bg-style-name">Soft Orbs</span></button>
+            <button class="bg-style-chip" type="button" data-bg="aurora"><span class="bg-style-preview bg-prev-aurora"></span><span class="bg-style-name">Aurora</span></button>
+            <button class="bg-style-chip" type="button" data-bg="mesh"><span class="bg-style-preview bg-prev-mesh"></span><span class="bg-style-name">Mesh</span></button>
+            <button class="bg-style-chip" type="button" data-bg="pulse"><span class="bg-style-preview bg-prev-pulse"></span><span class="bg-style-name">Pulse</span></button>
+            <button class="bg-style-chip" type="button" data-bg="nebula"><span class="bg-style-preview bg-prev-nebula"></span><span class="bg-style-name">Nebula</span></button>
+          </div>
+        </div>
       </section>
 
       <section class="page" id="page-billing">

@@ -44,19 +44,20 @@ body {
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-base: #1a2332;
-  --bg-surface: #222d3f;
-  --bg-elevated: #2a374c;
-  --bg-hover: #324158;
-  --bg-input: #161e2a;
-  --border: #3a4a62;
-  --border-focus: #4d9ae8;
-  --text-primary: #eef3fa;
-  --text-secondary: #9aadc4;
-  --text-muted: #5e7088;
-  --accent: #4d9ae8;
-  --accent-dim: #3a7ab8;
-  --accent-glow: rgba(77, 154, 232, 0.14);
+  --bg-base: #111824;
+  --bg-surface: #1f2a3c;
+  --bg-elevated: #2a3649;
+  --bg-hover: #354558;
+  --bg-input: #0f1622;
+  --border: #566b84;
+  --border-focus: #5aabf0;
+  --text-primary: #f5f9fd;
+  --text-secondary: #c2d0e0;
+  --text-muted: #8499b0;
+  --accent: #5aabf0;
+  --accent-dim: #3d8fd4;
+  --accent-glow: rgba(90, 171, 240, 0.16);
+  --card-shadow: 0 10px 32px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.05);
   --success: #4caf7d;
   --error: #e05555;
   --warning: #f0a500;
@@ -1039,13 +1040,14 @@ input[type=range][data-slider] { flex: 1; accent-color: var(--accent-a); }
 :root{ --accent-2:#c4b5ff; --glow:var(--accent-glow); --side-collapsed:66px; --ease:cubic-bezier(.22,.61,.36,1); }
 /* Theme presets live in themes.css */
 
-html{ background:#06060b; }
+html{ background:var(--bg-base, #141c2a); }
 body{ font-family:'Inter',system-ui,sans-serif !important; letter-spacing:-.01em; background:transparent !important; }
 
 /* animated background */
 .bg{ position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none;
-  background:radial-gradient(120% 90% at 50% -10%, color-mix(in srgb,var(--accent) 13%, transparent), transparent 60%), #06060b; }
-.bg .orb{ position:absolute; border-radius:50%; filter:blur(70px); opacity:.45; }
+  background:radial-gradient(120% 90% at 50% -10%, color-mix(in srgb,var(--accent) 13%, transparent), transparent 60%), var(--bg-base, #141c2a); }
+.bg::before, .bg::after { content:''; position:absolute; pointer-events:none; opacity:0; transition:opacity .4s var(--ease); }
+.bg .orb{ position:absolute; border-radius:50%; filter:blur(70px); opacity:.45; transition:opacity .4s var(--ease); }
 .bg .o1{ width:42vw;height:42vw;left:-8vw;top:-6vw;background:color-mix(in srgb,var(--accent) 55%,transparent); animation:orb1 30s var(--ease) infinite alternate; }
 .bg .o2{ width:36vw;height:36vw;right:-6vw;top:20%;background:color-mix(in srgb,var(--accent-2) 45%,transparent); animation:orb2 38s var(--ease) infinite alternate; }
 .bg .o3{ width:30vw;height:30vw;left:30%;bottom:-8vw;background:color-mix(in srgb,var(--accent) 40%,transparent); animation:orb3 34s var(--ease) infinite alternate; }
@@ -1056,6 +1058,152 @@ body{ font-family:'Inter',system-ui,sans-serif !important; letter-spacing:-.01em
 @keyframes fall{ 0%{transform:translateY(-6vh) translateX(0);opacity:0} 10%{opacity:var(--o,.4)} 50%{transform:translateY(50vh) translateX(var(--sway,14px))} 90%{opacity:var(--o,.4)} 100%{transform:translateY(106vh) translateX(0);opacity:0} }
 body.noanim .orb, body.noanim .flake{ animation:none !important } body.noanim .flake{ opacity:0 !important }
 @media (prefers-reduced-motion: reduce){ body:not(.force-motion) .orb, body:not(.force-motion) .flake{ animation:none !important } body:not(.force-motion) .flake{ opacity:0 !important } }
+
+/* ── Background style options (html[data-bg]) ── */
+@keyframes bg-aurora-sweep {
+  0% { transform: translate(-8%, -6%) rotate(-6deg) scale(1); opacity: .55; }
+  50% { transform: translate(6%, 4%) rotate(4deg) scale(1.08); opacity: .75; }
+  100% { transform: translate(-4%, 8%) rotate(-3deg) scale(1.02); opacity: .5; }
+}
+@keyframes bg-aurora-sweep-2 {
+  0% { transform: translate(10%, 6%) rotate(8deg) scale(1.05); opacity: .4; }
+  100% { transform: translate(-12%, -4%) rotate(-5deg) scale(1.12); opacity: .6; }
+}
+@keyframes bg-mesh-drift {
+  0% { background-position: 0% 40%, 100% 60%, 50% 50%; }
+  50% { background-position: 100% 60%, 0% 40%, 50% 50%; }
+  100% { background-position: 0% 40%, 100% 60%, 50% 50%; }
+}
+@keyframes bg-pulse-ring {
+  0% { transform: translate(-50%, -50%) scale(0.65); opacity: .55; }
+  70% { opacity: .12; }
+  100% { transform: translate(-50%, -50%) scale(1.35); opacity: 0; }
+}
+@keyframes bg-nebula-twinkle {
+  0%, 100% { opacity: .35; }
+  50% { opacity: .65; }
+}
+
+html[data-bg="orbs"] .bg::before, html[data-bg="orbs"] .bg::after { display: none; }
+
+html[data-bg="aurora"] .bg .orb { opacity: .18 !important; filter: blur(90px); }
+html[data-bg="aurora"] .bg .flake { opacity: .22 !important; }
+html[data-bg="aurora"] .bg::before {
+  display: block; opacity: 1; inset: -25%;
+  background: linear-gradient(125deg,
+    transparent 0%,
+    color-mix(in srgb, var(--accent) 38%, transparent) 38%,
+    color-mix(in srgb, var(--accent-2) 32%, transparent) 58%,
+    transparent 78%);
+  filter: blur(48px);
+  animation: bg-aurora-sweep 22s ease-in-out infinite alternate;
+}
+html[data-bg="aurora"] .bg::after {
+  display: block; opacity: 1; inset: -30%;
+  background: linear-gradient(215deg,
+    transparent 10%,
+    color-mix(in srgb, var(--accent-2) 28%, transparent) 45%,
+    color-mix(in srgb, var(--accent) 22%, transparent) 65%,
+    transparent 85%);
+  filter: blur(56px);
+  animation: bg-aurora-sweep-2 28s ease-in-out infinite alternate;
+}
+
+html[data-bg="mesh"] .bg .orb { opacity: .12 !important; }
+html[data-bg="mesh"] .bg .flake { opacity: .15 !important; }
+html[data-bg="mesh"] .bg::before {
+  display: block; opacity: 1; inset: 0;
+  background:
+    radial-gradient(ellipse 55% 45% at 20% 30%, color-mix(in srgb, var(--accent) 32%, transparent), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 80% 25%, color-mix(in srgb, var(--accent-2) 28%, transparent), transparent 68%),
+    radial-gradient(ellipse 60% 50% at 50% 85%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 72%);
+  background-size: 120% 120%, 130% 130%, 140% 140%;
+  animation: bg-mesh-drift 24s ease-in-out infinite;
+}
+
+html[data-bg="pulse"] .bg .orb { opacity: .08 !important; }
+html[data-bg="pulse"] .bg .flake { opacity: 0 !important; }
+html[data-bg="pulse"] .bg::before {
+  display: block; opacity: 1;
+  width: 120vmax; height: 120vmax; left: 50%; top: 42%;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow:
+    0 0 60px color-mix(in srgb, var(--accent) 25%, transparent),
+    inset 0 0 80px color-mix(in srgb, var(--accent-2) 12%, transparent);
+  animation: bg-pulse-ring 7s ease-out infinite;
+}
+html[data-bg="pulse"] .bg::after {
+  display: block; opacity: 1;
+  width: 120vmax; height: 120vmax; left: 50%; top: 42%;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent-2) 35%, transparent);
+  animation: bg-pulse-ring 7s ease-out infinite;
+  animation-delay: 3.5s;
+}
+
+html[data-bg="nebula"] .bg .orb { opacity: .5 !important; filter: blur(88px); animation-duration: 45s !important; }
+html[data-bg="nebula"] .bg .flake {
+  background: #fff !important;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 80%, #fff) !important;
+  opacity: .5 !important;
+}
+html[data-bg="nebula"] .bg::before {
+  display: block; opacity: 1; inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,.55), transparent),
+    radial-gradient(1px 1px at 30% 65%, rgba(255,255,255,.4), transparent),
+    radial-gradient(1.5px 1.5px at 55% 15%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 72% 42%, rgba(255,255,255,.35), transparent),
+    radial-gradient(1px 1px at 88% 78%, rgba(255,255,255,.45), transparent),
+    radial-gradient(1.5px 1.5px at 18% 88%, rgba(255,255,255,.4), transparent),
+    radial-gradient(ellipse 80% 50% at 50% 100%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%);
+  background-size: 100% 100%;
+  animation: bg-nebula-twinkle 6s ease-in-out infinite;
+}
+html[data-bg="nebula"] .bg::after {
+  display: block; opacity: 1; inset: -15%;
+  background: radial-gradient(ellipse 70% 55% at 65% 35%, color-mix(in srgb, var(--accent-2) 22%, transparent), transparent 68%);
+  filter: blur(40px);
+  animation: bg-aurora-sweep-2 36s ease-in-out infinite alternate;
+}
+
+body.noanim .bg::before,
+body.noanim .bg::after { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  body:not(.force-motion) .bg::before,
+  body:not(.force-motion) .bg::after { animation: none !important; }
+}
+
+/* Background style picker (Settings) */
+.bg-style-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 10px;
+}
+.bg-style-chip {
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  padding: 10px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--bg-surface);
+  cursor: pointer; font-family: inherit; color: var(--text-secondary);
+  transition: border-color .16s, box-shadow .16s, transform .16s;
+}
+.bg-style-chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  transform: translateY(-2px);
+}
+.bg-style-chip.sel {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 8px 20px rgba(0,0,0,.25);
+  color: var(--text-primary);
+}
+.bg-style-preview {
+  display: block; height: 44px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+.bg-style-name { font-size: .72rem; font-weight: 700; text-align: center; }
+.bg-prev-orbs { background: radial-gradient(circle at 30% 40%, var(--accent), transparent 55%), radial-gradient(circle at 75% 60%, var(--accent-2), transparent 50%), var(--bg-base); }
+.bg-prev-aurora { background: linear-gradient(120deg, transparent, color-mix(in srgb, var(--accent) 55%, transparent), color-mix(in srgb, var(--accent-2) 45%, transparent), transparent), var(--bg-base); }
+.bg-prev-mesh { background: radial-gradient(circle at 25% 35%, color-mix(in srgb, var(--accent) 50%, transparent), transparent 60%), radial-gradient(circle at 78% 30%, color-mix(in srgb, var(--accent-2) 45%, transparent), transparent 55%), var(--bg-base); }
+.bg-prev-pulse { background: radial-gradient(circle, transparent 42%, color-mix(in srgb, var(--accent) 40%, transparent) 43%, transparent 58%), var(--bg-base); }
+.bg-prev-nebula { background: radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 70% 60%, #fff, transparent), radial-gradient(circle at 50% 80%, color-mix(in srgb, var(--accent) 35%, transparent), transparent 65%), var(--bg-base); }
 
 /* hover-expand + lockable sidebar (overrides the flex shell layout) */
 .app{ background:transparent; }

@@ -164,6 +164,12 @@ function initShell() {
     this.classList.toggle('on', on);
     if (window.MEBPrefs) window.MEBPrefs.setMotion(on ? 'on' : 'off');
   });
+  document.querySelectorAll('.bg-style-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.bg-style-chip').forEach(c => c.classList.toggle('sel', c === chip));
+      if (window.MEBPrefs) window.MEBPrefs.setBgStyle(chip.dataset.bg || 'orbs');
+    });
+  });
 
   // sidebar user button: show + populate when logged in; click logs out
   fetch('/api/auth/me', { credentials: 'same-origin' }).then(r => r.json()).then(d => {
