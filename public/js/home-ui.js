@@ -87,7 +87,7 @@
         }
       }
     } else {
-      el.innerHTML = 'Welcome to Stream-Hub <span class="wave">👋</span>';
+      el.innerHTML = 'Welcome to Stream Hub <span class="wave">👋</span>';
       if (sub) sub.textContent = 'Sign in to manage your servers, manifest, and support tickets.';
     }
   }
@@ -104,7 +104,7 @@
     if (!body) return;
 
     if (_me && _me.user && _me.user.role === 'admin') {
-      body.innerHTML = svcRowHTML('Stream-Hub', 'Admin · Full Access', 'Admin', 'success');
+      body.innerHTML = svcRowHTML('Stream Hub', 'Admin · Full Access', 'Admin', 'success');
       wirePageLinks(body);
       const svcNum = document.getElementById('hc-services-num');
       if (svcNum) svcNum.textContent = '1';
@@ -119,7 +119,7 @@
 
     const billingEnabled = cfg && cfg.enabled;
     if (!billingEnabled) {
-      body.innerHTML = svcRowHTML('Stream-Hub', 'Multi-server Stremio integration · Active', 'Active', 'success');
+      body.innerHTML = svcRowHTML('Stream Hub', 'Multi-server Stremio integration · Active', 'Active', 'success');
       wirePageLinks(body);
       showDashBtn(true);
       return;
@@ -287,14 +287,6 @@
     });
   }
 
-  function setupQuickActions() {
-    const wrap = document.getElementById('home-quick-actions');
-    if (!wrap) return;
-    wrap.querySelectorAll('[data-page]').forEach(btn => {
-      btn.addEventListener('click', () => { location.hash = '#/' + btn.dataset.page; });
-    });
-  }
-
   // ── Re-run animations + refresh data when home becomes active ───────────────
   let _homeShownOnce = false;
   function setupPageTransition() {
@@ -394,7 +386,6 @@
     setupHeroCards();
     setupGreetingBtn();
     setupTicketLinks();
-    setupQuickActions();
     setupPageTransition();
     setupMouseGlow();
     setupCardTilts();

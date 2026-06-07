@@ -1,7 +1,7 @@
 {
   "name": "multi-emby-bridge",
   "version": "1.0.0",
-  "description": "Multi-server Emby addon for Stremio — streams sorted by file size",
+  "description": "Stream Hub — multi-server Emby/Jellyfin bridge for Stremio",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

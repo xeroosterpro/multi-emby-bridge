@@ -742,7 +742,7 @@ app.get('/:config/manifest.json', (req, res) => {
   res.json({
     id: 'com.multiemby.bridge',
     version: '1.0.0',
-    name: 'Multi-Emby Bridge',
+    name: 'Stream Hub',
     description: `Streams from: ${names || 'configured servers'}`,
     types: ['movie', 'series'],
     catalogs: [
@@ -1011,7 +1011,7 @@ app.use((err, req, res, _next) => {
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   logStartupSecurityWarnings();
-  console.log(`[startup] Multi-Emby Bridge READY → http://0.0.0.0:${PORT}/configure`);
+  console.log(`[startup] Stream Hub READY → http://0.0.0.0:${PORT}/configure`);
 });
 
 // Graceful shutdown to avoid abrupt DB connection resets on Railway deploys/restarts

@@ -1,10 +1,32 @@
-/* ===================== Stream-Hub theme presets ===================== */
+/* ===================== Stream Hub theme presets ===================== */
 /* Each data-theme sets accent + surfaces + optional skin overrides. */
 
 @property --hue { syntax: '<number>'; inherits: true; initial-value: 280; }
 @keyframes huecycle { from { --hue: 0; } to { --hue: 360; } }
 @keyframes rgbflow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 @keyframes aurorashift { 0%, 100% { filter: hue-rotate(0deg); } 50% { filter: hue-rotate(25deg); } }
+
+/* ── Stream Hub default — softer, lighter than classic purple ── */
+[data-theme="streamhub"] {
+  --accent: #4d9ae8;
+  --accent-2: #6ec9b8;
+  --bg-base: #1a2332;
+  --bg-surface: #222d3f;
+  --bg-elevated: #2a374c;
+  --bg-hover: #324158;
+  --bg-input: #161e2a;
+  --border: #3a4a62;
+  --text-primary: #eef3fa;
+  --text-secondary: #9aadc4;
+  --text-muted: #5e7088;
+  --text-dim: #9aadc4;
+  --text: #eef3fa;
+  --surface: #222d3f;
+  --surface-2: #2a374c;
+  --success: #3dba8a;
+  --error: #e86a6a;
+  --warning: #e8b04a;
+}
 
 /* ── Classic accents ── */
 [data-theme="purple"] { --accent: #7b61ff; --accent-2: #c4b5ff; }
@@ -153,6 +175,17 @@ html[data-theme]:not([data-theme="glass"]) { --ui-blur: none; }
   background-size: 32px 32px, 32px 32px, 100% 100%;
 }
 [data-theme="cyber"] .bg .orb { opacity: 0.15; filter: blur(40px); }
+[data-theme="streamhub"] .bg {
+  background:
+    radial-gradient(ellipse 100% 70% at 18% -8%, rgba(77, 154, 232, 0.14), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 88% 18%, rgba(110, 201, 184, 0.1), transparent 50%),
+    #1a2332;
+}
+[data-theme="streamhub"] .bg .orb { opacity: 0.42; filter: blur(72px); }
+[data-theme="streamhub"] .sidebar {
+  background: color-mix(in srgb, var(--bg-surface) 92%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--border));
+}
 [data-theme="aurora"] .bg {
   background: radial-gradient(120% 90% at 50% -10%, rgba(86, 255, 168, 0.12), transparent 55%), #040810;
 }
@@ -472,6 +505,7 @@ html[data-theme="family"] body {
 }
 
 /* Preview swatches */
+.pv-streamhub { background: linear-gradient(135deg, #4d9ae8 0%, #6ec9b8 55%, #2a374c 55%); }
 .pv-purple  { background: linear-gradient(135deg, #7b61ff, #c4b5ff); }
 .pv-red     { background: linear-gradient(135deg, #ff4d5e, #ffb3a7); }
 .pv-pink    { background: linear-gradient(135deg, #ff5fa2, #ffc2dd); }

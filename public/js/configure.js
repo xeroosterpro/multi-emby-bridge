@@ -2338,7 +2338,7 @@ function exportConfig() {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'multi-emby-bridge-config.json';
+  a.href = url; a.download = 'stream-hub-config.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }

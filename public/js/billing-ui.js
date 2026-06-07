@@ -93,7 +93,7 @@
   const DEMO_STEPS = [
     {
       title: 'Your bridge into Stremio',
-      desc: 'Stream-Hub connects every Emby and Jellyfin server you own into one private Stremio addon. Browse in Stremio, play from your libraries — no uploads, no piracy, just your media.',
+      desc: 'Stream Hub connects every Emby and Jellyfin server you own into one private Stremio addon. Browse in Stremio, play from your libraries — no uploads, no piracy, just your media.',
       bullets: ['Works with Emby & Jellyfin', 'One addon, unlimited servers', 'Cloud-synced settings'],
       visual: `<div class="demo-mock demo-mock-hero"><div class="demo-mock-logo">◢</div><p class="demo-mock-tagline">Stremio on the front.<br>Your servers on the back.</p></div>`,
     },
@@ -107,7 +107,7 @@
     },
     {
       title: 'The bread & butter: best file wins',
-      desc: 'When you hit play, StreamHub digs into every server for the same title, compares file size, quality, and your audio preferences — then serves the winner in Stremio.',
+      desc: 'When you hit play, Stream Hub digs into every server for the same title, compares file size, quality, and your audio preferences — then serves the winner in Stremio.',
       bullets: ['Parallel search across all servers', 'Largest / best-quality file wins', 'Your audio & codec rules apply'],
       visual: `<div class="demo-mock"><div class="demo-mock-card"><div class="demo-mock-title">Request log · routing</div>
         <div class="demo-mock-flow"><span class="demo-mock-node">Stremio</span><span class="demo-mock-arrow">→</span><span class="demo-mock-node hub">Bridge</span><span class="demo-mock-arrow">→</span><span class="demo-mock-node">Servers</span></div>
@@ -269,10 +269,10 @@
             <div class="bill-pitch-copy">
               <p class="bill-pitch-eyebrow">The bread &amp; butter</p>
               <h1 class="bill-pitch-title">All your servers. One Stremio addon. <span class="bill-pitch-accent">The best file wins.</span></h1>
-              <p class="bill-pitch-lead">Add every Emby &amp; Jellyfin server. On play, StreamHub searches each library, compares file size, quality &amp; your audio prefs — then serves the winner.</p>
+              <p class="bill-pitch-lead">Add every Emby &amp; Jellyfin server. On play, Stream Hub searches each library, compares file size, quality &amp; your audio prefs — then serves the winner.</p>
               <div class="bill-pitch-flow">
                 <span class="bpf-node">▶ Stremio</span><span class="bpf-arrow">→</span>
-                <span class="bpf-node bpf-hub">StreamHub</span><span class="bpf-arrow">→</span>
+                <span class="bpf-node bpf-hub">Stream Hub</span><span class="bpf-arrow">→</span>
                 <span class="bpf-servers"><span>Emby</span><span>Jellyfin</span><span>+ more</span></span>
                 <span class="bpf-arrow">→</span><span class="bpf-win">★ Best stream</span>
               </div>

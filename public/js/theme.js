@@ -4,14 +4,14 @@
     theme: 'meb-theme', scale: 'meb-ui-scale', lock: 'meb-sidebar-lock', motion: 'meb-bg-motion',
   };
   const VALID_THEMES = new Set([
-    'purple', 'red', 'pink', 'blue', 'rgb',
+    'streamhub', 'purple', 'red', 'pink', 'blue', 'rgb',
     'emerald', 'amber', 'cyan', 'sunset', 'lime',
     'family', 'neon', 'outline', 'glass', 'vapor', 'cyber', 'aurora', 'mono',
   ]);
   const root = document.documentElement;
 
   function applyTheme(t) {
-    const theme = VALID_THEMES.has(t) ? t : 'purple';
+    const theme = VALID_THEMES.has(t) ? t : 'streamhub';
     root.dataset.theme = theme;
   }
   function applyScale(v) { root.style.zoom = (v / 100); }
@@ -32,7 +32,7 @@
   }
 
   const prefs = {
-    theme: localStorage.getItem(LS.theme) || 'purple',
+    theme: localStorage.getItem(LS.theme) || 'streamhub',
     scale: parseInt(localStorage.getItem(LS.scale) || '100', 10),
     lock: localStorage.getItem(LS.lock) !== '0',
     motion: localStorage.getItem(LS.motion) || null,   // 'on' | 'off' | null (follow OS)

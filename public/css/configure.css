@@ -1,7 +1,7 @@
-/* ============ Multi-Emby warm design system ============ */
+/* ============ Stream Hub design system ============ */
 :root {
-  --bg-grad-a: #1a1420;
-  --bg-grad-b: #0f0c14;
+  --bg-grad-a: #243044;
+  --bg-grad-b: #1a2332;
   --surface: #1c1622;
   --surface-2: #241c2b;
   --border: #2c2333;
@@ -44,19 +44,19 @@ body {
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-base: #08080d;
-  --bg-surface: #111119;
-  --bg-elevated: #181824;
-  --bg-hover: #1e1e30;
-  --bg-input: #0e0e16;
-  --border: #2c2333;
-  --border-focus: #7b61ff;
-  --text-primary: #e8e8f0;
-  --text-secondary: #8888a0;
-  --text-muted: #4a4a60;
-  --accent: #7b61ff;
-  --accent-dim: #5a45cc;
-  --accent-glow: rgba(123, 97, 255, 0.12);
+  --bg-base: #1a2332;
+  --bg-surface: #222d3f;
+  --bg-elevated: #2a374c;
+  --bg-hover: #324158;
+  --bg-input: #161e2a;
+  --border: #3a4a62;
+  --border-focus: #4d9ae8;
+  --text-primary: #eef3fa;
+  --text-secondary: #9aadc4;
+  --text-muted: #5e7088;
+  --accent: #4d9ae8;
+  --accent-dim: #3a7ab8;
+  --accent-glow: rgba(77, 154, 232, 0.14);
   --success: #4caf7d;
   --error: #e05555;
   --warning: #f0a500;
@@ -3126,26 +3126,6 @@ html.view-as-user .admin-only { display: none !important; }
 }
 .home-launch-btn:hover::after { left: 260%; }
 .home-launch-btn:active { transform: translateY(-1px) scale(0.98); filter: brightness(.92); }
-
-.home-quick-actions {
-  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px;
-}
-.home-quick-chip {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 8px 14px; border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
-  background: color-mix(in srgb, var(--bg-surface) 88%, transparent);
-  color: var(--text-secondary); font-size: .78rem; font-weight: 700;
-  font-family: inherit; cursor: pointer;
-  transition: transform .16s var(--ease), border-color .16s, color .16s, box-shadow .16s;
-}
-.home-quick-chip:hover {
-  color: var(--text-primary);
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-.home-quick-ic { font-size: .9rem; line-height: 1; opacity: .9; }
 
 .home-panel-actions {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
