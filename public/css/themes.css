@@ -262,6 +262,42 @@ html[data-theme="streamhub"] { background: var(--bg-base); }
 [data-theme="streamhub"] .block-title {
   text-shadow: 0 1px 14px rgba(0, 0, 0, 0.4);
 }
+
+/* Dashboard server cards — must beat global .gcard { bg-surface } */
+html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard {
+  background: linear-gradient(165deg,
+    color-mix(in srgb, var(--bg-elevated) 68%, #fff 32%),
+    color-mix(in srgb, var(--bg-elevated) 82%, var(--accent) 18%)) !important;
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border-strong)) !important;
+}
+html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard .gcard-top {
+  height: 7px !important;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent)) !important;
+  background-size: 200% 100% !important;
+  box-shadow: 0 3px 22px color-mix(in srgb, var(--accent) 55%, transparent) !important;
+}
+html[data-theme="streamhub"] #page-dashboard #dash-cards .gchip {
+  background: color-mix(in srgb, var(--bg-hover) 58%, var(--accent) 14%) !important;
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border-strong)) !important;
+}
+html[data-theme="streamhub"] #page-dashboard #dash-cards .gchip .cn {
+  background: linear-gradient(135deg, #9ec8ff 0%, #c8b4ff 55%, #7ee8c8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  filter: saturate(1.12) brightness(1.05);
+}
+html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard-rt-canvas {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-hover) 85%, var(--accent) 8%), color-mix(in srgb, var(--bg-elevated) 70%, transparent)) !important;
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border)) !important;
+}
+html[data-theme="streamhub"] #page-dashboard .dash-act-panel {
+  background: linear-gradient(168deg,
+    color-mix(in srgb, var(--bg-elevated) 72%, #fff 28%),
+    color-mix(in srgb, var(--bg-elevated) 88%, var(--accent) 12%)) !important;
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-strong)) !important;
+}
+
 [data-theme="aurora"] .bg {
   background: radial-gradient(120% 90% at 50% -10%, rgba(86, 255, 168, 0.12), transparent 55%), #040810;
 }

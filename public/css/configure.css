@@ -2027,7 +2027,11 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
 
 /* Server cards: uniform theme accent bar (not per-server rainbow) + glassy + ghost Manage */
 .gcard .gcard-top{ background:linear-gradient(90deg,var(--accent),var(--accent-2)) !important; }
-.gcard{ background:var(--bg-surface) !important; border:1px solid var(--border) !important; }
+.gcard{
+  background:linear-gradient(168deg, color-mix(in srgb, var(--bg-elevated) 86%, #fff 14%), var(--bg-surface)) !important;
+  border:1px solid color-mix(in srgb, var(--border) 72%, var(--accent) 28%) !important;
+  box-shadow:var(--card-shadow, 0 12px 36px rgba(0,0,0,.45)) !important;
+}
 .gmanage{ background:transparent !important; border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)) !important;
   color:var(--text) !important; font-weight:700 !important; transition:.18s; }
 .gmanage:hover{ background:var(--glow) !important; border-color:var(--accent) !important; }
@@ -2122,7 +2126,12 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
 .gcard{ cursor:pointer; }
 .gcard-head{ display:flex; align-items:center; gap:11px; }
 .gchips{ display:flex; gap:8px; margin-top:14px; }
-.gchip{ flex:1; background:rgba(0,0,0,.28); border-radius:var(--radius-sm); padding:10px 6px; text-align:center; }
+.gchip{
+  flex:1;
+  background:color-mix(in srgb, var(--bg-hover) 72%, var(--accent) 8%);
+  border:1px solid color-mix(in srgb, var(--border) 62%, var(--accent) 22%);
+  border-radius:var(--radius-sm); padding:10px 6px; text-align:center;
+}
 .gchip .cn{ font-weight:800; font-size:1.05rem; }
 .gchip .ct{ font-size:.6rem; color:var(--text-mute); text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
 .gcard-hint{ font-size:.66rem; color:var(--text-mute); text-align:center; margin-top:12px; }
