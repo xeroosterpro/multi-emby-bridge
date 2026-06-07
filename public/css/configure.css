@@ -1514,14 +1514,15 @@ body.locked-billing #page-billing { padding-top: 8px; }
 }
 #demo-site-tour.on .dst-backdrop{ opacity:1; }
 #demo-site-tour .dst-spot{
-  position:fixed; display:none; border-radius:12px; pointer-events:none; z-index:1;
-  border:2px solid var(--accent);
-  box-shadow:0 0 0 9999px rgba(4,4,10,.58),0 0 20px color-mix(in srgb,var(--accent) 35%,transparent);
+  position:fixed; display:none; border-radius:14px; pointer-events:none; z-index:1;
+  border:none;
+  box-shadow:0 0 0 9999px rgba(4,4,10,.55);
   transition:top .3s var(--ease),left .3s var(--ease),width .3s var(--ease),height .3s var(--ease);
 }
 .demo-tour-highlight{
   position:relative; z-index:701 !important;
-  box-shadow:0 0 0 2px var(--accent),0 0 28px color-mix(in srgb,var(--accent) 40%,transparent) !important;
+  outline:2px solid var(--accent); outline-offset:3px;
+  box-shadow:0 0 32px color-mix(in srgb,var(--accent) 42%,transparent) !important;
   border-radius:12px;
 }
 #demo-site-tour .dst-card{
@@ -1530,9 +1531,13 @@ body.locked-billing #page-billing { padding-top: 8px; }
   background:var(--bg-surface); border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border));
   border-radius:18px; padding:18px 20px 16px;
   box-shadow:0 24px 60px rgba(0,0,0,.55);
-  opacity:0; transition:opacity .28s var(--ease),transform .32s var(--ease);
+  opacity:0; transition:opacity .28s var(--ease),transform .32s var(--ease),top .32s var(--ease),left .32s var(--ease);
 }
 #demo-site-tour.on .dst-card{ opacity:1; transform:translateX(-50%) translateY(0); }
+#demo-site-tour .dst-card.dst-card-placed{
+  transform:none;
+}
+#demo-site-tour.on .dst-card.dst-card-placed{ transform:none; }
 .dst-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
 .dst-badge{
   font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.07em;
@@ -2770,6 +2775,7 @@ html.view-as-user .admin-only { display: none !important; }
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-content: start;
   min-width: 0;
 }
+#page-streaming .ms-prefs-panel { display: contents; }
 #page-streaming .ms-card-wide,
 #page-streaming .ms-section-label { grid-column: 1 / -1; }
 #page-streaming .ms-appr-grid {

@@ -101,7 +101,6 @@
   let tourStep = 0;
   let tourOpen = false;
   let tourScrollHandler = null;
-  const HIGHLIGHT_STOP = new Set(['ms-prefs-panel', 'ms-controls', 'ms-card', 'dash-cards', 'rlog-stats', 'inst-stats', 'servers-container', 'acc']);
 
   function isActive() {
     try { return sessionStorage.getItem(FLAG) === '1'; } catch { return false; }
@@ -346,21 +345,79 @@
     if (!el || el === document.body) return false;
     if (el.classList.contains('hidden-canonical')) return false;
     const st = getComputedStyle(el);
-    if (st.display === 'none' || st.visibility === 'hidden') return false;
+    if (st.display === 'none' || st.visibility === 'hidden' || st.display === 'contents') return false;
     const r = el.getBoundingClientRect();
     return r.width > 8 && r.height > 8;
   }
 
   function resolveHighlightTarget(el) {
     if (!el) return null;
-    let best = null;
-    let node = el;
+    if (isVisibleTarget(el)) return el;
+    let node = el.parentElement;
     while (node && node !== document.body) {
-      if (isVisibleTarget(node)) best = node;
-      if ([...HIGHLIGHT_STOP].some(cls => node.classList?.contains(cls)) || node.id === 'servers-container') break;
+      if (isVisibleTarget(node)) return node;
       node = node.parentElement;
     }
-    return best || el;
+    return null;
+  }
+
+  function getTourFocus(sel) {
+    const raw = document.querySelector(sel);
+    if (!raw) return null;
+    const groupKids = [...raw.querySelectorAll(':scope > .ms-card')].filter(isVisibleTarget);
+    if (groupKids.length > 1) return { items: groupKids, scroll: groupKids[0] };
+    const single = resolveHighlightTarget(raw);
+    if (!single) return null;
+    return { items: [single], scroll: single };
+  }
+
+  function unionRect(rects) {
+    if (!rects.length) return null;
+    const top = Math.min(...rects.map(r => r.top));
+    const left = Math.min(...rects.map(r => r.left));
+    const right = Math.max(...rects.map(r => r.right));
+    const bottom = Math.max(...rects.map(r => r.bottom));
+    return { top, left, right, bottom, width: right - left, height: bottom - top };
+  }
+
+  function positionTourCard(rect) {
+    const card = document.querySelector('#demo-site-tour .dst-card');
+    if (!card || !rect) return;
+    const margin = 14;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const cardW = card.offsetWidth || Math.min(vw * 0.92, 480);
+    const cardH = card.offsetHeight || 260;
+    let top;
+    let left;
+
+    if (rect.bottom + margin + cardH < vh - 24) {
+      top = rect.bottom + margin;
+      left = Math.max(16, Math.min(rect.left + (rect.width - cardW) / 2, vw - cardW - 16));
+    } else if (rect.top - margin - cardH > 72) {
+      top = rect.top - margin - cardH;
+      left = Math.max(16, Math.min(rect.left + (rect.width - cardW) / 2, vw - cardW - 16));
+    } else if (rect.right + margin + cardW < vw - 16) {
+      top = Math.max(72, Math.min(rect.top, vh - cardH - 24));
+      left = rect.right + margin;
+    } else {
+      top = Math.max(72, vh - cardH - 96);
+      left = Math.max(16, (vw - cardW) / 2);
+    }
+
+    card.classList.add('dst-card-placed');
+    card.style.bottom = 'auto';
+    card.style.top = `${top}px`;
+    card.style.left = `${left}px`;
+  }
+
+  function resetTourCard() {
+    const card = document.querySelector('#demo-site-tour .dst-card');
+    if (!card) return;
+    card.classList.remove('dst-card-placed');
+    card.style.top = '';
+    card.style.left = '';
+    card.style.bottom = '';
   }
 
   function detachTourScroll() {
@@ -374,29 +431,30 @@
     if (!spot) return;
     clearTourHighlight();
     detachTourScroll();
+    resetTourCard();
     if (!sel) { spot.style.display = 'none'; return; }
-    const raw = document.querySelector(sel);
-    if (!raw) { spot.style.display = 'none'; return; }
-    const target = resolveHighlightTarget(raw);
-    if (!target) { spot.style.display = 'none'; return; }
+    const focus = getTourFocus(sel);
+    if (!focus) { spot.style.display = 'none'; return; }
 
     const place = () => {
-      const r = target.getBoundingClientRect();
-      if (r.width < 8 || r.height < 8) return;
-      const pad = 8;
+      const rects = focus.items.map(el => el.getBoundingClientRect()).filter(r => r.width > 8 && r.height > 8);
+      const r = unionRect(rects);
+      if (!r) return;
+      const pad = 10;
       clearTourHighlight();
       spot.style.display = 'block';
-      spot.style.top = (r.top - pad) + 'px';
-      spot.style.left = (r.left - pad) + 'px';
-      spot.style.width = (r.width + pad * 2) + 'px';
-      spot.style.height = (r.height + pad * 2) + 'px';
-      target.classList.add('demo-tour-highlight');
+      spot.style.top = `${r.top - pad}px`;
+      spot.style.left = `${r.left - pad}px`;
+      spot.style.width = `${r.width + pad * 2}px`;
+      spot.style.height = `${r.height + pad * 2}px`;
+      focus.items.forEach(el => el.classList.add('demo-tour-highlight'));
+      positionTourCard(r);
     };
 
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    focus.scroll.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     place();
     requestAnimationFrame(() => requestAnimationFrame(place));
-    setTimeout(place, 450);
+    setTimeout(place, 500);
     tourScrollHandler = () => { if (tourOpen) place(); };
     window.addEventListener('scroll', tourScrollHandler, { passive: true });
   }
@@ -419,10 +477,16 @@
 
     const go = () => {
       if (location.hash !== '#/' + step.page) location.hash = '#/' + step.page;
+      const delay = step.page === 'install' ? 500 : step.page === 'streaming' ? 420 : 320;
       setTimeout(() => {
         if (window.onPageShow) window.onPageShow(step.page);
         positionSpot(step.highlight);
-      }, step.page === 'install' ? 500 : 320);
+        setTimeout(() => {
+          const rects = [...document.querySelectorAll('.demo-tour-highlight')].map(el => el.getBoundingClientRect());
+          const r = unionRect(rects.filter(x => x.width > 8 && x.height > 8));
+          if (r) positionTourCard(r);
+        }, 120);
+      }, delay);
     };
     go();
   }
@@ -443,6 +507,7 @@
     tourOpen = false;
     detachTourScroll();
     clearTourHighlight();
+    resetTourCard();
     const el = document.getElementById('demo-site-tour');
     if (!el) return;
     el.classList.remove('on');
