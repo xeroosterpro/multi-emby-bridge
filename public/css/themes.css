@@ -263,39 +263,62 @@ html[data-theme="streamhub"] { background: var(--bg-base); }
   text-shadow: 0 1px 14px rgba(0, 0, 0, 0.4);
 }
 
-/* Dashboard server cards — must beat global .gcard { bg-surface } */
+/* Dashboard server cards — match Home “Active Products” (.home-svc-row) */
 html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard {
-  background: linear-gradient(165deg,
-    color-mix(in srgb, var(--bg-elevated) 68%, #fff 32%),
-    color-mix(in srgb, var(--bg-elevated) 82%, var(--accent) 18%)) !important;
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--border-strong)) !important;
+  background: color-mix(in srgb, var(--bg-elevated) 80%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border)) !important;
+  border-radius: var(--r-md) !important;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard:hover {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--border)) !important;
+  background: color-mix(in srgb, var(--bg-elevated) 78%, var(--accent) 10%) !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32), 0 0 20px color-mix(in srgb, var(--accent) 14%, transparent) !important;
+  transform: translateY(-3px);
 }
 html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard .gcard-top {
-  height: 7px !important;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent)) !important;
-  background-size: 200% 100% !important;
-  box-shadow: 0 3px 22px color-mix(in srgb, var(--accent) 55%, transparent) !important;
+  height: 2px !important;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2)) !important;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 40%, transparent) !important;
+  opacity: 0.9;
+}
+html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard-nm {
+  color: var(--text-primary);
+}
+html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard-host {
+  color: var(--text-secondary);
 }
 html[data-theme="streamhub"] #page-dashboard #dash-cards .gchip {
-  background: color-mix(in srgb, var(--bg-hover) 58%, var(--accent) 14%) !important;
-  border-color: color-mix(in srgb, var(--accent) 38%, var(--border-strong)) !important;
+  background: color-mix(in srgb, var(--bg-elevated) 75%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border)) !important;
 }
 html[data-theme="streamhub"] #page-dashboard #dash-cards .gchip .cn {
-  background: linear-gradient(135deg, #9ec8ff 0%, #c8b4ff 55%, #7ee8c8 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent !important;
-  filter: saturate(1.12) brightness(1.05);
+  color: var(--text-primary) !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  filter: none;
+}
+html[data-theme="streamhub"] #page-dashboard #dash-cards .gchip .ct {
+  color: var(--text-secondary) !important;
 }
 html[data-theme="streamhub"] #page-dashboard #dash-cards .gcard-rt-canvas {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-hover) 85%, var(--accent) 8%), color-mix(in srgb, var(--bg-elevated) 70%, transparent)) !important;
-  border-color: color-mix(in srgb, var(--accent) 28%, var(--border)) !important;
+  background: color-mix(in srgb, var(--bg-elevated) 65%, transparent) !important;
+  border-color: color-mix(in srgb, var(--accent) 16%, var(--border)) !important;
+}
+html[data-theme="streamhub"] #page-dashboard #dash-cards .gpill.online {
+  background: color-mix(in srgb, var(--success) 16%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--success) 30%, transparent) !important;
+  color: var(--success) !important;
 }
 html[data-theme="streamhub"] #page-dashboard .dash-act-panel {
-  background: linear-gradient(168deg,
-    color-mix(in srgb, var(--bg-elevated) 72%, #fff 28%),
-    color-mix(in srgb, var(--bg-elevated) 88%, var(--accent) 12%)) !important;
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-strong)) !important;
+  background: color-mix(in srgb, var(--bg-elevated) 65%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border)) !important;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 [data-theme="aurora"] .bg {
