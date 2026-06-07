@@ -327,7 +327,7 @@ async function fetchBrowserServerSessions(server) {
   for (const url of urls) {
     try {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 8000);
+      const timer = setTimeout(() => ctrl.abort(), LIVE_BROWSER_TIMEOUT_MS);
       const r = await fetch(url, { signal: ctrl.signal, credentials: 'omit', cache: 'no-store' });
       clearTimeout(timer);
       if (!r.ok) continue;
@@ -430,6 +430,7 @@ const _bufferingToastKeys = new Set();
 const LIVE_PLAYBACK_POLL_MS = 20000;
 const DASH_LIVE_POLL_MS = 8000;
 const BRIDGE_LIVE_MAX_AGE_MS = 8 * 60 * 1000;
+const LIVE_BROWSER_TIMEOUT_MS = 4000;
 let _dashLiveTimer = null;
 
 function annotateLiveSessions(sessions) {
@@ -507,6 +508,16 @@ let _activityRecentCache = [];
 let _dashActivityGen = 0;
 let _dashActivityData = null;
 
+function _serverLikelyDown(healthByUrl, url) {
+  const rec = healthByUrl?.[_normServerUrl(url)]?.history?.[0];
+  return !!(rec && !rec.up && Date.now() - rec.ts < BRIDGE_FRESH_MS);
+}
+
+function _liveProbeSkipBrowser(probe) {
+  const err = (probe?.error || '').toLowerCase();
+  return err.includes('timeout') || err.includes('unreachable') || err.includes('network');
+}
+
 function collectServersForLive() {
   const cfg = collectConfig(true);
   if (cfg?.servers?.length) return cfg.servers;
@@ -559,8 +570,15 @@ async function fetchLiveBundle(force = false, opts = {}) {
 
     await ensureAccountConfigLoaded();
     const servers = collectServersForLive();
+    const healthByUrl = servers.length ? await _fetchHealthByUrl() : {};
     if (servers.length) {
       const clientChunks = await Promise.all(servers.map(async (s) => {
+        if (_serverLikelyDown(healthByUrl, s.url)) {
+          return {
+            live: [],
+            probe: { server: s.label || s.url, ok: false, count: 0, error: 'skipped (offline)', method: null },
+          };
+        }
         try {
           const r = await fetch('/api/server-sessions', {
             method: 'POST',
@@ -588,7 +606,7 @@ async function fetchLiveBundle(force = false, opts = {}) {
             error: d?.error || (!r.ok ? `HTTP ${r.status}` : null),
             method: d?.probe?.method || null,
           };
-          if (!chunkLive.length) {
+          if (!chunkLive.length && !_liveProbeSkipBrowser(probe)) {
             const browser = await fetchBrowserServerSessions(s);
             if (browser.live.length) {
               chunkLive = browser.live;
