@@ -4,6 +4,8 @@ const {
   mergeLiveSources,
   attachBridgeLive,
   resolveBridgePlayback,
+  suppressReachableBridge,
+  DEFAULT_BRIDGE_LIVE_MS,
 } = require('../lib/bridgeLive');
 
 let passed = 0;
@@ -70,6 +72,46 @@ A(titleDedup.length === 1 && titleDedup[0].server === 'Milkyway', 'sessions titl
 
 const attached = attachBridgeLive([], recent, { maxAgeMs: 10 * 60000 });
 A(attached.length === 1, 'attachBridgeLive fills gaps');
+
+// ─── Tightened freshness window: a browse from minutes ago isn't "live" ──────
+A(DEFAULT_BRIDGE_LIVE_MS === 3 * 60 * 1000, 'bridge-live window tightened to 3 minutes');
+const staleInfer = inferLiveFromRecent([
+  { title: 'Stale Browse', server: 'BK', found: true, ts: new Date(now - 5 * 60000).toISOString() },
+]);
+A(staleInfer.length === 0, 'default window drops a 5-minute-old lookup');
+const freshInfer = inferLiveFromRecent([
+  { title: 'Fresh', server: 'BK', found: true, ts: new Date(now - 60000).toISOString() },
+]);
+A(freshInfer.length === 1, 'default window keeps a 1-minute-old lookup');
+
+// ─── suppressReachableBridge: bridge yields to ground-truth probes ───────────
+// When the browser successfully probed a server and the title isn't in its real
+// session list, a bridge-inferred row for that server is a stale browse → drop.
+const liveMix = [
+  { source: 'sessions', title: 'Real Playback', server: 'BK' },
+  { source: 'bridge', title: 'Just Browsed', availableOn: ['BK'], server: 'BK', serverConfirmed: true },
+  { source: 'bridge', title: 'On Blocked Box', availableOn: ['Mars'], server: 'Mars' },
+];
+const probes = [{ server: 'BK', ok: true, count: 1 }]; // Mars never answered
+const filtered = suppressReachableBridge(liveMix, probes);
+A(filtered.some(s => s.title === 'Real Playback'), 'keeps confirmed session');
+A(!filtered.some(s => s.title === 'Just Browsed'), 'drops bridge row on a reachable server (not actually playing)');
+A(filtered.some(s => s.title === 'On Blocked Box'), 'keeps bridge row on an unreachable server (legit fallback)');
+
+const noReachable = suppressReachableBridge(liveMix, [{ server: 'BK', ok: false }]);
+A(noReachable.length === 3, 'no reachable server → keep all bridge fallbacks');
+
+const unknownSrv = suppressReachableBridge(
+  [{ source: 'bridge', title: 'No Server Info' }],
+  [{ server: 'BK', ok: true }]
+);
+A(unknownSrv.length === 1, 'bridge row with unknown server kept as fallback');
+
+const multiCandidate = suppressReachableBridge(
+  [{ source: 'bridge', title: 'Two Boxes', availableOn: ['BK', 'Mars'] }],
+  [{ server: 'BK', ok: true }] // Mars not probed → not fully ground-truthed
+);
+A(multiCandidate.length === 1, 'bridge row kept when any candidate server is unreachable');
 
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);

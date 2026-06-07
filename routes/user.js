@@ -7,7 +7,7 @@ const { makeManifestStore } = require('../lib/manifestStore');
 const { makeServerHistory } = require('../lib/serverHistory');
 const { makeRequestLog } = require('../lib/requestLog');
 const { makeLiveSessions } = require('../lib/sessions');
-const { enrichRecentEntries } = require('../lib/activityEnrich');
+const { enrichRecentEntries, dedupeRecentByContent } = require('../lib/activityEnrich');
 const { attachBridgeLive } = require('../lib/bridgeLive');
 
 function manifestUrl(req, token) {
@@ -123,9 +123,10 @@ function makeUserRouter() {
         servers = filteredServers;
         if (filteredServers.length) {
           filteredServers.forEach(s => { if (s.label) labels.add(s.label.trim()); });
-          rawRecent = (await requestLog.forUser(req.user.id, 60))
-            .filter(e => !e.server || labels.has(e.server) || (e.serverStatus || []).some(s => labels.has(s.label)))
-            .slice(0, 20);
+          const filtered = (await requestLog.forUser(req.user.id, 60))
+            .filter(e => !e.server || labels.has(e.server) || (e.serverStatus || []).some(s => labels.has(s.label)));
+          // Collapse repeat Stremio stream lookups into one row per episode, then cap.
+          rawRecent = dedupeRecentByContent(filtered).slice(0, 20);
         }
         if (quick) {
           live = attachBridgeLive([], rawRecent);

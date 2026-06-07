@@ -421,6 +421,22 @@ function mergeLiveSourcesClient(lists) {
   return out.filter(s => s.source !== 'bridge' || !sessionTitles.has(norm(s.title)));
 }
 
+// Mirror of lib/bridgeLive.js suppressReachableBridge — drop bridge-inferred rows
+// on servers the browser successfully probed (ground truth: if it were playing it
+// would be a real session). Rows on unreachable servers stay (legit fallback).
+function suppressReachableBridgeClient(live, probes) {
+  const reachable = new Set((probes || []).filter(p => p && p.ok).map(p => p.server));
+  if (!reachable.size) return (live || []).slice();
+  return (live || []).filter(s => {
+    if (!s || s.source !== 'bridge') return true;
+    const candidates = (Array.isArray(s.availableOn) && s.availableOn.length)
+      ? s.availableOn
+      : [s.server, s.pickedServer].filter(Boolean);
+    if (!candidates.length) return true;
+    return !candidates.every(c => reachable.has(c));
+  });
+}
+
 function formatBridgeServerLabel(s) {
   if (!s) return '';
   if (s.source === 'bridge') return (s.serverConfirmed && s.server) ? s.server : '';
@@ -473,7 +489,7 @@ const _livePlaybackPrev = new Map();
 const _bufferingToastKeys = new Set();
 const LIVE_PLAYBACK_POLL_MS = 20000;
 const DASH_LIVE_POLL_MS = 8000;
-const BRIDGE_LIVE_MAX_AGE_MS = 8 * 60 * 1000;
+const BRIDGE_LIVE_MAX_AGE_MS = 3 * 60 * 1000; // keep in sync with lib/bridgeLive.js
 const LIVE_BROWSER_TIMEOUT_MS = 4000;
 let _dashLiveTimer = null;
 
@@ -690,6 +706,10 @@ async function fetchLiveBundle(force = false, opts = {}) {
     if (!live.length && recentForBridge.length) {
       live = mergeLiveSourcesClient([live, inferBridgeLiveFromRecent(recentForBridge)]);
     }
+
+    // Ground-truth pass: once we've probed servers directly, bridge-inferred rows
+    // on reachable servers that aren't real sessions are stale browses — drop them.
+    live = suppressReachableBridgeClient(live, probes);
 
     const annotated = annotateLiveSessions(live);
     _liveBundleCache = { live: annotated, probes, ts: Date.now() };

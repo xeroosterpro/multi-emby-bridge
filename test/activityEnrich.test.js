@@ -3,6 +3,7 @@ const {
   titlesMatch,
   matchLiveToEntry,
   enrichRecentEntries,
+  dedupeRecentByContent,
 } = require('../lib/activityEnrich');
 
 let passed = 0;
@@ -54,6 +55,38 @@ const singleBridge = enrichRecentEntries([{
   source: 'bridge', title: 'Battleship', server: 'BK', serverConfirmed: true, availableOn: ['BK'],
 }]);
 A(singleBridge[0].playingServer === 'BK', 'single-server bridge is confirmed');
+
+// ─── dedupeRecentByContent: collapse repeat stream lookups into one row ───────
+// requestLog rows arrive newest-first; Stremio fires several lookups per episode.
+const dupRecent = [
+  { title: 'Severance', season: 1, episode: 3, server: 'BK', ts: '2026-06-06T23:00:05Z' },
+  { title: 'Severance', season: 1, episode: 3, server: 'BK', ts: '2026-06-06T23:00:03Z' },
+  { title: 'Severance', season: 1, episode: 3, server: 'BK', ts: '2026-06-06T23:00:01Z' },
+  { title: 'Severance', season: 1, episode: 2, server: 'BK', ts: '2026-06-06T22:59:00Z' },
+];
+const distinct = dedupeRecentByContent(dupRecent);
+A(distinct.length === 2, 'collapses duplicate lookups to one row per episode');
+A(distinct[0].episode === 3 && distinct[0].ts === '2026-06-06T23:00:05Z', 'keeps most-recent ts for the episode');
+A(distinct[0].lookupCount === 3, 'counts how many lookups collapsed');
+A(distinct[1].episode === 2, 'distinct episodes preserved, newest-first');
+
+const movieDup = dedupeRecentByContent([
+  { title: 'Dune', ts: '2026-06-06T23:00:05Z' },
+  { title: 'Dune', ts: '2026-06-06T23:00:00Z' },
+]);
+A(movieDup.length === 1 && movieDup[0].lookupCount === 2, 'movie lookups (no season/episode) collapse too');
+
+const normDup = dedupeRecentByContent([
+  { title: 'The Wild Robot', ts: '2026-06-06T23:00:05Z' },
+  { title: 'the wild robot!', ts: '2026-06-06T23:00:00Z' },
+]);
+A(normDup.length === 1, 'normalizes title (case/punctuation) for dedup');
+
+const sameEpDiffShow = dedupeRecentByContent([
+  { title: 'Severance', season: 1, episode: 1, ts: '2026-06-06T23:00:05Z' },
+  { title: 'Andor', season: 1, episode: 1, ts: '2026-06-06T23:00:00Z' },
+]);
+A(sameEpDiffShow.length === 2, 'same S/E on different shows stay separate');
 
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
