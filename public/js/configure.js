@@ -1518,29 +1518,22 @@ function buildServerBlock(id) {
     </div>
   `;
   div.innerHTML = `
-    <div class="srv-entry sc-shell" role="button" tabindex="0" onclick="toggleManage(${id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleManage(${id})}">
-      <div class="srv-rail sc-accent" aria-hidden="true"></div>
-      <span class="srv-idx sc-index" data-bind="index">—</span>
+    <div class="srv-entry" role="button" tabindex="0" onclick="toggleManage(${id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleManage(${id})}">
+      <div class="srv-rail" aria-hidden="true"></div>
+      <span class="srv-idx" data-bind="index">—</span>
       <div class="srv-type-icon" data-bind="logo">${EMBY_LOGO}</div>
-      <div class="srv-info sc-id">
-        <span class="srv-name sc-name" data-bind="name">New server</span>
-        <span class="srv-host sc-host" data-bind="host">not configured</span>
+      <div class="srv-info">
+        <span class="srv-name" data-bind="name">New server</span>
+        <span class="srv-host" data-bind="host">not configured</span>
       </div>
-      <div class="srv-metrics sc-chips" data-bind="chips" hidden>
-        <span class="srv-metric"><em class="sc-chip-n" data-chip="movies">—</em><small>M</small></span>
-        <span class="srv-metric-sep">·</span>
-        <span class="srv-metric"><em class="sc-chip-n" data-chip="shows">—</em><small>S</small></span>
-        <span class="srv-metric-sep">·</span>
-        <span class="srv-metric"><em class="sc-chip-n" data-chip="episodes">—</em><small>E</small></span>
-      </div>
-      <div class="srv-end sc-meta">
-        <span class="srv-lat sc-ping" data-bind="ping"></span>
-        <span class="srv-status sc-badge unknown" data-bind="badge"><span class="sc-badge-dot"></span><span data-bind="badge-txt">Checking</span></span>
-        <button type="button" class="srv-reconnect sc-reconnect" onclick="event.stopPropagation();reconnectServer(${id})">Fix</button>
-        <span class="srv-expand sc-chev" aria-hidden="true">▾</span>
+      <span class="srv-lat" data-bind="ping"></span>
+      <div class="srv-end">
+        <span class="srv-status unknown" data-bind="badge"><span class="srv-status-dot"></span><span data-bind="badge-txt">Checking</span></span>
+        <button type="button" class="srv-reconnect" onclick="event.stopPropagation();reconnectServer(${id})" title="Fix connection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button>
+        <span class="srv-expand" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg></span>
       </div>
     </div>
-    <div class="srv-drawer sc-edit" id="edit-${id}">${fields}</div>
+    <div class="srv-drawer" id="edit-${id}">${fields}</div>
   `;
   return div;
 }
@@ -1642,8 +1635,8 @@ async function reconnectServer(id) {
   }
   const badgeTxt = block.querySelector('[data-bind=badge-txt]');
   const badge = block.querySelector('[data-bind=badge]');
-  if (badge) badge.className = 'srv-status sc-badge checking';
-  if (badgeTxt) badgeTxt.textContent = 'Re-authing…';
+  if (badge) badge.className = 'srv-status checking';
+  if (badgeTxt) badgeTxt.textContent = 'Checking…';
   block.classList.add('reauthing');
   const result = await _reauthServerCredentials(block);
   block.classList.remove('reauthing');
@@ -1652,8 +1645,8 @@ async function reconnectServer(id) {
     await renderServersPage();
     if (typeof window.toast === 'function') window.toast('Reconnected — credentials refreshed');
   } else {
-    if (badge) badge.className = 'srv-status sc-badge down';
-    if (badgeTxt) badgeTxt.textContent = 'Token expired';
+    if (badge) badge.className = 'srv-status down';
+    if (badgeTxt) badgeTxt.textContent = 'Offline';
     if (typeof window.toast === 'function') window.toast(result.error || 'Re-auth failed — re-enter password');
     openManage(id);
   }
@@ -1668,9 +1661,17 @@ function _updateServersHeaderStats(up, total, fastest) {
   const sub = document.getElementById('srv-sub');
   if (sub) {
     sub.textContent = total
-      ? `${up}/${total} connected · click a server to edit credentials`
-      : 'Manage your personal Emby & Jellyfin connections.';
+      ? `${up} of ${total} online · click a row to edit credentials`
+      : 'Add Emby or Jellyfin endpoints to bridge into Stremio.';
   }
+}
+
+function _srvSetBadge(badge, cls) {
+  if (!badge) return;
+  badge.className = 'srv-status ' + cls;
+  badge.classList.remove('srv-status-pop');
+  void badge.offsetWidth;
+  badge.classList.add('srv-status-pop');
 }
 
 async function refreshServerCard(block, opts = {}) {
@@ -1686,7 +1687,6 @@ async function refreshServerCard(block, opts = {}) {
   const badge = block.querySelector('[data-bind=badge]');
   const badgeTxt = block.querySelector('[data-bind=badge-txt]');
   const pingEl = block.querySelector('[data-bind=ping]');
-  const chipsEl = block.querySelector('[data-bind=chips]');
   const idxEl = block.querySelector('[data-bind=index]');
   if (logoEl) logoEl.innerHTML = type === 'jellyfin' ? JELLYFIN_LOGO : EMBY_LOGO;
   block.classList.remove('type-emby', 'type-jellyfin');
@@ -1699,50 +1699,43 @@ async function refreshServerCard(block, opts = {}) {
     idxEl.textContent = n > 0 ? String(n) : '';
   }
   const setState = (cls, txt) => {
-    if (badge) badge.className = 'srv-status sc-badge ' + cls;
+    _srvSetBadge(badge, cls);
     if (badgeTxt) badgeTxt.textContent = txt;
     block.classList.toggle('ok', cls === 'up');
     block.classList.toggle('bad', cls === 'down');
     block.classList.toggle('checking', cls === 'checking');
   };
-  if (pingEl) { pingEl.textContent = ''; pingEl.className = 'srv-lat sc-ping'; }
-  if (chipsEl) chipsEl.hidden = true;
+  if (pingEl) { pingEl.textContent = '—'; pingEl.className = 'srv-lat'; }
   if (!url || !apiKey || !userId) { setState('unknown', 'Not set'); return null; }
   setState('checking', 'Checking…');
   try {
     const t0 = Date.now();
-    const r = await fetch('/api/library-stats', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const r = await fetch('/api/test-connection', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, type, apiKey, userId, username, password }),
     });
     const ms = Date.now() - t0;
-    const st = r.ok ? await r.json().catch(() => ({})) : null;
-    if (st?.apiKey) {
-      _applyRefreshedApiKey(block, st.apiKey);
-      apiKey = st.apiKey;
+    const data = await r.json().catch(() => ({}));
+    if (data.apiKey) {
+      _applyRefreshedApiKey(block, data.apiKey);
+      apiKey = data.apiKey;
     }
-    if (r.ok && st) {
-      setState('up', 'Connected');
-      if (pingEl) { pingEl.textContent = ms + 'ms'; pingEl.className = 'srv-lat sc-ping ' + _srvPingClass(ms); }
-      if (chipsEl) {
-        chipsEl.hidden = false;
-        const setChip = (k, v) => { const el = chipsEl.querySelector('[data-chip=' + k + ']'); if (el) el.textContent = (v || 0).toLocaleString(); };
-        setChip('movies', st.movies);
-        setChip('shows', st.shows);
-        setChip('episodes', st.episodes);
-      }
+    if (r.ok && data.ok) {
+      setState('up', 'Online');
+      if (pingEl) { pingEl.textContent = ms + 'ms'; pingEl.className = 'srv-lat ' + _srvPingClass(ms); }
       return { up: true, ms };
     }
     if ((r.status === 401 || r.status === 403) && retry && username && password) {
-      setState('checking', 'Re-authing…');
+      setState('checking', 'Checking…');
       const refreshed = await _reauthServerCredentials(block);
       if (refreshed.ok) return refreshServerCard(block, { retry: false });
     }
-    const authFail = r.status === 401 || r.status === 403;
-    setState('down', authFail ? (username && password ? 'Token expired' : 'Auth failed') : 'Unreachable');
+    setState('down', 'Offline');
+    if (pingEl) { pingEl.textContent = '—'; pingEl.className = 'srv-lat'; }
     return { up: false, ms: null };
   } catch {
-    setState('down', 'Unreachable');
+    setState('down', 'Offline');
+    if (pingEl) { pingEl.textContent = '—'; pingEl.className = 'srv-lat'; }
     return { up: false, ms: null };
   }
 }
@@ -3259,6 +3252,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!restoreFromLocalStorage()) addServer();
   await ensureAccountConfigLoaded();
   _updateServersEmptyState();
+  if (_isServersPageActive()) {
+    await renderServersPage({ full: true });
+    _startServersAutoRefresh();
+  }
   // TEMP scaffold: these page-init calls belong to Catalogs/Appearance/Streaming
   // pages not yet migrated; their target DOM is absent now, so guard each call.
   // Later tasks move them to fire on their page's onPageShow.
