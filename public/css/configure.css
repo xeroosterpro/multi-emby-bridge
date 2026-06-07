@@ -1526,7 +1526,43 @@ body.locked-billing .pin-btn{ display:none; }
 #page-dashboard .gcard-nm { font-size:1.14rem; }
 #page-dashboard .gcard-host { font-size:.78rem; }
 #page-dashboard .gchip .cn { font-size:1.05rem; }
-#page-dashboard .gcard-hint { font-size:.76rem; margin-top:4px; }
+/* Inline health on dashboard server cards */
+.gcard-health {
+  margin-top:16px; padding-top:14px;
+  border-top:1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+.gcard-health-empty {
+  font-size:.74rem; color:var(--text-mute); text-align:center;
+  padding:14px 10px; border-radius:var(--r-sm);
+  background:color-mix(in srgb, var(--bg-elevated) 70%, transparent);
+}
+.gcard-rt-graph { margin-bottom:10px; }
+.gcard-rt-graph .rt-graph-label {
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:.68rem; color:var(--text-mute); margin-bottom:5px; letter-spacing:.02em;
+}
+.gcard-rt-graph svg { width:100%; height:42px; display:block; border-radius:6px; }
+.gcard-uptime-legend {
+  display:flex; justify-content:space-between; gap:8px;
+  font-size:.66rem; color:var(--text-mute); margin-bottom:6px;
+}
+.gcard-uptime-legend span:nth-child(2) { text-align:center; flex:1; color:var(--text-dim); }
+.gcard-uptime-bar {
+  display:flex; gap:2px; height:20px; align-items:flex-end; margin-bottom:8px;
+}
+.gcard-seg { flex:1; border-radius:2px; min-width:0; transition:opacity .12s; }
+.gcard-seg:hover { opacity:.75; }
+.gcard-seg.up { background:#34d399; height:100%; box-shadow:0 0 6px rgba(52,211,153,.35); }
+.gcard-seg.down { background:#f87171; height:55%; }
+.gcard-seg.empty { background:color-mix(in srgb, var(--border) 60%, transparent); height:25%; }
+.gcard-health-foot {
+  display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  font-size:.66rem; color:var(--text-mute);
+}
+.gcard-health-foot strong { color:var(--text-dim); font-weight:700; }
+.modal-health-embed { margin-top:4px; }
+.modal-health-embed .gcard-rt-graph svg { height:56px; }
+.modal-health-embed .gcard-uptime-bar { height:24px; }
 .dash-loading {
   grid-column:1 / -1; padding:28px 20px; text-align:center; color:var(--text-mute);
   font-size:.9rem; border:1px dashed var(--border); border-radius:var(--r-lg);

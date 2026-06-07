@@ -17,6 +17,8 @@
     const movies = txt('[data-st=movies]');
     const shows = txt('[data-st=shows]');
     const eps = txt('[data-st=episodes]');
+    const healthSlot = card.querySelector('.gcard-health');
+    const healthHtml = healthSlot ? healthSlot.innerHTML : '<div class="gcard-health-empty">No health data yet</div>';
 
     window.openModal(`
       <div class="modal-head">
@@ -42,8 +44,7 @@
           <div class="mrow">Type<span class="mtag">${type || '—'}</span></div>
         </div>
         <div class="mtab" id="mt-health">
-          <div class="mrow">Uptime &amp; response history is tracked on the Health page.<span class="mtag"></span></div>
-          <button class="btn-soft" data-goto="health" style="margin-top:10px">Open Health →</button>
+          <div class="modal-health-embed">${healthHtml}</div>
         </div>
         <div class="mtab" id="mt-ping">
           <div class="mrow">Measure latency from your browser or the addon server.<span class="mtag"></span></div>

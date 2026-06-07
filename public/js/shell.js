@@ -23,7 +23,8 @@ function showPage(name) {
 }
 
 function routeFromHash() {
-  const name = (location.hash || '#/home').replace(/^#\//, '');
+  let name = (location.hash || '#/home').replace(/^#\//, '');
+  if (name === 'health') name = 'dashboard';
   showPage(name);
 }
 

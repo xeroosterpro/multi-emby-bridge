@@ -68,7 +68,6 @@
             <svg class="nav-chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
           </button>
           <div class="nav-group-items">
-            <a class="nav-item" data-page="health"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M3 12h4l2 5 4-12 2 7h6"/></svg><span>Health</span></a>
             <a class="nav-item" data-page="ping"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M2 12h4l3 8 4-16 3 8h6"/></svg><span>Ping test</span></a>
             <a class="nav-item" data-page="log"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Request log</span></a>
           </div>
@@ -203,7 +202,7 @@
     <div class="tile t1 tile-link" data-goto="servers"><div class="n" id="tile-servers">0</div><div class="l">Servers up</div></div>
     <div class="tile t2 tile-link" data-goto="servers"><div class="n" id="tile-shows">0</div><div class="l">TV Shows</div></div>
     <div class="tile t3 tile-link" data-goto="servers"><div class="n" id="tile-movies">0</div><div class="l">Movies</div></div>
-    <div class="tile t4 tile-link" data-goto="health"><div class="n" id="tile-ping">—</div><div class="l">Fastest ping</div></div>
+    <div class="tile t4 tile-link" data-goto="ping"><div class="n" id="tile-ping">—</div><div class="l">Fastest ping</div></div>
     <div class="tile t5 tile-link" data-goto="servers"><div class="n" id="tile-cost">$0</div><div class="l" id="tile-cost-l">Server costs</div></div>
   </div>
   <h3 class="block-title">Your servers</h3>
@@ -896,7 +895,7 @@
         <h2 class="page-title">Request log</h2>
         <p class="page-sub" id="log-count-badge"></p>
         <div class="log-actions">
-          <a href="#/health" class="btn-log">Server Health</a>
+          <a href="#/dashboard" class="btn-log">Dashboard</a>
           <button class="btn-log" onclick="refreshLog()">Refresh</button>
           <button class="btn-log danger" onclick="clearLog()">Clear</button>
         </div>
@@ -1137,7 +1136,7 @@
               <div class="guide-step-num">7</div>
               <div class="guide-step-body">
                 <div class="guide-step-title">Monitor your servers</div>
-                <p class="guide-step-desc">Use <a class="guide-link" data-page="health" href="#">Health</a> to see uptime and response time history for each server. The <a class="guide-link" data-page="ping" href="#">Ping test</a> lets you compare latency from your browser vs the server — useful for troubleshooting slow streams.</p>
+                <p class="guide-step-desc">Your <a class="guide-link" data-page="dashboard" href="#">Dashboard</a> shows uptime bars and response-time charts on each server card. The <a class="guide-link" data-page="ping" href="#">Ping test</a> lets you compare latency from your browser vs the addon server.</p>
               </div>
             </div>
 

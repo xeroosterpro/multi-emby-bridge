@@ -4,7 +4,7 @@
     ['dashboard','Dashboard','Overview'], ['servers','Servers','Overview'],
     ['catalogs','Catalogs','Configuration'], ['streaming','Streaming','Configuration'],
     ['appearance','Appearance','Configuration'], ['install','API Keys & Manifest','Configuration'],
-    ['health','Server Health','Monitoring'], ['ping','Ping test','Monitoring'], ['log','Request log','Monitoring'],
+    ['ping','Ping test','Monitoring'], ['log','Request log','Monitoring'],
     ['admin','Admin · System','Administration'], ['users','Admin · Console','Administration'],
     ['billing','Billing','Account'], ['settings','Settings','Account'],
   ];

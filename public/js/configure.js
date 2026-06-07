@@ -44,6 +44,49 @@ async function ensureAccountConfigLoaded() {
   return _accountConfigPromise;
 }
 
+function _normServerUrl(u) { return (u || '').replace(/\/+$/, '').toLowerCase(); }
+
+function _dashHealthPanel(history) {
+  if (window.HealthWidgets && typeof window.HealthWidgets.buildMiniHealthPanel === 'function') {
+    return window.HealthWidgets.buildMiniHealthPanel(history, { range: '24h', segments: 48 });
+  }
+  return '<div class="gcard-health-empty">Health charts loading…</div>';
+}
+
+async function _fetchHealthByUrl() {
+  try {
+    const rows = await fetch('/api/health/history', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : []);
+    const map = {};
+    (rows || []).forEach(h => { map[_normServerUrl(h.url)] = h; });
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+function _registerHealthServers(servers) {
+  if (!servers?.length) return;
+  const payload = servers.map(s => ({ url: s.url, label: s.label, type: s.type || 'emby' }));
+  fetch('/api/health/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ servers: payload }),
+  }).catch(() => {});
+}
+
+async function refreshDashCardHealth() {
+  const cards = document.querySelectorAll('#page-dashboard #dash-cards .gcard[data-server-url]');
+  if (!cards.length) return;
+  const byUrl = await _fetchHealthByUrl();
+  cards.forEach(card => {
+    const slot = card.querySelector('.gcard-health');
+    if (!slot) return;
+    const rec = byUrl[_normServerUrl(card.dataset.serverUrl)];
+    slot.innerHTML = _dashHealthPanel(rec?.history || []);
+  });
+}
+
 async function fetchLiveSessionsForServers(servers) {
   if (!servers?.length) return [];
   const chunks = await Promise.all(servers.map(async (s) => {
@@ -1268,7 +1311,7 @@ window.onPageShow = function(name) {
       replayDashTileAnimations();
     })();
   }
-  if (name === 'health' && window.startHealth) window.startHealth();
+  if (name === 'health') location.hash = '#/dashboard';
   if (name === 'log' && typeof refreshLog === 'function') refreshLog();
   if (name === 'catalogs' && typeof refreshKeyPills === 'function') refreshKeyPills();
   if (window.Controls) Controls.syncAll();
@@ -1364,7 +1407,10 @@ function replayDashTileAnimations() {
 // not the per-server library pings).
 setInterval(() => {
   const dash = document.getElementById('page-dashboard');
-  if (dash && dash.classList.contains('on')) renderDashActivity();
+  if (dash && dash.classList.contains('on')) {
+    renderDashActivity();
+    refreshDashCardHealth();
+  }
 }, 45000);
 
 const EMBY_LOGO = '<img class="brandimg" src="/img/emby.png" alt="Emby" decoding="async">';
@@ -1393,6 +1439,8 @@ async function renderDashboard(force = false) {
     const now = Date.now();
     const cfg = collectConfig(true) || { servers: [] };
     const servers = cfg.servers || [];
+    _registerHealthServers(servers);
+    const healthByUrl = await _fetchHealthByUrl();
     const catCount = (typeof collectExternalCatalogs === 'function' ? collectExternalCatalogs() : []).length;
     const catEl = document.getElementById('tile-catalogs');
     if (catEl) catEl.textContent = catCount;
@@ -1417,6 +1465,8 @@ async function renderDashboard(force = false) {
         : '— not set';
       const card = document.createElement('div');
       card.className = 'gcard';
+      card.dataset.serverUrl = s.url || '';
+      const healthHtml = _dashHealthPanel(healthByUrl[_normServerUrl(s.url)]?.history || []);
       card.style.setProperty('--bar', bar);
       card.style.setProperty('--accentglow', glow);
       card.style.setProperty('--badgebg', badgeBg);
@@ -1437,7 +1487,7 @@ async function renderDashboard(force = false) {
             <div class="gchip"><div class="cn" data-st="shows">—</div><div class="ct">Shows</div></div>
             <div class="gchip"><div class="cn" data-st="episodes">—</div><div class="ct">Episodes</div></div>
           </div>
-          <div class="gcard-hint">Click for health · ping · who's watching →</div>
+          <div class="gcard-health">${healthHtml}</div>
         </div>`;
       wrap.appendChild(card);
       const setStats = (st) => {

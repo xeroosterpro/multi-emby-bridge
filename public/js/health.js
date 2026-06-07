@@ -33,7 +33,7 @@ function renderPage(data){const main=document.getElementById('main-content');if(
   renderTopServer(data);fd.forEach(s=>{const id=encId(s.url);const btn=document.getElementById('bpbtn-'+id);const msEl=document.getElementById('bpms-'+id);if(btn&&msEl){const sv=browserPings[s.url];if(sv!==undefined){msEl.textContent=sv!==null?sv+'ms':'Blocked';msEl.className=sv!==null?'loc-ms '+(sv<100?'fast':sv<400?'ok':'slow'):'loc-ms none';btn.textContent='Retest';}btn.onclick=()=>hBrowserPing(s.url,btn,msEl);}const tog=document.getElementById('htog-'+id);const wrap=document.getElementById('hwrap-'+id);if(tog&&wrap){tog.onclick=()=>{wrap.classList.toggle('open');tog.textContent=wrap.classList.contains('open')?'▲ Hide history':'▼ Show history';};}
 getServerHistory().then(hist=>{const w=document.getElementById('hwrap-'+id);if(!w||w.querySelector('.uptime-hist'))return;const m=(hist.servers||[]).find(x=>x.url===s.url.replace(/\/+$/,''));if(!m||!m.daily||!m.daily.length)return;const pct=uptimePct(m.daily);const days=m.daily.slice(0,30).reverse().map(d=>'<div class="uh-day" title="'+d.day+': '+d.up_checks+'/'+d.checks+' up"><div class="uh-bar" style="height:'+(d.checks?Math.round(d.up_checks/d.checks*100):0)+'%"></div></div>').join('');w.insertAdjacentHTML('afterbegin','<div class="uptime-hist"><div class="uh-head">Durable uptime '+(pct!=null?pct+'%':'—')+' <span class="uh-sub">'+m.daily.length+' day(s) logged</span></div><div class="uh-bars">'+days+'</div></div>');});});}
 function encId(u){return u.replace(/[^a-zA-Z0-9]/g,'_');}
-function buildCard(s){const h=s.history||[];const lat=h[0]||null;const state=lat?(lat.up?'up':'down'):'unknown';const us=(s.url||'').replace(/^https?:\/\//,'');const tl=s.type==='jellyfin'?'Jellyfin':'Emby';const pCls=lat&&lat.ms!=null?(lat.ms<100?'fast':lat.ms<400?'ok':'slow'):'';const pTxt=lat&&lat.ms!=null?lat.ms+'ms':'';const st=state==='up'?'Online':state==='down'?'Offline':'Pending…';const id=encId(s.url);const rtp=h.filter(e=>e.up&&e.ms!=null).slice(0,80).reverse();const spark=buildSpark(rtp);const slots=h.slice().reverse().slice(-SEGMENTS);const pad=Array(SEGMENTS-slots.length).fill(null).concat(slots);const bar=pad.map(e=>{if(!e)return '<div class="seg empty" title="No data"></div>';const ts=new Date(e.ts).toLocaleString();const tip=e.up?ts+' · Online ('+e.ms+'ms)':ts+' · Offline';return '<div class="seg '+(e.up?'up':'down')+'" title="'+esc(tip)+'"></div>';}).join('');const uc=h.filter(e=>e.up).length;const pct=h.length?Math.round(uc/h.length*100):null;const lt=lat?new Date(lat.ts).toLocaleTimeString():'Never';const old=h.length?new Date(h[h.length-1].ts).toLocaleDateString():'—';const avg=rtp.length?Math.round(rtp.reduce((a,e)=>a+e.ms,0)/rtp.length):null;const rows=h.slice(0,20).map(e=>'<tr><td>'+esc(new Date(e.ts).toLocaleString())+'</td><td class="'+(e.up?'h-up':'h-down')+'">'+(e.up?'Online · '+e.ms+'ms':'Offline')+'</td></tr>').join('');
+function buildCard(s){const h=s.history||[];const lat=h[0]||null;const state=lat?(lat.up?'up':'down'):'unknown';const us=(s.url||'').replace(/^https?:\/\//,'');const tl=s.type==='jellyfin'?'Jellyfin':'Emby';const pCls=lat&&lat.ms!=null?(lat.ms<100?'fast':lat.ms<400?'ok':'slow'):'';const pTxt=lat&&lat.ms!=null?lat.ms+'ms':'';const st=state==='up'?'Online':state==='down'?'Offline':'Pending…';const id=encId(s.url);const rtp=h.filter(e=>e.up&&e.ms!=null).slice(0,80).reverse();const avg=rtp.length?Math.round(rtp.reduce((a,e)=>a+e.ms,0)/rtp.length):null;const rows=h.slice(0,20).map(e=>'<tr><td>'+esc(new Date(e.ts).toLocaleString())+'</td><td class="'+(e.up?'h-up':'h-down')+'">'+(e.up?'Online · '+e.ms+'ms':'Offline')+'</td></tr>').join('');const upParts=buildUptimeBar(h,SEGMENTS,'seg','uptime-legend','uptime-bar','card-footer');
 return '<div class="server-card '+state+'">'+
   '<div class="card-header"><div class="card-name-row"><span class="card-name">'+esc(s.label||us)+'</span><span class="card-type">'+tl+'</span></div></div>'+
   '<div class="card-url" title="'+esc(s.url)+'">'+esc(us)+'</div>'+
@@ -43,13 +43,61 @@ return '<div class="server-card '+state+'">'+
     '<div class="ping-loc"><span class="loc-label">&#x1F4BB; You</span><span class="loc-ms none" id="bpms-'+id+'">—</span><button class="browser-ping-btn" id="bpbtn-'+id+'">Test</button></div>'+
     (avg?'<div class="ping-loc"><span class="loc-label">∅ Avg</span><span class="loc-ms '+(avg<100?'fast':avg<400?'ok':'slow')+'">'+avg+'ms</span></div>':'')+
   '</div>'+
-  spark+
-  '<div class="uptime-legend"><span>'+old+'</span><span>'+(pct!==null?pct+'% uptime · '+h.length+' checks':'No history yet')+'</span><span>Now</span></div>'+
-  '<div class="uptime-bar">'+bar+'</div>'+
-  '<div class="card-footer"><span>Last checked: <span class="highlight">'+lt+'</span></span>'+(pct!==null?'<span>Up: <span class="highlight">'+uc+'/'+h.length+'</span></span>':'')+'</div>'+
+  upParts.spark+upParts.legend+upParts.bar+upParts.foot+
   (rows?'<div class="history-toggle" id="htog-'+id+'">▼ Show history</div><div class="history-table-wrap" id="hwrap-'+id+'"><table class="history-table"><thead><tr><th>Time</th><th>Result</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'')+
 '</div>';}
-function buildSpark(pts){if(pts.length<2)return'';const vals=pts.map(p=>p.ms);const mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;const W=400,H=44,p=3;const pp=vals.map((v,i)=>((p+(i/(vals.length-1))*(W-p*2)).toFixed(1))+','+(H-p-((v-mn)/rng)*(H-p*2)).toFixed(1)).join(' ');const lv=vals[vals.length-1];const col=lv<100?'#4caf7d':lv<400?'#f0a500':'#e05555';const lx=(p+(W-p*2)).toFixed(1);const ly=(H-p-((lv-mn)/rng)*(H-p*2)).toFixed(1);return'<div class="rt-graph-wrap"><div class="rt-graph-label"><span>Response time</span><span>'+mn+'ms – '+mx+'ms</span></div><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none"><polyline points="'+pp+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-linejoin="round" opacity="0.7"/><circle cx="'+lx+'" cy="'+ly+'" r="3" fill="'+col+'"/></svg></div>';}
+function buildSpark(pts, cls){
+  if(pts.length<2)return'';
+  const wrap=cls||'rt-graph-wrap';
+  const vals=pts.map(p=>p.ms);
+  const mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;
+  const W=400,H=44,p=3;
+  const pp=vals.map((v,i)=>((p+(i/(vals.length-1))*(W-p*2)).toFixed(1))+','+(H-p-((v-mn)/rng)*(H-p*2)).toFixed(1)).join(' ');
+  const lv=vals[vals.length-1];
+  const col=lv<100?'#4caf7d':lv<400?'#f0a500':'#e05555';
+  const lx=(p+(W-p*2)).toFixed(1);
+  const ly=(H-p-((lv-mn)/rng)*(H-p*2)).toFixed(1);
+  return'<div class="'+wrap+'"><div class="rt-graph-label"><span>Response time</span><span>'+mn+'ms – '+mx+'ms</span></div><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none"><polyline points="'+pp+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-linejoin="round" opacity="0.85"/><circle cx="'+lx+'" cy="'+ly+'" r="3" fill="'+col+'"/></svg></div>';
+}
+function buildUptimeBar(h, segments, segCls, legendCls, barCls, footCls){
+  if(!h||!h.length){
+    return { spark:'', legend:'', bar:'', foot:'<div class="'+(footCls||'gcard-health-foot')+'"><span>Waiting for first health check…</span></div>' };
+  }
+  const slots=h.slice().reverse().slice(-segments);
+  const pad=Array(segments-slots.length).fill(null).concat(slots);
+  const uc=h.filter(e=>e.up).length;
+  const pct=h.length?Math.round(uc/h.length*100):null;
+  const old=h.length?new Date(h[h.length-1].ts).toLocaleDateString():'—';
+  const rtp=h.filter(e=>e.up&&e.ms!=null).slice(0,80).reverse();
+  const spark=buildSpark(rtp, 'gcard-rt-graph');
+  const bar=pad.map(e=>{
+    if(!e)return '<div class="'+(segCls||'gcard-seg')+' empty" title="No data"></div>';
+    const ts=new Date(e.ts).toLocaleString();
+    const tip=e.up?ts+' · Online ('+e.ms+'ms)':ts+' · Offline';
+    return '<div class="'+(segCls||'gcard-seg')+' '+(e.up?'up':'down')+'" title="'+esc(tip)+'"></div>';
+  }).join('');
+  const lt=h[0]?new Date(h[0].ts).toLocaleTimeString():'Never';
+  const useHi=footCls==='card-footer';
+  const hiOpen=useHi?'<span class="highlight">':'<strong>';
+  const hiClose=useHi?'</span>':'</strong>';
+  return {
+    spark,
+    legend:'<div class="'+(legendCls||'gcard-uptime-legend')+'"><span>'+old+'</span><span>'+(pct!==null?pct+'% uptime · '+h.length+' checks':'No history yet')+'</span><span>Now</span></div>',
+    bar:'<div class="'+(barCls||'gcard-uptime-bar')+'">'+bar+'</div>',
+    foot:'<div class="'+(footCls||'gcard-health-foot')+'"><span>Last checked: '+hiOpen+lt+hiClose+'</span>'+(pct!==null?'<span>Up: '+hiOpen+uc+'/'+h.length+hiClose+'</span>':'')+'</div>',
+  };
+}
+function buildMiniHealthPanel(history, opts){
+  const range=opts&&opts.range||'24h';
+  const segments=(opts&&opts.segments)||48;
+  let h=history||[];
+  if(range==='24h') h=h.filter(e=>e.ts>=Date.now()-86400000);
+  else if(range==='7d') h=h.filter(e=>e.ts>=Date.now()-604800000);
+  const parts=buildUptimeBar(h, segments);
+  if(!h.length) return '<div class="gcard-health-empty">Collecting health data — pings run every 5 min</div>';
+  return parts.spark+parts.legend+parts.bar+parts.foot;
+}
+window.HealthWidgets={ SEGMENTS, buildSpark, buildUptimeBar, buildMiniHealthPanel, esc };
 function startCountdown(){clearInterval(refreshTimer);countdown=60;refreshTimer=setInterval(()=>{countdown--;document.getElementById('refresh-bar').textContent='Auto-refresh in '+countdown+'s · Backend pings every 5 min';if(countdown<=0){countdown=60;loadHistory();}},1000);}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 async function loadServerInfo(){try{const info=await fetch('/api/server-info').then(r=>r.json());const pill=document.getElementById('ping-origin-pill');if(pill)pill.textContent=info.region?'Addon Server · '+info.region:'Addon Server (Railway)';}catch{}}
