@@ -164,6 +164,7 @@ function applyManifestSettings(cfg) {
   if (typeof updateLabelPreview === 'function') updateLabelPreview();
   if (typeof updateSummaryPreview === 'function') updateSummaryPreview();
   if (window.Controls) Controls.syncAll();
+  updateRankingUX();
 }
 
 async function ensureAccountConfigLoaded() {
@@ -2836,8 +2837,97 @@ function setSegSelect(id, v) {
   if (window.Controls) Controls.syncAll();
 }
 
-function setAudioRankToggle(v) { setSegSelect('audio-rank', v); }
-function setSurroundPriorityToggle(v) { setSegSelect('surround-priority', v); }
+function setAudioRankToggle(v) { setSegSelect('audio-rank', v); updateRankingUX(); }
+function setSurroundPriorityToggle(v) { setSegSelect('surround-priority', v); updateRankingUX(); }
+
+const _TIEBREAKER_LABELS = { size: 'largest file', audio: 'best legacy audio', bitrate: 'highest bitrate' };
+
+function updateRankingUX() {
+  const audioOn = document.getElementById('audio-rank')?.value === 'on';
+  const sort = document.getElementById('sort-order')?.value || 'size';
+  const mode = document.getElementById('audio-rank-mode')?.value || 'audioFirst';
+  const surroundOn = document.getElementById('surround-priority')?.value === 'on';
+
+  const sortLabel = document.getElementById('sort-order-label');
+  const sortHint = document.getElementById('sort-order-hint');
+  const sortField = document.getElementById('sort-order-field');
+  const sortSeg = document.getElementById('sort-order-seg');
+  const flow = document.getElementById('ranking-flow-hint');
+  const modeHint = document.getElementById('audio-rank-mode-hint');
+  const surroundField = document.getElementById('surround-priority-field');
+  const surroundHint = document.getElementById('surround-priority-hint');
+  const surroundSel = document.getElementById('surround-priority');
+
+  if (sortLabel) sortLabel.textContent = audioOn ? 'Tiebreaker' : 'Sort by';
+  if (sortSeg) {
+    sortSeg.querySelectorAll('[data-val]').forEach(btn => {
+      btn.classList.toggle('rec', audioOn && btn.getAttribute('data-val') === 'size');
+    });
+  }
+  const sortClash = audioOn && sort === 'audio';
+  if (sortField) sortField.classList.toggle('clash', sortClash);
+  if (sortHint) {
+    sortHint.textContent = audioOn
+      ? (sortClash
+        ? 'Sort Audio overlaps with Audio ranking below — use Size as tiebreaker instead.'
+        : `Breaks ties after audio is equal — ${_TIEBREAKER_LABELS[sort] || sort}.`)
+      : 'Primary sort when audio ranking is off.';
+  }
+
+  if (modeHint) {
+    const modeHints = {
+      audioFirst: 'Best audio format wins, then tiebreaker above.',
+      resFirst: '4K beats 1080p first, then audio format, then tiebreaker.',
+      tiebreak: 'Sort/tiebreaker above decides; audio only breaks exact ties.',
+    };
+    modeHint.textContent = audioOn ? (modeHints[mode] || modeHints.audioFirst) : 'Turn on Audio ranking to use this.';
+  }
+
+  if (surroundField && surroundSel) {
+    surroundField.classList.toggle('locked', !audioOn);
+    if (!audioOn && surroundOn) setSurroundPriorityToggle('off');
+  }
+  if (surroundHint) {
+    surroundHint.textContent = audioOn
+      ? (surroundOn
+        ? 'On: 5.1/7.1 default track beats stereo (helps Stremio CPM on Shield/TV).'
+        : 'Off: format list alone decides — fine if you never see stereo FLAC issues.')
+      : 'Requires Audio ranking — picks multichannel default tracks over stereo.';
+  }
+
+  if (flow) {
+    flow.classList.remove('warn');
+    if (!audioOn) {
+      flow.textContent = sort === 'audio'
+        ? '★ Winner: best per-track audio, then largest file.'
+        : `★ Winner: ${_TIEBREAKER_LABELS[sort] || sort} — audio ranking is off.`;
+    } else {
+      const tie = _TIEBREAKER_LABELS[sort] || sort;
+      const steps = [];
+      if (surroundOn) steps.push('surround channels');
+      if (mode === 'resFirst') steps.push('resolution', 'audio format', tie);
+      else if (mode === 'tiebreak') steps.push(tie, 'audio format');
+      else steps.push('audio format', tie);
+      flow.textContent = `★ Winner: ${steps.join(' → ')}.`;
+      if (sortClash) {
+        flow.textContent += ' Sort Audio + Audio ranking may double-sort — switch tiebreaker to Size.';
+        flow.classList.add('warn');
+      }
+    }
+  }
+  if (window.Controls) Controls.syncAll();
+}
+
+function wireRankingUX() {
+  ['sort-order', 'audio-rank', 'audio-rank-mode', 'surround-priority'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el._rankUx) {
+      el._rankUx = 1;
+      el.addEventListener('change', updateRankingUX);
+    }
+  });
+  updateRankingUX();
+}
 
 async function initAudioCard() {
   try {
@@ -3620,6 +3710,7 @@ function restoreFromLocalStorage() {
     if (Array.isArray(state.excludeRes)) _applyExcludeRes(state.excludeRes);
 
     if (window.Controls) Controls.syncAll();
+    updateRankingUX();
     if (profileUpgraded) {
       try { localStorage.setItem(LS_KEY, JSON.stringify({ ...state, ...STREMIO_STREAM_DEFAULTS, streamProfile: STREAM_PROFILE_VERSION })); } catch {}
     }
@@ -3654,4 +3745,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   const qi = document.getElementById('quick-install');
   if (qi) qi.addEventListener('click', () => { location.hash = '#/install'; generateLinks(); });
   if (window.Controls) Controls.bindAll();
+  wireRankingUX();
 });

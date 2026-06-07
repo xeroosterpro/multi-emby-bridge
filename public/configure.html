@@ -601,10 +601,11 @@
               </select>
             </div>
           </div>
+          <div id="ranking-flow-hint" class="ranking-flow-hint" aria-live="polite"></div>
           <div class="ms-field-grid">
-            <div class="field">
-              <div class="field-label">Sort by</div>
-              <div class="seg" data-target="#sort-order">
+            <div class="field" id="sort-order-field">
+              <div class="field-label" id="sort-order-label">Sort by</div>
+              <div class="seg" data-target="#sort-order" id="sort-order-seg">
                 <button data-val="size">Size</button><button data-val="audio">Audio</button><button data-val="bitrate">Bitrate</button>
               </div>
               <select id="sort-order" class="hidden-canonical">
@@ -612,6 +613,7 @@
                 <option value="audio">Audio quality (best first)</option>
                 <option value="bitrate">Bitrate (highest first)</option>
               </select>
+              <div class="field-hint" id="sort-order-hint">Primary sort when audio ranking is off.</div>
             </div>
             <div class="field">
               <div class="field-label">Exclude res</div>
@@ -740,6 +742,7 @@
                   <option value="resFirst">Resolution first</option>
                   <option value="tiebreak">Tiebreaker only</option>
                 </select>
+                <div class="field-hint" id="audio-rank-mode-hint">Best audio format wins before file size.</div>
               </div>
               <div class="field">
                 <div class="field-label">When disabled</div>
@@ -748,16 +751,16 @@
                   <option value="bottom">Send to bottom</option>
                 </select>
               </div>
-              <div class="field">
+              <div class="field" id="surround-priority-field">
                 <div class="field-label">Surround priority</div>
-                <div class="seg" data-target="#surround-priority">
+                <div class="seg" data-target="#surround-priority" id="surround-priority-seg">
                   <button data-val="off">Off</button><button data-val="on">On</button>
                 </div>
                 <select id="surround-priority" class="hidden-canonical">
                   <option value="off">Off</option>
                   <option value="on">On</option>
                 </select>
-                <div class="field-hint">Prefer 5.1/7.1 default tracks over stereo FLAC that CPM plays in 2.0</div>
+                <div class="field-hint" id="surround-priority-hint">5.1/7.1 beats stereo when formats tie — for Stremio on TV/shield.</div>
               </div>
             </div>
           </div>
