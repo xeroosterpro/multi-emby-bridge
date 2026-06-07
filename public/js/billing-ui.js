@@ -28,13 +28,28 @@
   function applyGate(locked) {
     if (window.MEBDemo && window.MEBDemo.isActive()) { locked = false; }
     document.body.classList.toggle('locked-billing', locked);
+    try {
+      if (locked) sessionStorage.setItem('meb_billing_locked', '1');
+      else sessionStorage.setItem('meb_billing_locked', '0');
+    } catch {}
     if (locked && location.hash !== '#/billing') location.hash = '#/billing';
   }
 
   function setBillingNav(subscribed) {
     window._mebBillingPreview = { subscribed: !!subscribed };
     const link = document.querySelector('.billing-link');
-    if (link) link.style.display = subscribed ? 'none' : '';
+    if (!link) return;
+    link.dataset.billingNav = subscribed ? 'hidden' : 'visible';
+    link.style.display = subscribed ? 'none' : '';
+  }
+
+  function restoreBillingGate() {
+    try {
+      const locked = sessionStorage.getItem('meb_billing_locked') === '1';
+      const onBilling = (location.hash || '').replace(/^#\/?/, '') === 'billing';
+      /* Only restore lock when still on billing — avoids stale cache flashing the sidebar on other pages. */
+      if (locked && onBilling) document.body.classList.add('locked-billing');
+    } catch {}
   }
 
   function renderActiveShell(st, opts = {}) {
@@ -386,12 +401,19 @@
   async function init() {
     const body = $('#billing-body');
     if (!body) return;
+    document.body.classList.add('billing-resolving');
 
+    try {
     const cfg = (await api('/api/billing/config')).body;
     const me = (await api('/api/auth/me')).body;
     const link = document.querySelector('.billing-link');
 
-    if (!me || !me.user) { applyGate(false); setBillingNav(false); return; }
+    if (!me || !me.user) {
+      try { sessionStorage.removeItem('meb_billing_locked'); } catch {}
+      applyGate(false);
+      setBillingNav(false);
+      return;
+    }
 
     if (window.MEBDemo && window.MEBDemo.isActive()) {
       applyGate(false);
@@ -416,7 +438,6 @@
     if (isAdmin && va === 'unpaid') {
       applyGate(true);
       setBillingNav(false);
-      if (link) link.style.display = '';
       body.innerHTML = renderLockedShell(cfg || { planPrice: '$4/mo', enabled: false });
       wireLocked();
       if (cfg && cfg.enabled) mountPayPal(cfg);
@@ -432,13 +453,13 @@
     }
 
     if (!cfg || !cfg.enabled) {
+      try { sessionStorage.removeItem('meb_billing_locked'); } catch {}
       applyGate(false);
       setBillingNav(false);
       body.innerHTML = `<div class="bill-shell"><div class="bill-empty">Billing is not configured on this deployment.</div></div>`;
       return;
     }
 
-    if (link) link.style.display = '';
     const st = (await api('/api/billing/status')).body || {};
     const realSub = st.status === 'active' || st.status === 'comped';
 
@@ -462,9 +483,13 @@
       wireLocked();
       mountPayPal(cfg);
     }
+    } finally {
+      document.body.classList.remove('billing-resolving');
+    }
   }
 
   window.MEBBilling = { refresh: init, openDemo: openDemoTour };
+  document.addEventListener('DOMContentLoaded', restoreBillingGate);
   document.addEventListener('DOMContentLoaded', () => { init(); wireDemoTour(); });
   document.addEventListener('viewas-changed', init);
 })();

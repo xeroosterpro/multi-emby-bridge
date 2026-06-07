@@ -167,6 +167,8 @@ function initShell() {
     authGatedPages.forEach(p => {
       const show = loggedIn && (p !== 'admin' && p !== 'users' || isAdmin);
       document.querySelectorAll(`.nav-item[data-page="${p}"], .foot-link[data-page="${p}"]`).forEach(el => {
+        /* Billing link visibility is owned by billing-ui.js (subscribed vs locked). */
+        if (p === 'billing' && el.classList.contains('billing-link')) return;
         el.style.display = show ? '' : 'none';
       });
     });

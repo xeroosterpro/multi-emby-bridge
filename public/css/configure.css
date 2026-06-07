@@ -1364,6 +1364,8 @@ body.noanim .acc2-body{ transition:none; }
 .tile-link:hover::before{ opacity:1; color:var(--accent); transform:translateX(2px); }
 
 /* billing access gate: lock app to Billing page when unsubscribed */
+.billing-link[data-billing-nav="hidden"] { display: none !important; }
+body.billing-resolving .billing-link { display: none !important; }
 body.locked-billing .nav, body.locked-billing .foot-link:not(.billing-link), body.locked-billing .quick-install{ display:none !important; }
 body.locked-billing .pin-btn{ display:none; }
 body.demo-site.locked-billing .nav, body.demo-site.locked-billing .foot-link, body.demo-site.locked-billing .quick-install{ display:revert !important; }
