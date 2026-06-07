@@ -1782,20 +1782,74 @@ html.view-as-user .admin-only { display: none !important; }
 .hhc-discord  { background: linear-gradient(142deg, #e85d4a 0%, #b93a2e 100%); cursor: pointer; }
 .hhc-invoices { background: linear-gradient(145deg, #d9772e 0%, #b45a1f 100%); } /* warm amber-gold */
 
-.hhc-icon {
-  position: absolute; top: 18px; right: 18px; width: 30px; height: 30px;
-  opacity: .35; stroke: #fff; stroke-width: 1.7;
-  transition: transform .28s var(--ease), opacity .22s var(--ease);
-  /* Soft pill behind icon for definition and premium pop */
-  background: rgba(255,255,255,.12);
-  border-radius: 999px;
-  padding: 5px;
-  backdrop-filter: blur(4px);
+/* Hero card emojis — crisp badge + soft background watermark (toned-down vs empty-state emoji-gentle) */
+.hhc-bg-emoji {
+  position: absolute;
+  top: 42%;
+  right: 6%;
+  font-size: clamp(3.2rem, 7vw, 5rem);
+  line-height: 1;
+  opacity: .12;
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+  filter: blur(.4px);
+  animation: hhc-bg-float 5.8s ease-in-out infinite;
+  will-change: transform, opacity;
 }
-.home-hero-card:hover .hhc-icon { 
-  transform: translateY(-3px) scale(1.12) rotate(3deg); 
-  opacity: .65; 
-  background: rgba(255,255,255,.18);
+.home-hero-card:nth-child(1) .hhc-bg-emoji { animation-delay: 0s; }
+.home-hero-card:nth-child(2) .hhc-bg-emoji { animation-delay: .9s; }
+.home-hero-card:nth-child(3) .hhc-bg-emoji { animation-delay: 1.8s; }
+.home-hero-card:nth-child(4) .hhc-bg-emoji { animation-delay: 2.7s; }
+@keyframes hhc-bg-float {
+  0%, 100% { transform: translateY(-50%) scale(1) rotate(-7deg); opacity: .1; }
+  50% { transform: translateY(calc(-50% - 5px)) scale(1.025) rotate(-4deg); opacity: .16; }
+}
+.home-hero-card:hover .hhc-bg-emoji {
+  opacity: .2;
+  animation-duration: 4.2s;
+}
+
+.hhc-emoji {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  font-size: 1.35rem;
+  line-height: 1;
+  background: rgba(255,255,255,.14);
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 10px rgba(0,0,0,.18), 0 0 0 1px rgba(255,255,255,.1) inset;
+  animation: hhc-emoji-idle 3.8s ease-in-out infinite;
+  transition: transform .24s var(--ease), box-shadow .24s var(--ease), background .24s var(--ease);
+  will-change: transform;
+}
+.home-hero-card:nth-child(1) .hhc-emoji { animation-delay: .15s; }
+.home-hero-card:nth-child(2) .hhc-emoji { animation-delay: .55s; }
+.home-hero-card:nth-child(3) .hhc-emoji { animation-delay: .95s; }
+.home-hero-card:nth-child(4) .hhc-emoji { animation-delay: 1.35s; }
+@keyframes hhc-emoji-idle {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2px) scale(1.03); }
+}
+.home-hero-card:hover .hhc-emoji {
+  transform: translateY(-4px) scale(1.1);
+  background: rgba(255,255,255,.22);
+  box-shadow: 0 6px 18px rgba(0,0,0,.28), 0 0 0 1px rgba(255,255,255,.16) inset;
+  animation-play-state: paused;
+}
+
+.home-hero-card .hhc-num,
+.home-hero-card .hhc-label,
+.home-hero-card .hhc-label-lg,
+.home-hero-card .hhc-sub {
+  position: relative;
+  z-index: 1;
 }
 .hhc-num {
   font-size: 44px; font-weight: 800; color: #fff; line-height: 1; letter-spacing: -2px;
@@ -2013,7 +2067,7 @@ html.view-as-user .admin-only { display: none !important; }
 }
 
 /* Subtle sheen + life on icons in home cards (already enhanced per-card) */
-.hhc-icon, .acc-ic svg { transition: transform .22s var(--ease), opacity .2s var(--ease); }
+.hhc-emoji, .acc-ic svg { transition: transform .22s var(--ease), opacity .2s var(--ease); }
 
 /* Empty states — creative, warm, friendly (no sad empty boxes) */
 .home-empty-state {
@@ -2209,6 +2263,8 @@ html.view-as-user .admin-only { display: none !important; }
   body:not(.force-motion) .home-hero-card,
   body:not(.force-motion) .home-panel,
   body:not(.force-motion) .home-greeting { animation: none !important; }
+  body:not(.force-motion) .hhc-bg-emoji,
+  body:not(.force-motion) .hhc-emoji { animation: none !important; }
   body:not(.force-motion) .home-hero-card:hover,
   body:not(.force-motion) .home-panel:hover,
   body:not(.force-motion) .home-svc-row:hover,
