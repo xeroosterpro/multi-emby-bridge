@@ -495,22 +495,27 @@ app.post('/api/fetch-credentials', authLimiter, express.json(), async (req, res)
 
 // ─── Test connection ──────────────────────────────────────────────────────────
 app.post('/api/test-connection', apiLimiter, express.json(), async (req, res) => {
-  const { url, type, apiKey, userId } = req.body || {};
+  const { url, type, apiKey, userId, username, password } = req.body || {};
   if (!url || !apiKey || !userId) {
     return res.status(400).json({ error: 'url, apiKey and userId are required.' });
   }
-  const server = { url: url.replace(/\/$/, ''), type: type || 'emby', apiKey, userId };
+  const server = {
+    url: url.replace(/\/$/, ''), type: type || 'emby', apiKey, userId,
+    username: username || '', password: password || '',
+  };
+  const sentKey = apiKey;
   try {
-    const infoUrl = new URL(`${server.url}/System/Info`);
-    appendAuth(infoUrl, server);
-    const resp = await fetchWithTimeout(infoUrl.toString(), 8000, { headers: authHeaders(server) });
+    const resp = await apiFetch(server, () => new URL(`${server.url}/System/Info`));
     const data = await resp.json();
     const name    = data.ServerName || data.ProductName || (type === 'jellyfin' ? 'Jellyfin' : 'Emby');
     const version = data.Version ? ` v${data.Version}` : '';
-    res.json({ ok: true, message: `Connected — ${name}${version}` });
+    const out = { ok: true, message: `Connected — ${name}${version}` };
+    const refreshed = getEffectiveApiKey(server);
+    if (refreshed && refreshed !== sentKey) out.apiKey = refreshed;
+    res.json(out);
   } catch (err) {
     if (err.status === 401 || err.status === 403)
-      return res.status(401).json({ ok: false, error: 'Authentication failed — check your API key.' });
+      return res.status(401).json({ ok: false, error: 'Authentication failed — check your API key or saved login.' });
     if (err.name === 'AbortError')
       return res.status(504).json({ ok: false, error: 'Connection timed out — check the server URL.' });
     res.status(502).json({ ok: false, error: `Could not connect: ${err.message}` });
@@ -538,7 +543,7 @@ app.post('/api/ping-servers', apiLimiter, express.json(), async (req, res) => {
 
 // ─── Live sessions (now playing) for one server ─────────────────────────────
 app.post('/api/server-sessions', apiLimiter, express.json(), async (req, res) => {
-  const { url, type, apiKey, userId, label } = req.body || {};
+  const { url, type, apiKey, userId, label, username, password } = req.body || {};
   if (!url || !apiKey) return res.status(400).json({ error: 'url and apiKey required' });
   const { fetchServerSessions } = require('./lib/sessions');
   const server = {
@@ -547,10 +552,16 @@ app.post('/api/server-sessions', apiLimiter, express.json(), async (req, res) =>
     apiKey,
     userId: userId || '',
     label: label || '',
+    username: username || '',
+    password: password || '',
   };
+  const sentKey = apiKey;
   try {
     const live = await fetchServerSessions(server);
-    res.json({ live });
+    const out = { live };
+    const refreshed = getEffectiveApiKey(server);
+    if (refreshed && refreshed !== sentKey) out.apiKey = refreshed;
+    res.json(out);
   } catch (err) {
     if (err.status === 401 || err.status === 403)
       return res.status(401).json({ error: 'Authentication failed' });
@@ -562,22 +573,30 @@ app.post('/api/server-sessions', apiLimiter, express.json(), async (req, res) =>
 
 // ─── Library stats ────────────────────────────────────────────────────────────
 app.post('/api/library-stats', apiLimiter, express.json(), async (req, res) => {
-  const { url, type, apiKey, userId } = req.body || {};
+  const { url, type, apiKey, userId, username, password } = req.body || {};
   if (!url || !apiKey || !userId) {
     return res.status(400).json({ error: 'url, apiKey, userId required' });
   }
-  const server = { url: url.replace(/\/$/, ''), type: type || 'emby', apiKey, userId, label: '' };
+  const server = {
+    url: url.replace(/\/$/, ''), type: type || 'emby', apiKey, userId, label: '',
+    username: username || '', password: password || '',
+  };
+  const sentKey = apiKey;
   try {
-    const statsUrl = new URL(`${server.url}/Items/Counts`);
-    statsUrl.searchParams.set('UserId', userId);
-    appendAuth(statsUrl, server);
-    const resp = await fetchWithTimeout(statsUrl.toString(), 8000, { headers: authHeaders(server) });
+    const resp = await apiFetch(server, () => {
+      const statsUrl = new URL(`${server.url}/Items/Counts`);
+      statsUrl.searchParams.set('UserId', userId);
+      return statsUrl;
+    }, 8000);
     const data = await resp.json();
-    res.json({
+    const out = {
       movies:   data.MovieCount   || 0,
       shows:    data.SeriesCount  || 0,
       episodes: data.EpisodeCount || 0,
-    });
+    };
+    const refreshed = getEffectiveApiKey(server);
+    if (refreshed && refreshed !== sentKey) out.apiKey = refreshed;
+    res.json(out);
   } catch (err) {
     if (err.status === 401 || err.status === 403)
       return res.status(401).json({ error: 'Authentication failed' });

@@ -97,10 +97,19 @@ async function fetchLiveSessionsForServers(servers) {
         credentials: 'same-origin',
         body: JSON.stringify({
           url: s.url, type: s.type, apiKey: s.apiKey, userId: s.userId, label: s.label,
+          username: s.username || '', password: s.password || '',
         }),
       });
       if (!r.ok) return [];
       const d = await r.json().catch(() => null);
+      if (d?.apiKey) {
+        const norm = (s.url || '').replace(/\/+$/, '');
+        const block = [...document.querySelectorAll('.server-block')].find(b => {
+          const u = b.querySelector('.f-url')?.value.trim().replace(/\/+$/, '');
+          return u && u === norm;
+        });
+        if (block) _applyRefreshedApiKey(block, d.apiKey);
+      }
       return Array.isArray(d?.live) ? d.live : [];
     } catch {
       return [];
@@ -1060,9 +1069,14 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     clearInterval(logInterval);
     logInterval = null;
+    _stopServersAutoRefresh();
   } else {
     refreshLog();
     logInterval = setInterval(refreshLog, 30000);
+    if (_isServersPageActive()) {
+      renderServersPage({ failedOnly: true });
+      _startServersAutoRefresh();
+    }
   }
 });
 
@@ -1217,7 +1231,7 @@ function buildServerBlock(id) {
           <div class="sc-meta">
             <span class="sc-ping" data-bind="ping"></span>
             <span class="sc-badge unknown" data-bind="badge"><span class="sc-badge-dot"></span><span data-bind="badge-txt">Checking</span></span>
-            <button type="button" class="sc-reconnect" onclick="event.stopPropagation();openManage(${id})">Reconnect</button>
+            <button type="button" class="sc-reconnect" onclick="event.stopPropagation();reconnectServer(${id})">Reconnect</button>
           </div>
           <span class="sc-chev" aria-hidden="true">▾</span>
         </div>
@@ -1265,6 +1279,81 @@ function _updateServersEmptyState() {
   wrap.style.display = count ? '' : 'none';
 }
 
+const _reauthInflight = new Map();
+
+function _applyRefreshedApiKey(block, apiKey) {
+  if (!apiKey) return;
+  const keyEl = block.querySelector('.f-apikey');
+  if (keyEl && keyEl.value.trim() !== apiKey) {
+    keyEl.value = apiKey;
+    autoSave();
+    if (typeof window.generateLinks === 'function') {
+      try { window.generateLinks({ silent: true }); } catch {}
+    }
+  }
+}
+
+async function _reauthServerCredentials(block) {
+  const sid = block?.id;
+  if (!sid) return false;
+  if (_reauthInflight.has(sid)) return _reauthInflight.get(sid);
+  const task = (async () => {
+    const url = block.querySelector('.f-url')?.value.trim().replace(/\/+$/, '');
+    const username = block.querySelector('.f-username')?.value.trim();
+    const password = block.querySelector('.f-password')?.value;
+    if (!url || !username || !password) return false;
+    try {
+      const resp = await fetch('/api/fetch-credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, username, password }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.apiKey || !data.userId) return false;
+      block.querySelector('.f-apikey').value = data.apiKey;
+      block.querySelector('.f-userid').value = data.userId;
+      updateCredWarning(block.id.replace('server-', ''));
+      autoSave();
+      if (typeof window.generateLinks === 'function') {
+        try { window.generateLinks({ silent: true }); } catch {}
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  })().finally(() => _reauthInflight.delete(sid));
+  _reauthInflight.set(sid, task);
+  return task;
+}
+
+async function reconnectServer(id) {
+  const block = document.getElementById('server-' + id);
+  if (!block) return;
+  const username = block.querySelector('.f-username')?.value.trim();
+  const password = block.querySelector('.f-password')?.value;
+  if (!username || !password) {
+    openManage(id);
+    return;
+  }
+  const badgeTxt = block.querySelector('[data-bind=badge-txt]');
+  const badge = block.querySelector('[data-bind=badge]');
+  if (badge) badge.className = 'sc-badge checking';
+  if (badgeTxt) badgeTxt.textContent = 'Re-authing…';
+  block.classList.add('reauthing');
+  const ok = await _reauthServerCredentials(block);
+  block.classList.remove('reauthing');
+  if (ok) {
+    await refreshServerCard(block);
+    await renderServersPage();
+    if (typeof window.toast === 'function') window.toast('Reconnected — credentials refreshed');
+  } else {
+    if (badge) badge.className = 'sc-badge down';
+    if (badgeTxt) badgeTxt.textContent = 'Auth failed';
+    openManage(id);
+  }
+}
+window.reconnectServer = reconnectServer;
+
 function _updateServersHeaderStats(up, total, fastest) {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('srv-count', total);
@@ -1278,11 +1367,13 @@ function _updateServersHeaderStats(up, total, fastest) {
   }
 }
 
-async function refreshServerCard(block) {
+async function refreshServerCard(block, opts = {}) {
+  const retry = opts.retry !== false;
   const get = sel => block.querySelector(sel)?.value.trim() || '';
   const label = get('.f-label'), url = get('.f-url').replace(/\/+$/, '');
   const type = block.querySelector('.f-type')?.value || 'emby';
-  const apiKey = get('.f-apikey'), userId = get('.f-userid');
+  let apiKey = get('.f-apikey'), userId = get('.f-userid');
+  const username = get('.f-username'), password = get('.f-password');
   const nameEl = block.querySelector('[data-bind=name]');
   const hostEl = block.querySelector('[data-bind=host]');
   const logoEl = block.querySelector('[data-bind=logo]');
@@ -1316,10 +1407,15 @@ async function refreshServerCard(block) {
     const t0 = Date.now();
     const r = await fetch('/api/library-stats', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, type, apiKey, userId }) });
+      body: JSON.stringify({ url, type, apiKey, userId, username, password }),
+    });
     const ms = Date.now() - t0;
-    if (r.ok) {
-      const st = await r.json().catch(() => ({}));
+    const st = r.ok ? await r.json().catch(() => ({})) : null;
+    if (st?.apiKey) {
+      _applyRefreshedApiKey(block, st.apiKey);
+      apiKey = st.apiKey;
+    }
+    if (r.ok && st) {
       setState('up', 'Connected');
       if (pingEl) { pingEl.textContent = ms + 'ms'; pingEl.className = 'sc-ping ' + _srvPingClass(ms); }
       if (chipsEl) {
@@ -1331,7 +1427,12 @@ async function refreshServerCard(block) {
       }
       return { up: true, ms };
     }
-    setState('down', 'Auth failed');
+    if ((r.status === 401 || r.status === 403) && retry && username && password) {
+      setState('checking', 'Re-authing…');
+      const refreshed = await _reauthServerCredentials(block);
+      if (refreshed) return refreshServerCard(block, { retry: false });
+    }
+    setState('down', r.status === 401 || r.status === 403 ? 'Auth failed' : 'Unreachable');
     return { up: false, ms: null };
   } catch {
     setState('down', 'Unreachable');
@@ -1339,19 +1440,57 @@ async function refreshServerCard(block) {
   }
 }
 
-async function renderServersPage() {
+let _serversRefreshTimer = null;
+let _serversFailedRetryTimer = null;
+
+function _isServersPageActive() {
+  const page = document.getElementById('page-servers');
+  return !!(page && page.classList.contains('on'));
+}
+
+function _stopServersAutoRefresh() {
+  clearInterval(_serversRefreshTimer);
+  clearInterval(_serversFailedRetryTimer);
+  _serversRefreshTimer = null;
+  _serversFailedRetryTimer = null;
+}
+
+function _recomputeServersHeaderStats(blocks) {
+  let up = 0, fastest = null;
+  for (const block of blocks) {
+    if (!block.classList.contains('ok')) continue;
+    up++;
+    const pingTxt = block.querySelector('[data-bind=ping]')?.textContent || '';
+    const ms = parseInt(pingTxt, 10);
+    if (!isNaN(ms) && (fastest === null || ms < fastest)) fastest = ms;
+  }
+  _updateServersHeaderStats(up, blocks.length, fastest);
+}
+
+function _startServersAutoRefresh() {
+  _stopServersAutoRefresh();
+  _serversFailedRetryTimer = setInterval(() => {
+    if (_isServersPageActive()) renderServersPage({ failedOnly: true });
+  }, 30000);
+  _serversRefreshTimer = setInterval(() => {
+    if (_isServersPageActive()) renderServersPage({ full: true });
+  }, 300000);
+}
+
+async function renderServersPage(opts = {}) {
   await ensureAccountConfigLoaded();
   _updateServersEmptyState();
   const blocks = [...document.querySelectorAll('#servers-container .server-card')];
-  let up = 0, fastest = null;
-  await Promise.all(blocks.map(async (block) => {
-    const res = await refreshServerCard(block);
-    if (res?.up) {
-      up++;
-      if (res.ms != null && (fastest === null || res.ms < fastest)) fastest = res.ms;
-    }
-  }));
-  _updateServersHeaderStats(up, blocks.length, fastest);
+  const toRefresh = opts.failedOnly
+    ? blocks.filter(b => b.classList.contains('bad'))
+    : blocks;
+  const failedFirst = [...toRefresh].sort((a, b) => {
+    const aBad = a.classList.contains('bad') ? 0 : 1;
+    const bBad = b.classList.contains('bad') ? 0 : 1;
+    return aBad - bBad;
+  });
+  await Promise.all(failedFirst.map(block => refreshServerCard(block)));
+  _recomputeServersHeaderStats(blocks);
   const healthServers = blocks.map(b => ({
     url: b.querySelector('.f-url')?.value.trim().replace(/\/+$/, ''),
     label: b.querySelector('.f-label')?.value.trim(),
@@ -1382,7 +1521,7 @@ function renderOnboarding() {
 
 // ── Page-show hook (router calls this when a page is shown) ────────────────
 window.onPageShow = function(name) {
-  if (name === 'servers') { renderServersPage(); }
+  if (name === 'servers') { renderServersPage(); _startServersAutoRefresh(); }
   if (name === 'appearance') {
     if (typeof updateLabelPreview === 'function') updateLabelPreview();
     // sync the summary-preview section's visibility to the toggle (and populate if on)
@@ -1912,6 +2051,7 @@ async function fetchCredentials(id) {
     updateCredWarning(id);
     statusEl.textContent = 'Credentials fetched!'; statusEl.className = 'cred-status success';
     autoSave();
+    refreshServerCard(block).then(() => renderServersPage());
   } catch (err) {
     statusEl.textContent = err.message; statusEl.className = 'cred-status error';
   } finally { btn.disabled = false; btn.textContent = 'Fetch API Key & User ID'; }
@@ -1932,8 +2072,12 @@ async function testConnection(id) {
   btn.disabled = true; btn.textContent = 'Testing...';
   statusEl.textContent = ''; statusEl.className = 'test-status';
   try {
-    const resp = await fetch('/api/test-connection', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, type, apiKey, userId }) });
+    const username = block.querySelector('.f-username')?.value.trim() || '';
+    const password = block.querySelector('.f-password')?.value || '';
+    const resp = await fetch('/api/test-connection', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, type, apiKey, userId, username, password }) });
     const data = await safeJson(resp);
+    if (data.apiKey) _applyRefreshedApiKey(block, data.apiKey);
     if (data.ok) {
       statusEl.textContent = data.message; statusEl.className = 'test-status success';
       if (dot) dot.className = 'server-status-dot online';
@@ -1961,8 +2105,12 @@ async function loadLibraryStats(id) {
   btn.disabled = true; btn.textContent = 'Loading...';
   statsEl.textContent = ''; statsEl.className = 'stats-display';
   try {
-    const resp = await fetch('/api/library-stats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, type, apiKey, userId }) });
+    const username = block.querySelector('.f-username')?.value.trim() || '';
+    const password = block.querySelector('.f-password')?.value || '';
+    const resp = await fetch('/api/library-stats', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, type, apiKey, userId, username, password }) });
     const data = await safeJson(resp);
+    if (data.apiKey) _applyRefreshedApiKey(block, data.apiKey);
     if (data.error) { statsEl.textContent = data.error; statsEl.className = 'stats-display error'; }
     else {
       statsEl.className = 'stats-display';
