@@ -7,7 +7,7 @@
   const VALID_BG = new Set(['orbs', 'aurora', 'mesh', 'pulse', 'nebula']);
   const VALID_THEMES = new Set([
     'streamhub', 'purple', 'red', 'pink', 'blue', 'rgb',
-    'emerald', 'amber', 'cyan', 'sunset', 'lime',
+    'emerald', 'amber', 'cyan', 'sunset', 'solstice', 'lime',
     'family', 'neon', 'outline', 'glass', 'vapor', 'cyber', 'aurora', 'mono',
   ]);
   const root = document.documentElement;

@@ -2,7 +2,7 @@
 // Disabled tabs are removed from the sidebar for everyone (including admins).
 // View-as modes: off | unpaid | paid — simulates subscriber experience for admins.
 (function () {
-  const state = { role: 'user', disabled: [] };
+  const state = { role: 'user', disabled: [], announcement: null };
 
   function getViewAsMode() {
     try {
@@ -44,7 +44,43 @@
     if (state.role === 'admin' && mode !== 'off' && ['admin', 'users'].includes(cur)) location.hash = '#/dashboard';
 
     renderBanner();
+    renderAnnouncementBanner();
     document.dispatchEvent(new CustomEvent('viewas-changed', { detail: { mode } }));
+  }
+
+  function renderAnnouncementBanner() {
+    const ann = state.announcement;
+    let el = document.getElementById('site-announcement');
+    if (!ann || !ann.message) { if (el) el.remove(); return; }
+    if (ann.dismissible) {
+      try {
+        if (localStorage.getItem('meb_ann_dismiss') === ann.id) {
+          if (el) el.remove();
+          return;
+        }
+      } catch {}
+    }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'site-announcement';
+      document.body.appendChild(el);
+    }
+    el.className = 'site-announcement site-announcement-' + (ann.severity || 'info');
+    const link = ann.link
+      ? ` <a class="sab-link" href="${ann.link.replace(/"/g, '&quot;')}" target="_blank" rel="noopener">${ann.linkText || 'Learn more'}</a>`
+      : '';
+    const dismiss = ann.dismissible !== false
+      ? '<button type="button" class="sab-dismiss" aria-label="Dismiss">×</button>'
+      : '';
+    const esc = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    el.innerHTML = `<span class="sab-text">${esc(ann.message)}${link}</span>${dismiss}`;
+    const btn = el.querySelector('.sab-dismiss');
+    if (btn) {
+      btn.onclick = () => {
+        try { localStorage.setItem('meb_ann_dismiss', ann.id); } catch {}
+        el.remove();
+      };
+    }
   }
 
   function renderBanner() {
@@ -95,6 +131,7 @@
       ]);
       state.role = (me && me.user && me.user.role) || 'user';
       state.disabled = (cfg && Array.isArray(cfg.disabledTabs)) ? cfg.disabledTabs : [];
+      state.announcement = (cfg && cfg.announcement) || null;
     } catch {}
     applyTabs();
   }

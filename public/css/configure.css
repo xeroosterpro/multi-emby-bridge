@@ -2830,6 +2830,58 @@ html.has-live-dock .content { padding-bottom: 72px; }
   background: var(--accent); color: #0a0a12; border: 0; border-radius: 999px;
   padding: 5px 12px; font-weight: 700; cursor: pointer; font-size: .72rem;
 }
+#site-announcement {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 55;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 10px 44px 10px 16px; font-size: .82rem;
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+.site-announcement-warn {
+  background: color-mix(in srgb, var(--warning, #f0b848) 22%, var(--bg-surface));
+  border-bottom-color: color-mix(in srgb, var(--warning, #f0b848) 45%, var(--border));
+}
+#site-announcement .sab-link { color: var(--accent); font-weight: 700; margin-left: 6px; }
+#site-announcement .sab-dismiss {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  border: none; background: transparent; color: var(--text-muted); font-size: 1.2rem; cursor: pointer;
+}
+html:has(#site-announcement) .content { padding-top: 44px; }
+#server-down-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 54;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 10px 16px; font-size: .82rem;
+  background: color-mix(in srgb, var(--warning, #f0b848) 20%, var(--bg-surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--warning, #f0b848) 40%, var(--border));
+}
+html:has(#site-announcement) #server-down-banner { top: 42px; }
+#server-down-banner .sdb-icon { font-size: 1rem; }
+#server-down-banner .sdb-link, #server-down-banner .sdb-dismiss {
+  border: none; background: var(--bg-elevated); color: var(--text-primary);
+  padding: 4px 10px; border-radius: 8px; font-size: .72rem; font-weight: 700; cursor: pointer;
+}
+html.has-server-down-banner:has(#site-announcement) .content { padding-top: 84px; }
+html.has-server-down-banner:not(:has(#site-announcement)) .content { padding-top: 44px; }
+.home-onboard-panel { margin-bottom: 14px; }
+.home-onboard-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; padding: 0 14px 10px; }
+.home-ob-step {
+  display: flex; align-items: center; gap: 10px; text-align: left;
+  padding: 10px 12px; border-radius: 12px; border: 1px solid var(--sh-border, var(--border));
+  background: var(--sh-surface, var(--bg-elevated)); cursor: pointer; color: var(--text-secondary);
+  font-size: .8rem; transition: border-color .2s, background .2s;
+}
+.home-ob-step:hover { border-color: var(--sh-hover-border, var(--accent)); background: var(--sh-hover-bg, var(--bg-hover)); }
+.home-ob-step.done { opacity: .72; }
+.home-ob-check {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); font-size: .75rem; font-weight: 700;
+}
+.home-ob-step.done .home-ob-check { background: color-mix(in srgb, var(--success) 25%, transparent); color: var(--success); }
+.home-onboard-foot { padding: 0 14px 12px; display: flex; justify-content: flex-end; }
+.sys-announce-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.sys-ann-row { margin-top: 8px; }
+.sys-ann-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .sys-viewas-modes {
   display: flex; gap: 4px; background: var(--bg-elevated); border: 1px solid var(--border);
   border-radius: 10px; padding: 3px; flex-shrink: 0;

@@ -1,7 +1,36 @@
-// Dashboard server-detail modal. Reads data straight from the rendered .gcard
-// DOM (non-destructive — configure.js untouched). Clicking a card (anywhere but
-// the "Manage Server" button) opens a themed modal with Overview/Health/Ping tabs.
+// Dashboard server-detail modal. Reads data from rendered .gcard DOM.
 (function () {
+  let _modalServer = { label: '', url: '' };
+
+  function esc(t) {
+    return String(t == null ? '' : t)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  async function refreshModalWatching() {
+    const slot = document.getElementById('mt-watching');
+    if (!slot || !slot.classList.contains('on')) return;
+    const listEl = document.getElementById('modal-live-list');
+    if (!listEl) return;
+    listEl.innerHTML = '<div class="da-empty">Loading live sessions…</div>';
+    try {
+      if (typeof window.fetchLiveBundle === 'function') {
+        await window.fetchLiveBundle(true, { fast: true });
+      }
+      const live = window._mebAnnotatedLive || [];
+      const ui = window.MEBLiveUI;
+      const filtered = ui
+        ? ui.filterLiveByServer(live, _modalServer)
+        : live.filter(s => s.server === _modalServer.label);
+      listEl.innerHTML = ui
+        ? ui.renderLiveRows(filtered, { emptyHtml: '<div class="da-empty">Nothing playing on this server right now.</div>' })
+        : (filtered.length ? filtered.map(s => `<div class="da-row">${esc(s.title)}</div>`).join('')
+          : '<div class="da-empty">Nothing playing on this server right now.</div>');
+    } catch {
+      listEl.innerHTML = '<div class="da-empty">Could not load live sessions.</div>';
+    }
+  }
+
   document.addEventListener('click', e => {
     const card = e.target.closest('#dash-cards .gcard');
     if (!card || e.target.closest('.gmanage')) return;
@@ -19,6 +48,8 @@
     const eps = txt('[data-st=episodes]');
     const healthSlot = card.querySelector('.gcard-health');
     const healthHtml = healthSlot ? healthSlot.innerHTML : '<div class="gcard-health-empty">No health data yet</div>';
+
+    _modalServer = { label: name, url: card.dataset.serverUrl || '' };
 
     window.openModal(`
       <div class="modal-head">
@@ -51,17 +82,20 @@
           <button class="btn-soft" data-goto="ping" style="margin-top:10px">Open Ping test →</button>
         </div>
         <div class="mtab" id="mt-watching">
-          <div class="mrow">Live "now playing" sessions aren't tracked yet.<span class="mtag"></span></div>
-          <div class="field-hint" style="margin-top:6px">Active-session reporting can be enabled per server in a future update.</div>
+          <p class="field-hint" style="margin:0 0 10px">Live sessions on <strong>${esc(name)}</strong> · refreshes when you open this tab</p>
+          <div class="da-list" id="modal-live-list"><div class="da-empty">Open this tab to load sessions…</div></div>
         </div>
       </div>`);
   });
 
-  // tab links that jump to a page
   document.addEventListener('click', e => {
     const g = e.target.closest('[data-goto]');
-    if (!g) return;
-    if (window.closeModal) window.closeModal();
-    location.hash = '#/' + g.dataset.goto;
+    if (g) {
+      if (window.closeModal) window.closeModal();
+      location.hash = '#/' + g.dataset.goto;
+      return;
+    }
+    const tab = e.target.closest('#modal .modal-tabs button[data-mt="watching"]');
+    if (tab) setTimeout(refreshModalWatching, 0);
   });
 })();

@@ -28,7 +28,7 @@ stubModule('search', {
   queryServerForEpisode: async () => null,
 });
 
-const { mediaSourcesToStreams, buildItemTitle } = require('../lib/streams');
+const { mediaSourcesToStreams, buildItemTitle, sortByServerFailover } = require('../lib/streams');
 
 let passed = 0;
 let failed = 0;
@@ -184,6 +184,21 @@ console.log('\nmediaSourcesToStreams — _audioFormats');
 
   assertEqual(buildItemTitle(null), null, 'null item → null');
   assertEqual(buildItemTitle({}), null, 'empty item → null');
+}
+
+// ─── Server priority / failover sort ─────────────────────────────────────────
+console.log('\nsortByServerFailover');
+
+{
+  const streams = [
+    { name: 'B', _serverDown: false, _serverPriority: 5, _sizeBytes: 100 },
+    { name: 'A', _serverDown: false, _serverPriority: 1, _sizeBytes: 50 },
+    { name: 'C', _serverDown: true, _serverPriority: 1, _sizeBytes: 200 },
+  ];
+  const sorted = sortByServerFailover(streams, (a, b) => (b._sizeBytes - a._sizeBytes));
+  assertEqual(sorted[0].name, 'A', 'priority 1 before priority 5 when both up');
+  assertEqual(sorted[1].name, 'B', 'priority 5 second');
+  assertEqual(sorted[2].name, 'C', 'down server last even with priority 1');
 }
 
 // ─── Results ─────────────────────────────────────────────────────────────────

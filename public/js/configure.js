@@ -131,6 +131,7 @@ function applyManifestSettings(cfg) {
   if (c.sortOrder) setVal('sort-order', c.sortOrder);
   if (Array.isArray(c.excludeRes)) _applyExcludeRes(c.excludeRes);
   setChk('show-recommend', c.recommend);
+  setChk('failover-hide-down', c.failoverHideDown);
   setChk('show-ping', c.ping);
   setChk('ping-detail', c.pingDetail);
   if (c.audioLang) setVal('audio-lang', c.audioLang);
@@ -721,6 +722,7 @@ async function fetchLiveBundle(force = false, opts = {}) {
   })().finally(() => { _liveBundleInFlight = null; });
   return _liveBundleInFlight;
 }
+window.fetchLiveBundle = fetchLiveBundle;
 
 function liveEmptyMessage(probes, serverCount) {
   const list = probes || [];
@@ -2129,6 +2131,22 @@ function buildServerBlock(id) {
           </select>
         </div>
       </div>
+      <div class="field-group">
+        <label>Stream priority</label>
+        <select class="f-priority" onchange="autoSave()">
+          <option value="5">5 — Default</option>
+          <option value="1">1 — Highest</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10 — Lowest</option>
+        </select>
+        <div class="field-hint">Lower number = preferred when sorting streams. Offline servers sink automatically.</div>
+      </div>
       <div class="server-actions-row">
         <button class="btn-test" onclick="testConnection(${id})">Test Connection</button>
         <button class="btn-stats" onclick="loadLibraryStats(${id})">Library Stats</button>
@@ -2516,23 +2534,8 @@ async function renderServersPage(opts = {}) {
 }
 
 function renderOnboarding() {
-  const el = document.getElementById('onboard'); if (!el) return;
-  if (localStorage.getItem('meb-onboard-done')) { el.style.display = 'none'; return; }
-  let cfg = {}; try { cfg = (typeof collectConfig === 'function' && collectConfig(true)) || {}; } catch {}
-  const hasServer = !!(cfg.servers && cfg.servers.length);
-  const hasKeys = !!(cfg.traktClientId || cfg.tmdbApiKey || cfg.mdblistApiKey);
-  const hasInstall = !!localStorage.getItem('meb-last-config');
-  if (hasServer && hasInstall) { el.style.display = 'none'; localStorage.setItem('meb-onboard-done', '1'); return; }
-  const step = (done, label, page) => `<div class="ob-step${done ? ' done' : ''}" data-goto="${page}"><span class="ob-check">${done ? '✓' : ''}</span><span>${label}</span></div>`;
-  el.style.display = 'block';
-  el.innerHTML = `<div class="ob-head"><strong>Get started</strong><button class="ob-dismiss" id="ob-dismiss">Dismiss</button></div>
-    <div class="ob-steps">
-      ${step(hasServer, 'Add your first server', 'servers')}
-      ${step(hasKeys, 'Add catalog API keys (optional)', 'install')}
-      ${step(hasInstall, 'Install to Stremio', 'install')}
-    </div>`;
-  el.querySelector('#ob-dismiss').onclick = () => { localStorage.setItem('meb-onboard-done', '1'); el.style.display = 'none'; };
-  el.querySelectorAll('.ob-step').forEach(s => s.addEventListener('click', e => { if (e.target.id !== 'ob-dismiss') location.hash = '#/' + s.dataset.goto; }));
+  const el = document.getElementById('onboard');
+  if (el) el.style.display = 'none';
 }
 
 function updateMediaSourceStats() {
@@ -2646,30 +2649,9 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
   const live = bundle.live || [];
   const probes = bundle.probes || a.liveProbes || [];
 
-  const liveRows = live.map(s => {
-    const tags = [];
-    if (s.buffering) tags.push('<span class="da-buffer-tag">Buffering</span>');
-    else if (s.isPaused) tags.push('<span class="da-pause-tag">Paused</span>');
-    else if (s.isTranscoding) tags.push('<span class="da-tx-tag">Transcode</span>');
-    else if (s.playMethod === 'DirectStream' || s.playMethod === 'DirectPlay') tags.push('<span class="da-direct-tag">Direct</span>');
-    if (s.source === 'user-playing') tags.push('<span class="da-source-tag">IsPlaying</span>');
-    else if (s.source === 'browser-sessions') tags.push('<span class="da-source-tag">Browser</span>');
-    else if (s.source === 'bridge') tags.push('<span class="da-source-tag da-bridge-tag">Via bridge</span>');
-    const progress = s.progressPct != null
-      ? `<span class="da-progress" title="${s.progressPct}%"><span class="da-progress-bar" style="width:${s.progressPct}%"></span></span>`
-      : '';
-    const metaLine = formatLiveMetaLine(s);
-    return `<div class="da-row da-live${s.buffering ? ' da-buffering' : ''}${s.isPaused ? ' da-paused' : ''}">
-      <span class="da-main">
-        <span class="da-dot${s.buffering ? ' da-dot-warn' : (s.isPaused ? ' da-dot-pause' : '')}"></span>
-        <span class="da-title-wrap">
-          <span class="da-title" title="${esc(s.title)}"><strong>${esc(s.title)}</strong>${tags.join('')}</span>
-          ${progress}
-        </span>
-      </span>
-      <span class="da-dim da-meta">${metaLine ? esc(metaLine) : '<span class="da-meta-mute">Stremio</span>'}</span>
-    </div>`;
-  }).join('');
+  const liveRows = window.MEBLiveUI
+    ? window.MEBLiveUI.renderLiveRows(live, { emptyHtml: '' })
+    : '';
 
   const emptyMsg = live.length ? '' : liveEmptyMessage(probes, serverCount);
   const recentRows = (a.recent || []).map(e => {
@@ -3057,6 +3039,7 @@ function addServer(data = null) {
     if (block.querySelector('.f-emoji')) block.querySelector('.f-emoji').value = data.emoji || '';
     if (block.querySelector('.f-cost')) block.querySelector('.f-cost').value = (data.cost != null ? data.cost : '');
     if (block.querySelector('.f-cost-period')) block.querySelector('.f-cost-period').value = data.costPeriod || 'none';
+    if (block.querySelector('.f-priority')) block.querySelector('.f-priority').value = String(data.priority != null ? data.priority : 5);
     if (data.type) {
       block.querySelector('.f-type').value = data.type;
       updateBlockStyle(id);
@@ -3113,6 +3096,8 @@ function collectConfig(silent = false) {
     const costPeriod = block.querySelector('.f-cost-period')?.value || 'none';
     const cost = costRaw === '' ? NaN : Number(costRaw);
     if (!Number.isNaN(cost) && cost > 0 && costPeriod !== 'none') { entry.cost = cost; entry.costPeriod = costPeriod; }
+    const pri = parseInt(block.querySelector('.f-priority')?.value || '5', 10);
+    if (pri >= 1 && pri <= 10 && pri !== 5) entry.priority = pri;
     servers.push(entry);
   }
   if (servers.length === 0) {
@@ -4009,8 +3994,9 @@ Continue anyway?`;
       if (audioOrderChanged) sc.audioOrder = audioOrder;
       if (audioDisabled.length) sc.audioDisabled = audioDisabled;
       if (audioDisabled.length && audioDisableAction !== 'hide') sc.audioDisableAction = audioDisableAction;
-      if (surroundPriority) sc.surroundPriority = true;
-      if (labelPreset !== 'standard') sc.labelPreset = labelPreset;
+    if (surroundPriority) sc.surroundPriority = true;
+    if (document.getElementById('failover-hide-down')?.checked) sc.failoverHideDown = true;
+    if (labelPreset !== 'standard') sc.labelPreset = labelPreset;
       if (autoSelect) sc.autoSelect = true;
       if (showSummary) { sc.showSummary = true; if (summaryStyle !== 'compact') sc.summaryStyle = summaryStyle; }
       if (qualityBadge) sc.qualityBadge = qualityBadge;
@@ -4056,6 +4042,7 @@ Continue anyway?`;
     if (audioDisabled.length) config.audioDisabled = audioDisabled;
     if (audioDisabled.length && audioDisableAction !== 'hide') config.audioDisableAction = audioDisableAction;
     if (surroundPriority) config.surroundPriority = true;
+    if (document.getElementById('failover-hide-down')?.checked) config.failoverHideDown = true;
     if (labelPreset !== 'standard') config.labelPreset = labelPreset;
     if (autoSelect) config.autoSelect = true;
     if (showSummary) { config.showSummary = true; if (summaryStyle !== 'compact') config.summaryStyle = summaryStyle; }
@@ -4213,6 +4200,7 @@ function collectFormState() {
     externalCatalogs: collectExternalCatalogs(),
     catalogLang: document.getElementById("catalog-lang") ? document.getElementById("catalog-lang").value : "",
     noDupes: document.getElementById("no-dupes")?.checked ?? false,
+    failoverHideDown: document.getElementById('failover-hide-down')?.checked ?? false,
     customNameFields: Array.from(document.querySelectorAll(".cn-field:checked")).map(function(cb){return cb.value;}),
     customDescFields: Array.from(document.querySelectorAll(".cd-field:checked")).map(function(cb){return cb.value;}),
     servers: [],
@@ -4232,6 +4220,7 @@ function collectFormState() {
       collapsed: block.classList.contains('collapsed'),
       cost: block.querySelector('.f-cost')?.value !== '' ? Number(block.querySelector('.f-cost')?.value) : undefined,
       costPeriod: block.querySelector('.f-cost-period')?.value || 'none',
+      priority: parseInt(block.querySelector('.f-priority')?.value || '5', 10),
     });
   });
   return state;
@@ -4328,6 +4317,7 @@ function restoreFromLocalStorage() {
     setVal('label-preset', restored.labelPreset || 'compact');
     setVal('ping-origin', restored.pingOrigin);
     setChk('show-recommend', restored.recommend);
+    setChk('failover-hide-down', restored.failoverHideDown);
     setChk('show-ping', restored.showPing);
     setChk('ping-detail', restored.pingDetail);
     setChk('auto-select', restored.autoSelect);

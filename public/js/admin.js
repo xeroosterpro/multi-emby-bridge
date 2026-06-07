@@ -563,11 +563,65 @@
     sync();
   }
 
+  function wireAnnouncementForm() {
+    const saveBtn = $('#ann-save'); if (!saveBtn || saveBtn._w) return;
+    saveBtn._w = 1;
+    const sevSeg = $('#ann-severity-seg');
+    if (sevSeg) {
+      sevSeg.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+        sevSeg.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on');
+      }));
+    }
+    saveBtn.addEventListener('click', async () => {
+      const message = ($('#ann-message')?.value || '').trim();
+      const link = ($('#ann-link')?.value || '').trim();
+      const linkText = ($('#ann-link-text')?.value || '').trim();
+      const severity = sevSeg?.querySelector('button.on')?.dataset.val || 'info';
+      const dismissible = $('#ann-dismissible')?.checked !== false;
+      const res = await api('/api/admin/site-config', {
+        method: 'POST',
+        body: JSON.stringify({
+          announcement: message ? { message, link: link || null, linkText: linkText || null, severity, dismissible } : null,
+        }),
+      });
+      if (res.status === 200) {
+        if (window.toast) window.toast(message ? 'Announcement saved' : 'Announcement cleared');
+        if (window.MEBSite) await window.MEBSite.refresh();
+      } else if (window.toast) window.toast((res.body && res.body.error) || 'Save failed');
+    });
+    const clearBtn = $('#ann-clear');
+    if (clearBtn) clearBtn.addEventListener('click', async () => {
+      ['ann-message', 'ann-link', 'ann-link-text'].forEach(id => { const el = $(id); if (el) el.value = ''; });
+      const res = await api('/api/admin/site-config', { method: 'POST', body: JSON.stringify({ announcement: null }) });
+      if (res.status === 200) {
+        if (window.toast) window.toast('Announcement cleared');
+        if (window.MEBSite) await window.MEBSite.refresh();
+      }
+    });
+  }
+
+  function fillAnnouncementForm(ann) {
+    const msg = $('#ann-message'); if (msg) msg.value = (ann && ann.message) || '';
+    const link = $('#ann-link'); if (link) link.value = (ann && ann.link) || '';
+    const lt = $('#ann-link-text'); if (lt) lt.value = (ann && ann.linkText) || '';
+    const sevSeg = $('#ann-severity-seg');
+    if (sevSeg) {
+      const sev = (ann && ann.severity) || 'info';
+      sevSeg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.val === sev));
+    }
+    const dismiss = $('#ann-dismissible');
+    if (dismiss) dismiss.checked = !ann || ann.dismissible !== false;
+    if (window.Controls) window.Controls.syncAll();
+  }
+
   async function loadSiteControls() {
     const list = $('#site-tabs-list'); if (!list) return;
     wireViewAsModes();
+    wireAnnouncementForm();
     const r = await api('/api/admin/site-config');
     if (r.status !== 200 || !r.body) { list.innerHTML = '<div class="field-hint">Site config unavailable.</div>'; return; }
+    fillAnnouncementForm(r.body.announcement);
     const disabled = new Set(r.body.disabledTabs || []);
     const tabs = r.body.toggleable || [];
     list.innerHTML = tabs.map(t => {

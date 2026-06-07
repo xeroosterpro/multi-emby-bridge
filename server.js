@@ -35,6 +35,7 @@ const { getAllStreams } = require('./lib/streams');
 const { upgradeStreamProfile } = require('./lib/streamDefaults');
 const { fetchExternalCatalog } = require('./lib/catalogs');
 const { healthServers, healthHistory, registerHealthServers, unregisterHealthServer, cleanupStaleServers, pingHealthServers } = require('./lib/health');
+const { makeUserConfig } = require('./lib/userConfig');
 const { hashPassword, loadProfiles, saveProfiles } = require('./lib/profiles');
 const { snapshot: systemMetrics } = require('./lib/metrics');
 const { ROW_NAMES, deriveLibraryRows } = require('./server-helpers');
@@ -370,7 +371,11 @@ app.post('/api/clear-request-log', apiLimiter, async (req, res) => {
 // Public: every visitor's frontend needs to know which tabs are hidden.
 app.get('/api/site-config', async (req, res) => {
   const { TOGGLEABLE_TABS } = require('./lib/siteSettings');
-  res.json({ disabledTabs: await _siteSettings.getDisabledTabs(), toggleable: TOGGLEABLE_TABS });
+  res.json({
+    disabledTabs: await _siteSettings.getDisabledTabs(),
+    toggleable: TOGGLEABLE_TABS,
+    announcement: await _siteSettings.getAnnouncement(),
+  });
 });
 
 
@@ -912,6 +917,8 @@ app.get('/:config/stream/:type/:id.json', streamLimiter, async (req, res) => {
       audioRankMode:      cfg.audioRankMode || 'audioFirst',
       audioDisableAction: cfg.audioDisableAction || 'hide',
       surroundPriority:   cfg.surroundPriority === true,
+      healthHistory,
+      failoverHideDown:   cfg.failoverHideDown === true,
     });
 
     // ── Results summary card (optional — pinned to top of stream list) ──────────
@@ -990,6 +997,7 @@ app.get('/:config/stream/:type/:id.json', streamLimiter, async (req, res) => {
       });
     }
 
+    const found = (meta.serverStatus || []).some(s => s.status === 'found');
     addLogEntry({
       userId:       req._mebUserId || null,
       ts:           new Date().toISOString(),
@@ -1000,9 +1008,19 @@ app.get('/:config/stream/:type/:id.json', streamLimiter, async (req, res) => {
       contentName:  meta.contentName,
       bestServer:   meta.bestServer,
       serverStatus: meta.serverStatus,
-      found:        (meta.serverStatus || []).some(s => s.status === 'found'),
+      found,
       ms:           Date.now() - _t0,
     });
+    if (found && req._mebUserId && dbLib.isConfigured()) {
+      makeUserConfig(dbLib).getEditable(req._mebUserId).then(cur => {
+        if (cur.config && cur.config.onboarding && cur.config.onboarding.testedStream) return;
+        const merged = {
+          ...(cur.config || {}),
+          onboarding: { ...(cur.config && cur.config.onboarding), testedStream: true },
+        };
+        return makeUserConfig(dbLib).save(req._mebUserId, merged);
+      }).catch(() => {});
+    }
     res.json({ streams });
   } catch (err) {
     console.error('Stream handler error:', err);

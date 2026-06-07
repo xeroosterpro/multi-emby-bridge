@@ -74,6 +74,21 @@
   --bg-base: #100810; --bg-surface: #1a0e1a; --bg-elevated: #241424; --bg-hover: #2e1a2e; --bg-input: #0c080c;
   --border: #4a2848; --text-primary: #ffeef8; --text-secondary: #d4a8c8; --text-muted: #8a6080;
 }
+[data-theme="solstice"] {
+  --accent: #ff8a5c;
+  --accent-2: #ffd166;
+  --bg-base: #14100c;
+  --bg-surface: #221a14;
+  --bg-elevated: #2e241c;
+  --bg-hover: #3a2e24;
+  --bg-input: #100c08;
+  --border: #5a4638;
+  --text-primary: #fff6ee;
+  --text-secondary: #e8c8a8;
+  --text-muted: #a08068;
+  --accent-glow: rgba(255, 138, 92, 0.22);
+  --glow: rgba(255, 209, 102, 0.16);
+}
 [data-theme="lime"] {
   --accent: #b8ff00; --accent-2: #e8ff66;
   --bg-base: #080a04; --bg-surface: #121808; --bg-elevated: #1a2210; --bg-hover: #222c14; --bg-input: #060804;
@@ -697,6 +712,7 @@ html[data-theme="family"] body {
 .pv-amber   { background: linear-gradient(135deg, #ffb020, #ffe08a); }
 .pv-cyan    { background: linear-gradient(135deg, #00e5ff, #7af0ff); }
 .pv-sunset  { background: linear-gradient(135deg, #ff6b35, #c44dff); }
+.pv-solstice { background: linear-gradient(135deg, #ff8a5c 0%, #ffd166 45%, #3a2e24 45%); }
 .pv-lime    { background: linear-gradient(135deg, #b8ff00, #e8ff66); }
 .pv-neon    { background: #020402 linear-gradient(135deg, #39ff14, #00ffff); box-shadow: 0 0 16px rgba(57, 255, 20, 0.5); }
 .pv-outline { background: #06060c; border: 2px solid #c8d0ff; box-shadow: inset 0 0 12px rgba(200, 208, 255, 0.08); }

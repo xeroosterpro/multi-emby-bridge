@@ -204,6 +204,8 @@
             </div>
           </div>
 
+          <div class="home-panel home-onboard-panel" id="home-onboard" style="display:none"></div>
+
           <!-- active services panel -->
           <div class="home-panel">
             <div class="home-panel-head">
@@ -603,6 +605,16 @@
                 <option value="bitrate">Bitrate (highest first)</option>
               </select>
               <div class="field-hint" id="sort-order-hint">Primary sort when audio ranking is off.</div>
+            </div>
+            <div class="field">
+              <div class="pref-row" style="margin:0">
+                <div class="switch" id="failover-hide-switch" data-target="#failover-hide-down"></div>
+                <div>
+                  <div class="field-label" style="margin:0">Hide offline servers in Stremio</div>
+                  <div class="field-hint">When enabled, down servers won't appear as error rows — only reachable servers are listed.</div>
+                </div>
+              </div>
+              <input type="checkbox" id="failover-hide-down" class="hidden-canonical" onchange="autoSave()" />
             </div>
             <div class="field">
               <div class="field-label">Exclude res</div>
@@ -1084,6 +1096,7 @@
             <div class="swatch" data-t="amber"><div class="pv pv-amber"></div><div class="nm">Amber</div></div>
             <div class="swatch" data-t="cyan"><div class="pv pv-cyan"></div><div class="nm">Cyan</div></div>
             <div class="swatch" data-t="sunset"><div class="pv pv-sunset"></div><div class="nm">Sunset</div></div>
+            <div class="swatch" data-t="solstice"><div class="pv pv-solstice"></div><div class="nm">Solstice</div><span class="tag">Seasonal</span></div>
             <div class="swatch" data-t="lime"><div class="pv pv-lime"></div><div class="nm">Lime</div></div>
           </div>
         </div>
@@ -1198,6 +1211,23 @@
                 <div class="sys-tabs-section">
                   <div class="sys-tabs-head">Visible tabs</div>
                   <div class="sys-tab-grid" id="site-tabs-list"></div>
+                </div>
+                <div class="sys-announce-section">
+                  <div class="sys-tabs-head">Site announcement</div>
+                  <p class="field-hint" style="margin:0 0 10px">Global banner for all visitors. Leave message empty to clear.</p>
+                  <div class="field"><label class="field-label">Message</label><input type="text" id="ann-message" maxlength="280" placeholder="Maintenance tonight 2–4 AM UTC" /></div>
+                  <div class="field"><label class="field-label">Link (optional, https)</label><input type="url" id="ann-link" placeholder="https://…" /></div>
+                  <div class="field"><label class="field-label">Link label</label><input type="text" id="ann-link-text" maxlength="40" placeholder="Learn more" /></div>
+                  <div class="sys-ann-row">
+                    <label class="field-label">Severity</label>
+                    <div class="seg" id="ann-severity-seg"><button type="button" data-val="info" class="on">Info</button><button type="button" data-val="warn">Warning</button></div>
+                  </div>
+                  <div class="pref-row" style="margin-top:10px"><div class="switch on" id="ann-dismiss-switch" data-target="#ann-dismissible"></div><div class="field-label" style="margin:0">Dismissible</div></div>
+                  <input type="checkbox" id="ann-dismissible" class="hidden-canonical" checked />
+                  <div class="sys-ann-actions">
+                    <button type="button" class="btn-soft" id="ann-save">Save announcement</button>
+                    <button type="button" class="btn-soft" id="ann-clear">Clear</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1593,7 +1623,9 @@
 
   <script src="/js/demo-mode.js"></script>
   <script src="/js/live-playback.js"></script>
+  <script src="/js/live-ui.js"></script>
   <script src="/js/home-ui.js"></script>
+  <script src="/js/onboarding-ui.js"></script>
   <script src="/js/tickets-ui.js"></script>
   <script src="/js/theme.js"></script>
   <script src="/js/mobile-shell.js"></script>
@@ -1602,6 +1634,7 @@
   <script src="/js/controls.js"></script>
   <script src="/js/shell.js"></script>
   <script src="/js/site-controls.js"></script>
+  <script src="/js/server-alerts.js"></script>
   <script src="/js/health.js"></script>
   <script src="/js/accordionize.js"></script>
   <script src="/js/dropdowns.js"></script>

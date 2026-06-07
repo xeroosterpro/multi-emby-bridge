@@ -384,15 +384,35 @@ function makeAdminRouter(opts = {}) {
   });
 
   r.get('/site-config', requireAdmin, async (req, res) => {
-    res.json({ disabledTabs: await siteSettings.getDisabledTabs(), toggleable: TOGGLEABLE_TABS });
+    res.json({
+      disabledTabs: await siteSettings.getDisabledTabs(),
+      toggleable: TOGGLEABLE_TABS,
+      announcement: await siteSettings.getAnnouncement(),
+    });
   });
   r.post('/site-config', requireAdmin, async (req, res) => {
-    const tabs = (req.body && req.body.disabledTabs) || [];
-    if (!Array.isArray(tabs) || tabs.some(t => !TOGGLEABLE_TABS.includes(t))) {
-      return res.status(400).json({ error: 'invalid tab list' });
+    const body = req.body || {};
+    const tabs = body.disabledTabs;
+    if (tabs !== undefined) {
+      if (!Array.isArray(tabs) || tabs.some(t => !TOGGLEABLE_TABS.includes(t))) {
+        return res.status(400).json({ error: 'invalid tab list' });
+      }
     }
-    try { res.json({ disabledTabs: await siteSettings.setDisabledTabs(tabs) }); }
-    catch (e) { console.error('[admin/site-config]', e.message); res.status(500).json({ error: 'save failed' }); }
+    try {
+      const out = {
+        disabledTabs: tabs !== undefined
+          ? await siteSettings.setDisabledTabs(tabs)
+          : await siteSettings.getDisabledTabs(),
+        announcement: await siteSettings.getAnnouncement(),
+      };
+      if (Object.prototype.hasOwnProperty.call(body, 'announcement')) {
+        out.announcement = await siteSettings.setAnnouncement(body.announcement);
+      }
+      res.json(out);
+    } catch (e) {
+      console.error('[admin/site-config]', e.message);
+      res.status(e.message === 'invalid announcement' ? 400 : 500).json({ error: e.message || 'save failed' });
+    }
   });
 
   return r;

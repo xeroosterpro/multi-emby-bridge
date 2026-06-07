@@ -9,6 +9,8 @@ const { makeRequestLog } = require('../lib/requestLog');
 const { makeLiveSessions } = require('../lib/sessions');
 const { enrichRecentEntries, dedupeRecentByContent } = require('../lib/activityEnrich');
 const { attachBridgeLive } = require('../lib/bridgeLive');
+const { healthHistory } = require('../lib/health');
+const { detectDownServers, filterSnoozed } = require('../lib/healthAlerts');
 
 function manifestUrl(req, token) {
   const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0];
@@ -71,6 +73,20 @@ function makeUserRouter() {
   r.post('/config', requireAuth, async (req, res) => {
     try { await uc.save(req.user.id, req.body || {}); res.json({ ok: true }); }
     catch (e) { console.error('[user/config:post]', e.message); res.status(500).json({ error: 'save failed' }); }
+  });
+
+  // Merge top-level keys into stored config (onboarding, alertPrefs, etc.)
+  r.post('/config-patch', requireAuth, async (req, res) => {
+    try {
+      const patch = req.body || {};
+      const cur = await uc.getEditable(req.user.id);
+      const merged = { ...(cur.config || {}), ...patch };
+      await uc.save(req.user.id, merged);
+      res.json({ ok: true });
+    } catch (e) {
+      console.error('[user/config-patch]', e.message);
+      res.status(500).json({ error: 'patch failed' });
+    }
   });
 
   // current manifest URL (or null)
@@ -149,6 +165,21 @@ function makeUserRouter() {
         recent,
       });
     } catch (e) { console.error('[user/activity]', e.message); res.status(500).json({ error: 'activity failed' }); }
+  });
+
+  r.get('/server-alerts', requireAuth, async (req, res) => {
+    try {
+      const cfg = await uc.getForServe(req.user.id);
+      const servers = filterLiveServers(cfg);
+      if (!servers.length) return res.json({ down: [] });
+      const raw = detectDownServers(healthHistory, servers, { consecutive: 3 });
+      const snoozed = (cfg && cfg.alertPrefs && cfg.alertPrefs.snoozed) || {};
+      const down = filterSnoozed(raw, snoozed);
+      res.json({ down });
+    } catch (e) {
+      console.error('[user/server-alerts]', e.message);
+      res.status(500).json({ error: 'alerts failed' });
+    }
   });
 
   r.get('/manifest-qr', requireAuth, async (req, res) => {
