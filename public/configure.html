@@ -3,6 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>
+    try {
+      if (sessionStorage.getItem('meb_session') === '1') {
+        document.documentElement.classList.add('meb-returning');
+      }
+      sessionStorage.setItem('meb_session', '1');
+    } catch (e) {}
+  </script>
   <title>Stream-Hub — Configure</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/css/configure.css" />

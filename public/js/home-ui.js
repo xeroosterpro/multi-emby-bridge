@@ -1,6 +1,57 @@
 // ─── Home page — live data + interactions ────────────────────────────────────
 (function () {
   let _me = null;
+  const HOME_CACHE_KEY = 'meb_home_cache';
+
+  function saveHomeCache(data) {
+    try { sessionStorage.setItem(HOME_CACHE_KEY, JSON.stringify(data)); } catch {}
+  }
+
+  function hydrateHomeCache() {
+    if (!document.documentElement.classList.contains('meb-returning')) return false;
+    try {
+      const raw = sessionStorage.getItem(HOME_CACHE_KEY);
+      if (!raw) return false;
+      const c = JSON.parse(raw);
+      const title = document.getElementById('home-title');
+      if (title && c.titleHtml) title.innerHTML = c.titleHtml;
+      const dashBtn = document.getElementById('home-dash-btn');
+      if (dashBtn && c.dashBtn != null) dashBtn.style.display = c.dashBtn ? 'flex' : 'none';
+      const svcNum = document.getElementById('hc-services-num');
+      if (svcNum && c.servicesNum != null) svcNum.textContent = c.servicesNum;
+      const invNum = document.getElementById('hc-invoices-num');
+      if (invNum && c.invoicesNum != null) invNum.textContent = c.invoicesNum;
+      const ticketNum = document.querySelector('#hc-discord .hhc-num');
+      if (ticketNum && c.ticketsNum != null) ticketNum.textContent = c.ticketsNum;
+      const servicesBody = document.getElementById('home-services-body');
+      if (servicesBody && c.servicesHtml) servicesBody.innerHTML = c.servicesHtml;
+      const ticketsBody = document.getElementById('home-recent-tickets-body');
+      if (ticketsBody && c.ticketsHtml) ticketsBody.innerHTML = c.ticketsHtml;
+      const newsBody = document.getElementById('home-news-body');
+      if (newsBody && c.newsHtml) newsBody.innerHTML = c.newsHtml;
+      return true;
+    } catch { return false; }
+  }
+
+  function snapshotHomeCache() {
+    const title = document.getElementById('home-title');
+    const dashBtn = document.getElementById('home-dash-btn');
+    const servicesBody = document.getElementById('home-services-body');
+    const ticketsBody = document.getElementById('home-recent-tickets-body');
+    const newsBody = document.getElementById('home-news-body');
+    if (!title || !servicesBody || !ticketsBody || !newsBody) return;
+    if (servicesBody.querySelector('.home-svc-loading')) return;
+    saveHomeCache({
+      titleHtml: title.innerHTML,
+      dashBtn: dashBtn ? dashBtn.style.display !== 'none' : false,
+      servicesNum: document.getElementById('hc-services-num')?.textContent ?? '',
+      invoicesNum: document.getElementById('hc-invoices-num')?.textContent ?? '',
+      ticketsNum: document.querySelector('#hc-discord .hhc-num')?.textContent ?? '',
+      servicesHtml: servicesBody.innerHTML,
+      ticketsHtml: ticketsBody.innerHTML,
+      newsHtml: newsBody.innerHTML,
+    });
+  }
 
   async function api(path) {
     try {
@@ -215,6 +266,7 @@
       Promise.all([api('/api/tickets'), api('/api/news')]).then(([t, n]) => {
         renderRecentTickets(t);
         renderNews(n);
+        snapshotHomeCache();
       });
       // re-init mouse glow + 3D tilts
       setupMouseGlow();
@@ -284,6 +336,7 @@
 
   // ── Boot — fire ALL fetches at the same time ────────────────────────────────
   document.addEventListener('DOMContentLoaded', async () => {
+    const hydrated = hydrateHomeCache();
     // All three requests start immediately in parallel — no sequential waiting
     const [meData, tickets, news] = await Promise.all([
       api('/api/auth/me'),
@@ -302,8 +355,16 @@
     if (page) wirePageLinks(page);
 
     loadGreeting();
-    loadServices();         // starts billing API calls async
+    await loadServices();         // starts billing API calls async
     renderRecentTickets(tickets);   // instant — data already here
     renderNews(news);               // instant — data already here
+    if (hydrated) {
+      const page = document.getElementById('page-home');
+      if (page) wirePageLinks(page);
+      setupHeroCards();
+      setupGreetingBtn();
+      setupTicketLinks();
+    }
+    snapshotHomeCache();
   });
 })();

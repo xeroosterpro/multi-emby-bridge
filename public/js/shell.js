@@ -1,12 +1,25 @@
 // ── Hash router + sidebar behavior + preference controls ─────────────────────
 const PAGES = ['home','dashboard','servers','catalogs','streaming','appearance','health','install','apikeys','ping','log','settings','admin','users','billing','tickets','guide'];
 
-try {
-  if (sessionStorage.getItem('meb_session') === '1') {
-    document.documentElement.classList.add('meb-returning');
-  }
-  sessionStorage.setItem('meb_session', '1');
-} catch {}
+function restoreShellSession() {
+  if (!document.documentElement.classList.contains('meb-returning')) return;
+  try {
+    const isAdmin = sessionStorage.getItem('meb_is_admin') === '1';
+    if (isAdmin) {
+      document.querySelectorAll('.nav-group.admin-only').forEach(el => { el.style.display = 'block'; });
+      document.querySelectorAll('.nav-item.admin-only, .nav-sec-toggle.admin-only').forEach(el => { el.style.display = ''; });
+    }
+    const username = sessionStorage.getItem('meb_username');
+    if (username) {
+      const btn = document.getElementById('logout');
+      if (btn) btn.style.display = 'flex';
+      const av = document.getElementById('side-avatar');
+      if (av) av.textContent = username[0].toUpperCase();
+      const nm = document.getElementById('side-username');
+      if (nm) nm.textContent = username + ' · Log out';
+    }
+  } catch {}
+}
 
 function showPage(name) {
   if (!PAGES.includes(name)) name = 'home';
@@ -115,6 +128,7 @@ function generateParticles() {
 }
 
 function initShell() {
+  restoreShellSession();
   generateParticles();
 
   document.querySelectorAll('[data-page]').forEach(el => {
@@ -156,6 +170,16 @@ function initShell() {
     const btn = document.getElementById('logout');
     const loggedIn = !!(d && d.user);
     window.currentUser = d && d.user ? d.user : null;
+    try {
+      if (loggedIn) {
+        sessionStorage.setItem('meb_username', d.user.username || '');
+        sessionStorage.setItem('meb_is_admin', d.user.role === 'admin' ? '1' : '0');
+      } else {
+        sessionStorage.removeItem('meb_username');
+        sessionStorage.removeItem('meb_is_admin');
+        sessionStorage.removeItem('meb_home_cache');
+      }
+    } catch {}
 
     if (btn && loggedIn) {
       btn.style.display = 'flex';
