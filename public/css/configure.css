@@ -2967,6 +2967,17 @@ html.view-as-user .admin-only { display: none !important; }
 #page-servers .srv-ping-row em.slow { color: #f87171; }
 #page-servers .srv-ping-row em.ping-na,
 #page-servers .srv-ping-row em.ping-pending { color: var(--text-mute); font-size: .68rem; font-weight: 700; }
+#page-servers .srv-you-test {
+  flex: none; background: none; border: 1px solid var(--border);
+  color: var(--text-mute); border-radius: 5px; padding: 1px 6px;
+  font-size: .58rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase;
+  cursor: pointer; transition: border-color .15s, color .15s, background .15s;
+}
+#page-servers .srv-you-test:hover:not(:disabled) {
+  border-color: var(--accent); color: var(--accent-2); background: var(--glow);
+}
+#page-servers .srv-you-test:disabled { opacity: .55; cursor: wait; }
+#page-servers .server-card:not(.ok) .srv-you-test { display: none; }
 
 #page-servers .srv-end {
   display: flex; align-items: center; justify-content: flex-end; gap: 10px;

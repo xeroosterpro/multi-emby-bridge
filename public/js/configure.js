@@ -249,6 +249,30 @@ try { _libStatsCache = JSON.parse(localStorage.getItem('meb-libstats-cache') || 
 function _libKey(s){ return [s.url, s.apiKey, s.userId].join('|'); }
 function _saveLibCache(){ try { localStorage.setItem('meb-libstats-cache', JSON.stringify(_libStatsCache)); } catch {} }
 const LIB_TTL_MS = 60 * 60 * 1000; // 1 hour
+const BRIDGE_FRESH_MS = 3 * 60 * 1000; // reuse health history when younger than this
+
+function _bridgeMsFromHealth(healthByUrl, url) {
+  const lat = healthByUrl[_normServerUrl(url)]?.history?.[0];
+  if (!lat?.up || lat.ms == null || Date.now() - lat.ts > BRIDGE_FRESH_MS) return null;
+  return lat.ms;
+}
+
+async function _testServerConnection(s) {
+  if (!s.url || !s.apiKey || !s.userId) return { ok: false };
+  try {
+    const r = await fetch('/api/test-connection', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: s.url, type: s.type || 'emby', apiKey: s.apiKey, userId: s.userId,
+        username: s.username || '', password: s.password || '',
+      }),
+    });
+    const data = await r.json().catch(() => ({}));
+    return { ok: r.ok && data.ok, apiKey: data.apiKey };
+  } catch {
+    return { ok: false };
+  }
+}
 
 // ── Steps indicator ──────────────────────────────────────────────────────
 function updateSteps() {
@@ -1528,7 +1552,7 @@ function buildServerBlock(id) {
       </div>
       <div class="srv-ping-col">
         <span class="srv-ping-row" title="Stream Hub addon → your server"><small>Bridge</small><em data-bind="ping-bridge">—</em></span>
-        <span class="srv-ping-row" title="Your browser → your server (direct)"><small>You</small><em data-bind="ping-you">—</em></span>
+        <span class="srv-ping-row srv-ping-you" title="Your browser → your server (click Test)"><small>You</small><em data-bind="ping-you">—</em><button type="button" class="srv-you-test" onclick="event.stopPropagation();testYouPing(${id})" title="Test from your browser">Test</button></span>
       </div>
       <div class="srv-end">
         <span class="srv-status unknown" data-bind="badge"><span class="srv-status-dot"></span><span data-bind="badge-txt">Checking</span></span>
@@ -1790,52 +1814,75 @@ function _recomputeServersHeaderStats(blocks) {
   _updateServersHeaderStats(up, blocks.length, fastestBridge);
 }
 
-async function _refreshServersPingMetrics(blocks) {
+async function _refreshServersPingMetrics(blocks, opts = {}) {
+  const healthByUrl = opts.healthByUrl || await _fetchHealthByUrl();
   const rows = blocks.map(block => ({
     block,
     url: block.querySelector('.f-url')?.value.trim().replace(/\/+$/, ''),
     label: block.querySelector('.f-label')?.value.trim() || 'Server',
   })).filter(r => r.url);
 
-  for (const { block } of rows) {
-    _srvSetPingEm(block.querySelector('[data-bind=ping-bridge]'), null);
-    const youEl = block.querySelector('[data-bind=ping-you]');
-    if (youEl) { youEl.textContent = '…'; youEl.className = 'ping-pending'; }
+  const needsLivePing = [];
+  for (const row of rows) {
+    const bridgeEl = row.block.querySelector('[data-bind=ping-bridge]');
+    if (!row.block.classList.contains('ok')) {
+      _srvSetPingEm(bridgeEl, null);
+    } else {
+      const seeded = _bridgeMsFromHealth(healthByUrl, row.url);
+      if (seeded != null) _srvSetPingEm(bridgeEl, seeded);
+      else {
+        _srvSetPingEm(bridgeEl, null);
+        needsLivePing.push(row);
+      }
+    }
+    const youEl = row.block.querySelector('[data-bind=ping-you]');
+    if (youEl) { youEl.textContent = '—'; youEl.className = ''; }
+    const youBtn = row.block.querySelector('.srv-you-test');
+    if (youBtn) { youBtn.disabled = false; youBtn.textContent = 'Test'; }
   }
-  if (!rows.length) return;
+  if (!needsLivePing.length) return;
 
   try {
     const resp = await fetch('/api/ping-servers', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ servers: rows.map(r => ({ url: r.url, label: r.label })) }),
+      body: JSON.stringify({ servers: needsLivePing.map(r => ({ url: r.url, label: r.label })) }),
     });
     const data = resp.ok ? await resp.json().catch(() => ({})) : {};
     (data.results || []).forEach((r, i) => {
-      const row = rows[i];
+      const row = needsLivePing[i];
       if (!row) return;
       _srvSetPingEm(row.block.querySelector('[data-bind=ping-bridge]'), r.ms);
     });
   } catch {
-    rows.forEach(r => _srvSetPingEm(r.block.querySelector('[data-bind=ping-bridge]'), null));
+    needsLivePing.forEach(r => _srvSetPingEm(r.block.querySelector('[data-bind=ping-bridge]'), null));
   }
-
-  await Promise.all(rows.map(async row => {
-    const youEl = row.block.querySelector('[data-bind=ping-you]');
-    if (!youEl) return;
-    if (!row.block.classList.contains('ok')) {
-      youEl.textContent = '—';
-      youEl.className = '';
-      return;
-    }
-    const ms = await browserPing(row.url);
-    if (ms == null) {
-      youEl.textContent = 'N/A';
-      youEl.className = 'ping-na';
-    } else {
-      _srvSetPingEm(youEl, ms);
-    }
-  }));
 }
+
+async function testYouPing(id) {
+  const block = document.getElementById('server-' + id);
+  if (!block) return;
+  const url = block.querySelector('.f-url')?.value.trim().replace(/\/+$/, '');
+  const youEl = block.querySelector('[data-bind=ping-you]');
+  const btn = block.querySelector('.srv-you-test');
+  if (!url || !youEl) return;
+  if (!block.classList.contains('ok')) {
+    youEl.textContent = '—';
+    youEl.className = '';
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  youEl.textContent = '…';
+  youEl.className = 'ping-pending';
+  const ms = await browserPing(url);
+  if (btn) { btn.disabled = false; btn.textContent = 'Test'; }
+  if (ms == null) {
+    youEl.textContent = 'N/A';
+    youEl.className = 'ping-na';
+  } else {
+    _srvSetPingEm(youEl, ms);
+  }
+}
+window.testYouPing = testYouPing;
 
 function _startServersAutoRefresh() {
   _stopServersAutoRefresh();
@@ -1861,7 +1908,8 @@ async function renderServersPage(opts = {}) {
   });
   await Promise.all(failedFirst.map(block => refreshServerCard(block)));
   await _ensureAddonRegionLabel();
-  await _refreshServersPingMetrics(blocks);
+  const healthByUrl = await _fetchHealthByUrl();
+  await _refreshServersPingMetrics(blocks, { healthByUrl });
   _recomputeServersHeaderStats(blocks);
   const healthServers = blocks.map(b => ({
     url: b.querySelector('.f-url')?.value.trim().replace(/\/+$/, ''),
@@ -2084,22 +2132,20 @@ async function renderDashboard(force = false) {
     if (!wrap) return;
     wrap.innerHTML = '';
     let upCount = 0, movieTotal = 0, showTotal = 0, fastest = null;
-    await Promise.all(servers.map(async (s, idx) => {
-      const PALETTE = [
-        ['linear-gradient(135deg,#fb923c,#f472b6)','rgba(244,114,182,.5)'],
-        ['linear-gradient(135deg,#818cf8,#22d3ee)','rgba(34,211,238,.5)'],
-        ['linear-gradient(135deg,#34d399,#22d3ee)','rgba(52,211,153,.5)'],
-        ['linear-gradient(135deg,#f59e0b,#fb7185)','rgba(245,158,11,.5)'],
-        ['linear-gradient(135deg,#a78bfa,#f472b6)','rgba(167,139,250,.5)'],
-      ];
+    const dashMeta = [];
+    const PALETTE = [
+      ['linear-gradient(135deg,#fb923c,#f472b6)','rgba(244,114,182,.5)'],
+      ['linear-gradient(135deg,#818cf8,#22d3ee)','rgba(34,211,238,.5)'],
+      ['linear-gradient(135deg,#34d399,#22d3ee)','rgba(52,211,153,.5)'],
+      ['linear-gradient(135deg,#f59e0b,#fb7185)','rgba(245,158,11,.5)'],
+      ['linear-gradient(135deg,#a78bfa,#f472b6)','rgba(167,139,250,.5)'],
+    ];
+    servers.forEach((s, idx) => {
       const [bar, glow] = PALETTE[idx % PALETTE.length];
       const isJelly = (s.type === 'jellyfin');
       const brandSvg = isJelly ? JELLYFIN_LOGO : EMBY_LOGO;
       const brandName = isJelly ? 'Jellyfin' : 'Emby';
       const badgeBg = isJelly ? 'linear-gradient(135deg,#aa5cc3,#00a4dc)' : 'linear-gradient(135deg,#52b54b,#2f8f3e)';
-      const costStr = (s.cost && s.costPeriod)
-        ? '$' + Number(s.cost).toFixed(2) + ' / ' + ({monthly:'mo',quarterly:'qtr',yearly:'yr'}[s.costPeriod] || s.costPeriod)
-        : '— not set';
       const card = document.createElement('div');
       card.className = 'gcard';
       card.dataset.serverUrl = s.url || '';
@@ -2116,7 +2162,7 @@ async function renderDashboard(force = false) {
               <div class="gcard-nm">${escHtml(s.label)}</div>
               <div class="gcard-host">${escHtml((s.url||'').replace(/^https?:\/\//,''))}</div>
             </div>
-            <div class="gstatus"><span class="gpill loading" data-pill>…</span><span class="gpill-ms" data-ms></span></div>
+            <div class="gstatus"><span class="gpill loading" data-pill>…</span><span class="gpill-ms" data-ms title="Bridge latency (addon → server)"></span></div>
           </div>
           <div class="gtype" style="display:none">${brandName}</div>
           <div class="gchips">
@@ -2132,36 +2178,67 @@ async function renderDashboard(force = false) {
         card.querySelector('[data-st=shows]').textContent    = (st.shows||0).toLocaleString();
         card.querySelector('[data-st=episodes]').textContent = (st.episodes||0).toLocaleString();
       };
-      const setStatus = (online, ms) => {
+      const setStatus = (online, bridgeMs) => {
         const pill = card.querySelector('[data-pill]'), msEl = card.querySelector('[data-ms]');
         if (pill) { pill.className = 'gpill ' + (online ? 'online' : 'offline'); pill.textContent = online ? 'ONLINE' : 'OFFLINE'; }
-        if (msEl) msEl.textContent = (online && ms != null) ? ms + 'ms' : '';
+        if (msEl) msEl.textContent = (online && bridgeMs != null) ? bridgeMs + 'ms' : '';
       };
+      dashMeta.push({ s, setStatus, setStats });
+    });
+    const pingQueue = [];
+    await Promise.all(dashMeta.map(async (meta) => {
+      const { s, setStatus, setStats } = meta;
+      let bridgeMs = _bridgeMsFromHealth(healthByUrl, s.url);
+      const conn = await _testServerConnection(s);
+      const online = conn.ok;
+      if (online) {
+        upCount++;
+        if (bridgeMs != null && (fastest === null || bridgeMs < fastest)) fastest = bridgeMs;
+        if (bridgeMs == null) pingQueue.push(meta);
+      }
+      setStatus(online, bridgeMs);
+      if (!online) return;
       const k = _libKey(s);
       const cached = _libStatsCache[k];
       if (!force && cached && (now - cached.ts < LIB_TTL_MS)) {
         setStats(cached);
-        upCount++; movieTotal += (cached.movies||0); showTotal += (cached.shows||0);
-        if (fastest === null || cached.ms < fastest) fastest = cached.ms;
-        setStatus(true, cached.ms);
+        movieTotal += (cached.movies||0);
+        showTotal += (cached.shows||0);
         return;
       }
-      const t0 = performance.now();
       try {
-        const r = await fetch('/api/library-stats', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: s.url, type: s.type, apiKey: s.apiKey, userId: s.userId }) });
-        const ms = Math.round(performance.now() - t0);
+        const r = await fetch('/api/library-stats', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: s.url, type: s.type, apiKey: s.apiKey, userId: s.userId,
+            username: s.username || '', password: s.password || '',
+          }),
+        });
         if (r.ok) {
           const st = await r.json();
           setStats(st);
-          upCount++; movieTotal += (st.movies||0); showTotal += (st.shows||0);
-          if (fastest === null || ms < fastest) fastest = ms;
-          setStatus(true, ms);
-          _libStatsCache[k] = { movies: st.movies||0, shows: st.shows||0, episodes: st.episodes||0, ms, ts: now };
+          movieTotal += (st.movies||0);
+          showTotal += (st.shows||0);
+          _libStatsCache[k] = { movies: st.movies||0, shows: st.shows||0, episodes: st.episodes||0, ts: now };
           _saveLibCache();
-        } else { setStatus(false); }
-      } catch { setStatus(false); }
+        }
+      } catch { /* library counts stay — */ }
     }));
+    if (pingQueue.length) {
+      try {
+        const resp = await fetch('/api/ping-servers', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ servers: pingQueue.map(m => ({ url: m.s.url, label: m.s.label })) }),
+        });
+        const data = resp.ok ? await resp.json().catch(() => ({})) : {};
+        (data.results || []).forEach((r, i) => {
+          const meta = pingQueue[i];
+          if (!meta || r.ms == null) return;
+          meta.setStatus(true, r.ms);
+          if (fastest === null || r.ms < fastest) fastest = r.ms;
+        });
+      } catch { /* bridge ms stays blank */ }
+    }
     const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     setTxt('tile-servers', upCount);
     setTxt('tile-movies', movieTotal.toLocaleString());
