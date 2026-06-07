@@ -3238,12 +3238,34 @@ html.view-as-user .admin-only { display: none !important; }
   #page-streaming .ms-field-grid { grid-template-columns: 1fr; }
 }
 
+#page-streaming .ms-card-audio { padding-bottom: 14px; }
 #page-streaming .ms-audio-top { margin-bottom: 10px; }
-#page-streaming .ms-audio-presets { margin-bottom: 8px; }
+#page-streaming .ms-audio-presets { margin-bottom: 10px; }
 #page-streaming .ms-audio-presets .field-label { font-size: .72rem; margin-bottom: 6px; }
 #page-streaming .ms-audio-body .field { margin-bottom: 0; }
-#page-streaming .audio-rank-list { max-height: 180px; margin: 6px 0 8px; }
-#page-streaming .ms-audio-opts { margin-top: 8px; }
+#page-streaming .ms-audio-body { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+#page-streaming .audio-rank-list {
+  max-height: min(460px, 58vh); min-height: 280px;
+  margin: 4px 0 10px; flex: 1 1 auto;
+}
+#page-streaming .ms-audio-opts { margin-top: 4px; }
+#page-streaming .chips-combo { margin-bottom: 4px; }
+#page-streaming .chips-combo .chip-combo {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+#page-streaming .chips-combo .chip-combo.on {
+  background: color-mix(in srgb, var(--accent) 28%, var(--surface));
+  border-color: var(--accent);
+}
+#page-streaming .audio-chain-hint {
+  font-size: .68rem; line-height: 1.4; color: var(--text-mute);
+  margin-top: 8px; padding: 8px 10px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  border-radius: 8px;
+}
+#page-streaming .audio-chain-hint:empty { display: none; }
 
 #page-streaming .ms-switches-compact { gap: 6px; }
 #page-streaming .ms-switches-compact .sw { padding: 8px 10px; gap: 8px; border-radius: 10px; }

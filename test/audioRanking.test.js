@@ -210,11 +210,26 @@ pr = A.resolvePreset(['shield_earc']);
 assert(pr.deviceIds.includes('shield') && pr.deviceIds.includes('soundbar'), 'shield_earc expands to shield+soundbar');
 assertEqual(pr.settings.surroundPriority, true, 'shield_earc enables surround priority');
 assertEqual(pr.settings.autoSelect, false, 'shield_earc disables auto-select');
-assert(pr.order.indexOf('ddp') < pr.order.indexOf('flc'), 'surround-friendly order puts DD+ above FLAC');
+assertEqual(pr.action, 'hide', 'shield_earc hides unsupported formats');
+assert(pr.disabled.includes('dts'), 'shield_earc disables DTS (token)');
+assert(pr.disabled.includes('dtx'), 'shield_earc disables DTS:X');
+assert(pr.disabled.includes('dma'), 'shield_earc disables DTS-HD MA');
+assert(pr.disabled.includes('flc'), 'shield_earc disables FLAC');
+assert(!pr.disabled.includes('ddp'), 'shield_earc keeps DD+');
+assert(pr.order.indexOf('ddp') < pr.order.indexOf('oth'), 'eARC order puts DD+ first among enabled');
 
 pr = A.resolvePreset(['shield', 'soundbar']);
 assertEqual(pr.settings.surroundPriority, true, 'manual shield+soundbar enables surround');
 assertEqual(pr.settings.autoSelect, false, 'manual shield+soundbar disables auto-select');
+assert(pr.disabled.includes('dts'), 'shield+soundbar disables DTS');
+
+pr = A.resolvePreset(['shield', 'tv']);
+assert(!pr.disabled.includes('dts'), 'shield→TV decodes DTS (not passthrough-limited)');
+assertEqual(pr.action, 'hide', 'shield+tv chain uses hide action');
+
+pr = A.resolvePreset(['shield', 'sonos']);
+assert(pr.disabled.includes('dts'), 'shield+sonos disables DTS');
+assert(pr.disabled.includes('thd'), 'shield+sonos disables TrueHD');
 
 console.log('\nsurroundPriority ranking:');
 arr = [

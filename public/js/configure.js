@@ -2917,6 +2917,11 @@ function wireAudioDrag(ol) {
   });
 }
 
+const _SOURCE_DEVICE_IDS = new Set(['shield', 'appletv', 'chromecast', 'firestick', 'browser', 'phone']);
+const _PASSTHROUGH_SINK_IDS = new Set(['soundbar', 'sonos']);
+const _PLAYBACK_CHAIN_IDS = new Set([..._SOURCE_DEVICE_IDS, ..._PASSTHROUGH_SINK_IDS, 'tv']);
+const _EARC_FRIENDLY_ORDER = ['atmos','truehd','ddplus','dd','aac','other'];
+
 function renderAudioPresetChips() {
   const comboWrap = document.getElementById('audio-combo-chips');
   const deviceWrap = document.getElementById('audio-preset-chips');
@@ -2928,7 +2933,7 @@ function renderAudioPresetChips() {
       chip.className = 'chip chip-combo';
       chip.dataset.combo = p.id;
       chip.textContent = p.label;
-      chip.title = 'One-tap: sets devices + surround-friendly ranking';
+      chip.title = p.note || 'One-tap playback chain';
       chip.addEventListener('click', () => applyComboPreset(p.id));
       comboWrap.appendChild(chip);
     });
@@ -2939,6 +2944,7 @@ function renderAudioPresetChips() {
     chip.className = 'chip';
     chip.dataset.preset = p.id;
     chip.textContent = p.label;
+    if (p.note) chip.title = p.note;
     chip.addEventListener('click', () => {
       chip.classList.toggle('on');
       clearComboHighlight();
@@ -2946,6 +2952,47 @@ function renderAudioPresetChips() {
     });
     deviceWrap.appendChild(chip);
   });
+}
+
+function resolveSupportedFormatsClient(deviceIds) {
+  const presets = deviceIds.map(id => AUDIO_PRESETS.find(p => p.id === id)).filter(p => p && p.supports);
+  if (!presets.length) return [];
+  const allIds = AUDIO_FORMATS.map(f => f.id);
+  if (deviceIds.some(id => _PASSTHROUGH_SINK_IDS.has(id))) {
+    return allIds.filter(fmt => presets.every(p => p.supports.includes(fmt)));
+  }
+  const sources = deviceIds.filter(id => _SOURCE_DEVICE_IDS.has(id));
+  if (sources.length > 0 && deviceIds.includes('tv') && sources.length === deviceIds.length - 1) {
+    const sourcePresets = sources.map(id => AUDIO_PRESETS.find(p => p.id === id)).filter(p => p && p.supports);
+    const best = sourcePresets.reduce((a, b) => (a.supports.length >= b.supports.length ? a : b));
+    return allIds.filter(fmt => best.supports.includes(fmt));
+  }
+  return allIds.filter(fmt => presets.every(p => p.supports.includes(fmt)));
+}
+
+function resolveDisableActionClient(deviceIds) {
+  if (deviceIds.length <= 1) return 'hide';
+  const hasPassthroughSink = deviceIds.some(id => _PASSTHROUGH_SINK_IDS.has(id));
+  const sourceCount = deviceIds.filter(id => _SOURCE_DEVICE_IDS.has(id)).length;
+  if (hasPassthroughSink) return 'hide';
+  if (deviceIds.includes('tv') && sourceCount >= 1 && deviceIds.length === sourceCount + 1) return 'hide';
+  if (sourceCount > 1) return 'bottom';
+  return 'hide';
+}
+
+function buildChainHintClient(deviceIds, disabledIds) {
+  if (!deviceIds.length) return '';
+  const labels = deviceIds.map(id => (AUDIO_PRESETS.find(p => p.id === id) || {}).label || id);
+  const chain = labels.join(' → ');
+  if (!disabledIds.length) return `${chain}: all formats supported`;
+  const names = disabledIds.map(id => (AUDIO_FORMATS.find(f => f.id === id) || {}).label || id).join(', ');
+  return `${chain}: hides ${names}`;
+}
+
+function updateAudioChainHint(deviceIds, disabledIds) {
+  const el = document.getElementById('audio-chain-hint');
+  if (!el) return;
+  el.textContent = deviceIds.length ? buildChainHintClient(deviceIds, disabledIds) : '';
 }
 
 function clearComboHighlight() {
@@ -2964,17 +3011,15 @@ function selectedPresetIds() {
 
 function resolvePresetClient(selectedIds) {
   const deviceIds = [];
-  const devicePresets = [];
   for (const id of selectedIds || []) {
     const p = AUDIO_PRESETS.find(x => x.id === id);
     if (!p) continue;
     if (p.kind === 'combo' && p.combo) p.combo.forEach(d => { if (!deviceIds.includes(d)) deviceIds.push(d); });
-    else if (p.supports) { deviceIds.push(id); devicePresets.push(p); }
+    else if (p.supports && !deviceIds.includes(id)) deviceIds.push(id);
   }
   if (deviceIds.length === 0) return null;
   const allIds = AUDIO_FORMATS.map(f => f.id);
-  const presets = deviceIds.map(id => AUDIO_PRESETS.find(p => p.id === id)).filter(p => p && p.supports);
-  const supportedAll = allIds.filter(fmt => presets.every(p => p.supports.includes(fmt)));
+  const supportedAll = resolveSupportedFormatsClient(deviceIds);
   const disabledIds = allIds.filter(fmt => !supportedAll.includes(fmt));
   let orderIds = [...supportedAll, ...disabledIds];
 
@@ -2988,14 +3033,20 @@ function resolvePresetClient(selectedIds) {
     if (p.settings.autoSelect !== undefined) autoSelect = p.settings.autoSelect;
     if (p.settings.suggestedOrder) suggestedOrder = p.settings.suggestedOrder;
   }
+  const hasSource = deviceIds.some(id => _SOURCE_DEVICE_IDS.has(id));
+  const hasPassthroughSink = deviceIds.some(id => _PASSTHROUGH_SINK_IDS.has(id));
   const hasShield = deviceIds.includes('shield');
   const hasAppleTv = deviceIds.includes('appletv');
   const hasSoundbar = deviceIds.includes('soundbar');
   if (hasShield || hasAppleTv) surroundPriority = true;
-  if ((hasShield || hasAppleTv) && hasSoundbar) {
+  if (hasSource && hasPassthroughSink) {
     surroundPriority = true;
     if (autoSelect === undefined) autoSelect = false;
-    if (!suggestedOrder) suggestedOrder = ['atmos','dtsx','truehd','dtshd_ma','ddplus','dts','dd','aac','flac','lpcm','other'];
+    if (!suggestedOrder) suggestedOrder = _EARC_FRIENDLY_ORDER;
+  } else if ((hasShield || hasAppleTv) && hasSoundbar) {
+    surroundPriority = true;
+    if (autoSelect === undefined) autoSelect = false;
+    if (!suggestedOrder) suggestedOrder = _EARC_FRIENDLY_ORDER;
   }
   if (suggestedOrder) {
     const supportedSet = new Set(supportedAll);
@@ -3006,7 +3057,8 @@ function resolvePresetClient(selectedIds) {
   return {
     orderTokens: orderIds.map(toToken),
     disabledTokens: disabledIds.map(toToken),
-    action: deviceIds.length > 1 ? 'bottom' : 'hide',
+    action: resolveDisableActionClient(deviceIds),
+    deviceIds,
     settings: { surroundPriority, autoSelect, suggestedOrder },
   };
 }
@@ -3024,10 +3076,22 @@ function applyComboPreset(comboId) {
 // Mirror of server resolvePreset for instant UI feedback.
 function applyAudioPresets(extraIds) {
   const ids = [...new Set([...(extraIds || []), ...selectedPresetIds()])];
-  if (ids.length === 0) { renderAudioRankList(AUDIO_FORMATS.map(f => f.token), []); autoSave(); return; }
+  if (ids.length === 0) {
+    renderAudioRankList(AUDIO_FORMATS.map(f => f.token), []);
+    updateAudioChainHint([], []);
+    autoSave();
+    return;
+  }
   const resolved = resolvePresetClient(ids);
-  if (!resolved) { renderAudioRankList(AUDIO_FORMATS.map(f => f.token), []); autoSave(); return; }
+  if (!resolved) {
+    renderAudioRankList(AUDIO_FORMATS.map(f => f.token), []);
+    updateAudioChainHint([], []);
+    autoSave();
+    return;
+  }
   renderAudioRankList(resolved.orderTokens, resolved.disabledTokens);
+  const disabledIds = AUDIO_FORMATS.filter(f => resolved.disabledTokens.includes(f.token)).map(f => f.id);
+  updateAudioChainHint(resolved.deviceIds, disabledIds);
   setAudioRankToggle('on');
   const actionEl = document.getElementById('audio-disable-action');
   if (actionEl) actionEl.value = resolved.action;
