@@ -114,6 +114,7 @@ function makeUserRouter() {
       let liveProbes = [];
       let servers = [];
       let recent = [];
+      const quick = req.query.quick === '1' || req.query.quick === 'true';
       try {
         const labels = new Set();
         let rawRecent = [];
@@ -126,12 +127,15 @@ function makeUserRouter() {
             .filter(e => !e.server || labels.has(e.server) || (e.serverStatus || []).some(s => labels.has(s.label)))
             .slice(0, 20);
         }
-        const loaded = await loadLiveForUser(req.user.id, rawRecent);
-        servers = loaded.servers;
-        live = loaded.live;
-        liveProbes = loaded.liveProbes;
-        if (servers.length) {
-          recent = enrichRecentEntries(rawRecent, live);
+        if (quick) {
+          live = attachBridgeLive([], rawRecent);
+          if (servers.length) recent = enrichRecentEntries(rawRecent, live);
+        } else {
+          const loaded = await loadLiveForUser(req.user.id, rawRecent);
+          servers = loaded.servers;
+          live = loaded.live;
+          liveProbes = loaded.liveProbes;
+          if (servers.length) recent = enrichRecentEntries(rawRecent, live);
         }
       } catch (e) {
         console.error('[user/activity:inner]', e.message);

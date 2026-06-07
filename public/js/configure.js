@@ -504,6 +504,8 @@ function notifyNewBuffering(buffering) {
 let _liveBundleInFlight = null;
 let _liveBundleCache = { live: [], probes: [], ts: 0 };
 let _activityRecentCache = [];
+let _dashActivityGen = 0;
+let _dashActivityData = null;
 
 function collectServersForLive() {
   const cfg = collectConfig(true);
@@ -542,7 +544,7 @@ async function fetchLiveBundle(force = false, opts = {}) {
 
     if (!demoOn && window.currentUser) {
       try {
-        const r = await fetch('/api/user/activity', { credentials: 'same-origin' });
+        const r = await fetch('/api/user/activity?quick=1', { credentials: 'same-origin' });
         if (r.ok) {
           const d = await r.json().catch(() => null);
           if (d) {
@@ -692,9 +694,13 @@ function renderLiveDock(live) {
   document.documentElement.classList.add('has-live-dock');
 }
 
+function dashActivityHasContent(el) {
+  return !!(el && el.querySelector('.dash-activity-grid[data-ready="1"]'));
+}
+
 function renderDashActivityShell(serverCount) {
   const el = document.getElementById('dash-activity');
-  if (!el) return;
+  if (!el || dashActivityHasContent(el)) return;
   const n = serverCount || collectServersForLive().length || 0;
   el.innerHTML = `<div class="dash-activity-grid">
     <div class="dash-act-panel dash-act-live">
@@ -723,13 +729,14 @@ function renderLiveProbeStrip(probes) {
 
 async function pollLivePlaybackNotifications(opts = {}) {
   const onDash = document.getElementById('page-dashboard')?.classList.contains('on');
-  const bundle = await fetchLiveBundle(!!opts.force, { fast: onDash });
+  const stale = !_liveBundleCache.ts || Date.now() - _liveBundleCache.ts >= DASH_LIVE_POLL_MS;
+  const bundle = await fetchLiveBundle(!!opts.force && stale, { fast: onDash });
   const buffering = (bundle.live || []).filter(s => s.buffering);
   renderBufferingBanner(buffering);
   updateDashboardBufferBadge(buffering.length);
   notifyNewBuffering(buffering);
   if (onDash && typeof renderDashActivity === 'function') {
-    renderDashActivity({ skipFetch: true });
+    renderDashActivity({ bundle, refreshLive: true });
   }
   return bundle.live || [];
 }
@@ -739,7 +746,7 @@ function startDashLivePolling() {
   _dashLiveTimer = setInterval(() => {
     const dash = document.getElementById('page-dashboard');
     if (!dash || !dash.classList.contains('on')) return;
-    pollLivePlaybackNotifications({ force: true });
+    pollLivePlaybackNotifications();
   }, DASH_LIVE_POLL_MS);
 }
 
@@ -2488,16 +2495,17 @@ window.onPageShow = function(name) {
   if (name === 'dashboard') {
     renderDashActivityShell();
     startDashLivePolling();
-    pollLivePlaybackNotifications({ force: true });
+    renderDashActivity({ refreshHistory: true });
     (async () => {
       await ensureAccountConfigLoaded();
       renderDashboard();
-      renderDashActivity({ force: true });
+      pollLivePlaybackNotifications({ force: true });
       renderOnboarding();
       replayDashTileAnimations();
     })();
   } else {
     stopDashLivePolling();
+    _dashActivityGen++;
   }
   if (name === 'health' && typeof window.startHealth === 'function') window.startHealth();
   if (name === 'log' && typeof refreshLog === 'function') refreshLog();
@@ -2515,64 +2523,10 @@ function dashActivityWhen(t) {
   return h < 1 ? 'just now' : h < 24 ? h + 'h ago' : Math.floor(h / 24) + 'd ago';
 }
 
-async function renderDashActivity(opts = {}) {
-  const el = document.getElementById('dash-activity');
-  if (!el) return;
-
-  await ensureAccountConfigLoaded();
-  const localServers = collectServersForLive();
-
-  let resp;
-  try {
-    resp = await fetch('/api/user/activity', { credentials: 'same-origin' });
-  } catch {
-    if (!opts.skipFetch) renderDashActivityShell(localServers.length);
-    el.querySelector('.da-loading')?.replaceWith(Object.assign(document.createElement('div'), {
-      className: 'da-empty',
-      textContent: 'Could not load activity — check your connection.',
-    }));
-    return;
-  }
-
-  if (resp.status === 401) {
-    el.innerHTML = `<div class="dash-activity-grid">
-      <div class="dash-act-panel"><h3 class="block-title dash-act-title">Live streaming</h3><div class="da-empty">Sign in to see live activity from your servers.</div></div>
-      <div class="dash-act-panel"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">Sign in to see your personal watch history.</div></div>
-    </div>`;
-    return;
-  }
-
-  const a = resp.ok ? await resp.json().catch(() => null) : null;
-  if (!a) {
-    if (!opts.skipFetch) renderDashActivityShell(localServers.length);
-    const slot = el.querySelector('.da-loading') || el;
-    if (slot.classList?.contains('da-loading')) {
-      slot.className = 'da-empty';
-      slot.textContent = 'Activity unavailable right now.';
-    }
-    return;
-  }
-  _activityRecentCache = Array.isArray(a.recent) ? a.recent : [];
-
+function paintDashActivityPanels(el, a, bundle, localServers) {
   const esc = dashActivityEsc;
   const when = dashActivityWhen;
-  const hasServers = localServers.length > 0 || !!a.hasServers;
   const serverCount = localServers.length || a.serverCount || 0;
-
-  if (!hasServers) {
-    el.innerHTML = `<div class="dash-activity-grid">
-      <div class="dash-act-panel dash-act-live"><h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming</h3><div class="da-empty">Add servers on the <a href="#" data-page="servers">Servers</a> page to see live activity from your Emby/Jellyfin instances.</div></div>
-      <div class="dash-act-panel dash-act-history"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">Your personal watch history appears here once you have servers configured.</div></div>
-    </div>`;
-    el.querySelectorAll('[data-page]').forEach(link => link.addEventListener('click', e => { e.preventDefault(); location.hash = '#/' + link.dataset.page; }));
-    return;
-  }
-
-  if (!opts.skipFetch) renderDashActivityShell(serverCount);
-
-  const bundle = opts.skipFetch && _liveBundleCache.ts
-    ? _liveBundleCache
-    : await fetchLiveBundle(!!opts.force, { fast: true });
   const live = bundle.live || [];
   const probes = bundle.probes || a.liveProbes || [];
 
@@ -2620,7 +2574,7 @@ async function renderDashActivity(opts = {}) {
     </div>`;
   }).join('');
 
-  el.innerHTML = `<div class="dash-activity-grid">
+  el.innerHTML = `<div class="dash-activity-grid" data-ready="1">
     <div class="dash-act-panel dash-act-live">
       <h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming <span class="dash-act-count">${live.length}</span></h3>
       <p class="dash-act-hint">Sessions, browser, and bridge stream lookups · ${serverCount} server${serverCount === 1 ? '' : 's'} · refreshes every ${Math.round(DASH_LIVE_POLL_MS / 1000)}s on this page</p>
@@ -2634,6 +2588,79 @@ async function renderDashActivity(opts = {}) {
     </div>
   </div>`;
   el.querySelectorAll('[data-page]').forEach(link => link.addEventListener('click', e => { e.preventDefault(); location.hash = '#/' + link.dataset.page; }));
+}
+
+async function renderDashActivity(opts = {}) {
+  const gen = ++_dashActivityGen;
+  const el = document.getElementById('dash-activity');
+  if (!el) return;
+
+  await ensureAccountConfigLoaded();
+  if (gen !== _dashActivityGen) return;
+
+  const localServers = collectServersForLive();
+  if (!dashActivityHasContent(el)) renderDashActivityShell(localServers.length);
+  if (gen !== _dashActivityGen) return;
+
+  let a = opts.activity || _dashActivityData;
+  if (!a || opts.refreshHistory) {
+    let resp;
+    try {
+      resp = await fetch('/api/user/activity?quick=1', { credentials: 'same-origin' });
+    } catch {
+      if (!dashActivityHasContent(el)) {
+        el.innerHTML = `<div class="dash-activity-grid" data-ready="1">
+          <div class="dash-act-panel dash-act-live"><h3 class="block-title dash-act-title">Live streaming</h3><div class="da-empty">Could not load activity — check your connection.</div></div>
+          <div class="dash-act-panel dash-act-history"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">Could not load history.</div></div>
+        </div>`;
+      }
+      return;
+    }
+    if (gen !== _dashActivityGen) return;
+
+    if (resp.status === 401) {
+      el.innerHTML = `<div class="dash-activity-grid" data-ready="1">
+        <div class="dash-act-panel"><h3 class="block-title dash-act-title">Live streaming</h3><div class="da-empty">Sign in to see live activity from your servers.</div></div>
+        <div class="dash-act-panel"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">Sign in to see your personal watch history.</div></div>
+      </div>`;
+      return;
+    }
+
+    const fresh = resp.ok ? await resp.json().catch(() => null) : null;
+    if (!fresh) {
+      if (!dashActivityHasContent(el)) {
+        el.innerHTML = `<div class="dash-activity-grid" data-ready="1">
+          <div class="dash-act-panel dash-act-live"><h3 class="block-title dash-act-title">Live streaming</h3><div class="da-empty">Activity unavailable right now.</div></div>
+          <div class="dash-act-panel dash-act-history"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">History unavailable right now.</div></div>
+        </div>`;
+      }
+      return;
+    }
+    a = fresh;
+    _dashActivityData = fresh;
+  }
+  if (gen !== _dashActivityGen) return;
+
+  _activityRecentCache = Array.isArray(a.recent) ? a.recent : [];
+  const hasServers = localServers.length > 0 || !!a.hasServers;
+
+  if (!hasServers) {
+    el.innerHTML = `<div class="dash-activity-grid" data-ready="1">
+      <div class="dash-act-panel dash-act-live"><h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming</h3><div class="da-empty">Add servers on the <a href="#" data-page="servers">Servers</a> page to see live activity from your Emby/Jellyfin instances.</div></div>
+      <div class="dash-act-panel dash-act-history"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">Your personal watch history appears here once you have servers configured.</div></div>
+    </div>`;
+    el.querySelectorAll('[data-page]').forEach(link => link.addEventListener('click', e => { e.preventDefault(); location.hash = '#/' + link.dataset.page; }));
+    return;
+  }
+
+  let bundle = opts.bundle;
+  if (!bundle?.ts) {
+    if (_liveBundleCache.ts) bundle = _liveBundleCache;
+    else bundle = await fetchLiveBundle(false, { fast: true });
+  }
+  if (gen !== _dashActivityGen) return;
+
+  paintDashActivityPanels(el, a, bundle, localServers);
 }
 
 function replayDashTileAnimations() {
