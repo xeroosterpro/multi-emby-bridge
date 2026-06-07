@@ -1,6 +1,5 @@
-// ─── Site controls: hide/badge tabs per global config + admin "view as user".
-// Tab hiding is client-side UX only. Disabled tabs are hidden from normal users
-// (and from admins while previewing); admins otherwise see them with a "disabled" badge.
+// ─── Site controls: hide tabs per global config + admin "view as user".
+// Disabled tabs are removed from the sidebar for everyone (including admins).
 // View-as modes: off | unpaid | paid — simulates subscriber experience for admins.
 (function () {
   const state = { role: 'user', disabled: [] };
@@ -28,22 +27,15 @@
     document.documentElement.classList.toggle('view-as-paid', state.role === 'admin' && mode === 'paid');
 
     document.querySelectorAll('.nav-item[data-page]').forEach(el => {
-      el.classList.remove('tab-hidden', 'tab-disabled-off');
-      el.removeAttribute('title');
-      const b = el.querySelector('.tab-disabled-badge'); if (b) b.remove();
+      el.classList.remove('tab-hidden');
     });
 
     state.disabled.forEach(page => {
       const item = navItem(page); if (!item) return;
-      if (asUser) {
-        item.classList.add('tab-hidden');
-      } else {
-        item.classList.add('tab-disabled-off');
-        item.title = 'Hidden from users — manage in System';
-      }
+      item.classList.add('tab-hidden');
     });
 
-    updateNavGroupCounts();
+    updateNavGroupVisibility();
 
     const cur = (location.hash || '').replace(/^#\//, '');
     if (asUser && state.disabled.includes(cur)) location.hash = '#/dashboard';
@@ -107,19 +99,19 @@
     applyTabs();
   }
 
-  function updateNavGroupCounts() {
-    const asUser = state.role !== 'admin' || isViewAs();
+  function isNavItemVisible(el) {
+    if (!el || el.classList.contains('tab-hidden')) return false;
+    if (el.style.display === 'none') return false;
+    return true;
+  }
+
+  function updateNavGroupVisibility() {
     document.querySelectorAll('.nav-group[data-group]').forEach(group => {
+      const items = [...group.querySelectorAll('.nav-item[data-page]')];
+      const visible = items.filter(isNavItemVisible);
+      group.classList.toggle('tab-group-hidden', items.length > 0 && visible.length === 0);
       const toggle = group.querySelector('.nav-sec-toggle span:first-child');
-      if (!toggle) return;
-      const base = toggle.dataset.baseLabel || toggle.textContent;
-      toggle.dataset.baseLabel = base;
-      const items = [...group.querySelectorAll('.nav-item[data-page]')].filter(el => !el.classList.contains('tab-hidden'));
-      const off = asUser ? 0 : items.filter(el => el.classList.contains('tab-disabled-off')).length;
-      const on = items.length - off;
-      let label = base;
-      if (!asUser && off > 0) label = `${base} · ${on}/${items.length}`;
-      toggle.textContent = label;
+      if (toggle && toggle.dataset.baseLabel) toggle.textContent = toggle.dataset.baseLabel;
     });
   }
 

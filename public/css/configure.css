@@ -2451,6 +2451,7 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
 .ob-check { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--border); display:grid; place-items:center; font-size:.7rem; color:#0a0a12; flex:none; }
 .ob-step.done .ob-check { background:var(--accent); border-color:var(--accent); }
 .tab-hidden { display: none !important; }
+.nav-group.tab-group-hidden { display: none !important; }
 html.view-as-user .admin-only { display: none !important; }
 .tab-disabled-badge { display: none !important; }
 .nav-item.tab-disabled-off { opacity: .52; }

@@ -13,7 +13,8 @@
     for (const [page, label, group] of PAGES) {
       // only offer pages whose nav item is visible (admin/billing gating)
       const nav = document.querySelector('[data-page="' + page + '"]');
-      if (nav && nav.offsetParent === null && (nav.classList.contains('admin-only') || nav.classList.contains('billing-link'))) continue;
+      if (!nav || nav.classList.contains('tab-hidden')) continue;
+      if (nav.offsetParent === null && (nav.classList.contains('admin-only') || nav.classList.contains('billing-link'))) continue;
       cmds.push({ label, hint: group, run: () => { location.hash = '#/' + page; } });
     }
     const act = (label, hint, fn) => cmds.push({ label, hint, action: true, run: fn });
