@@ -47,7 +47,8 @@
 
     const cur = (location.hash || '').replace(/^#\//, '');
     if (asUser && state.disabled.includes(cur)) location.hash = '#/dashboard';
-    if (state.role === 'admin' && mode === 'unpaid' && cur !== 'billing') location.hash = '#/billing';
+    if (window.MEBDemo && window.MEBDemo.isActive && window.MEBDemo.isActive()) { /* demo unlocks nav */ }
+    else if (state.role === 'admin' && mode === 'unpaid' && cur !== 'billing') location.hash = '#/billing';
     if (state.role === 'admin' && mode !== 'off' && ['admin', 'users'].includes(cur)) location.hash = '#/dashboard';
 
     renderBanner();

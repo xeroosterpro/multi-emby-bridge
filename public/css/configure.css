@@ -1354,6 +1354,31 @@ body.noanim .acc2-body{ transition:none; }
 /* billing access gate: lock app to Billing page when unsubscribed */
 body.locked-billing .nav, body.locked-billing .foot-link:not(.billing-link), body.locked-billing .quick-install{ display:none !important; }
 body.locked-billing .pin-btn{ display:none; }
+body.demo-site.locked-billing .nav, body.demo-site.locked-billing .foot-link, body.demo-site.locked-billing .quick-install{ display:revert !important; }
+body.demo-site.locked-billing .pin-btn{ display:revert; }
+
+/* full-site demo banner */
+.demo-site-banner{
+  position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:650;
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:center;
+  max-width:min(96vw,720px);
+  background:rgba(12,12,20,.97); backdrop-filter:blur(14px);
+  border:1px solid color-mix(in srgb,var(--accent) 50%,var(--border));
+  color:var(--text-primary); padding:10px 16px; border-radius:999px;
+  box-shadow:0 16px 48px rgba(0,0,0,.55),0 0 40px color-mix(in srgb,var(--accent) 12%,transparent);
+  font-size:.78rem;
+}
+.demo-site-banner .dsb-icon{ color:var(--accent); font-size:.9rem; }
+.demo-site-banner .dsb-text strong{ color:var(--accent-2); }
+.demo-site-banner .dsb-btn{
+  border:0; border-radius:999px; padding:6px 14px; font-weight:800; font-size:.72rem;
+  cursor:pointer; font-family:inherit; transition:transform .15s var(--ease);
+}
+.demo-site-banner .dsb-btn:hover{ transform:translateY(-1px); }
+.demo-site-banner .dsb-exit{ background:var(--bg-elevated); color:var(--text-dim); border:1px solid var(--border); }
+.demo-site-banner .dsb-sub{
+  background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#0a0a12;
+}
 
 /* ═══ BILLING PAGE ═══ */
 #page-billing { max-width: 900px; }
@@ -1446,8 +1471,12 @@ body.locked-billing .pin-btn{ display:none; }
 .bill-upcoming { font-size: .8rem; color: var(--text-mute); margin-bottom: 12px; padding: 8px 12px; background: var(--bg-elevated); border-radius: 8px; }
 .bill-empty { text-align: center; padding: 40px; color: var(--text-mute); }
 .bill-demo-cta{
-  display:flex; justify-content:center; margin:-4px 0 18px;
+  display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin:-4px 0 18px;
 }
+.bill-demo-btn.bill-demo-tour{
+  background:transparent; box-shadow:none; font-size:.78rem; padding:9px 16px;
+}
+.bill-demo-btn.bill-demo-tour:hover{ background:color-mix(in srgb,var(--accent) 8%,transparent); }
 .bill-demo-btn{
   display:inline-flex; align-items:center; gap:10px; padding:11px 20px; border-radius:999px; cursor:pointer;
   font-family:inherit; font-weight:800; font-size:.84rem; color:var(--text-primary);

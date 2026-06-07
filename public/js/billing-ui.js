@@ -26,6 +26,7 @@
   }
 
   function applyGate(locked) {
+    if (window.MEBDemo && window.MEBDemo.isActive()) { locked = false; }
     document.body.classList.toggle('locked-billing', locked);
     if (locked && location.hash !== '#/billing') location.hash = '#/billing';
   }
@@ -37,7 +38,8 @@
   }
 
   function renderActiveShell(st, opts = {}) {
-    const preview = opts.preview ? '<span class="bill-preview-tag">Preview mode</span>' : '';
+    const preview = opts.demo ? '<span class="bill-preview-tag">Demo mode · sample data</span>'
+      : opts.preview ? '<span class="bill-preview-tag">Preview mode</span>' : '';
     const renew = st.periodEnd ? date(st.periodEnd) : '—';
     return `<div class="bill-shell">
       <div class="bill-hero bill-hero-active">
@@ -179,6 +181,13 @@
   }
 
   function wireDemoTour() {
+    document.querySelectorAll('.bill-demo-site').forEach(btn => {
+      if (btn._siteW) return;
+      btn._siteW = 1;
+      btn.addEventListener('click', () => {
+        if (window.MEBDemo && window.MEBDemo.enter) window.MEBDemo.enter();
+      });
+    });
     document.querySelectorAll('.bill-demo-open').forEach(btn => {
       if (btn._demoW) return;
       btn._demoW = 1;
@@ -228,9 +237,13 @@
         <h2 class="bill-hero-title">Unlock your bridge</h2>
         <p class="bill-hero-sub">Subscribe to stream from your Emby &amp; Jellyfin servers through Stremio</p>
         <div class="bill-demo-cta">
-          <button class="bill-demo-btn bill-demo-open" type="button">
+          <button class="bill-demo-btn bill-demo-site" type="button">
+            <span class="bill-demo-btn-ic">◆</span>
+            <span>Explore full demo site</span>
+          </button>
+          <button class="bill-demo-btn bill-demo-tour bill-demo-open" type="button">
             <span class="bill-demo-btn-ic">▶</span>
-            <span>Take the full demo tour</span>
+            <span>Quick tour</span>
           </button>
         </div>
       </div>
@@ -249,9 +262,9 @@
           <div class="bill-plan-period">per ${esc(pro.period || 'month')}</div>
           <ul class="bill-plan-feats">${featList(pro.features)}</ul>
           <div class="bill-plan-demo">
-            <button class="bill-demo-btn bill-demo-open" type="button">
-              <span class="bill-demo-btn-ic">▶</span>
-              <span>See what you can do</span>
+            <button class="bill-demo-btn bill-demo-site" type="button">
+              <span class="bill-demo-btn-ic">◆</span>
+              <span>Launch full demo site</span>
             </button>
           </div>
           <div id="paypal-button-container" class="bill-paypal-slot"></div>
@@ -341,6 +354,18 @@
     const link = document.querySelector('.billing-link');
 
     if (!me || !me.user) { applyGate(false); setBillingNav(false); return; }
+
+    if (window.MEBDemo && window.MEBDemo.isActive()) {
+      applyGate(false);
+      setBillingNav(true);
+      const fakeEnd = new Date(Date.now() + 28 * 86400000).toISOString();
+      body.innerHTML = renderActiveShell({ status: 'active', periodEnd: fakeEnd, planPrice: cfg?.planPrice || '$4/mo' }, { demo: true })
+        + `<div class="bill-card" style="margin-top:14px"><div class="bill-card-label">Try before you buy</div>
+           <p style="font-size:.84rem;color:var(--text-dim);margin:0 0 12px">You're browsing the full site with sample servers (ARCTV Emby, Home Jellyfin, Backup NAS) and realistic fake data. Explore every tab — nothing is saved.</p>
+           <button class="bill-demo-btn bill-demo-site" type="button" style="width:100%;justify-content:center;border-radius:12px"><span class="bill-demo-btn-ic">◆</span><span>Restart demo from Dashboard</span></button></div>`;
+      wireDemoTour();
+      return;
+    }
 
     const va = viewAsMode();
     const isAdmin = me.user.role === 'admin';

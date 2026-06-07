@@ -11,8 +11,11 @@ function showPage(name) {
       name = 'home';
     }
   }
-  // Admin preview: unpaid users are locked to billing; hide admin pages in preview
-  if (window.MEBSite) {
+  // Full demo site: allow exploring all pages with sample data
+  if (window.MEBDemo && window.MEBDemo.isActive && window.MEBDemo.isActive()) {
+    /* no billing lock */
+  } else if (window.MEBSite) {
+    // Admin preview: unpaid users are locked to billing; hide admin pages in preview
     if (window.MEBSite.isViewAsUnpaid && window.MEBSite.isViewAsUnpaid() && name !== 'billing') {
       name = 'billing';
     }
