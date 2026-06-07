@@ -53,7 +53,7 @@
           <div class="nav-group-items">
             <a class="nav-item" data-page="catalogs"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h3v18H6a2 2 0 0 1-2-2V5Z"/><path d="M9 3h4l5 1.5-3.5 16L9 19"/></svg><span>Library Setup</span></a>
             <a class="nav-item" data-page="streaming"><svg class="nav-ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m10 9 5 3-5 3V9Z"/></svg><span>Media Sources</span></a>
-            <a class="nav-item" data-page="users"><svg class="nav-ic" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><span>Users & Permissions</span></a>
+            <a class="nav-item admin-only" data-page="users"><svg class="nav-ic" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><span>Users & Permissions</span></a>
             <a class="nav-item nav-item-disabled"><svg class="nav-ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m10 9 5 3-5 3V9Z"/></svg><span>Transcoding</span><span class="disabled-tag">DISABLED</span></a>
             <a class="nav-item nav-item-disabled"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 1-7.1 7.1 5 5 0 0 1 7.1-7.1Zm0 0L15 8m0 0 3 3 3-3-3-3"/></svg><span>Notifications</span><span class="disabled-tag">DISABLED</span></a>
           </div>
@@ -91,7 +91,6 @@
           </button>
           <div class="nav-group-items">
             <a class="nav-item admin-only" data-page="admin" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M12 2 4 6v6c0 5 8 8 8 8s8-3 8-8V6l-8-4Z"/></svg><span>System</span></a>
-            <a class="nav-item admin-only" data-page="users" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><span>Users</span></a>
           </div>
         </div>
       </nav>
@@ -105,7 +104,6 @@
 
     <main class="content" id="content">
       <section class="page" id="page-home">
-        <div class="home-warm-bg"></div>
         <div class="home-wrap">
 
           <!-- greeting -->

@@ -3,6 +3,14 @@ const PAGES = ['home','dashboard','servers','catalogs','streaming','appearance',
 
 function showPage(name) {
   if (!PAGES.includes(name)) name = 'home';
+  // Protect admin pages from non-admins (in case of direct hash or race)
+  const adminPages = ['admin', 'users'];
+  if (adminPages.includes(name)) {
+    const user = window.currentUser;
+    if (!user || user.role !== 'admin') {
+      name = 'home';
+    }
+  }
   PAGES.forEach(p => {
     const sec = document.getElementById('page-' + p);
     if (sec) sec.classList.toggle('on', p === name);
@@ -124,6 +132,7 @@ function initShell() {
   fetch('/api/auth/me', { credentials: 'same-origin' }).then(r => r.json()).then(d => {
     const btn = document.getElementById('logout');
     const loggedIn = !!(d && d.user);
+    window.currentUser = d && d.user ? d.user : null;
 
     if (btn && loggedIn) {
       btn.style.display = 'flex';
@@ -145,6 +154,20 @@ function initShell() {
       });
     });
 
+    // Hide admin-only nav items (like Users & Permissions) for non-admins
+    const isAdmin = !!(d && d.user && d.user.role === 'admin');
+    document.querySelectorAll('.nav-item.admin-only, .nav-group.admin-only').forEach(el => {
+      el.style.display = isAdmin ? '' : 'none';
+    });
+
+    // If a non-admin somehow landed on admin page, redirect
+    const page = (location.hash || '#/home').replace(/^#\//, '');
+    const adminPages = ['admin', 'users'];
+    if (adminPages.includes(page) && !isAdmin) {
+      location.hash = '#/home';
+      return;
+    }
+
     // Re-evaluate which nav group should be open now that admin-only items may have appeared
     if (window.ensureActiveNavGroupOpen) window.ensureActiveNavGroupOpen();
   }).catch(() => {
@@ -155,6 +178,13 @@ function initShell() {
         el.style.display = 'none';
       });
     });
+    window.currentUser = null;
+    const page = (location.hash || '#/home').replace(/^#\//, '');
+    const adminPages = ['admin', 'users'];
+    if (adminPages.includes(page)) {
+      location.hash = '#/home';
+      return;
+    }
     if (window.ensureActiveNavGroupOpen) window.ensureActiveNavGroupOpen();
   });
 

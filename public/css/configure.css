@@ -1303,17 +1303,6 @@ body.locked-billing .pin-btn{ display:none; }
   border: 1px solid rgba(139, 92, 246, 0.3);
   position: relative; /* contain if needed */
 }
-.brand-logo{ 
-  width:32px; 
-  height:32px; 
-  border-radius:10px; 
-  display:grid; 
-  place-items:center; 
-  flex:none; 
-  background: #7c3aed; 
-  box-shadow: 0 0 12px rgba(124, 58, 237, 0.5); 
-}
-.brand-logo svg{ width:18px; height:18px; stroke: #fff; }
 .brand-name{ font-weight:800; font-size:1rem; white-space:nowrap; color: var(--text); }
 .sidebar-foot{ border-top:1px solid var(--border); padding-top:8px !important; }
 .userbtn{ display:flex; align-items:center; gap:10px; padding:8px 10px; margin:8px 8px 0; border-radius:var(--r-md); cursor:pointer; color:var(--text-dim); }
@@ -1625,161 +1614,22 @@ html.view-as-user .admin-only { display: none !important; }
 #audio-preset-chips .chip.on { background: var(--accent); color: #fff; }
 
 /* ===================== Home page — warm landing ===================== */
-#page-home { position: relative; overflow: hidden; padding: 0; }
-
-/* Warm ambient overlay — richer cozy warmth + welcome glow for home (peach/amber/orange soft layers) */
-.home-warm-bg {
-  position: absolute; inset: 0; pointer-events: none; z-index: 0;
-  background:
-    /* rich top-left peach sunrise - smooth */
-    radial-gradient(ellipse 120% 65% at 5% -10%, color-mix(in srgb, #fb923c 20%, transparent), transparent 78%),
-    /* warm coral side light */
-    radial-gradient(ellipse 55% 50% at 92% 18%, color-mix(in srgb, #f472b6 12%, transparent), transparent 72%),
-    /* deep cozy bottom amber */
-    radial-gradient(ellipse 55% 75% at 48% 105%, color-mix(in srgb, #f59e0b 10%, transparent), transparent 82%),
-    /* soft warm veil for even coverage */
-    linear-gradient(170deg, color-mix(in srgb, var(--accent-a) 5%, transparent) 0%, transparent 50%, color-mix(in srgb, #fcd34d 3%, transparent) 100%);
-  filter: saturate(1.06) brightness(1.01);
-}
-/* Extra slow breathing orbs for the outer home background (more life, less flat) */
-#page-home .home-warm-bg::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: 
-    radial-gradient(42vw 32vw at 18% 32%, color-mix(in srgb, #f59e0b 5%, transparent), transparent 65%),
-    radial-gradient(28vw 36vw at 82% 68%, color-mix(in srgb, #fb923c 4%, transparent), transparent 70%);
-  animation: home-bg-orb 32s ease-in-out infinite alternate;
-  opacity: .55;
-  filter: blur(70px);
-}
-@keyframes home-bg-orb {
-  to { transform: translate(1.5vw, -1.2vh) scale(1.04); }
-}
-@media (prefers-reduced-motion: reduce) {
-  #page-home .home-warm-bg::before { animation: none; }
-}
-
-/* Fix texture/background leak-through on home: tone down global particles and orbs so the see-thru glass looks clean and warm (no noisy dots/lines or unwanted texture) */
-#page-home .bg .orb,
-#page-home .bg .flake,
-#page-home .stipple {
-  opacity: 0.08 !important;
-  filter: blur(3px);
-}
-/* Extra safety: the glass surface itself gets a very soft warm tint to further smooth any remaining background texture */
-#page-home .home-wrap {
-  box-shadow: 
-    0 30px 90px rgba(0,0,0,.55),
-    0 10px 30px rgba(0,0,0,.3),
-    0 0 0 1px color-mix(in srgb, var(--accent-a) 12%, transparent) inset,
-    0 1px 0 rgba(255,255,255,.1) inset,
-    0 0 80px color-mix(in srgb, var(--accent-a) 6%, transparent) inset; /* soft internal warm wash */
-}
-/* Extra organic soft warm blobs for creative depth (very low key, no hard lines) */
-.home-warm-bg::before,
-.home-warm-bg::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: .07;
-  pointer-events: none;
-  animation: home-warm-drift 38s ease-in-out infinite alternate;
-}
-.home-warm-bg::before {
-  width: 38vw; height: 38vw;
-  left: 12%; top: 18%;
-  background: #f59e0b;
-  animation-duration: 42s;
-}
-.home-warm-bg::after {
-  width: 28vw; height: 28vw;
-  right: 8%; bottom: 12%;
-  background: #fb923c;
-  animation-duration: 31s;
-  animation-delay: -12s;
-}
-@keyframes home-warm-drift {
-  to { transform: translate(4vw, -3vh) scale(1.08); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .home-warm-bg::before, .home-warm-bg::after { animation: none; }
-}
+/* Match dashboard: no page-level tint or clipping — let the global .bg orbs show through */
+#page-home { position: relative; overflow: visible; padding: 0; background: transparent; }
 
 .home-wrap { 
   position: relative; 
-  z-index: 1; 
   padding: 32px 44px 52px; 
   width: 100%; 
   max-width: 1480px;
   margin: 0 auto;
   box-sizing: border-box;
-  /* See-thru glass "welcome room" — background shines through cleanly, fills more of the page. Slightly more fill to avoid raw texture bleed */
-  background: color-mix(in srgb, var(--bg-surface) 68%, transparent);
-  border-radius: 28px;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: 
-    0 30px 90px rgba(0,0,0,.55),
-    0 10px 30px rgba(0,0,0,.3),
-    0 0 0 1px color-mix(in srgb, var(--accent-a) 12%, transparent) inset,
-    0 1px 0 rgba(255,255,255,.1) inset;
-  border: 1px solid color-mix(in srgb, var(--accent-a) 18%, var(--border) 30%);
-  overflow: hidden; /* contains the mouse glow + orbs */
-  animation: home-surface-breathe 7.5s ease-in-out infinite alternate;
-}
-@keyframes home-surface-breathe {
-  from { box-shadow: 
-    0 30px 90px rgba(0,0,0,.55),
-    0 10px 30px rgba(0,0,0,.3),
-    0 0 0 1px color-mix(in srgb, var(--accent-a) 12%, transparent) inset; }
-  to   { box-shadow: 
-    0 34px 100px rgba(0,0,0,.6),
-    0 12px 34px rgba(0,0,0,.35),
-    0 0 0 1px color-mix(in srgb, var(--accent-a) 16%, transparent) inset; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .home-wrap { animation: none; }
-}
-
-/* Interactive mouse-follow spotlight for wow smoothness on the hero area */
-.home-wrap::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    480px circle at var(--mx, 50%) var(--my, 18%),
-    color-mix(in srgb, var(--accent-a) 13%, transparent) 0%,
-    transparent 62%
-  );
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.72;
-  transition: background 0.08s linear; /* even snappier follow */
-  mix-blend-mode: screen;
-}
-
-/* Animated soft orbs *inside* the welcome surface for organic life, depth & warmth (subtle, premium) */
-.home-wrap::after {
-  content: '';
-  position: absolute;
-  inset: -28% -12% -18% -12%;
-  background: 
-    radial-gradient(ellipse 52% 42% at 24% 76%, color-mix(in srgb, #f59e0b 8%, transparent), transparent 72%),
-    radial-gradient(ellipse 36% 50% at 76% 26%, color-mix(in srgb, #fb923c 6%, transparent), transparent 76%);
-  pointer-events: none;
-  z-index: 0;
-  opacity: .5;
-  animation: home-inner-orb 24s ease-in-out infinite alternate;
-  filter: blur(38px);
-}
-@keyframes home-inner-orb {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(2.5%, -3.5%) scale(1.05); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .home-wrap::after { animation: none; }
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: visible;
 }
 
 /* Greeting row — warmer, more welcoming */
@@ -2276,8 +2126,7 @@ html.view-as-user .admin-only { display: none !important; }
 @media (prefers-reduced-motion: reduce) {
   body:not(.force-motion) .home-hero-card,
   body:not(.force-motion) .home-panel,
-  body:not(.force-motion) .home-greeting,
-  body:not(.force-motion) .home-warm-bg { animation: none !important; }
+  body:not(.force-motion) .home-greeting { animation: none !important; }
 }
 
 @media (max-width: 900px) {
