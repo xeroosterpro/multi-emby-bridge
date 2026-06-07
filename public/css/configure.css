@@ -1509,15 +1509,20 @@ body.locked-billing #page-billing { padding-top: 8px; }
 }
 #demo-site-tour.on{ pointer-events:auto; }
 #demo-site-tour .dst-backdrop{
-  position:absolute; inset:0; background:rgba(4,4,10,.72); backdrop-filter:blur(2px);
+  position:absolute; inset:0; background:transparent;
   opacity:0; transition:opacity .28s var(--ease);
 }
 #demo-site-tour.on .dst-backdrop{ opacity:1; }
 #demo-site-tour .dst-spot{
   position:fixed; display:none; border-radius:12px; pointer-events:none; z-index:1;
   border:2px solid var(--accent);
-  box-shadow:0 0 0 9999px rgba(4,4,10,.72),0 0 24px color-mix(in srgb,var(--accent) 45%,transparent);
+  box-shadow:0 0 0 9999px rgba(4,4,10,.58),0 0 20px color-mix(in srgb,var(--accent) 35%,transparent);
   transition:top .3s var(--ease),left .3s var(--ease),width .3s var(--ease),height .3s var(--ease);
+}
+.demo-tour-highlight{
+  position:relative; z-index:701 !important;
+  box-shadow:0 0 0 2px var(--accent),0 0 28px color-mix(in srgb,var(--accent) 40%,transparent) !important;
+  border-radius:12px;
 }
 #demo-site-tour .dst-card{
   position:fixed; left:50%; bottom:88px; transform:translateX(-50%) translateY(12px);

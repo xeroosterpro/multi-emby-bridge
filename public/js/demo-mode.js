@@ -336,9 +336,14 @@
     el.querySelector('#dst-backdrop').onclick = closeSiteTour;
   }
 
+  function clearTourHighlight() {
+    document.querySelectorAll('.demo-tour-highlight').forEach(el => el.classList.remove('demo-tour-highlight'));
+  }
+
   function positionSpot(sel) {
     const spot = document.getElementById('dst-spot');
     if (!spot) return;
+    clearTourHighlight();
     if (!sel) { spot.style.display = 'none'; return; }
     const el = document.querySelector(sel);
     if (!el) { spot.style.display = 'none'; return; }
@@ -351,6 +356,7 @@
       spot.style.left = (r.left - pad) + 'px';
       spot.style.width = (r.width + pad * 2) + 'px';
       spot.style.height = (r.height + pad * 2) + 'px';
+      el.classList.add('demo-tour-highlight');
     }, 350);
   }
 
@@ -394,6 +400,7 @@
 
   function closeSiteTour() {
     tourOpen = false;
+    clearTourHighlight();
     const el = document.getElementById('demo-site-tour');
     if (!el) return;
     el.classList.remove('on');
