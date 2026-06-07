@@ -3098,13 +3098,7 @@ html.view-as-user .admin-only { display: none !important; }
 }
 .tkt-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
 
-/* sidebar badge */
-.nav-ticket-badge {
-  display: none; align-items: center; justify-content: center;
-  min-width: 18px; height: 18px; padding: 0 5px;
-  background: var(--accent); color: #fff; border-radius: 20px;
-  font-size: .68rem; font-weight: 700; margin-left: auto;
-}
+
 
 @media (max-width: 899px) {
   .tkt-stats { grid-template-columns: repeat(2, 1fr); }
