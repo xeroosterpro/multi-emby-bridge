@@ -12,7 +12,8 @@
     document.documentElement.classList.toggle('view-as-user', state.role === 'admin' && isViewAs());
     // reset previous badges/hides on toggleable items
     document.querySelectorAll('.nav-item[data-page]').forEach(el => {
-      el.classList.remove('tab-hidden');
+      el.classList.remove('tab-hidden', 'tab-disabled-off');
+      el.removeAttribute('title');
       const b = el.querySelector('.tab-disabled-badge'); if (b) b.remove();
     });
     state.disabled.forEach(page => {
@@ -20,13 +21,11 @@
       if (asUser) {
         item.classList.add('tab-hidden');
       } else {
-        if (!item.querySelector('.tab-disabled-badge')) {
-          const badge = document.createElement('span');
-          badge.className = 'tab-disabled-badge'; badge.textContent = 'disabled';
-          item.appendChild(badge);
-        }
+        item.classList.add('tab-disabled-off');
+        item.title = 'Hidden from users — manage in System';
       }
     });
+    updateNavGroupCounts();
     // if currently on a hidden page, bounce to dashboard
     const cur = (location.hash || '').replace(/^#\//, '');
     if (asUser && state.disabled.includes(cur)) location.hash = '#/dashboard';
@@ -62,6 +61,22 @@
       state.disabled = (cfg && Array.isArray(cfg.disabledTabs)) ? cfg.disabledTabs : [];
     } catch {}
     applyTabs();
+  }
+
+  function updateNavGroupCounts() {
+    const asUser = state.role !== 'admin' || isViewAs();
+    document.querySelectorAll('.nav-group[data-group]').forEach(group => {
+      const toggle = group.querySelector('.nav-sec-toggle span:first-child');
+      if (!toggle) return;
+      const base = toggle.dataset.baseLabel || toggle.textContent;
+      toggle.dataset.baseLabel = base;
+      const items = [...group.querySelectorAll('.nav-item[data-page]')].filter(el => !el.classList.contains('tab-hidden'));
+      const off = asUser ? 0 : items.filter(el => el.classList.contains('tab-disabled-off')).length;
+      const on = items.length - off;
+      let label = base;
+      if (!asUser && off > 0) label = `${base} · ${on}/${items.length}`;
+      toggle.textContent = label;
+    });
   }
 
   window.MEBSite = { refresh, applyTabs, setViewAs, isViewAs, get disabled() { return state.disabled.slice(); }, get role() { return state.role; } };

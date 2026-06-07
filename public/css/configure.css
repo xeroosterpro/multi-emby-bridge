@@ -941,18 +941,23 @@ body.noanim .orb, body.noanim .flake{ animation:none !important } body.noanim .f
 :root{ --side-ease:cubic-bezier(.33,0,.2,1); }
 .sidebar{ position:fixed; top:0; left:0; bottom:0; width:var(--side-collapsed); overflow:hidden; z-index:30;
   background:rgba(14,14,22,.82); backdrop-filter:blur(16px); border-right:1px solid var(--border);
-  transition:width .46s var(--side-ease) .28s, box-shadow .46s var(--side-ease) .28s; }
+  transition:width .46s var(--side-ease) .28s, box-shadow .46s var(--side-ease) .28s;
+  display:flex; flex-direction:column; }
 .sidebar:hover, .sidebar.locked{ width:var(--side-w); box-shadow:0 0 40px rgba(0,0,0,.5);
   transition:width .42s var(--side-ease) 0s, box-shadow .42s var(--side-ease) 0s; }
 .content{ margin-left:var(--side-collapsed); transition:margin-left .44s var(--side-ease); }
 body.sb-locked .content{ margin-left:var(--side-w); }
 /* labels fade IN gently once the panel has started widening (delay), and fade
    OUT quickly so they never get clipped by the shrinking rail */
-.brand, .nav-item span, .sidebar-foot, .nav-sec{ transition:opacity .3s var(--side-ease) .16s; white-space:nowrap; }
-.sidebar:not(:hover):not(.locked) .nav-item span,
+.brand, .nav-item .nav-label, .nav-item .nav-ticket-badge, .sidebar-foot, .nav-sec{ transition:opacity .3s var(--side-ease) .16s; white-space:nowrap; }
+.sidebar:not(:hover):not(.locked) .nav-item .nav-label,
+.sidebar:not(:hover):not(.locked) .nav-item .nav-ticket-badge,
 .sidebar:not(:hover):not(.locked) .brand,
 .sidebar:not(:hover):not(.locked) .sidebar-foot{ opacity:0; pointer-events:none; transition:opacity .24s var(--side-ease) .28s; }
-.nav-item{ position:relative; overflow:hidden; }
+.nav{ flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding-bottom:6px; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+.nav::-webkit-scrollbar{ width:4px; }
+.nav::-webkit-scrollbar-thumb{ background:var(--border); border-radius:4px; }
+.nav-item{ position:relative; overflow:visible; padding:9px 14px; margin:1px 8px; }
 .nav-item.on{ background:var(--glow) !important; animation:none !important; }
 .nav-item.on::before{ content:''; position:absolute; left:0; top:18%; bottom:18%; width:3px; border-radius:3px; background:var(--accent); }
 
@@ -1310,34 +1315,13 @@ body.locked-billing .pin-btn{ display:none; }
 .userbtn .avatar{ width:30px; height:30px; border-radius:50%; flex:none; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:grid; place-items:center; color:#0a0a12; font-weight:800; font-size:.8rem; }
 .userbtn .um{ font-size:.8rem; white-space:nowrap; }
 
-/* ===================== DISABLED nav items (Transcoding, Notifications placeholders per mock) ===================== */
-.nav-item-disabled {
-  opacity: 0.6;
-  cursor: default;
-  pointer-events: none; /* no navigation or active state */
-}
-.nav-item-disabled:hover {
-  background: transparent !important;
-  color: inherit !important;
-}
-.nav-item-disabled .nav-ic {
-  opacity: 0.6;
-}
-.disabled-tag {
-  display: inline-flex;
-  align-items: center;
-  font-size: .52rem;
-  font-weight: 800;
-  letter-spacing: .6px;
-  text-transform: uppercase;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: rgba(148, 163, 184, 0.18);
-  color: var(--text-mute);
-  margin-left: 6px;
-  vertical-align: middle;
-  line-height: 1;
-  white-space: nowrap;
+/* nav label + trailing badges (tickets, disabled dot) */
+.nav-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-ticket-badge {
+  display: none; align-items: center; justify-content: center; flex: none;
+  min-width: 17px; height: 17px; padding: 0 5px; margin-left: auto;
+  background: var(--accent); color: #fff; border-radius: 20px;
+  font-size: .64rem; font-weight: 800;
 }
 
 /* ===================== motion/smoothness pass (match prototype feel) ===================== */
@@ -1680,7 +1664,14 @@ body.locked-billing .pin-btn{ display:none; }
 .ob-step.done .ob-check { background:var(--accent); border-color:var(--accent); }
 .tab-hidden { display: none !important; }
 html.view-as-user .admin-only { display: none !important; }
-.tab-disabled-badge { margin-left: auto; font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--warning); background: color-mix(in srgb, var(--warning) 16%, transparent); padding: 1px 6px; border-radius: 999px; }
+.tab-disabled-badge { display: none !important; }
+.nav-item.tab-disabled-off { opacity: .52; }
+.nav-item.tab-disabled-off .nav-label { color: var(--text-mute); }
+.nav-item.tab-disabled-off .nav-ic { opacity: .65; }
+.nav-item.tab-disabled-off::after {
+  content: ''; width: 5px; height: 5px; border-radius: 50%; flex: none;
+  background: var(--text-mute); margin-left: auto; opacity: .7;
+}
 #view-as-banner { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 12px; background: rgba(20,20,30,.96); backdrop-filter: blur(14px); border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); color: var(--text-primary); padding: 10px 14px; border-radius: 999px; box-shadow: 0 16px 40px rgba(0,0,0,.5); font-size: .82rem; }
 #view-as-banner button { background: var(--accent); color: #0a0a12; border: 0; border-radius: 999px; padding: 4px 10px; font-weight: 700; cursor: pointer; }
 
