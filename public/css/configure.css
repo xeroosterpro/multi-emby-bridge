@@ -761,9 +761,6 @@ input::placeholder { color: var(--text-muted); }
 }
 .brand {
   font-size: 1.12rem; font-weight: 800; padding: 0 18px 16px;
-  background: var(--grad-rgb); background-size: 300% 100%;
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  animation: rgbflow 6s linear infinite;
 }
 .nav { display: flex; flex-direction: column; gap: 1px; }
 .nav-item {
@@ -1227,7 +1224,13 @@ body.sb-locked .content{ margin-left:var(--side-w); }
 .sidebar:not(:hover):not(.locked) .nav-item .nav-buffer-badge,
 .sidebar:not(:hover):not(.locked) .brand-text,
 .sidebar:not(:hover):not(.locked) .sidebar-foot{ opacity:0; pointer-events:none; transition:opacity .24s var(--side-ease) .28s; }
-.sidebar:not(:hover):not(.locked) .brand{ justify-content:center !important; padding-right:10px !important; }
+.sidebar:not(:hover):not(.locked) .brand{
+  justify-content:center !important;
+  padding:10px !important;
+  margin:0 8px 14px !important;
+  min-width:0;
+}
+.sidebar:not(:hover):not(.locked) .brand-logo{ flex-shrink:0; }
 .nav{ flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding-bottom:6px; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
 .nav::-webkit-scrollbar{ width:4px; }
 .nav::-webkit-scrollbar-thumb{ background:var(--border); border-radius:4px; }
@@ -2162,6 +2165,7 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
 .brand{
   display:flex !important; align-items:center; gap:10px;
   -webkit-text-fill-color:initial !important; color:var(--text) !important;
+  -webkit-background-clip:border-box !important; background-clip:border-box !important;
   animation:none !important;
   padding:12px 44px 12px 12px !important;
   margin:0 10px 16px !important;
@@ -2190,6 +2194,9 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
 .brand-logo{
   position:relative; width:40px; height:40px; flex:none;
   display:grid; place-items:center;
+  border-radius:9px;
+  background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow:0 2px 12px color-mix(in srgb, var(--accent) 40%, transparent);
   animation:brand-logo-float 3.2s ease-in-out infinite;
 }
 @keyframes brand-logo-float{
@@ -2211,7 +2218,10 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
   70%{ transform:scale(1.18); opacity:0; }
   100%{ transform:scale(1.18); opacity:0; }
 }
-.brand-logo-svg{ width:40px; height:40px; position:relative; z-index:1; filter:drop-shadow(0 2px 8px rgba(0,0,0,.35)); }
+.brand-logo-svg{
+  width:40px; height:40px; display:block; position:relative; z-index:1;
+  filter:drop-shadow(0 2px 8px rgba(0,0,0,.35));
+}
 .brand-logo-bg{ filter:brightness(1.05); }
 .brand-logo-dot{ animation:brand-dot-pulse 2s ease-in-out infinite; transform-origin:16px 10px; }
 @keyframes brand-dot-pulse{
