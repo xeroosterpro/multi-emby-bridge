@@ -1,11 +1,19 @@
-// Theme + UI preferences: theme color, UI scale, sidebar lock, reduce motion.
+// Theme + UI preferences: theme presets, UI scale, sidebar lock, reduce motion.
 (function () {
   const LS = {
     theme: 'meb-theme', scale: 'meb-ui-scale', lock: 'meb-sidebar-lock', motion: 'meb-bg-motion',
   };
+  const VALID_THEMES = new Set([
+    'purple', 'red', 'pink', 'blue', 'rgb',
+    'emerald', 'amber', 'cyan', 'sunset', 'lime',
+    'neon', 'outline', 'glass', 'vapor', 'cyber', 'aurora', 'mono',
+  ]);
   const root = document.documentElement;
 
-  function applyTheme(t) { root.dataset.theme = t || 'purple'; }
+  function applyTheme(t) {
+    const theme = VALID_THEMES.has(t) ? t : 'purple';
+    root.dataset.theme = theme;
+  }
   function applyScale(v) { root.style.zoom = (v / 100); }
   // v: 'on' = force animations (override OS reduce-motion); 'off' = pause; null = follow OS
   function applyMotion(v) {

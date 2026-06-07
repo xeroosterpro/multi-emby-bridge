@@ -6,6 +6,7 @@
   <title>Stream-Hub — Configure</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/css/configure.css" />
+  <link rel="stylesheet" href="/css/themes.css" />
 </head>
 <body class="sb-locked">
   <div class="bg" id="bg"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="stipple" id="stipple"></div></div>
@@ -1044,15 +1045,36 @@
       </section>
       <section class="page" id="page-settings">
         <h2 class="page-title">Settings</h2>
-        <p class="page-sub">Subscription, theme, display size, and motion.</p>
+        <p class="page-sub">Subscription, themes, display size, and motion.</p>
         <div id="settings-sub"></div>
-        <h3 class="block-title">Theme</h3>
-        <div class="themes">
-          <div class="swatch sel" data-t="purple"><div class="pv pv-purple"></div><div class="nm">Purple</div></div>
-          <div class="swatch" data-t="red"><div class="pv pv-red"></div><div class="nm">Red</div></div>
-          <div class="swatch" data-t="pink"><div class="pv pv-pink"></div><div class="nm">Pink</div></div>
-          <div class="swatch" data-t="blue"><div class="pv pv-blue"></div><div class="nm">Blue</div></div>
-          <div class="swatch" data-t="rgb"><div class="pv pv-rgb"></div><div class="nm">RGB</div></div>
+        <div class="theme-section">
+          <h3 class="block-title">Color palettes</h3>
+          <p class="theme-section-hint">Accent colors and tinted surfaces across the app.</p>
+          <div class="themes themes-colors">
+            <div class="swatch sel" data-t="purple"><div class="pv pv-purple"></div><div class="nm">Purple</div></div>
+            <div class="swatch" data-t="red"><div class="pv pv-red"></div><div class="nm">Red</div></div>
+            <div class="swatch" data-t="pink"><div class="pv pv-pink"></div><div class="nm">Pink</div></div>
+            <div class="swatch" data-t="blue"><div class="pv pv-blue"></div><div class="nm">Blue</div></div>
+            <div class="swatch" data-t="rgb"><div class="pv pv-rgb"></div><div class="nm">RGB</div><span class="tag">Animated</span></div>
+            <div class="swatch" data-t="emerald"><div class="pv pv-emerald"></div><div class="nm">Emerald</div></div>
+            <div class="swatch" data-t="amber"><div class="pv pv-amber"></div><div class="nm">Amber</div></div>
+            <div class="swatch" data-t="cyan"><div class="pv pv-cyan"></div><div class="nm">Cyan</div></div>
+            <div class="swatch" data-t="sunset"><div class="pv pv-sunset"></div><div class="nm">Sunset</div></div>
+            <div class="swatch" data-t="lime"><div class="pv pv-lime"></div><div class="nm">Lime</div></div>
+          </div>
+        </div>
+        <div class="theme-section">
+          <h3 class="block-title">Style presets</h3>
+          <p class="theme-section-hint">Outline borders, neon glow, glass blur, grid backgrounds, and more — these reshape cards, sidebar, and buttons.</p>
+          <div class="themes themes-styles">
+            <div class="swatch" data-t="neon"><div class="pv pv-neon"></div><div class="nm">Neon Glow</div><span class="tag">Glow</span></div>
+            <div class="swatch" data-t="outline"><div class="pv pv-outline"></div><div class="nm">Outline</div><span class="tag">Borders</span></div>
+            <div class="swatch" data-t="glass"><div class="pv pv-glass"></div><div class="nm">Glass</div><span class="tag">Frosted</span></div>
+            <div class="swatch" data-t="vapor"><div class="pv pv-vapor"></div><div class="nm">Vaporwave</div><span class="tag">Grid BG</span></div>
+            <div class="swatch" data-t="cyber"><div class="pv pv-cyber"></div><div class="nm">Cyber</div><span class="tag">Yellow</span></div>
+            <div class="swatch" data-t="aurora"><div class="pv pv-aurora"></div><div class="nm">Aurora</div><span class="tag">Northern</span></div>
+            <div class="swatch" data-t="mono"><div class="pv pv-mono"></div><div class="nm">Mono</div><span class="tag">B&amp;W</span></div>
+          </div>
         </div>
         <h3 class="block-title">Display</h3>
         <div class="field">

@@ -1037,24 +1037,7 @@ input[type=range][data-slider] { flex: 1; accent-color: var(--accent-a); }
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 :root{ --accent-2:#c4b5ff; --glow:var(--accent-glow); --side-collapsed:66px; --ease:cubic-bezier(.22,.61,.36,1); }
-@property --hue{ syntax:'<number>'; inherits:true; initial-value:280; }
-@keyframes huecycle{ from{--hue:0} to{--hue:360} }
-
-/* 5 themes — override the accent; legacy accent vars + gradients derive from it so the whole UI follows */
-[data-theme="purple"]{ --accent:#7b61ff; --accent-2:#c4b5ff; }
-[data-theme="red"]{ --accent:#ff4d5e; --accent-2:#ffb3a7; }
-[data-theme="pink"]{ --accent:#ff5fa2; --accent-2:#ffc2dd; }
-[data-theme="blue"]{ --accent:#3b9dff; --accent-2:#9fd8ff; }
-[data-theme="rgb"]{ --accent:hsl(var(--hue,280),85%,65%); --accent-2:hsl(calc(var(--hue,280) + 40),80%,78%); animation:huecycle 14s linear infinite; }
-html[data-theme]{
-  --accent-dim:color-mix(in srgb, var(--accent) 75%, #000);
-  --accent-glow:color-mix(in srgb, var(--accent) 22%, transparent);
-  --glow:color-mix(in srgb, var(--accent) 22%, transparent);
-  --border-focus:var(--accent);
-  --accent-a:var(--accent); --accent-b:var(--accent-2); --accent-c:var(--accent); --accent-d:var(--accent-2);
-  --grad-accent:linear-gradient(90deg,var(--accent),var(--accent-2));
-  --grad-rgb:linear-gradient(90deg,var(--accent),var(--accent-2),var(--accent));
-}
+/* Theme presets live in themes.css */
 
 html{ background:#06060b; }
 body{ font-family:'Inter',system-ui,sans-serif !important; letter-spacing:-.01em; background:transparent !important; }
@@ -1115,15 +1098,7 @@ body.sb-locked .content{ margin-left:var(--side-w); }
 @keyframes flowin{ from{ opacity:0; transform:scale(.985) translateY(8px) } to{ opacity:1; transform:none } }
 body.noanim .page.on{ animation:none !important; }
 
-/* settings: theme swatches + range + toggle */
-.themes{ display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); margin:10px 0; }
-.swatch{ background:var(--bg-surface); border:2px solid var(--border); border-radius:var(--r-md); padding:12px; cursor:pointer; transition:transform .2s var(--ease),border-color .2s; }
-.swatch:hover{ transform:translateY(-4px); } .swatch.sel{ border-color:var(--accent); box-shadow:0 0 22px var(--glow); }
-.swatch .pv{ height:42px; border-radius:10px; margin-bottom:8px; }
-.swatch .nm{ font-weight:700; font-size:.85rem; }
-.pv-purple{ background:linear-gradient(135deg,#7b61ff,#c4b5ff) } .pv-red{ background:linear-gradient(135deg,#ff4d5e,#ffb3a7) }
-.pv-pink{ background:linear-gradient(135deg,#ff5fa2,#ffc2dd) } .pv-blue{ background:linear-gradient(135deg,#3b9dff,#9fd8ff) }
-.pv-rgb{ background:linear-gradient(90deg,#ff4d5e,#f0a500,#4caf7d,#3b9dff,#7b61ff,#ff5fa2); background-size:300% 100%; animation:rgbflow 6s linear infinite }
+/* settings: theme swatches in themes.css */
 .pref-row{ display:flex; align-items:center; gap:12px; margin:14px 0; }
 .switch{ width:46px; height:26px; border-radius:20px; background:rgba(255,255,255,.12); position:relative; cursor:pointer; transition:background .2s; flex:none; }
 .switch.on{ background:var(--accent); }
@@ -4616,7 +4591,7 @@ html.view-as-user .admin-only { display: none !important; }
   .ping-controls select, .ping-controls .btn-ping-test { width: 100%; min-height: 44px; }
 
   /* ── Settings ── */
-  .themes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .themes-colors, .themes-styles { grid-template-columns: repeat(2, 1fr); gap: 10px; }
 
   /* ── API keys ── */
   .ak-grid { grid-template-columns: 1fr !important; }
