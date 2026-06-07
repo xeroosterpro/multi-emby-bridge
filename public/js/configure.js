@@ -249,7 +249,7 @@ try { _libStatsCache = JSON.parse(localStorage.getItem('meb-libstats-cache') || 
 function _libKey(s){ return [s.url, s.apiKey, s.userId].join('|'); }
 function _saveLibCache(){ try { localStorage.setItem('meb-libstats-cache', JSON.stringify(_libStatsCache)); } catch {} }
 const LIB_TTL_MS = 60 * 60 * 1000; // 1 hour
-const BRIDGE_FRESH_MS = 3 * 60 * 1000; // reuse health history when younger than this
+const BRIDGE_FRESH_MS = 6 * 60 * 1000; // align with 5-min health pings (+ buffer)
 
 function _bridgeMsFromHealth(healthByUrl, url) {
   const lat = healthByUrl[_normServerUrl(url)]?.history?.[0];
@@ -2162,7 +2162,7 @@ async function renderDashboard(force = false) {
               <div class="gcard-nm">${escHtml(s.label)}</div>
               <div class="gcard-host">${escHtml((s.url||'').replace(/^https?:\/\//,''))}</div>
             </div>
-            <div class="gstatus"><span class="gpill loading" data-pill>…</span><span class="gpill-ms" data-ms title="Bridge latency (addon → server)"></span></div>
+            <div class="gstatus"><span class="gpill loading" data-pill title="Bridge connection status">…</span></div>
           </div>
           <div class="gtype" style="display:none">${brandName}</div>
           <div class="gchips">
@@ -2179,9 +2179,18 @@ async function renderDashboard(force = false) {
         card.querySelector('[data-st=episodes]').textContent = (st.episodes||0).toLocaleString();
       };
       const setStatus = (online, bridgeMs) => {
-        const pill = card.querySelector('[data-pill]'), msEl = card.querySelector('[data-ms]');
-        if (pill) { pill.className = 'gpill ' + (online ? 'online' : 'offline'); pill.textContent = online ? 'ONLINE' : 'OFFLINE'; }
-        if (msEl) msEl.textContent = (online && bridgeMs != null) ? bridgeMs + 'ms' : '';
+        const pill = card.querySelector('[data-pill]');
+        if (!pill) return;
+        pill.className = 'gpill ' + (online ? 'online' : 'offline');
+        if (online) {
+          pill.textContent = bridgeMs != null ? `ONLINE · ${bridgeMs}ms` : 'ONLINE';
+          pill.title = bridgeMs != null
+            ? `Bridge reachable · ${bridgeMs}ms now (addon → server)`
+            : 'Bridge reachable · measuring latency…';
+        } else {
+          pill.textContent = 'OFFLINE';
+          pill.title = 'Bridge cannot authenticate or reach this server';
+        }
       };
       dashMeta.push({ s, setStatus, setStats });
     });
@@ -2243,7 +2252,13 @@ async function renderDashboard(force = false) {
     setTxt('tile-servers', upCount);
     setTxt('tile-movies', movieTotal.toLocaleString());
     setTxt('tile-shows', showTotal.toLocaleString());
-    setTxt('tile-ping', fastest != null ? fastest + 'ms' : '—');
+    const pingEl = document.getElementById('tile-ping');
+    if (pingEl) {
+      pingEl.textContent = fastest != null ? fastest + 'ms' : '—';
+      pingEl.title = fastest != null
+        ? `Fastest bridge path right now · ${fastest}ms (addon → server)`
+        : 'No bridge latency data yet';
+    }
     const totalMo = servers.reduce((a, s) => a + monthlyCost(s.cost, s.costPeriod), 0);
     setTxt('tile-cost', '$' + Math.round(totalMo) + (totalMo > 0 ? '/mo' : ''));
     setTxt('tile-cost-l', 'Server costs · $' + Math.round(totalMo * 12) + '/yr');
