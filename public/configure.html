@@ -487,15 +487,15 @@
 </section>
       <section class="page" id="page-streaming">
         <div class="ms-head">
-          <div>
+          <div class="ms-head-main">
             <h2 class="page-title ms-page-title">Media Sources</h2>
             <p class="page-sub ms-page-sub">Filter, sort, and style how streams appear in Stremio.</p>
           </div>
-        </div>
-        <div class="ms-stats" id="ms-stats">
-          <div class="ms-stat"><div class="ms-stat-n" id="ms-stat-mode">Normal</div><div class="ms-stat-l">Delivery</div></div>
-          <div class="ms-stat"><div class="ms-stat-n" id="ms-stat-sort">Size</div><div class="ms-stat-l">Sort by</div></div>
-          <div class="ms-stat"><div class="ms-stat-n" id="ms-stat-label">Standard</div><div class="ms-stat-l">Label style</div></div>
+          <div class="ms-stats ms-stats-inline" id="ms-stats">
+            <div class="ms-stat"><div class="ms-stat-n" id="ms-stat-mode">Normal</div><div class="ms-stat-l">Delivery</div></div>
+            <div class="ms-stat"><div class="ms-stat-n" id="ms-stat-sort">Size</div><div class="ms-stat-l">Sort</div></div>
+            <div class="ms-stat"><div class="ms-stat-n" id="ms-stat-label">Standard</div><div class="ms-stat-l">Label</div></div>
+          </div>
         </div>
         <div class="ms-layout">
           <div class="ms-controls">
@@ -503,11 +503,11 @@
         <div class="ms-card">
           <div class="ms-card-h"><span class="ms-ic"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z"/></svg></span><div><div class="ms-t">Delivery &amp; sorting</div><div class="ms-d">How streams reach Stremio and result order</div></div></div>
           <div class="field">
-            <div class="field-label">🚀 Delivery mode</div>
+            <div class="field-label">Delivery mode</div>
             <div class="seg" data-radio="perf-mode">
-              <button data-val="normal">⚡ Normal</button>
-              <button data-val="split">🔀 Split</button>
-              <button data-val="timeout">⏱ Fast timeout</button>
+              <button data-val="normal">Normal</button>
+              <button data-val="split">Split</button>
+              <button data-val="timeout">Fast timeout</button>
             </div>
             <div class="hidden-canonical">
               <input type="radio" name="perf-mode" value="normal" checked onchange="onModeChange()" />
@@ -528,99 +528,40 @@
               </select>
             </div>
           </div>
-          <div class="field">
-            <div class="field-label">📊 Sort streams by</div>
-            <div class="seg" data-target="#sort-order">
-              <button data-val="size">💾 File size</button><button data-val="audio">🔊 Audio</button><button data-val="bitrate">📶 Bitrate</button>
+          <div class="ms-field-grid">
+            <div class="field">
+              <div class="field-label">Sort by</div>
+              <div class="seg" data-target="#sort-order">
+                <button data-val="size">Size</button><button data-val="audio">Audio</button><button data-val="bitrate">Bitrate</button>
+              </div>
+              <select id="sort-order" class="hidden-canonical">
+                <option value="size">File size (largest first)</option>
+                <option value="audio">Audio quality (best first)</option>
+                <option value="bitrate">Bitrate (highest first)</option>
+              </select>
             </div>
-            <select id="sort-order" class="hidden-canonical">
-              <option value="size">File size (largest first)</option>
-              <option value="audio">Audio quality (best first)</option>
-              <option value="bitrate">Bitrate (highest first)</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <div class="field-label">🚫 Exclude resolutions</div>
-            <div class="chips exclude" data-targets>
-              <span class="chip" data-target="#res-4k">4K</span>
-              <span class="chip" data-target="#res-1080p">1080p</span>
-              <span class="chip" data-target="#res-720p">720p</span>
-              <span class="chip" data-target="#res-sd">SD</span>
-            </div>
-            <div class="hidden-canonical">
-              <input type="checkbox" class="res-cb" id="res-4k" value="4K" />
-              <input type="checkbox" class="res-cb" id="res-1080p" value="1080p" />
-              <input type="checkbox" class="res-cb" id="res-720p" value="720p" />
-              <input type="checkbox" class="res-cb" id="res-sd" value="SD" />
+            <div class="field">
+              <div class="field-label">Exclude res</div>
+              <div class="chips exclude" data-targets>
+                <span class="chip" data-target="#res-4k">4K</span>
+                <span class="chip" data-target="#res-1080p">1080p</span>
+                <span class="chip" data-target="#res-720p">720p</span>
+                <span class="chip" data-target="#res-sd">SD</span>
+              </div>
+              <div class="hidden-canonical">
+                <input type="checkbox" class="res-cb" id="res-4k" value="4K" />
+                <input type="checkbox" class="res-cb" id="res-1080p" value="1080p" />
+                <input type="checkbox" class="res-cb" id="res-720p" value="720p" />
+                <input type="checkbox" class="res-cb" id="res-sd" value="SD" />
+              </div>
             </div>
           </div>
         </div><!-- /ms-card delivery -->
 
         <div class="ms-card">
-          <div class="ms-card-h"><span class="ms-ic"><svg viewBox="0 0 24 24"><path d="M4 18V8M9 18V4M14 18v-6M19 18v-9"/></svg></span><div><div class="ms-t">Audio ranking</div><div class="ms-d">Device presets, format priority &amp; filtering</div></div></div>
+          <div class="ms-card-h"><span class="ms-ic"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg></span><div><div class="ms-t">Codec &amp; limits</div><div class="ms-d">Codec, bitrate cap &amp; stream badges</div></div></div>
           <div class="field">
-            <div class="field-label">🌐 Prefer audio language</div>
-            <select id="audio-lang" class="pick">
-              <option value="any">Any language</option>
-              <option value="eng">English</option>
-              <option value="fre">French</option>
-              <option value="spa">Spanish</option>
-              <option value="ger">German</option>
-              <option value="jpn">Japanese</option>
-              <option value="kor">Korean</option>
-              <option value="por">Portuguese</option>
-              <option value="ita">Italian</option>
-              <option value="zho">Chinese</option>
-              <option value="rus">Russian</option>
-              <option value="ara">Arabic</option>
-              <option value="hin">Hindi</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <div class="field-label">🔊 Audio ranking</div>
-            <div class="seg" data-target="#audio-rank" style="max-width:220px;margin-bottom:8px">
-              <button data-val="off">Off</button><button data-val="on">On</button>
-            </div>
-            <select id="audio-rank" class="hidden-canonical">
-              <option value="off">Off</option>
-              <option value="on">On</option>
-            </select>
-
-            <div class="audio-presets" style="margin-bottom:8px">
-              <div class="field-label" style="font-size:0.72rem">Device presets (multi-select)</div>
-              <div id="audio-preset-chips" class="chips"></div>
-              <div class="field-hint">Presets reflect typical decode support — adjust to your gear.</div>
-            </div>
-
-            <ol id="audio-rank-list" class="audio-rank-list"></ol>
-            <div class="field-hint" id="audio-rank-hint">Drag to set priority. Disable toggles work even with ranking off. If hiding would leave no results for a title, all are shown instead.</div>
-
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-              <div>
-                <div class="field-label" style="font-size:0.72rem">Priority mode</div>
-                <select id="audio-rank-mode" class="pick">
-                  <option value="audioFirst">Audio first</option>
-                  <option value="resFirst">Resolution first</option>
-                  <option value="tiebreak">Tiebreaker only</option>
-                </select>
-              </div>
-              <div>
-                <div class="field-label" style="font-size:0.72rem">When disabled</div>
-                <select id="audio-disable-action" class="pick">
-                  <option value="hide">Hide file</option>
-                  <option value="bottom">Send to bottom</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div><!-- /ms-card audio -->
-
-        <div class="ms-card">
-          <div class="ms-card-h"><span class="ms-ic"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg></span><div><div class="ms-t">Codec &amp; bitrate</div><div class="ms-d">Video codec preference and bandwidth cap</div></div></div>
-          <div class="field">
-            <div class="field-label">🎬 Prefer codec</div>
+            <div class="field-label">Prefer codec</div>
             <div class="seg" data-target="#pref-codec" style="margin-bottom:8px">
               <button data-val="any">Any</button><button data-val="h264">H.264</button><button data-val="hevc">HEVC</button><button data-val="av1">AV1</button><button data-val="vp9">VP9</button>
             </div>
@@ -641,7 +582,7 @@
           </div>
 
           <div class="field">
-            <div class="field-label">📶 Max bitrate</div>
+            <div class="field-label">Max bitrate</div>
             <div class="sliderrow">
               <input type="range" data-select="#max-bitrate" data-label="#maxbr-val" />
               <span class="sliderval" id="maxbr-val"></span>
@@ -659,17 +600,13 @@
               <option value="100000000">100 Mbps</option>
             </select>
           </div>
-        </div><!-- /ms-card codec -->
-
-        <div class="ms-card">
-          <div class="ms-card-h"><span class="ms-ic"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></span><div><div class="ms-t">Stream badges</div><div class="ms-d">Stars, ping markers &amp; auto-select</div></div></div>
           <div class="field">
-            <div class="field-label">✨ Extras</div>
-            <div class="switches">
-              <div class="sw" data-target="#show-recommend"><div class="knob"></div><div><div class="sw-lbl">⭐ Recommended</div><div class="sw-sub">star the best result</div></div></div>
-              <div class="sw" data-target="#show-ping"><div class="knob"></div><div><div class="sw-lbl">⚡ Fastest server</div><div class="sw-sub">mark lowest latency</div></div></div>
-              <div class="sw" data-target="#auto-select"><div class="knob"></div><div><div class="sw-lbl">🎯 Auto-select</div><div class="sw-sub">single best only</div></div></div>
-              <div class="sw" data-target="#ping-detail"><div class="knob"></div><div><div class="sw-lbl">📡 Ping in details</div><div class="sw-sub">show RTT per stream</div></div></div>
+            <div class="field-label">Stream badges</div>
+            <div class="switches ms-switches-compact">
+              <div class="sw" data-target="#show-recommend"><div class="knob"></div><div><div class="sw-lbl">Recommended</div></div></div>
+              <div class="sw" data-target="#show-ping"><div class="knob"></div><div><div class="sw-lbl">Fastest ping</div></div></div>
+              <div class="sw" data-target="#auto-select"><div class="knob"></div><div><div class="sw-lbl">Auto-select</div></div></div>
+              <div class="sw" data-target="#ping-detail"><div class="knob"></div><div><div class="sw-lbl">Ping detail</div></div></div>
             </div>
             <div class="hidden-canonical">
               <input type="checkbox" id="show-recommend" checked />
@@ -678,9 +615,69 @@
               <span id="ping-detail-item"><input type="checkbox" id="ping-detail" /></span>
             </div>
           </div>
-        </div><!-- /ms-card extras -->
+        </div><!-- /ms-card codec -->
+
+        <div class="ms-card ms-card-wide">
+          <div class="ms-card-h"><span class="ms-ic"><svg viewBox="0 0 24 24"><path d="M4 18V8M9 18V4M14 18v-6M19 18v-9"/></svg></span><div><div class="ms-t">Audio ranking</div><div class="ms-d">Device presets, format priority &amp; filtering</div></div></div>
+          <div class="ms-field-grid ms-audio-top">
+            <div class="field">
+            <div class="field-label">Prefer language</div>
+            <select id="audio-lang" class="pick">
+              <option value="any">Any language</option>
+              <option value="eng">English</option>
+              <option value="fre">French</option>
+              <option value="spa">Spanish</option>
+              <option value="ger">German</option>
+              <option value="jpn">Japanese</option>
+              <option value="kor">Korean</option>
+              <option value="por">Portuguese</option>
+              <option value="ita">Italian</option>
+              <option value="zho">Chinese</option>
+              <option value="rus">Russian</option>
+              <option value="ara">Arabic</option>
+              <option value="hin">Hindi</option>
+            </select>
+            </div>
+            <div class="field">
+            <div class="field-label">Audio ranking</div>
+            <div class="seg" data-target="#audio-rank">
+              <button data-val="off">Off</button><button data-val="on">On</button>
+            </div>
+            <select id="audio-rank" class="hidden-canonical">
+              <option value="off">Off</option>
+              <option value="on">On</option>
+            </select>
+            </div>
+          </div>
+
+          <div class="field ms-audio-body">
+            <div class="audio-presets ms-audio-presets">
+              <div class="field-label">Device presets</div>
+              <div id="audio-preset-chips" class="chips"></div>
+            </div>
+            <ol id="audio-rank-list" class="audio-rank-list"></ol>
+            <div class="ms-field-grid ms-audio-opts">
+              <div class="field">
+                <div class="field-label">Priority</div>
+                <select id="audio-rank-mode" class="pick">
+                  <option value="audioFirst">Audio first</option>
+                  <option value="resFirst">Resolution first</option>
+                  <option value="tiebreak">Tiebreaker only</option>
+                </select>
+              </div>
+              <div class="field">
+                <div class="field-label">When disabled</div>
+                <select id="audio-disable-action" class="pick">
+                  <option value="hide">Hide file</option>
+                  <option value="bottom">Send to bottom</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div><!-- /ms-card audio -->
 
         <div class="ms-section-label">Appearance</div>
+        <div class="ms-appr-grid">
 
     <div class="ms-card appr-card">
     <div class="ms-card-h"><span class="ms-ic"><svg viewBox="0 0 24 24"><path d="M3 5h18M3 12h12M3 19h8"/></svg></span><div><div class="ms-t">Stream label</div><div class="ms-d">The title shown on each stream result</div></div></div>
@@ -811,7 +808,7 @@
     </div><!-- /Badges card -->
 
     <!-- ── Results summary ── -->
-    <div class="ms-card appr-card">
+    <div class="ms-card appr-card ms-card-wide">
     <div class="ms-card-h"><span class="ms-ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/></svg></span><div><div class="ms-t">Results summary</div><div class="ms-d">Pinned card atop the stream list</div></div></div>
 
   <!-- Summary switch -->
@@ -842,6 +839,8 @@
     </div>
   </div>
     </div><!-- /Results summary card -->
+
+        </div><!-- /ms-appr-grid -->
 
           </div><!-- /ms-controls -->
           <div class="ms-preview appr-preview">
