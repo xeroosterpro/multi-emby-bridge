@@ -6,29 +6,31 @@
 @keyframes rgbflow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 @keyframes aurorashift { 0%, 100% { filter: hue-rotate(0deg); } 50% { filter: hue-rotate(25deg); } }
 
-/* ── Stream Hub default — twilight: cobalt + periwinkle on warm slate ── */
+/* ── Stream Hub default — vivid dusk: deep canvas, lifted cards, bright accents ── */
 [data-theme="streamhub"] {
-  --accent: #6389db;
-  --accent-2: #8b7be0;
-  --bg-base: #151a24;
-  --bg-surface: #1f2735;
-  --bg-elevated: #2a3344;
-  --bg-hover: #353f52;
-  --bg-input: #111720;
-  --border: #4a5568;
-  --border-strong: #5e6b80;
-  --text-primary: #f2f5fa;
-  --text-secondary: #b8c4d4;
-  --text-muted: #7a8a9e;
-  --text-dim: #9aa8ba;
-  --text: #f2f5fa;
-  --surface: #1f2735;
-  --surface-2: #2a3344;
-  --card-shadow: 0 12px 36px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --card-shadow-hover: 0 16px 44px rgba(0, 0, 0, 0.48), 0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  --success: #42b88a;
-  --error: #e07070;
-  --warning: #e0a848;
+  --accent: #72a8ff;
+  --accent-2: #c4a8ff;
+  --bg-base: #0c1018;
+  --bg-surface: #1a2232;
+  --bg-elevated: #2a3548;
+  --bg-hover: #364258;
+  --bg-input: #0a0e16;
+  --border: #5e7088;
+  --border-strong: #7a8fa8;
+  --text-primary: #ffffff;
+  --text-secondary: #cdd6e6;
+  --text-muted: #95a5bc;
+  --text-dim: #b0bdd0;
+  --text: #ffffff;
+  --surface: #1a2232;
+  --surface-2: #2a3548;
+  --accent-glow: rgba(114, 168, 255, 0.24);
+  --glow: rgba(114, 168, 255, 0.2);
+  --card-shadow: 0 14px 42px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --card-shadow-hover: 0 18px 48px rgba(0, 0, 0, 0.58), 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent), 0 0 28px color-mix(in srgb, var(--accent) 18%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --success: #3ecf8e;
+  --error: #f07070;
+  --warning: #f0b848;
 }
 
 /* ── Classic accents ── */
@@ -182,16 +184,16 @@ html[data-theme="streamhub"] { background: var(--bg-base); }
 
 [data-theme="streamhub"] .bg {
   background:
-    radial-gradient(ellipse 100% 70% at 18% -8%, rgba(99, 137, 219, 0.11), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 88% 18%, rgba(139, 123, 224, 0.08), transparent 50%),
+    radial-gradient(ellipse 100% 70% at 18% -8%, rgba(114, 168, 255, 0.14), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 88% 18%, rgba(196, 168, 255, 0.1), transparent 50%),
     var(--bg-base);
 }
 
 /* Stream Hub — lift cards off the backdrop so panels don't blend */
 [data-theme="streamhub"] .sidebar {
-  background: color-mix(in srgb, var(--bg-surface) 96%, #000) !important;
-  border-right-color: color-mix(in srgb, var(--accent) 30%, var(--border)) !important;
-  box-shadow: 6px 0 28px rgba(0, 0, 0, 0.28);
+  background: #0a0e14 !important;
+  border-right: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border)) !important;
+  box-shadow: 8px 0 36px rgba(0, 0, 0, 0.45);
 }
 [data-theme="streamhub"] .content .tiles .tile,
 [data-theme="streamhub"] .gcard,
@@ -208,26 +210,57 @@ html[data-theme="streamhub"] { background: var(--bg-base); }
 [data-theme="streamhub"] .bill-card,
 [data-theme="streamhub"] .sys-panel {
   box-shadow: var(--card-shadow) !important;
-  border-color: color-mix(in srgb, var(--accent) 16%, var(--border)) !important;
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border-strong)) !important;
 }
 [data-theme="streamhub"] .content .tiles .tile,
 [data-theme="streamhub"] .gcard,
 [data-theme="streamhub"] .dash-card {
-  background: linear-gradient(168deg, color-mix(in srgb, var(--bg-elevated) 93%, #fff 7%), var(--bg-elevated)) !important;
+  background: linear-gradient(168deg, color-mix(in srgb, var(--bg-elevated) 78%, #fff 22%), color-mix(in srgb, var(--bg-elevated) 90%, var(--accent) 10%)) !important;
 }
 [data-theme="streamhub"] .gchip {
-  background: color-mix(in srgb, var(--bg-base) 55%, var(--bg-elevated)) !important;
-  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  background: color-mix(in srgb, var(--bg-hover) 72%, var(--accent) 6%) !important;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 55%, var(--accent) 25%);
   border-radius: var(--radius-sm);
 }
 [data-theme="streamhub"] .content .tiles .tile:hover,
 [data-theme="streamhub"] .gcard:hover {
   box-shadow: var(--card-shadow-hover) !important;
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border)) !important;
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-strong)) !important;
+}
+[data-theme="streamhub"] .content .tiles .tile .n {
+  background: linear-gradient(135deg, #8ec5ff 0%, #c4b0ff 52%, #6ee8c0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: saturate(1.15) brightness(1.06);
+}
+[data-theme="streamhub"] .content .tiles .tile .l,
+[data-theme="streamhub"] .gchip .ct,
+[data-theme="streamhub"] .page-sub {
+  color: var(--text-secondary) !important;
+}
+[data-theme="streamhub"] .gchip .cn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+[data-theme="streamhub"] .gcard .gcard-top {
+  height: 6px !important;
+  box-shadow: 0 2px 18px color-mix(in srgb, var(--accent) 50%, transparent) !important;
+}
+[data-theme="streamhub"] .gcard-nm,
+[data-theme="streamhub"] .page-title,
+[data-theme="streamhub"] .block-title {
+  color: var(--text-primary);
+}
+[data-theme="streamhub"] .gpill.online {
+  background: rgba(62, 207, 142, 0.2) !important;
+  border-color: rgba(74, 222, 128, 0.55) !important;
+  color: #4ade80 !important;
 }
 [data-theme="streamhub"] .page-title,
 [data-theme="streamhub"] .block-title {
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.4);
 }
 [data-theme="aurora"] .bg {
   background: radial-gradient(120% 90% at 50% -10%, rgba(86, 255, 168, 0.12), transparent 55%), #040810;
@@ -548,7 +581,7 @@ html[data-theme="family"] body {
 }
 
 /* Preview swatches */
-.pv-streamhub { background: linear-gradient(135deg, #6389db 0%, #8b7be0 55%, #2a3344 55%); }
+.pv-streamhub { background: linear-gradient(135deg, #72a8ff 0%, #c4a8ff 55%, #2a3548 55%); }
 .pv-purple  { background: linear-gradient(135deg, #7b61ff, #c4b5ff); }
 .pv-red     { background: linear-gradient(135deg, #ff4d5e, #ffb3a7); }
 .pv-pink    { background: linear-gradient(135deg, #ff5fa2, #ffc2dd); }
