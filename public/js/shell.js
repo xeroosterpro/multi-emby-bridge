@@ -1,6 +1,13 @@
 // ── Hash router + sidebar behavior + preference controls ─────────────────────
 const PAGES = ['home','dashboard','servers','catalogs','streaming','appearance','health','install','apikeys','ping','log','settings','admin','users','billing','tickets','guide'];
 
+try {
+  if (sessionStorage.getItem('meb_session') === '1') {
+    document.documentElement.classList.add('meb-returning');
+  }
+  sessionStorage.setItem('meb_session', '1');
+} catch {}
+
 function showPage(name) {
   if (!PAGES.includes(name)) name = 'home';
   // Protect admin pages from non-admins (in case of direct hash or race)

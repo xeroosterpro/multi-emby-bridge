@@ -533,9 +533,13 @@
   document.addEventListener('DOMContentLoaded', wireDemoTour);
   document.addEventListener('viewas-changed', init);
 
+  let _billingRouteBoot = false;
   const _origPageShow = window.onPageShow;
   window.onPageShow = function (name) {
     if (typeof _origPageShow === 'function') _origPageShow(name);
-    if (name === 'billing') init();
+    if (name !== 'billing') return;
+    /* Initial route + shell auth refresh already call init(); avoid double-run on load. */
+    if (!_billingRouteBoot) { _billingRouteBoot = true; return; }
+    init();
   };
 })();

@@ -199,6 +199,7 @@
   }
 
   // ── Re-run animations + refresh data when home becomes active ───────────────
+  let _homeShownOnce = false;
   function setupPageTransition() {
     const origShow = window.onPageShow;
     window.onPageShow = function (name) {
@@ -206,6 +207,8 @@
       if (name !== 'home') return;
       const page = document.getElementById('page-home');
       if (!page) return;
+      /* First paint (incl. F5 refresh): CSS handles one entrance — don't force a second replay. */
+      if (!_homeShownOnce) { _homeShownOnce = true; return; }
       page.querySelectorAll('.home-hero-card, .home-panel, .home-greeting')
           .forEach(el => { el.style.animation = 'none'; el.offsetHeight; el.style.animation = ''; });
       // Refresh tickets + news when revisiting home
