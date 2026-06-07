@@ -20,9 +20,9 @@
       const cap = (_me.user.username||'there')[0].toUpperCase() + (_me.user.username||'there').slice(1);
       const h = new Date().getHours();
       const tod = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-      el.textContent = `${tod}, ${cap} 👋`;
+      el.innerHTML = `${tod}, ${cap} <span class="wave">👋</span>`;
     } else {
-      el.textContent = 'Welcome to Emby Bridge 👋';
+      el.innerHTML = 'Welcome to Stream-Hub <span class="wave">👋</span>';
     }
   }
 
@@ -38,7 +38,7 @@
     if (!body) return;
 
     if (_me && _me.user && _me.user.role === 'admin') {
-      body.innerHTML = svcRowHTML('Emby Bridge Addon', 'Admin · Full Access', 'Admin', 'success');
+      body.innerHTML = svcRowHTML('Stream-Hub', 'Admin · Full Access', 'Admin', 'success');
       wirePageLinks(body);
       const svcNum = document.getElementById('hc-services-num');
       if (svcNum) svcNum.textContent = '1';
@@ -53,7 +53,7 @@
 
     const billingEnabled = cfg && cfg.enabled;
     if (!billingEnabled) {
-      body.innerHTML = svcRowHTML('Emby Bridge Addon', 'Multi-server Stremio integration · Active', 'Active', 'success');
+      body.innerHTML = svcRowHTML('Stream-Hub', 'Multi-server Stremio integration · Active', 'Active', 'success');
       wirePageLinks(body);
       showDashBtn(true);
       return;
@@ -110,7 +110,12 @@
     if (hcNum) hcNum.textContent = Array.isArray(tickets) ? tickets.filter(t => t.status === 'open').length : 0;
 
     if (!Array.isArray(tickets) || tickets.length === 0) {
-      body.innerHTML = `<div class="home-empty-state" style="padding:16px 0">No tickets yet.<br><small>Click <strong>+ Open New Ticket</strong> if you need help.</small></div>`;
+      body.innerHTML = `
+        <div class="home-empty-state">
+          <span class="empty-emoji">🕊️</span>
+          <div style="font-weight:600; color:var(--text-primary); margin-bottom:2px;">All quiet here</div>
+          <div style="font-size:.78rem; opacity:.75;">Use the <strong>+ Open New Ticket</strong> button above to get started.</div>
+        </div>`;
       return;
     }
 
@@ -142,7 +147,11 @@
     const body = document.getElementById('home-news-body');
     if (!body) return;
     if (!Array.isArray(news) || news.length === 0) {
-      body.innerHTML = '<div class="home-news-empty">No news yet.</div>';
+      body.innerHTML = `
+        <div class="home-empty-state" style="padding:20px 14px; background:transparent; box-shadow:none; margin:0; border-radius:10px;">
+          <span class="empty-emoji" style="font-size:1.55rem; margin-bottom:4px; opacity:.7;">🌱</span>
+          <div style="font-size:.8rem; color:var(--text-muted); line-height:1.35;">No updates yet.<br>We'll share exciting news here as it happens.</div>
+        </div>`;
       return;
     }
     const fmtDate = d => new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
@@ -204,7 +213,70 @@
         renderRecentTickets(t);
         renderNews(n);
       });
+      // re-init mouse glow + 3D tilts
+      setupMouseGlow();
+      setupCardTilts();
     };
+  }
+
+  // Premium mouse-follow soft spotlight for wow interactive smoothness on home
+  function setupMouseGlow() {
+    const wrap = document.querySelector('#page-home .home-wrap');
+    if (!wrap) return;
+
+    let raf = null;
+    const onMove = (e) => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const rect = wrap.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        wrap.style.setProperty('--mx', `${x}%`);
+        wrap.style.setProperty('--my', `${y}%`);
+      });
+    };
+
+    const onLeave = () => {
+      // gently return to a nice default position (top-center, warm welcome spot)
+      wrap.style.setProperty('--mx', '48%');
+      wrap.style.setProperty('--my', '18%');
+    };
+
+    wrap.addEventListener('mousemove', onMove, { passive: true });
+    wrap.addEventListener('mouseleave', onLeave);
+
+    // set nice initial position
+    wrap.style.setProperty('--mx', '48%');
+    wrap.style.setProperty('--my', '18%');
+  }
+
+  // Real 3D tilt on individual hero cards — physical, delightful, high-wow UX
+  function setupCardTilts() {
+    const cards = document.querySelectorAll('#page-home .home-hero-card');
+    cards.forEach(card => {
+      let tiltRaf = null;
+
+      const applyTilt = (e) => {
+        if (tiltRaf) cancelAnimationFrame(tiltRaf);
+        tiltRaf = requestAnimationFrame(() => {
+          const rect = card.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / rect.width - 0.5;
+          const y = (e.clientY - rect.top) / rect.height - 0.5;
+          // Subtle but noticeable 3D tilt (stronger on request)
+          card.style.setProperty('--rx', `${y * -11}deg`);
+          card.style.setProperty('--ry', `${x * 15}deg`);
+        });
+      };
+
+      const resetTilt = () => {
+        card.style.setProperty('--rx', '0deg');
+        card.style.setProperty('--ry', '0deg');
+      };
+
+      card.addEventListener('mousemove', applyTilt, { passive: true });
+      card.addEventListener('mouseleave', resetTilt);
+      card.addEventListener('mouseenter', resetTilt); // clean start
+    });
   }
 
   // ── Boot — fire ALL fetches at the same time ────────────────────────────────
@@ -221,6 +293,8 @@
     setupGreetingBtn();
     setupTicketLinks();
     setupPageTransition();
+    setupMouseGlow();
+    setupCardTilts();
     const page = document.getElementById('page-home');
     if (page) wirePageLinks(page);
 

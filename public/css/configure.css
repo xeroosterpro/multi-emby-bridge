@@ -957,8 +957,8 @@ body.sb-locked .content{ margin-left:var(--side-w); }
 .nav-item.on::before{ content:''; position:absolute; left:0; top:18%; bottom:18%; width:3px; border-radius:3px; background:var(--accent); }
 
 /* pin button */
-.pin-btn{ position:absolute; top:14px; right:12px; width:28px; height:28px; border-radius:8px; display:grid; place-items:center;
-  cursor:pointer; color:var(--text-dim); background:transparent; border:0; opacity:0; transition:opacity .2s,color .2s,background .2s; z-index:2; }
+.pin-btn{ position:absolute; top:10px; right:8px; width:26px; height:26px; border-radius:8px; display:grid; place-items:center;
+  cursor:pointer; color:var(--text-dim); background:transparent; border:0; opacity:0; transition:opacity .2s,color .2s,background .2s; z-index:3; }
 .sidebar:hover .pin-btn, .sidebar.locked .pin-btn{ opacity:1; }
 .pin-btn:hover{ background:var(--bg-hover); color:var(--text-primary); }
 .pin-btn svg{ width:16px; height:16px; stroke:currentColor; stroke-width:1.8; fill:none; }
@@ -1153,6 +1153,11 @@ body.locked-billing .pin-btn{ display:none; }
 /* Keep page content in a comfortable centered column instead of sprawling on wide screens */
 .content > .page{ max-width:1180px; margin-left:auto; margin-right:auto; }
 
+/* Home expands to fill more of the available space for a more immersive welcome */
+.content > #page-home {
+  max-width: 100%;
+}
+
 /* Admin System gauges (CPU / RAM) */
 .admin-gauges{ display:flex; gap:20px; flex-wrap:wrap; margin-bottom:18px; }
 .gauge{ width:150px; height:150px; border-radius:50%; display:grid; place-items:center; flex:none;
@@ -1284,15 +1289,67 @@ body.locked-billing .pin-btn{ display:none; }
   padding:16px 18px; margin-top:18px; backdrop-filter:blur(12px); }
 
 /* ===================== sidebar brand + user button (prototype) ===================== */
-.brand{ display:flex !important; align-items:center; gap:11px; background:none !important; -webkit-text-fill-color:initial !important; color:var(--text) !important; animation:none !important; padding:0 42px 16px 14px !important; }
-.brand-logo{ width:30px; height:30px; border-radius:9px; display:grid; place-items:center; flex:none; background:linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow:0 0 16px var(--glow); }
-.brand-logo svg{ width:17px; height:17px; }
-.brand-name{ font-weight:800; font-size:1rem; white-space:nowrap; }
+.brand{ 
+  display:flex !important; 
+  align-items:center; 
+  gap:8px; 
+  background: rgba(139, 92, 246, 0.15) !important; 
+  -webkit-text-fill-color:initial !important; 
+  color:var(--text) !important; 
+  animation:none !important; 
+  padding: 8px 40px 8px 12px !important; /* extra right padding so pin doesn't overlap the text */
+  border-radius: 12px !important; 
+  margin-bottom: 12px !important;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  position: relative; /* contain if needed */
+}
+.brand-logo{ 
+  width:32px; 
+  height:32px; 
+  border-radius:10px; 
+  display:grid; 
+  place-items:center; 
+  flex:none; 
+  background: #7c3aed; 
+  box-shadow: 0 0 12px rgba(124, 58, 237, 0.5); 
+}
+.brand-logo svg{ width:18px; height:18px; stroke: #fff; }
+.brand-name{ font-weight:800; font-size:1rem; white-space:nowrap; color: var(--text); }
 .sidebar-foot{ border-top:1px solid var(--border); padding-top:8px !important; }
 .userbtn{ display:flex; align-items:center; gap:10px; padding:8px 10px; margin:8px 8px 0; border-radius:var(--r-md); cursor:pointer; color:var(--text-dim); }
 .userbtn:hover{ background:var(--bg-hover); color:var(--text); }
 .userbtn .avatar{ width:30px; height:30px; border-radius:50%; flex:none; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:grid; place-items:center; color:#0a0a12; font-weight:800; font-size:.8rem; }
 .userbtn .um{ font-size:.8rem; white-space:nowrap; }
+
+/* ===================== DISABLED nav items (Transcoding, Notifications placeholders per mock) ===================== */
+.nav-item-disabled {
+  opacity: 0.6;
+  cursor: default;
+  pointer-events: none; /* no navigation or active state */
+}
+.nav-item-disabled:hover {
+  background: transparent !important;
+  color: inherit !important;
+}
+.nav-item-disabled .nav-ic {
+  opacity: 0.6;
+}
+.disabled-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: .52rem;
+  font-weight: 800;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--text-mute);
+  margin-left: 6px;
+  vertical-align: middle;
+  line-height: 1;
+  white-space: nowrap;
+}
 
 /* ===================== motion/smoothness pass (match prototype feel) ===================== */
 .gcard{ transition:transform .26s var(--ease), box-shadow .26s var(--ease), border-color .26s var(--ease) !important; }
@@ -1570,38 +1627,244 @@ html.view-as-user .admin-only { display: none !important; }
 /* ===================== Home page — warm landing ===================== */
 #page-home { position: relative; overflow: hidden; padding: 0; }
 
-/* Warm ambient overlay — orange/amber tint unique to the home page */
+/* Warm ambient overlay — richer cozy warmth + welcome glow for home (peach/amber/orange soft layers) */
 .home-warm-bg {
   position: absolute; inset: 0; pointer-events: none; z-index: 0;
   background:
-    radial-gradient(ellipse 95% 60% at 10% 0%, color-mix(in srgb, var(--accent-a) 10%, transparent), transparent 72%),
-    radial-gradient(ellipse 65% 50% at 92% 20%, color-mix(in srgb, var(--accent-b) 8%, transparent), transparent 68%),
-    radial-gradient(ellipse 55% 70% at 50% 100%, color-mix(in srgb, var(--accent-a) 6%, transparent), transparent 78%);
+    /* rich top-left peach sunrise - smooth */
+    radial-gradient(ellipse 120% 65% at 5% -10%, color-mix(in srgb, #fb923c 20%, transparent), transparent 78%),
+    /* warm coral side light */
+    radial-gradient(ellipse 55% 50% at 92% 18%, color-mix(in srgb, #f472b6 12%, transparent), transparent 72%),
+    /* deep cozy bottom amber */
+    radial-gradient(ellipse 55% 75% at 48% 105%, color-mix(in srgb, #f59e0b 10%, transparent), transparent 82%),
+    /* soft warm veil for even coverage */
+    linear-gradient(170deg, color-mix(in srgb, var(--accent-a) 5%, transparent) 0%, transparent 50%, color-mix(in srgb, #fcd34d 3%, transparent) 100%);
+  filter: saturate(1.06) brightness(1.01);
+}
+/* Extra slow breathing orbs for the outer home background (more life, less flat) */
+#page-home .home-warm-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(42vw 32vw at 18% 32%, color-mix(in srgb, #f59e0b 5%, transparent), transparent 65%),
+    radial-gradient(28vw 36vw at 82% 68%, color-mix(in srgb, #fb923c 4%, transparent), transparent 70%);
+  animation: home-bg-orb 32s ease-in-out infinite alternate;
+  opacity: .55;
+  filter: blur(70px);
+}
+@keyframes home-bg-orb {
+  to { transform: translate(1.5vw, -1.2vh) scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #page-home .home-warm-bg::before { animation: none; }
 }
 
-.home-wrap { position: relative; z-index: 1; padding: 32px 32px 52px; width: 100%; box-sizing: border-box; }
+/* Fix texture/background leak-through on home: tone down global particles and orbs so the see-thru glass looks clean and warm (no noisy dots/lines or unwanted texture) */
+#page-home .bg .orb,
+#page-home .bg .flake,
+#page-home .stipple {
+  opacity: 0.08 !important;
+  filter: blur(3px);
+}
+/* Extra safety: the glass surface itself gets a very soft warm tint to further smooth any remaining background texture */
+#page-home .home-wrap {
+  box-shadow: 
+    0 30px 90px rgba(0,0,0,.55),
+    0 10px 30px rgba(0,0,0,.3),
+    0 0 0 1px color-mix(in srgb, var(--accent-a) 12%, transparent) inset,
+    0 1px 0 rgba(255,255,255,.1) inset,
+    0 0 80px color-mix(in srgb, var(--accent-a) 6%, transparent) inset; /* soft internal warm wash */
+}
+/* Extra organic soft warm blobs for creative depth (very low key, no hard lines) */
+.home-warm-bg::before,
+.home-warm-bg::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: .07;
+  pointer-events: none;
+  animation: home-warm-drift 38s ease-in-out infinite alternate;
+}
+.home-warm-bg::before {
+  width: 38vw; height: 38vw;
+  left: 12%; top: 18%;
+  background: #f59e0b;
+  animation-duration: 42s;
+}
+.home-warm-bg::after {
+  width: 28vw; height: 28vw;
+  right: 8%; bottom: 12%;
+  background: #fb923c;
+  animation-duration: 31s;
+  animation-delay: -12s;
+}
+@keyframes home-warm-drift {
+  to { transform: translate(4vw, -3vh) scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-warm-bg::before, .home-warm-bg::after { animation: none; }
+}
 
-/* Greeting row */
+.home-wrap { 
+  position: relative; 
+  z-index: 1; 
+  padding: 32px 44px 52px; 
+  width: 100%; 
+  max-width: 1480px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  /* See-thru glass "welcome room" — background shines through cleanly, fills more of the page. Slightly more fill to avoid raw texture bleed */
+  background: color-mix(in srgb, var(--bg-surface) 68%, transparent);
+  border-radius: 28px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 
+    0 30px 90px rgba(0,0,0,.55),
+    0 10px 30px rgba(0,0,0,.3),
+    0 0 0 1px color-mix(in srgb, var(--accent-a) 12%, transparent) inset,
+    0 1px 0 rgba(255,255,255,.1) inset;
+  border: 1px solid color-mix(in srgb, var(--accent-a) 18%, var(--border) 30%);
+  overflow: hidden; /* contains the mouse glow + orbs */
+  animation: home-surface-breathe 7.5s ease-in-out infinite alternate;
+}
+@keyframes home-surface-breathe {
+  from { box-shadow: 
+    0 30px 90px rgba(0,0,0,.55),
+    0 10px 30px rgba(0,0,0,.3),
+    0 0 0 1px color-mix(in srgb, var(--accent-a) 12%, transparent) inset; }
+  to   { box-shadow: 
+    0 34px 100px rgba(0,0,0,.6),
+    0 12px 34px rgba(0,0,0,.35),
+    0 0 0 1px color-mix(in srgb, var(--accent-a) 16%, transparent) inset; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-wrap { animation: none; }
+}
+
+/* Interactive mouse-follow spotlight for wow smoothness on the hero area */
+.home-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    480px circle at var(--mx, 50%) var(--my, 18%),
+    color-mix(in srgb, var(--accent-a) 13%, transparent) 0%,
+    transparent 62%
+  );
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.72;
+  transition: background 0.08s linear; /* even snappier follow */
+  mix-blend-mode: screen;
+}
+
+/* Animated soft orbs *inside* the welcome surface for organic life, depth & warmth (subtle, premium) */
+.home-wrap::after {
+  content: '';
+  position: absolute;
+  inset: -28% -12% -18% -12%;
+  background: 
+    radial-gradient(ellipse 52% 42% at 24% 76%, color-mix(in srgb, #f59e0b 8%, transparent), transparent 72%),
+    radial-gradient(ellipse 36% 50% at 76% 26%, color-mix(in srgb, #fb923c 6%, transparent), transparent 76%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: .5;
+  animation: home-inner-orb 24s ease-in-out infinite alternate;
+  filter: blur(38px);
+}
+@keyframes home-inner-orb {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(2.5%, -3.5%) scale(1.05); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-wrap::after { animation: none; }
+}
+
+/* Greeting row — warmer, more welcoming */
 .home-greeting {
   display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
   margin-bottom: 26px;
 }
 .home-title {
-  font-size: 1.7rem; font-weight: 800; color: var(--text-primary); margin: 0 0 5px;
+  font-size: 1.82rem; font-weight: 800; 
+  margin: 0 0 5px;
+  letter-spacing: -.025em;
+  background: linear-gradient(120deg, #fff 30%, color-mix(in srgb, var(--accent-a) 55%, #fff) 70%, #fff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 1px 10px color-mix(in srgb, var(--accent-a) 25%, transparent));
 }
-.home-sub { font-size: .88rem; color: var(--text-secondary); margin: 0; }
+
+/* Playful but classy wave on the welcome hand emoji — smooth & inviting */
+.home-title .wave {
+  display: inline-block;
+  animation: wave-hand 2.6s ease-in-out infinite;
+  transform-origin: 60% 80%;
+  will-change: transform;
+}
+.home-title:hover .wave {
+  animation-duration: 1.4s;
+  animation-timing-function: ease-in-out;
+}
+@keyframes wave-hand {
+  0%, 100% { transform: rotate(0deg); }
+  10% { transform: rotate(24deg); }
+  25% { transform: rotate(-5deg); }
+  40% { transform: rotate(18deg); }
+  52% { transform: rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-title .wave { animation: none; }
+}
+
+/* Gentle, warm, lively animations for empty-state emojis */
+.home-empty-state .empty-emoji {
+  display: inline-block;
+  animation: emoji-gentle 2.8s ease-in-out infinite;
+  will-change: transform;
+}
+@keyframes emoji-gentle {
+  0%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
+  40% { transform: translateY(-6px) scale(1.06) rotate(4deg); }
+  70% { transform: translateY(1px) scale(0.98) rotate(-2deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-empty-state .empty-emoji { animation: none; }
+}
+.home-sub { 
+  font-size: .9rem; 
+  color: var(--text-secondary); 
+  margin: 0; 
+  opacity: .9; 
+  font-weight: 500;
+  letter-spacing: -.01em;
+}
 .home-launch-btn {
   display: flex; align-items: center; gap: 7px; white-space: nowrap;
-  padding: 9px 18px; border-radius: var(--r-md); border: none; cursor: pointer;
-  background: linear-gradient(110deg, var(--accent-a), var(--accent-b));
-  color: #fff; font-size: .82rem; font-weight: 700; font-family: inherit;
-  box-shadow: 0 4px 18px color-mix(in srgb, var(--accent-a) 40%, transparent);
-  transition: filter .18s var(--ease), transform .18s var(--ease), box-shadow .18s var(--ease);
+  padding: 10px 20px; border-radius: var(--r-md); border: none; cursor: pointer;
+  background: linear-gradient(115deg, #f59e0b, #fb923c, #f472b6);
+  color: #fff; font-size: .84rem; font-weight: 700; font-family: inherit;
+  box-shadow: 0 4px 20px color-mix(in srgb, #f59e0b 45%, transparent), 0 0 0 1px rgba(255,255,255,.12) inset;
+  transition: all .2s var(--ease);
+  position: relative; overflow: hidden;
 }
-.home-launch-btn:hover { filter: brightness(1.12); transform: translateY(-2px); box-shadow: 0 8px 28px color-mix(in srgb, var(--accent-a) 50%, transparent); }
-.home-launch-btn:active { transform: translateY(0); filter: brightness(.96); }
+.home-launch-btn::after {
+  content: ''; position: absolute; top: -50%; left: -120%; width: 40%; height: 200%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+  transition: left .5s var(--ease);
+}
+.home-launch-btn:hover { 
+  filter: brightness(1.1) saturate(1.15); 
+  transform: translateY(-4px) scale(1.015); 
+  box-shadow: 0 14px 38px color-mix(in srgb, #f59e0b 55%, transparent);
+}
+.home-launch-btn:hover::after { left: 260%; }
+.home-launch-btn:active { transform: translateY(-1px) scale(0.98); filter: brightness(.92); }
 
-/* ── Hero cards ── */
+/* ── Hero cards — warm, welcoming, with pop + smooth motion — */
 .home-hero-cards {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px;
 }
@@ -1609,93 +1872,168 @@ html.view-as-user .admin-only { display: none !important; }
   border-radius: var(--r-lg); padding: 26px 22px 22px;
   cursor: pointer; position: relative; overflow: hidden; min-height: 148px;
   display: flex; flex-direction: column; justify-content: flex-end;
-  transition: transform .2s var(--ease), filter .2s var(--ease), box-shadow .2s var(--ease);
+  transition: transform .18s cubic-bezier(.23,1,.32,1), filter .18s var(--ease), box-shadow .18s var(--ease);
   outline: none;
+  box-shadow: 0 6px 22px rgba(0,0,0,.28);
+  transform-style: preserve-3d;
+  will-change: transform;
+  /* 3D tilt support via CSS vars from JS */
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  /* Nice pop outline — stands out beautifully against the see-thru warm background */
+  border: 1px solid color-mix(in srgb, var(--accent-a) 25%, var(--border));
+}
+.home-hero-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 22% 18%, rgba(255,255,255,.24), transparent 55%);
+  pointer-events: none; opacity: .65; transition: opacity .18s var(--ease);
 }
 .home-hero-card::after {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(160deg, rgba(255,255,255,.07) 0%, transparent 60%);
+  background: linear-gradient(155deg, rgba(255,255,255,.1) 0%, transparent 55%);
   pointer-events: none;
 }
-.home-hero-card:hover { transform: translateY(-4px); filter: brightness(1.1); }
-.home-hero-card:hover { box-shadow: 0 12px 32px rgba(0,0,0,.45); }
-.home-hero-card:focus-visible { outline: 2px solid rgba(255,255,255,.5); outline-offset: 2px; }
-.home-hero-card:active { transform: translateY(-1px); filter: brightness(.97); }
+.home-hero-card:hover { 
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-9px) scale(1.025);
+  filter: brightness(1.12) saturate(1.12); 
+  box-shadow: 0 24px 58px rgba(0,0,0,.52), 0 0 0 1px rgba(255,255,255,.08) inset;
+}
+.home-hero-card:hover::before { opacity: .95; }
 
-.hhc-services { background: linear-gradient(140deg, #5b6cf9 0%, #3b47d0 100%); }
-.hhc-started  { background: linear-gradient(140deg, #c558ea 0%, #9333ea 100%); }
-.hhc-discord  { background: linear-gradient(140deg, #e84545 0%, #c0392b 100%); cursor: pointer; }
-.hhc-invoices { background: linear-gradient(140deg, #9b59b6 0%, #7d3c98 100%); }
+/* Much stronger, distinct colored 3D glows per card — wow factor */
+.hhc-services:hover { 
+  box-shadow: 0 24px 58px rgba(0,0,0,.52), 0 0 0 1px rgba(255,255,255,.08) inset, 0 0 42px rgba(79,110,240,.55); 
+}
+.hhc-started:hover  { 
+  box-shadow: 0 24px 58px rgba(0,0,0,.52), 0 0 0 1px rgba(255,255,255,.08) inset, 0 0 42px rgba(224,122,77,.58); 
+}
+.hhc-discord:hover  { 
+  box-shadow: 0 24px 58px rgba(0,0,0,.52), 0 0 0 1px rgba(255,255,255,.08) inset, 0 0 42px rgba(232,93,74,.58); 
+}
+.hhc-invoices:hover { 
+  box-shadow: 0 24px 58px rgba(0,0,0,.52), 0 0 0 1px rgba(255,255,255,.08) inset, 0 0 42px rgba(217,119,46,.55); 
+}
+.home-hero-card:focus-visible { 
+  outline: 2px solid color-mix(in srgb, #fb923c 75%, var(--accent-a) 25%); 
+  outline-offset: 3px; 
+  box-shadow: 0 0 0 4px color-mix(in srgb, #fb923c 18%, transparent);
+}
+.home-hero-card:active { transform: translateY(-2px) scale(0.99); filter: brightness(.94); }
+
+.hhc-services { background: linear-gradient(145deg, #4f6ef0 0%, #3a4cc7 100%); }
+.hhc-started  { background: linear-gradient(142deg, #e07a4d 0%, #c55a9e 100%); } /* warmer coral-purple */
+.hhc-discord  { background: linear-gradient(142deg, #e85d4a 0%, #b93a2e 100%); cursor: pointer; }
+.hhc-invoices { background: linear-gradient(145deg, #d9772e 0%, #b45a1f 100%); } /* warm amber-gold */
 
 .hhc-icon {
-  position: absolute; top: 16px; right: 16px; width: 28px; height: 28px;
-  opacity: .28; stroke: #fff;
+  position: absolute; top: 18px; right: 18px; width: 30px; height: 30px;
+  opacity: .35; stroke: #fff; stroke-width: 1.7;
+  transition: transform .28s var(--ease), opacity .22s var(--ease);
+  /* Soft pill behind icon for definition and premium pop */
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+  padding: 5px;
+  backdrop-filter: blur(4px);
+}
+.home-hero-card:hover .hhc-icon { 
+  transform: translateY(-3px) scale(1.12) rotate(3deg); 
+  opacity: .65; 
+  background: rgba(255,255,255,.18);
 }
 .hhc-num {
-  font-size: 42px; font-weight: 800; color: #fff; line-height: 1; letter-spacing: -1.5px;
+  font-size: 44px; font-weight: 800; color: #fff; line-height: 1; letter-spacing: -2px;
+  transition: transform .22s var(--ease), text-shadow .22s var(--ease);
+  text-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+.home-hero-card:hover .hhc-num { 
+  transform: scale(1.04); 
+  text-shadow: 0 4px 14px rgba(0,0,0,.3);
 }
 .hhc-label {
   font-size: 10.5px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase;
-  color: rgba(255,255,255,.7); margin-top: 6px;
+  color: rgba(255,255,255,.72); margin-top: 6px;
 }
 .hhc-label-lg { font-size: 15px; font-weight: 700; letter-spacing: 0; text-transform: none; color: #fff; margin-top: 0; }
-.hhc-sub { font-size: 10.5px; color: rgba(255,255,255,.6); margin-top: 4px; letter-spacing: .5px; }
+.hhc-sub { font-size: 10.5px; color: rgba(255,255,255,.62); margin-top: 4px; letter-spacing: .5px; }
 
-/* ── Panels ── */
+/* ── Panels — warmer, cozier, inviting — */
 .home-panel {
-  background: color-mix(in srgb, var(--bg-surface) 85%, var(--accent-a) 5%);
-  border: 1px solid color-mix(in srgb, var(--border) 80%, var(--accent-a) 10%);
-  border-radius: var(--r-lg); overflow: hidden; margin-bottom: 16px;
-  transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
+  /* Softer floating cards with popping outline — beautiful against the transparent warm background */
+  background: color-mix(in srgb, var(--bg-elevated) 65%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-a) 22%, var(--border));
+  border-radius: 18px; 
+  overflow: hidden; 
+  margin-bottom: 14px;
+  transition: box-shadow .22s var(--ease), transform .2s var(--ease), background .2s var(--ease);
+  box-shadow: 0 6px 22px rgba(0,0,0,.28);
+  backdrop-filter: blur(8px);
 }
 .home-panel:hover {
-  border-color: color-mix(in srgb, var(--border) 50%, var(--accent-a) 25%);
-  box-shadow: 0 4px 24px color-mix(in srgb, var(--accent-a) 8%, transparent);
+  box-shadow: 0 14px 36px rgba(0,0,0,.38);
+  transform: translateY(-3px);
+  background: color-mix(in srgb, var(--bg-elevated) 60%, transparent);
 }
 .home-panel-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 15px 22px; border-bottom: 1px solid var(--border);
-  font-size: .84rem; font-weight: 600; color: var(--text-primary);
+  padding: 14px 18px; 
+  /* Soft separator instead of hard line */
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 35%, transparent);
+  font-size: .82rem; font-weight: 600; color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-surface) 30%, transparent);
 }
 .home-panel-head-l { display: flex; align-items: center; gap: 9px; }
 .home-ph-dot {
   width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-  background: var(--grad-accent);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
+  background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-a) 55%, transparent);
 }
 .home-panel-btn {
-  padding: 5px 12px; border-radius: var(--r-sm);
-  font-size: .75rem; font-weight: 600; cursor: pointer; text-decoration: none;
-  color: var(--accent); background: var(--accent-glow);
-  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
-  transition: background .15s var(--ease), color .15s var(--ease), border-color .15s var(--ease), transform .15s var(--ease);
+  padding: 5px 13px; border-radius: var(--r-sm);
+  font-size: .75rem; font-weight: 700; cursor: pointer; text-decoration: none;
+  color: #fff; background: linear-gradient(110deg, var(--accent-a), var(--accent-b));
+  border: 1px solid color-mix(in srgb, var(--accent-a) 35%, transparent);
+  transition: all .18s var(--ease);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-a) 25%, transparent);
 }
 .home-panel-btn:hover {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  transform: translateY(-1px);
+  filter: brightness(1.1); 
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-a) 40%, transparent);
 }
 .home-panel-btn-mute { font-size: .72rem; color: var(--text-muted); padding: 5px 0; }
 .home-panel-body { padding: 18px 22px; }
 
-/* Services rows */
+/* Services rows — warmer hover pop */
 .home-svc-row {
   display: flex; align-items: center; gap: 13px; padding: 13px 16px;
-  background: var(--bg-elevated);
-  border: 1px solid color-mix(in srgb, var(--border) 70%, var(--accent-a) 15%);
+  background: color-mix(in srgb, var(--bg-elevated) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-a) 20%, var(--border));
   border-radius: var(--r-md); margin-bottom: 10px;
-  transition: border-color .18s var(--ease), background .18s var(--ease), transform .18s var(--ease);
+  transition: border-color .18s var(--ease), background .18s var(--ease), transform .18s var(--ease), box-shadow .18s var(--ease);
   cursor: default;
 }
 .home-svc-row:last-child { margin-bottom: 0; }
 .home-svc-row:hover {
-  border-color: color-mix(in srgb, var(--accent-a) 45%, var(--border));
-  background: color-mix(in srgb, var(--bg-elevated) 85%, var(--accent-a) 5%);
-  transform: translateX(2px);
+  border-color: color-mix(in srgb, var(--accent-a) 48%, var(--border));
+  background: color-mix(in srgb, var(--bg-elevated) 82%, var(--accent-a) 7%);
+  transform: translateX(3px);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-a) 10%, transparent);
 }
 .home-svc-badge {
   padding: 3px 10px; border-radius: 20px; font-size: .7rem; font-weight: 700; white-space: nowrap; flex-shrink: 0;
   background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success);
   border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+  transition: box-shadow .3s var(--ease);
+}
+.home-svc-badge:has(+ *):not(:empty) { /* rough active feel */
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 12%, transparent);
+  animation: svc-badge-pulse 3.2s ease-in-out infinite;
+}
+@keyframes svc-badge-pulse {
+  0%,100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 12%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--success) 6%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-svc-badge { animation: none; }
 }
 .home-svc-info { flex: 1; }
 .home-svc-name { font-size: .85rem; font-weight: 600; color: var(--text-primary); }
@@ -1718,31 +2056,125 @@ html.view-as-user .admin-only { display: none !important; }
 .home-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .home-two-col .home-panel { margin-bottom: 0; }
 
-/* Empty / tickets */
+/* ===================== Warmth + pop + smooth UI polish (global + home) ===================== */
+/* Warmer, friendlier focus rings everywhere (soft orange-peach) */
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, #fb923c 65%, var(--accent) 35%);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, #fb923c 12%, transparent);
+}
+
+/* Extra pop + life on common interactive surfaces */
+.tile, .gcard, .acc, .server-block, .profile-block {
+  transition: transform .2s var(--ease), box-shadow .22s var(--ease), border-color .18s var(--ease) !important;
+}
+.tile:hover, .gcard:hover, .acc:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 26px rgba(0,0,0,.35), 0 0 0 1px color-mix(in srgb, var(--accent-a) 18%, transparent) inset;
+}
+.tile:active, .gcard:active { transform: translateY(-1px); }
+
+/* Dashboard tiles — warmer numbers + inviting hover */
+.content .tiles .tile {
+  transition: transform .2s var(--ease), box-shadow .2s var(--ease), filter .2s var(--ease);
+}
+.content .tiles .tile:hover {
+  transform: translateY(-4px) scale(1.01);
+  filter: saturate(1.1) brightness(1.03);
+  box-shadow: 0 12px 30px rgba(0,0,0,.4);
+}
+.content .tiles .tile .n {
+  transition: transform .18s var(--ease), color .18s var(--ease);
+}
+.content .tiles .tile:hover .n { transform: scale(1.04); }
+
+/* Buttons & actions — more satisfying pop */
+.btn-generate, .btn-add, .btn-soft, .home-panel-btn, .btn-profile {
+  transition: transform .18s var(--ease), box-shadow .2s var(--ease), filter .18s var(--ease) !important;
+}
+.btn-generate:hover, .btn-add:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.btn-soft:hover { transform: translateY(-1px); }
+
+/* Inputs & selects — warmer focus pop already via border, add soft shadow */
+.input:focus, select:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-a) 22%, transparent);
+  border-color: color-mix(in srgb, var(--accent-a) 55%, var(--border));
+}
+
+/* Subtle sheen + life on icons in home cards (already enhanced per-card) */
+.hhc-icon, .acc-ic svg { transition: transform .22s var(--ease), opacity .2s var(--ease); }
+
+/* Empty states — creative, warm, friendly (no sad empty boxes) */
 .home-empty-state {
-  text-align: center; padding: 22px 0; color: var(--text-secondary);
-  font-size: .83rem; line-height: 1.7;
+  text-align: center; 
+  padding: 24px 16px 18px; 
+  color: var(--text-secondary);
+  font-size: .85rem; 
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--bg-elevated) 35%, transparent);
+  border-radius: 12px;
+  margin: 2px 0;
+  border: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
 }
-.home-open-ticket-btn {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  width: 100%; margin-top: 12px; padding: 10px;
-  background: linear-gradient(110deg, var(--accent-a), var(--accent-b));
-  border: none; border-radius: var(--r-md); color: #fff; font-size: .82rem;
-  font-weight: 700; cursor: pointer; font-family: inherit;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-a) 35%, transparent);
-  transition: filter .18s var(--ease), transform .18s var(--ease), box-shadow .18s var(--ease);
+.home-empty-state .empty-emoji {
+  font-size: 1.9rem;
+  display: block;
+  margin-bottom: 6px;
+  opacity: .8;
+  line-height: 1;
 }
-.home-open-ticket-btn:hover { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 8px 22px color-mix(in srgb, var(--accent-a) 45%, transparent); }
-.home-open-ticket-btn:active { transform: translateY(0); }
+.home-empty-state .empty-cta {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 15px;
+  background: linear-gradient(115deg, var(--accent-a), var(--accent-b));
+  color: #fff;
+  font-weight: 700;
+  font-size: .76rem;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--accent-a) 32%, transparent);
+  transition: transform .18s var(--ease), box-shadow .18s var(--ease), filter .18s var(--ease);
+}
+.home-empty-state .empty-cta:hover {
+  transform: translateY(-2px) scale(1.015);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--accent-a) 42%, transparent);
+  filter: brightness(1.1);
+}
+
+.home-news-empty {
+  text-align: center;
+  padding: 18px 12px;
+  color: var(--text-muted);
+  font-size: .8rem;
+  opacity: .7;
+}
 
 /* Home recent-ticket mini rows */
 .hrc-row {
-  display: flex; align-items: center; gap: 11px;
-  padding: 10px 0; border-bottom: 1px solid var(--border);
-  cursor: pointer; transition: padding-left .15s var(--ease);
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 6px 11px 4px; 
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  cursor: pointer; 
+  transition: all .18s var(--ease);
+  border-radius: 8px;
+  margin: 0 -4px;
+  /* subtle outline pop on the mini rows too */
+  border-left: 2px solid transparent;
 }
 .hrc-row:last-child { border-bottom: none; padding-bottom: 0; }
-.hrc-row:hover { padding-left: 4px; }
+.hrc-row:hover { 
+  padding-left: 10px; 
+  background: color-mix(in srgb, var(--accent-a) 6%, transparent);
+  transform: translateX(2px);
+  border-left-color: color-mix(in srgb, var(--accent-a) 45%, transparent);
+}
 .hrc-dot {
   width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
 }
@@ -1786,36 +2218,60 @@ html.view-as-user .admin-only { display: none !important; }
 .home-news-title { font-size: .83rem; color: var(--text-primary); margin-bottom: 3px; transition: color .15s var(--ease); }
 .home-news-date  { font-size: .72rem; color: var(--text-muted); }
 
-/* Shimmer effect on hero cards (load-in) */
+/* Premium staggered entrances — smooth, modern, wow without being flashy */
 @keyframes home-card-in {
-  from { opacity: 0; transform: translateY(16px) scale(.97); }
-  to   { opacity: 1; transform: none; }
+  from { 
+    opacity: 0; 
+    transform: translateY(22px) scale(0.96); 
+    filter: blur(1.5px); 
+  }
+  to   { 
+    opacity: 1; 
+    transform: none; 
+    filter: none; 
+  }
 }
-.home-hero-card { animation: home-card-in .4s var(--ease) both; }
-.home-hero-card:nth-child(1) { animation-delay: .04s; }
-.home-hero-card:nth-child(2) { animation-delay: .10s; }
-.home-hero-card:nth-child(3) { animation-delay: .16s; }
-.home-hero-card:nth-child(4) { animation-delay: .22s; }
+.home-hero-card { 
+  animation: home-card-in .48s var(--ease) both; 
+  will-change: transform, opacity, filter;
+  contain: layout style;
+}
+.home-hero-card:nth-child(1) { animation-delay: .05s; }
+.home-hero-card:nth-child(2) { animation-delay: .12s; }
+.home-hero-card:nth-child(3) { animation-delay: .19s; }
+.home-hero-card:nth-child(4) { animation-delay: .26s; }
 
 @keyframes home-panel-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: none; }
+  from { 
+    opacity: 0; 
+    transform: translateY(14px) scale(0.985); 
+    filter: blur(1px); 
+  }
+  to   { 
+    opacity: 1; 
+    transform: none; 
+    filter: none; 
+  }
 }
-.home-panel { animation: home-panel-in .4s var(--ease) both; }
-.home-panel:nth-of-type(1) { animation-delay: .28s; }
-.home-panel:nth-of-type(2) { animation-delay: .34s; }
-.home-panel:nth-of-type(3) { animation-delay: .38s; }
+.home-panel { animation: home-panel-in .42s var(--ease) both; }
+.home-panel:nth-of-type(1) { animation-delay: .32s; }
+.home-panel:nth-of-type(2) { animation-delay: .38s; }
+.home-panel:nth-of-type(3) { animation-delay: .44s; }
 
 @keyframes home-greeting-in {
-  from { opacity: 0; transform: translateY(-8px); }
+  from { opacity: 0; transform: translateY(-10px) scale(0.99); }
   to   { opacity: 1; transform: none; }
 }
-.home-greeting { animation: home-greeting-in .35s var(--ease) both; }
+.home-greeting { animation: home-greeting-in .38s var(--ease) both; }
 
 /* Re-run animations when page becomes visible */
 #page-home:not(.on) .home-hero-card,
 #page-home:not(.on) .home-panel,
 #page-home:not(.on) .home-greeting { animation: none; }
+
+/* Tiny extra welcome pop on the greeting sub when present */
+.home-sub { transition: color .3s var(--ease); }
+.home-greeting:hover .home-sub { color: var(--text-primary); }
 
 @media (prefers-reduced-motion: reduce) {
   body:not(.force-motion) .home-hero-card,
@@ -1871,31 +2327,7 @@ html.view-as-user .admin-only { display: none !important; }
 }
 .tkt-empty-icon { font-size: 2rem; margin-bottom: 10px; }
 
-.tkt-row {
-  display: flex; align-items: center; gap: 14px;
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 10px; padding: 14px 16px; margin-bottom: 8px;
-  cursor: pointer; transition: background .15s, border-color .15s, transform .12s;
-}
-.tkt-row:hover { background: color-mix(in srgb,var(--accent) 8%,var(--bg-card)); border-color: var(--accent); transform: translateX(2px); }
-.tkt-row-unread { border-color: color-mix(in srgb,var(--accent) 40%,var(--border)); }
-
-.tkt-dot {
-  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
-}
-.tkt-dot-open  { background: var(--success, #34d399); box-shadow: 0 0 6px color-mix(in srgb,var(--success,#34d399) 50%,transparent); }
-.tkt-dot-closed { background: var(--text-mute, #64748b); }
-
-.tkt-row-info { flex: 1; min-width: 0; }
-.tkt-row-subject { font-weight: 600; font-size: .92rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tkt-row-meta { font-size: .78rem; color: var(--text-mute); margin-top: 3px; }
-.tkt-row-arrow { color: var(--text-mute); font-size: 1.2rem; }
-
-.tkt-status-label { font-weight: 600; }
-.tkt-status-open   { color: var(--success, #34d399); }
-.tkt-status-closed { color: var(--text-mute); }
-
-.tkt-username { color: var(--accent); font-weight: 600; }
+/* (old simple list row styles removed — superseded by enhanced card rows below for mock fidelity) */
 
 .tkt-unread-pill {
   display: inline-flex; align-items: center; justify-content: center;
@@ -1904,8 +2336,172 @@ html.view-as-user .admin-only { display: none !important; }
   vertical-align: middle;
 }
 
-/* ── thread view ── */
-.tkt-thread-view { display: none; }
+/* ── Enhanced list to closer match mockup (card rows, header, badges) ── */
+.tkt-list-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 14px 6px 14px;
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--text-mute);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+  letter-spacing: .3px;
+}
+.tkt-list-header span {
+  flex: 1;
+}
+.tkt-list-header span:last-child {
+  flex: 0 0 auto;
+  text-align: right;
+  padding-right: 4px;
+}
+
+.tkt-row {
+  display: block;
+  background: var(--bg-card, #181824);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 14px;
+  margin-bottom: 7px;
+  cursor: pointer;
+  transition: background .16s var(--ease), border-color .16s var(--ease), transform .14s var(--ease), box-shadow .16s var(--ease);
+}
+.tkt-row:hover {
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-card, #181824));
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  transform: translate(1px, -1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.28);
+}
+.tkt-row:active {
+  transform: translate(0, 0);
+}
+.tkt-row-unread {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+}
+
+.tkt-main {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+  font-size: .91rem;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.tkt-subject {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tkt-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .69rem;
+  color: var(--text-mute);
+  flex-wrap: wrap;
+}
+
+.tkt-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #f97316; /* orange like mock HIGH */
+  color: #fff;
+  font-size: .58rem;
+  font-weight: 800;
+  padding: 0 5px;
+  height: 16px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  flex: none;
+}
+
+.tkt-id {
+  font-family: ui-monospace, monospace;
+  font-size: .66rem;
+  color: var(--text-mute);
+  background: var(--bg-input, #1f2937);
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.tkt-status-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: .64rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--bg-input, #1f2937);
+  color: var(--text);
+  text-transform: capitalize;
+  flex: none;
+}
+.tkt-status-pill.tkt-status-open,
+.tkt-status-pill.tkt-status-in_progress {
+  background: #3b82f6;
+  color: #fff;
+}
+.tkt-status-pill.tkt-status-closed {
+  background: var(--text-mute, #64748b);
+  color: #fff;
+}
+
+.tkt-updated {
+  font-size: .66rem;
+  flex: none;
+}
+
+.tkt-msg-count {
+  font-size: .64rem;
+  color: var(--text-mute);
+  flex: none;
+  background: rgba(255,255,255,0.04);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* avatar next to username in meta (mock fidelity) */
+.tkt-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  color: #0a0a12;
+  font-size: .62rem;
+  font-weight: 800;
+  line-height: 1;
+  flex: none;
+  vertical-align: middle;
+}
+
+/* "by username" accent + wrapper for avatar pairing */
+.tkt-by {
+  color: var(--accent);
+  font-weight: 600;
+}
+.tkt-by-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ── thread view (smooth slide/fade in) ── */
+.tkt-list-view, .tkt-thread-view {
+  transition: opacity .18s var(--ease);
+}
+.tkt-thread-view { display: none; opacity: 0; }
+.tkt-thread-view.is-visible { opacity: 1; }
 .tkt-back-btn {
   background: none; border: none; cursor: pointer;
   color: var(--text-mute); font-size: .88rem; padding: 0 0 14px 0;
