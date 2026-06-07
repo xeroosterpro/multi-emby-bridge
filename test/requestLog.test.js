@@ -49,6 +49,7 @@ function fakeDb() {
   const recent = await rl.recent(10);
   A(Array.isArray(recent) && recent.length === 2, 'recent returns rows');
   A(recent[0].title === 'Heat' && recent[0].server === 'EAGLE' && recent[0].ms === 500, 'recent maps to {title,server,ms,...} shape');
+  A(recent[0].imdbId === 'tt2', 'recent exposes imdbId (for robust dedup keying)');
 
   const mine = await rl.forUser('u1');
   A(mine.length === 1 && mine[0].title === 'Dune', 'forUser filters + maps to title/server shape');

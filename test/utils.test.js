@@ -51,6 +51,17 @@ console.log('\nparseStreamId');
   assertEqual(r.episode, 5, 'series: episode parsed');
 }
 
+{
+  // malformed series id (no :s:e) must yield null, not NaN
+  const r = parseStreamId('series', 'tt1234567');
+  assertEqual(r.imdbId, 'tt1234567', 'malformed series: imdbId still extracted');
+  assertEqual(r.season, null, 'malformed series: season null (not NaN)');
+  assertEqual(r.episode, null, 'malformed series: episode null (not NaN)');
+  const r2 = parseStreamId('series', 'tt1234567:2');
+  assertEqual(r2.season, 2, 'partial series: season parsed');
+  assertEqual(r2.episode, null, 'partial series: missing episode null (not NaN)');
+}
+
 // ─── formatFileSize ───────────────────────────────────────────────────────────
 console.log('\nformatFileSize');
 

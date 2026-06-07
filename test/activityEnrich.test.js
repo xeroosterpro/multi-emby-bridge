@@ -4,6 +4,7 @@ const {
   matchLiveToEntry,
   enrichRecentEntries,
   dedupeRecentByContent,
+  recentMatchesLive,
 } = require('../lib/activityEnrich');
 
 let passed = 0;
@@ -81,6 +82,36 @@ const sameEpDiffShow = dedupeRecentByContent([
   { title: 'Andor', season: 1, episode: 1, ts: '2026-06-06T23:00:00Z' },
 ]);
 A(sameEpDiffShow.length === 2, 'same S/E on different shows stay separate');
+
+// Legacy rows with identical generic titles ("Episode 2") but different series
+// must NOT collapse — disambiguate by imdbId when present.
+const genericCollision = dedupeRecentByContent([
+  { title: 'Episode 2', imdbId: 'tt100', season: 1, episode: 2, ts: '2026-06-06T23:00:05Z' },
+  { title: 'Episode 2', imdbId: 'tt200', season: 1, episode: 2, ts: '2026-06-06T23:00:00Z' },
+]);
+A(genericCollision.length === 2, 'same generic title + S/E but different imdbId stay separate');
+
+const sameImdbCollapses = dedupeRecentByContent([
+  { title: 'Episode 2', imdbId: 'tt100', season: 1, episode: 2, ts: '2026-06-06T23:00:05Z' },
+  { title: 'Episode 2', imdbId: 'tt100', season: 1, episode: 2, ts: '2026-06-06T23:00:00Z' },
+]);
+A(sameImdbCollapses.length === 1 && sameImdbCollapses[0].lookupCount === 2, 'same imdbId + S/E collapses');
+
+// ─── recentMatchesLive: history "▶ now" must agree with the Live panel set ───
+// The Live panel set (bundle.live) is already suppressed/real-session-aware, so
+// a history row should show "▶ now" iff it corresponds to an entry in that set.
+const liveSet = [
+  { title: 'Michael Jackson: The Verdict S1E2 — Episode 2', season: 1, episode: 2, source: 'bridge' },
+  { title: 'Dune: Part Two', source: 'sessions' },
+];
+A(recentMatchesLive({ title: 'Michael Jackson: The Verdict S1E2 — Episode 2', season: 1, episode: 2 }, liveSet) === true,
+  'history row matches the same episode in the live set');
+A(recentMatchesLive({ title: 'Michael Jackson: The Verdict S1E3 — Episode 3', season: 1, episode: 3 }, liveSet) === false,
+  'a different episode of the same series is NOT marked live');
+A(recentMatchesLive({ title: 'Dune: Part Two' }, liveSet) === true, 'movie matches by title');
+A(recentMatchesLive({ title: 'Severance S1E1', season: 1, episode: 1 }, liveSet) === false, 'unrelated title not live');
+A(recentMatchesLive({ title: 'Anything' }, []) === false, 'empty live set → never live');
+A(recentMatchesLive({ title: 'Anything' }, null) === false, 'missing live set → never live');
 
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);

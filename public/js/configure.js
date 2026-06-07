@@ -2609,6 +2609,36 @@ function dashActivityWhen(t) {
   return h < 1 ? 'just now' : h < 24 ? h + 'h ago' : Math.floor(h / 24) + 'd ago';
 }
 
+// Mirror of titlesMatch + recentMatchesLive in lib/activityEnrich.js. Used so the
+// Watched-history "▶ now" tag is computed against the SAME live set the Live panel
+// renders (bundle.live — already suppressed + real-session aware), instead of the
+// looser server-side bridge self-match. The two panels then always agree.
+function dashNormTitle(t) { return String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+function dashTitlesMatch(a, b) {
+  const x = dashNormTitle(a), y = dashNormTitle(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  if (x.length >= 4 && y.length >= 4 && (x.includes(y) || y.includes(x))) return true;
+  const xWords = x.split(' ').filter(w => w.length > 2);
+  const yWords = new Set(y.split(' ').filter(w => w.length > 2));
+  if (!xWords.length || !yWords.size) return false;
+  const overlap = xWords.filter(w => yWords.has(w)).length;
+  return overlap >= Math.min(2, Math.ceil(xWords.length * 0.6));
+}
+function dashRecentMatchesLive(entry, liveList) {
+  if (!entry || !entry.title || !Array.isArray(liveList)) return false;
+  const entryHasSE = entry.season != null && entry.episode != null;
+  for (const s of liveList) {
+    if (!s) continue;
+    if (entryHasSE && s.season != null && s.episode != null) {
+      if (Number(s.season) !== Number(entry.season) || Number(s.episode) !== Number(entry.episode)) continue;
+    }
+    const candidates = [s.title, s.rawTitle, s.seriesName].filter(Boolean);
+    if (candidates.some(c => dashTitlesMatch(entry.title, c))) return true;
+  }
+  return false;
+}
+
 function paintDashActivityPanels(el, a, bundle, localServers) {
   const esc = dashActivityEsc;
   const when = dashActivityWhen;
@@ -2643,7 +2673,10 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
 
   const emptyMsg = live.length ? '' : liveEmptyMessage(probes, serverCount);
   const recentRows = (a.recent || []).map(e => {
-    const liveTag = e.isLiveNow
+    // Derive "▶ now" from the Live-panel set, not the server's looser self-match,
+    // so the two panels always agree.
+    const isLive = dashRecentMatchesLive(e, live);
+    const liveTag = isLive
       ? `<span class="da-hist-live"><span class="da-hist-now">▶ now</span></span> · `
       : '';
     // Only show the S/E badge when the title doesn't already carry it (new log
@@ -2652,7 +2685,7 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
     const seBadge = seToken && !String(e.title || '').toUpperCase().includes(seToken.toUpperCase())
       ? ` <span class="da-ep">${seToken}</span>`
       : '';
-    return `<div class="da-row da-history${e.isLiveNow ? ' da-history-live' : ''}">
+    return `<div class="da-row da-history${isLive ? ' da-history-live' : ''}">
       <span class="da-main"><span class="da-title" title="${esc(e.title || '')}">${esc(e.title || '—')}${seBadge}</span></span>
       <span class="da-dim da-meta da-hist-meta">${liveTag}${when(e.ts)}</span>
     </div>`;
