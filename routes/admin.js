@@ -12,6 +12,8 @@ const { makeLiveSessions } = require('../lib/sessions');
 const { summarizeRequestLog, userActivity, userAnalytics, timeSeries, serverBreakdown, topContent } = require('../lib/adminStats');
 const { makeRequestLog, normalizeServerLabel } = require('../lib/requestLog');
 const { makeSiteSettings, TOGGLEABLE_TABS } = require('../lib/siteSettings');
+const { snapshot: systemMetrics } = require('../lib/metrics');
+const os = require('os');
 
 function makeAdminRouter(opts = {}) {
   const getRequestLog = typeof opts.getRequestLog === 'function' ? opts.getRequestLog : () => [];
@@ -326,6 +328,59 @@ function makeAdminRouter(opts = {}) {
         recent: recent.rows,
       });
     } catch (e) { console.error('[admin/diag/requestlog]', e.message); res.status(500).json({ error: 'diag failed' }); }
+  });
+
+  r.get('/system', requireAdmin, async (req, res) => {
+    try {
+      const metrics = systemMetrics();
+      const logBuf = getRequestLog();
+      let platform = { users: 0, servers: 0, requests24h: 0, activeUsers24h: 0 };
+      let events = [];
+      if (db.isConfigured()) {
+        const u = await db.query('SELECT COUNT(*)::int AS total FROM users');
+        const srv = await db.query(
+          `SELECT COALESCE(SUM(jsonb_array_length(uc.config_json->'servers')),0)::int AS total FROM user_config uc`);
+        const r24 = await db.query(
+          `SELECT COUNT(*)::int AS n FROM request_log WHERE ts > now() - interval '24 hours'`);
+        const a24 = await db.query(
+          `SELECT COUNT(DISTINCT user_id)::int AS n FROM request_log
+            WHERE user_id IS NOT NULL AND ts > now() - interval '24 hours'`);
+        platform = {
+          users: u.rows[0].total,
+          servers: srv.rows[0].total,
+          requests24h: r24.rows[0].n,
+          activeUsers24h: a24.rows[0].n,
+        };
+        const ev = await db.query(
+          `SELECT be.created_at, be.type, tu.username AS target, au.username AS actor
+             FROM billing_events be
+             LEFT JOIN users tu ON tu.id = be.user_id
+             LEFT JOIN users au ON au.id = be.actor_id
+            ORDER BY be.created_at DESC LIMIT 8`);
+        events = ev.rows;
+      }
+      res.json({
+        metrics,
+        platform,
+        events,
+        services: {
+          database: db.isConfigured(),
+          paypal: paypal.isConfigured(),
+          accounts: db.isConfigured(),
+        },
+        deployment: {
+          node: process.version,
+          platform: process.platform,
+          arch: process.arch,
+          region: process.env.RAILWAY_REGION || process.env.FLY_REGION || null,
+          service: process.env.RAILWAY_SERVICE_NAME || null,
+          env: process.env.NODE_ENV || 'development',
+          host: req.hostname,
+          hostname: os.hostname(),
+        },
+        logBuffer: { count: logBuf.length },
+      });
+    } catch (e) { console.error('[admin/system]', e.message); res.status(500).json({ error: 'system failed' }); }
   });
 
   r.get('/site-config', requireAdmin, async (req, res) => {

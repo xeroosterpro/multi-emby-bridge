@@ -12,18 +12,138 @@
   function fmtMB(b) { return Math.round((b || 0) / 1048576) + ' MB'; }
 
   let metricsTimer = null;
+  let _sysTimer = null;
+  const _cpuHist = [];
+  const _ramHist = [];
+  const HIST_MAX = 40;
+
+  function renderSpark(el, vals, color) {
+    if (!el) return;
+    const pts = (vals || []).filter(v => v != null);
+    if (pts.length < 2) { el.innerHTML = ''; return; }
+    const W = 140, H = 36, p = 2;
+    const mn = Math.min(...pts), mx = Math.max(...pts), rng = mx - mn || 1;
+    const coords = pts.map((v, i) => ({
+      x: p + (i / (pts.length - 1)) * (W - p * 2),
+      y: p + (1 - (v - mn) / rng) * (H - p * 2),
+    }));
+    const line = coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+    const lx = coords[coords.length - 1].x.toFixed(1);
+    const ly = coords[coords.length - 1].y.toFixed(1);
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${line}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/><circle cx="${lx}" cy="${ly}" r="2.5" fill="${color}"/></svg>`;
+  }
+
+  function renderMemBars(m) {
+    const el = $('#sys-mem-bars'); if (!el || !m) return;
+    const total = m.sysMemTotalBytes || 1;
+    const sysPct = Math.round((m.sysMemUsedBytes / total) * 100);
+    const rssPct = Math.min(100, Math.round((m.rssBytes / total) * 100));
+    const heapPct = Math.min(100, Math.round((m.heapUsedBytes / total) * 100));
+    const bar = (label, pct, val, cls) => `<div class="sys-mem-row"><span class="sys-mem-label">${label}</span><div class="sys-mem-track"><div class="sys-mem-fill ${cls}" style="width:${pct}%"></div></div><span class="sys-mem-val">${val}</span></div>`;
+    el.innerHTML = bar('Process RSS', rssPct, fmtMB(m.rssBytes), 'rss')
+      + bar('Heap used', heapPct, fmtMB(m.heapUsedBytes), 'heap')
+      + bar('System used', sysPct, m.sysMemPct + '%', 'sys');
+    const hint = $('#sys-mem-total');
+    if (hint) hint.textContent = fmtMB(total) + ' total system RAM';
+  }
+
+  function pushHist(arr, v) {
+    arr.push(v);
+    if (arr.length > HIST_MAX) arr.shift();
+  }
+
   async function tickMetrics() {
     const r = await api('/api/metrics'); const m = r.body; if (!m) return;
-    if ($('#m-cpu')) $('#m-cpu').textContent = (m.cpuPercent ?? 0) + '%';
-    if ($('#g-cpu')) $('#g-cpu').style.setProperty('--v', m.cpuPercent ?? 0);
-    if ($('#m-ram')) $('#m-ram').textContent = (m.sysMemPct ?? 0) + '%';
-    if ($('#g-ram')) $('#g-ram').style.setProperty('--v', m.sysMemPct ?? 0);
-    if ($('#m-mem')) $('#m-mem').textContent = fmtMB(m.rssBytes);
-    if ($('#m-up')) $('#m-up').textContent = fmtUptime(m.uptimeSec);
-    if ($('#m-cpus')) $('#m-cpus').textContent = m.cpuCount ?? '—';
+    const cpu = m.cpuPercent ?? 0;
+    const ram = m.sysMemPct ?? 0;
+    if ($('#m-cpu')) $('#m-cpu').textContent = cpu + '%';
+    if ($('#g-cpu')) $('#g-cpu').style.setProperty('--v', cpu);
+    if ($('#m-ram')) $('#m-ram').textContent = ram + '%';
+    if ($('#g-ram')) $('#g-ram').style.setProperty('--v', ram);
+    pushHist(_cpuHist, cpu);
+    pushHist(_ramHist, ram);
+    renderSpark($('#sys-spark-cpu'), _cpuHist, 'var(--accent)');
+    renderSpark($('#sys-spark-ram'), _ramHist, '#60a5fa');
+    renderMemBars(m);
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('sys-st-uptime', fmtUptime(m.uptimeSec));
+    set('sys-st-rss', fmtMB(m.rssBytes));
+    set('sys-st-heap', fmtMB(m.heapUsedBytes));
+    set('sys-st-load', m.loadAvg1 != null ? Number(m.loadAvg1).toFixed(2) : '—');
+    set('sys-st-cores', m.cpuCount ?? '—');
+    const poll = $('#sys-last-poll');
+    if (poll) poll.textContent = 'Updated ' + new Date().toLocaleTimeString();
   }
-  function startMetrics() { if (!metricsTimer) { tickMetrics(); metricsTimer = setInterval(tickMetrics, 3000); } }
-  function stopMetrics() { clearInterval(metricsTimer); metricsTimer = null; }
+
+  const EVT_LABELS = {
+    activated: 'Subscription activated', cancelled: 'Cancelled', comped: 'Comped',
+    code_redeemed: 'Code redeemed', payment: 'Payment', admin_override: 'Admin override',
+    resync: 'PayPal re-sync', admin_password_reset: 'Password reset',
+  };
+  const TAB_ICONS = {
+    dashboard: '◆', servers: '⬡', catalogs: '▦', streaming: '▶', appearance: '▶',
+    install: '⬇', apikeys: '🔑', health: '♥', ping: '◎', log: '≡', settings: '⚙', billing: '¤',
+  };
+
+  async function loadSystemDashboard() {
+    const r = await api('/api/admin/system');
+    if (r.status !== 200 || !r.body) return;
+    const d = r.body;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('sys-st-reqs', d.platform?.requests24h ?? '—');
+
+    const svc = $('#sys-svc-grid');
+    if (svc && d.services) {
+      const items = [
+        { k: 'Database', on: d.services.database },
+        { k: 'Accounts', on: d.services.accounts },
+        { k: 'PayPal', on: d.services.paypal },
+      ];
+      svc.innerHTML = items.map(s => `<div class="sys-svc ${s.on ? 'on' : 'off'}"><div class="sys-svc-dot"></div><div class="sys-svc-name">${s.k}</div></div>`).join('');
+    }
+
+    const plat = $('#sys-plat-stats');
+    if (plat && d.platform) {
+      plat.innerHTML = [
+        ['Users', d.platform.users],
+        ['Servers', d.platform.servers],
+        ['Active (24h)', d.platform.activeUsers24h],
+        ['Log buffer', d.logBuffer?.count ?? 0],
+      ].map(([k, v]) => `<div class="sys-plat-item"><span>${k}</span><span>${v}</span></div>`).join('');
+    }
+
+    const dep = $('#sys-deploy-info');
+    if (dep && d.deployment) {
+      const rows = [
+        ['Host', d.deployment.host],
+        ['Region', d.deployment.region || '—'],
+        ['Service', d.deployment.service || '—'],
+        ['Node', d.deployment.node],
+        ['Platform', d.deployment.platform + ' / ' + d.deployment.arch],
+        ['Environment', d.deployment.env],
+      ];
+      dep.innerHTML = rows.map(([k, v]) => `<div class="sys-deploy-row"><span class="sys-deploy-k">${k}</span><span class="sys-deploy-v">${escU(v)}</span></div>`).join('');
+    }
+
+    const evl = $('#sys-events-list');
+    if (evl) {
+      const evs = d.events || [];
+      evl.innerHTML = evs.length ? evs.map(e => `<div class="sys-event-row">
+        <div><div class="sys-event-type">${escU(EVT_LABELS[e.type] || e.type)}</div>
+        <div class="sys-event-meta">${escU(e.actor || 'system')} → ${escU(e.target || '—')}</div></div>
+        <span class="sys-event-time">${e.created_at ? new Date(e.created_at).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—'}</span>
+      </div>`).join('') : '<div class="adm-empty">No admin events yet.</div>';
+    }
+  }
+
+  function startMetrics() {
+    if (!metricsTimer) { tickMetrics(); metricsTimer = setInterval(tickMetrics, 3000); }
+    if (!_sysTimer) { loadSystemDashboard(); _sysTimer = setInterval(loadSystemDashboard, 30000); }
+  }
+  function stopMetrics() {
+    clearInterval(metricsTimer); metricsTimer = null;
+    clearInterval(_sysTimer); _sysTimer = null;
+  }
 
   let _adminUsers = [];
   let _adminPage = 0;
@@ -440,9 +560,13 @@
     if (r.status !== 200 || !r.body) { list.innerHTML = '<div class="field-hint">Site config unavailable.</div>'; return; }
     const disabled = new Set(r.body.disabledTabs || []);
     const tabs = r.body.toggleable || [];
-    list.innerHTML = tabs.map(t => `<div class="field" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-    <span>${escU(TAB_LABELS[t] || t)}</span>
-    <button type="button" class="switch site-tab-switch ${disabled.has(t) ? '' : 'on'}" data-tab="${escU(t)}" role="switch" aria-checked="${disabled.has(t) ? 'false' : 'true'}"></button></div>`).join('');
+    list.innerHTML = tabs.map(t => {
+      const on = !disabled.has(t);
+      return `<div class="sys-tab-card${on ? '' : ' off'}">
+        <span class="sys-tab-name"><span class="sys-tab-ic">${TAB_ICONS[t] || '·'}</span>${escU(TAB_LABELS[t] || t)}</span>
+        <button type="button" class="switch site-tab-switch ${on ? 'on' : ''}" data-tab="${escU(t)}" role="switch" aria-checked="${on ? 'true' : 'false'}"></button>
+      </div>`;
+    }).join('');
     list.querySelectorAll('.site-tab-switch').forEach(sw => sw.addEventListener('click', async () => {
       const enabled = !sw.classList.contains('on');
       sw.classList.toggle('on', enabled); sw.setAttribute('aria-checked', enabled ? 'true' : 'false');

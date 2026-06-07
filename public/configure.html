@@ -1007,26 +1007,86 @@
       </section>
 
       <section class="page" id="page-admin">
-        <h2 class="page-title">Admin · System</h2>
-        <p class="page-sub">Live resource usage for this deployment. <span id="admin-live" style="color:var(--accent)">●</span></p>
-        <div class="admin-gauges">
-          <div class="gauge" id="g-cpu" style="--v:0"><div class="gauge-in"><div class="gv" id="m-cpu">—</div><div class="gl">CPU</div></div></div>
-          <div class="gauge" id="g-ram" style="--v:0"><div class="gauge-in"><div class="gv" id="m-ram">—</div><div class="gl">RAM</div></div></div>
-        </div>
-        <div class="tiles">
-          <div class="tile t3"><div class="n" id="m-mem">—</div><div class="l">Memory used</div></div>
-          <div class="tile t4"><div class="n" id="m-up">—</div><div class="l">Uptime</div></div>
-          <div class="tile t5"><div class="n" id="m-cpus">—</div><div class="l">CPU cores</div></div>
-        </div>
-        <div class="adm-section">
-          <h3 class="block-title">Site controls</h3>
-          <div class="field" style="display:flex;align-items:center;justify-content:space-between">
-            <div><div class="field-label">View as normal user</div><div class="field-hint">Preview the site without admin UI. You keep admin access.</div></div>
-            <button type="button" class="switch" id="view-as-switch" role="switch" aria-checked="false"></button>
+        <div class="sys-shell">
+          <div class="sys-top">
+            <div class="sys-top-main">
+              <h2 class="page-title sys-title">Admin · System</h2>
+              <p class="page-sub sys-sub">Deployment health, live resources, services &amp; site controls</p>
+            </div>
+            <div class="sys-top-actions">
+              <span class="sys-live-pill" id="admin-live"><span class="sys-pulse"></span> Live monitoring</span>
+              <span class="sys-poll-time" id="sys-last-poll">—</span>
+            </div>
           </div>
-          <h4 class="block-title" style="margin-top:14px;font-size:.85rem">Visible tabs</h4>
-          <div class="field-hint">Turn a tab off to hide it from normal users. You still see it (badged) so you can re-enable.</div>
-          <div id="site-tabs-list"></div>
+
+          <div class="sys-stats">
+            <div class="sys-stat"><div class="sys-stat-n" id="sys-st-uptime">—</div><div class="sys-stat-l">Uptime</div></div>
+            <div class="sys-stat"><div class="sys-stat-n" id="sys-st-rss">—</div><div class="sys-stat-l">Process RAM</div></div>
+            <div class="sys-stat"><div class="sys-stat-n" id="sys-st-heap">—</div><div class="sys-stat-l">Heap used</div></div>
+            <div class="sys-stat"><div class="sys-stat-n" id="sys-st-load">—</div><div class="sys-stat-l">Load (1m)</div></div>
+            <div class="sys-stat"><div class="sys-stat-n" id="sys-st-cores">—</div><div class="sys-stat-l">CPU cores</div></div>
+            <div class="sys-stat"><div class="sys-stat-n" id="sys-st-reqs">—</div><div class="sys-stat-l">Requests (24h)</div></div>
+          </div>
+
+          <div class="sys-dash-grid">
+            <div class="sys-panel sys-panel-metrics">
+              <div class="sys-panel-head">
+                <span class="sys-panel-title">Resource usage</span>
+                <span class="sys-panel-hint" id="sys-mem-total">—</span>
+              </div>
+              <div class="sys-gauges-row">
+                <div class="sys-gauge-wrap">
+                  <div class="gauge sys-gauge" id="g-cpu" style="--v:0"><div class="gauge-in"><div class="gv" id="m-cpu">—</div><div class="gl">CPU</div></div></div>
+                  <div class="sys-spark" id="sys-spark-cpu" aria-hidden="true"></div>
+                </div>
+                <div class="sys-gauge-wrap">
+                  <div class="gauge sys-gauge" id="g-ram" style="--v:0"><div class="gauge-in"><div class="gv" id="m-ram">—</div><div class="gl">System RAM</div></div></div>
+                  <div class="sys-spark" id="sys-spark-ram" aria-hidden="true"></div>
+                </div>
+              </div>
+              <div class="sys-mem-bars" id="sys-mem-bars"></div>
+            </div>
+
+            <div class="sys-col-side">
+              <div class="sys-panel sys-panel-platform">
+                <div class="sys-panel-head"><span class="sys-panel-title">Platform pulse</span></div>
+                <div class="sys-svc-grid" id="sys-svc-grid"></div>
+                <div class="sys-plat-stats" id="sys-plat-stats"></div>
+              </div>
+              <div class="sys-panel sys-panel-deploy">
+                <div class="sys-panel-head"><span class="sys-panel-title">Deployment</span></div>
+                <div class="sys-deploy-list" id="sys-deploy-info"></div>
+              </div>
+            </div>
+
+            <div class="sys-panel sys-panel-controls sys-panel-wide">
+              <div class="sys-panel-head">
+                <span class="sys-panel-title">Site controls</span>
+                <span class="sys-panel-hint">Manage what normal users see</span>
+              </div>
+              <div class="sys-controls-body">
+                <div class="sys-viewas">
+                  <div class="sys-viewas-text">
+                    <div class="sys-viewas-label">View as normal user</div>
+                    <div class="sys-viewas-hint">Preview the site without admin UI. You keep full admin access.</div>
+                  </div>
+                  <button type="button" class="switch" id="view-as-switch" role="switch" aria-checked="false"></button>
+                </div>
+                <div class="sys-tabs-section">
+                  <div class="sys-tabs-head">Visible tabs</div>
+                  <div class="sys-tab-grid" id="site-tabs-list"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sys-panel sys-panel-events sys-panel-wide">
+              <div class="sys-panel-head">
+                <span class="sys-panel-title">Recent admin events</span>
+                <span class="sys-panel-hint">Billing &amp; account changes</span>
+              </div>
+              <div class="sys-events-list" id="sys-events-list"></div>
+            </div>
+          </div>
         </div>
       </section>
 
