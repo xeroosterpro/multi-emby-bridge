@@ -949,17 +949,17 @@ body.noanim .orb, body.noanim .flake{ animation:none !important } body.noanim .f
 body.sb-locked .content{ margin-left:var(--side-w); }
 /* labels fade IN gently once the panel has started widening (delay), and fade
    OUT quickly so they never get clipped by the shrinking rail */
-.brand, .nav-item .nav-label, .nav-item .nav-ticket-badge, .sidebar-foot, .nav-sec{ transition:opacity .3s var(--side-ease) .16s; white-space:nowrap; }
+.brand, .brand-text, .nav-item .nav-label, .nav-item .nav-ticket-badge, .sidebar-foot, .nav-sec{ transition:opacity .3s var(--side-ease) .16s; white-space:nowrap; }
 .sidebar:not(:hover):not(.locked) .nav-item .nav-label,
 .sidebar:not(:hover):not(.locked) .nav-item .nav-ticket-badge,
-.sidebar:not(:hover):not(.locked) .brand,
+.sidebar:not(:hover):not(.locked) .brand-text,
 .sidebar:not(:hover):not(.locked) .sidebar-foot{ opacity:0; pointer-events:none; transition:opacity .24s var(--side-ease) .28s; }
+.sidebar:not(:hover):not(.locked) .brand{ justify-content:center !important; padding-right:10px !important; }
 .nav{ flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding-bottom:6px; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
 .nav::-webkit-scrollbar{ width:4px; }
 .nav::-webkit-scrollbar-thumb{ background:var(--border); border-radius:4px; }
-.nav-item{ position:relative; overflow:visible; padding:9px 14px; margin:1px 8px; }
-.nav-item.on{ background:var(--glow) !important; animation:none !important; }
-.nav-item.on::before{ content:''; position:absolute; left:0; top:18%; bottom:18%; width:3px; border-radius:3px; background:var(--accent); }
+.nav-item{ position:relative; overflow:hidden; padding:9px 14px; margin:1px 8px; border-radius:var(--r-md); border:1px solid transparent; }
+.nav-item.on{ animation:none !important; }
 
 /* pin button */
 .pin-btn{ position:absolute; top:10px; right:8px; width:26px; height:26px; border-radius:8px; display:grid; place-items:center;
@@ -1001,7 +1001,8 @@ input[type=range]{ width:100%; accent-color:var(--accent); cursor:pointer; }
 }
 
 /* ===================== nav line-icons + collapsible accordions ===================== */
-.nav-ic{ width:20px; height:20px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.nav-ic{ width:20px; height:20px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; position:relative; z-index:1; }
+.nav-label{ position:relative; z-index:1; }
 .nav-item.on .nav-ic{ stroke:var(--accent); }
 
 .acc2{ background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-md); margin:0 0 10px; transition:border-color .2s; }
@@ -1294,21 +1295,89 @@ body.locked-billing .pin-btn{ display:none; }
   padding:16px 18px; margin-top:18px; backdrop-filter:blur(12px); }
 
 /* ===================== sidebar brand + user button (prototype) ===================== */
-.brand{ 
-  display:flex !important; 
-  align-items:center; 
-  gap:8px; 
-  background: rgba(139, 92, 246, 0.15) !important; 
-  -webkit-text-fill-color:initial !important; 
-  color:var(--text) !important; 
-  animation:none !important; 
-  padding: 8px 40px 8px 12px !important; /* extra right padding so pin doesn't overlap the text */
-  border-radius: 12px !important; 
-  margin-bottom: 12px !important;
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  position: relative; /* contain if needed */
+.brand{
+  display:flex !important; align-items:center; gap:10px;
+  -webkit-text-fill-color:initial !important; color:var(--text) !important;
+  animation:none !important;
+  padding:10px 40px 10px 10px !important;
+  margin:0 8px 14px !important;
+  border-radius:14px !important;
+  position:relative; overflow:hidden; isolation:isolate;
+  background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--accent-2) 10%, transparent)) !important;
+  border:1px solid color-mix(in srgb, var(--accent) 42%, var(--border)) !important;
+  box-shadow:0 0 24px color-mix(in srgb, var(--accent) 18%, transparent), inset 0 1px 0 rgba(255,255,255,.06);
+  animation:brand-glow 4s ease-in-out infinite !important;
 }
-.brand-name{ font-weight:800; font-size:1rem; white-space:nowrap; color: var(--text); }
+.brand::before{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(105deg, transparent 30%, rgba(255,255,255,.09) 48%, transparent 66%);
+  transform:translateX(-130%); animation:brand-shine 5.5s var(--ease) infinite;
+  pointer-events:none;
+}
+@keyframes brand-glow{
+  0%,100%{ box-shadow:0 0 20px color-mix(in srgb, var(--accent) 14%, transparent), inset 0 1px 0 rgba(255,255,255,.06); }
+  50%{ box-shadow:0 0 32px color-mix(in srgb, var(--accent) 28%, transparent), 0 0 48px color-mix(in srgb, var(--accent-2) 12%, transparent), inset 0 1px 0 rgba(255,255,255,.08); }
+}
+@keyframes brand-shine{
+  0%,72%{ transform:translateX(-130%); opacity:0; }
+  78%{ opacity:1; }
+  100%{ transform:translateX(130%); opacity:0; }
+}
+.brand-logo{
+  position:relative; width:34px; height:34px; flex:none;
+  display:grid; place-items:center;
+  animation:brand-logo-float 3.2s ease-in-out infinite;
+}
+@keyframes brand-logo-float{
+  0%,100%{ transform:translateY(0) rotate(0deg); }
+  50%{ transform:translateY(-2px) rotate(-2deg); }
+}
+.brand-logo-ring{
+  position:absolute; inset:-3px; border-radius:12px;
+  border:1.5px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  animation:brand-ring-pulse 2.8s ease-out infinite;
+  pointer-events:none;
+}
+.brand-logo-ring-2{
+  inset:-7px; border-color:color-mix(in srgb, var(--accent-2) 35%, transparent);
+  animation-delay:.9s; opacity:.6;
+}
+@keyframes brand-ring-pulse{
+  0%{ transform:scale(.92); opacity:.85; }
+  70%{ transform:scale(1.18); opacity:0; }
+  100%{ transform:scale(1.18); opacity:0; }
+}
+.brand-logo-svg{ width:34px; height:34px; position:relative; z-index:1; filter:drop-shadow(0 2px 8px rgba(0,0,0,.35)); }
+.brand-logo-bg{ filter:brightness(1.05); }
+.brand-logo-dot{ animation:brand-dot-pulse 2s ease-in-out infinite; transform-origin:16px 10px; }
+@keyframes brand-dot-pulse{
+  0%,100%{ transform:scale(1); }
+  50%{ transform:scale(1.15); }
+}
+.brand-logo-wave{ animation:brand-wave-drift 2.4s ease-in-out infinite; transform-origin:center; }
+.brand-logo-wave-2{ animation:brand-wave-drift 2.4s ease-in-out infinite reverse; animation-delay:.3s; }
+@keyframes brand-wave-drift{
+  0%,100%{ transform:translateX(0); }
+  50%{ transform:translateX(1.5px); }
+}
+.brand-text{ display:flex; align-items:baseline; gap:0; line-height:1; white-space:nowrap; position:relative; z-index:1; }
+.brand-name{
+  font-weight:800; font-size:1.05rem; letter-spacing:-.03em;
+  background:linear-gradient(135deg, #fff 0%, color-mix(in srgb, var(--accent-2) 80%, #fff) 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.brand-hub{
+  font-weight:900; font-size:1.05rem; letter-spacing:-.02em;
+  background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  background-size:200% 100%;
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  animation:brand-hub-flow 3s linear infinite;
+  filter:drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 45%, transparent));
+}
+@keyframes brand-hub-flow{
+  0%{ background-position:0% 50%; }
+  100%{ background-position:200% 50%; }
+}
 .sidebar-foot{ border-top:1px solid var(--border); padding-top:8px !important; }
 .userbtn{ display:flex; align-items:center; gap:10px; padding:8px 10px; margin:8px 8px 0; border-radius:var(--r-md); cursor:pointer; color:var(--text-dim); }
 .userbtn:hover{ background:var(--bg-hover); color:var(--text); }
@@ -1316,7 +1385,7 @@ body.locked-billing .pin-btn{ display:none; }
 .userbtn .um{ font-size:.8rem; white-space:nowrap; }
 
 /* nav label + trailing badges (tickets, disabled dot) */
-.nav-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; position: relative; z-index: 1; }
 .nav-ticket-badge {
   display: none; align-items: center; justify-content: center; flex: none;
   min-width: 17px; height: 17px; padding: 0 5px; margin-left: auto;
@@ -1329,7 +1398,6 @@ body.locked-billing .pin-btn{ display:none; }
 .gcard:hover{ transform:translateY(-4px); border-color:var(--accent) !important; box-shadow:0 16px 38px rgba(0,0,0,.5),0 0 26px var(--glow) !important; }
 .content .tiles .tile{ transition:transform .2s var(--ease), border-color .2s var(--ease), box-shadow .2s var(--ease); }
 .content .tiles .tile:hover{ transform:translateY(-3px); border-color:color-mix(in srgb,var(--accent) 45%,var(--border)) !important; box-shadow:0 10px 26px rgba(0,0,0,.4); }
-.nav-item{ transition:background .22s var(--ease), color .22s var(--ease) !important; }
 .btn-soft, .btn-add, .btn-generate, .seg button, .pick, select, .input{ transition:all .18s var(--ease) !important; }
 /* make the falling particles a touch more visible so the motion reads */
 .bg .flake{ box-shadow:0 0 7px var(--glow); }
@@ -1337,17 +1405,70 @@ body.locked-billing .pin-btn{ display:none; }
 /* smoother theme recolor across surfaces */
 .tile, .gcard, .card, .acc2, .server-block{ transition:background-color .5s var(--ease), border-color .3s var(--ease); }
 
-/* ===================== nav tab hover + active transitions (match prototype) ===================== */
-.nav-item{ transition:background .22s var(--ease), color .22s var(--ease) !important; }
-.nav-item:hover{ background:var(--bg-hover) !important; color:var(--text) !important; transform:translateX(3px); }
-.nav-item .nav-ic{ transition:stroke .2s var(--ease), transform .22s var(--ease); }
-.nav-item:hover .nav-ic{ stroke:var(--accent); transform:scale(1.08); }
-.nav-item{ transition:background .22s var(--ease), color .22s var(--ease), transform .22s var(--ease) !important; }
-/* active accent bar slides in instead of popping */
-.nav-item::before{ content:''; position:absolute; left:0; top:18%; bottom:18%; width:3px; border-radius:3px;
-  background:var(--accent); transform:scaleY(0); transform-origin:center; transition:transform .26s var(--ease); }
+/* ===================== nav tab hover — premium motion ===================== */
+.nav-item{
+  transition:background .28s var(--ease), color .28s var(--ease), transform .32s cubic-bezier(.22,1.2,.36,1), box-shadow .32s var(--ease), border-color .28s var(--ease) !important;
+}
+.nav-item .nav-ic{
+  transition:stroke .25s var(--ease), transform .35s cubic-bezier(.22,1.3,.36,1), filter .3s var(--ease);
+}
+.nav-item .nav-label{
+  transition:transform .32s cubic-bezier(.22,1.2,.36,1), color .25s var(--ease), letter-spacing .3s var(--ease);
+}
+/* shimmer sweep on hover */
+.nav-item:not(.tab-disabled-off):hover::after{
+  content:''; position:absolute; top:0; left:0; width:45%; height:100%;
+  background:linear-gradient(100deg, transparent 0%, rgba(255,255,255,.14) 45%, transparent 90%);
+  transform:skewX(-14deg) translateX(-120%);
+  animation:nav-shimmer .65s var(--ease) forwards;
+  pointer-events:none; z-index:0;
+}
+@keyframes nav-shimmer{
+  0%{ transform:skewX(-14deg) translateX(-120%); opacity:0; }
+  15%{ opacity:1; }
+  100%{ transform:skewX(-14deg) translateX(280%); opacity:0; }
+}
+.nav-item:not(.tab-disabled-off):hover{
+  background:linear-gradient(95deg, color-mix(in srgb, var(--accent) 20%, var(--bg-hover)), color-mix(in srgb, var(--accent-2) 8%, var(--bg-surface))) !important;
+  color:var(--text) !important;
+  transform:translateX(5px) scale(1.02);
+  border-color:color-mix(in srgb, var(--accent) 38%, transparent) !important;
+  box-shadow:0 6px 22px rgba(0,0,0,.32), 0 0 20px color-mix(in srgb, var(--accent) 22%, transparent), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.nav-item:not(.tab-disabled-off):hover .nav-ic{
+  stroke:var(--accent);
+  transform:scale(1.14) rotate(-4deg);
+  filter:drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 65%, transparent));
+  animation:nav-icon-bounce .5s cubic-bezier(.22,1.4,.36,1);
+}
+@keyframes nav-icon-bounce{
+  0%{ transform:scale(1) rotate(0); }
+  40%{ transform:scale(1.2) rotate(-6deg); }
+  100%{ transform:scale(1.14) rotate(-4deg); }
+}
+.nav-item:not(.tab-disabled-off):hover .nav-label{
+  transform:translateX(2px);
+  letter-spacing:.02em;
+  color:#fff;
+}
+.nav-item.tab-disabled-off:hover{
+  transform:none !important; box-shadow:none !important; border-color:transparent !important;
+}
+/* active accent bar */
+.nav-item::before{
+  content:''; position:absolute; left:0; top:14%; bottom:14%; width:3px; border-radius:3px; z-index:2;
+  background:linear-gradient(180deg, var(--accent), var(--accent-2));
+  box-shadow:0 0 10px color-mix(in srgb, var(--accent) 70%, transparent);
+  transform:scaleY(0); transform-origin:center; transition:transform .3s cubic-bezier(.22,1.2,.36,1);
+}
 .nav-item.on::before{ transform:scaleY(1) !important; }
-.nav-item.on{ background:var(--glow) !important; color:var(--text) !important; }
+.nav-item.on{
+  background:linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, transparent), transparent) !important;
+  color:var(--text) !important;
+  border-color:color-mix(in srgb, var(--accent) 28%, transparent) !important;
+  box-shadow:inset 0 0 24px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.nav-item.on .nav-ic{ stroke:var(--accent); filter:drop-shadow(0 0 4px var(--glow)); }
 /* footer + segmented + modal tab hovers */
 .foot-link{ transition:color .2s var(--ease); } .foot-link:hover{ color:var(--accent) !important; }
 .seg button, .modal-tabs button{ transition:all .18s var(--ease) !important; }
@@ -2832,7 +2953,15 @@ html.view-as-user .admin-only { display: none !important; }
   body:not(.force-motion) .home-svc-row:hover,
   body:not(.force-motion) .hrc-row:hover,
   body:not(.force-motion) .home-news-item:hover,
-  body:not(.force-motion) .nav-item:hover { transform: none !important; }
+  body:not(.force-motion) .nav-item:hover { transform: none !important; box-shadow: none !important; }
+  body:not(.force-motion) .nav-item:not(.tab-disabled-off):hover::after { animation: none !important; }
+  body:not(.force-motion) .nav-item:not(.tab-disabled-off):hover .nav-ic { animation: none !important; transform: scale(1.06) !important; }
+  body:not(.force-motion) .brand,
+  body:not(.force-motion) .brand::before,
+  body:not(.force-motion) .brand-logo,
+  body:not(.force-motion) .brand-logo-ring,
+  body:not(.force-motion) .brand-hub,
+  body:not(.force-motion) .brand-logo-wave { animation: none !important; }
   body:not(.force-motion) .home-panel-btn:hover::after { transition: none; }
 }
 

@@ -19,12 +19,14 @@
     document.body.classList.toggle('sb-locked', !!on);
     const sw = document.getElementById('lock-switch');
     if (sw) sw.classList.toggle('on', !!on);
+    const pin = document.getElementById('pin-btn');
+    if (pin) pin.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
 
   const prefs = {
     theme: localStorage.getItem(LS.theme) || 'purple',
     scale: parseInt(localStorage.getItem(LS.scale) || '100', 10),
-    lock: localStorage.getItem(LS.lock) === '1',
+    lock: localStorage.getItem(LS.lock) !== '0',
     motion: localStorage.getItem(LS.motion) || null,   // 'on' | 'off' | null (follow OS)
   };
 

@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/css/configure.css" />
 </head>
-<body>
+<body class="sb-locked">
   <div class="bg" id="bg"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="stipple" id="stipple"></div></div>
 
   <div class="auth-overlay" id="auth-overlay" style="display:none">
@@ -27,9 +27,29 @@
   </div>
 
   <div class="app">
-    <aside class="sidebar" id="sidebar">
-      <button class="pin-btn" id="pin-btn" title="Lock sidebar open"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 10.8V4h6v6.8c0 .5.2.9.5 1.2L17 14H7l1.5-2c.3-.3.5-.7.5-1.2Z"/></svg></button>
-      <div class="brand"><span class="brand-name">🌊 Stream-Hub</span></div>
+    <aside class="sidebar locked" id="sidebar">
+      <button class="pin-btn" id="pin-btn" title="Lock sidebar open" aria-pressed="true"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 10.8V4h6v6.8c0 .5.2.9.5 1.2L17 14H7l1.5-2c.3-.3.5-.7.5-1.2Z"/></svg></button>
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <span class="brand-logo-ring"></span>
+          <span class="brand-logo-ring brand-logo-ring-2"></span>
+          <svg class="brand-logo-svg" viewBox="0 0 32 32" fill="none">
+            <defs>
+              <linearGradient id="brandLogoGrad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#7b61ff"/>
+                <stop offset="100%" stop-color="#c4b5ff"/>
+              </linearGradient>
+            </defs>
+            <rect class="brand-logo-bg" width="32" height="32" rx="9" fill="url(#brandLogoGrad)"/>
+            <circle class="brand-logo-dot" cx="16" cy="10" r="2.5" fill="#0a0a12"/>
+            <path class="brand-logo-wave" d="M5 17c3.5-4 7-4 10.5 0s7 4 10.5 0" stroke="#0a0a12" stroke-width="2" stroke-linecap="round"/>
+            <path class="brand-logo-wave brand-logo-wave-2" d="M4 22c4-3 8-3 12 0s8 3 12 0" stroke="#0a0a12" stroke-width="1.5" stroke-linecap="round" opacity=".65"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">Stream</span><span class="brand-hub">Hub</span>
+        </div>
+      </div>
       <nav class="nav" id="nav">
         <!-- Overview -->
         <div class="nav-group" data-group="overview">
