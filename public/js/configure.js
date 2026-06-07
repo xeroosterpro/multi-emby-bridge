@@ -2921,6 +2921,7 @@ const _SOURCE_DEVICE_IDS = new Set(['shield', 'appletv', 'chromecast', 'firestic
 const _PASSTHROUGH_SINK_IDS = new Set(['soundbar', 'sonos']);
 const _PLAYBACK_CHAIN_IDS = new Set([..._SOURCE_DEVICE_IDS, ..._PASSTHROUGH_SINK_IDS, 'tv']);
 const _EARC_FRIENDLY_ORDER = ['atmos','truehd','ddplus','dd','aac','other'];
+const _SONOS_FRIENDLY_ORDER = ['atmos','ddplus','dd','aac','other'];
 
 function renderAudioPresetChips() {
   const comboWrap = document.getElementById('audio-combo-chips');
@@ -3038,8 +3039,13 @@ function resolvePresetClient(selectedIds) {
   const hasShield = deviceIds.includes('shield');
   const hasAppleTv = deviceIds.includes('appletv');
   const hasSoundbar = deviceIds.includes('soundbar');
+  const hasSonos = deviceIds.includes('sonos');
   if (hasShield || hasAppleTv) surroundPriority = true;
-  if (hasSource && hasPassthroughSink) {
+  if (hasSource && hasSonos) {
+    surroundPriority = true;
+    if (autoSelect === undefined) autoSelect = false;
+    if (!suggestedOrder) suggestedOrder = _SONOS_FRIENDLY_ORDER;
+  } else if (hasSource && hasPassthroughSink) {
     surroundPriority = true;
     if (autoSelect === undefined) autoSelect = false;
     if (!suggestedOrder) suggestedOrder = _EARC_FRIENDLY_ORDER;

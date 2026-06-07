@@ -174,7 +174,7 @@ assert(A.AUDIO_PRESETS.some(p => p.id === 'shield_earc'), 'shield_earc combo exi
 assert(A.AUDIO_PRESETS.some(p => p.id === 'sonos'), 'sonos preset exists');
 assert(A.AUDIO_PRESETS.some(p => p.id === 'firestick'), 'firestick preset exists');
 assertEqual(A.DEVICE_PRESETS.length, 9, '9 device presets defined');
-assertEqual(A.COMBO_PRESETS.length, 3, '3 combo presets defined');
+assertEqual(A.COMBO_PRESETS.length, 5, '5 combo presets defined');
 
 console.log('\nresolvePreset:');
 // none selected -> no change
@@ -230,6 +230,13 @@ assertEqual(pr.action, 'hide', 'shield+tv chain uses hide action');
 pr = A.resolvePreset(['shield', 'sonos']);
 assert(pr.disabled.includes('dts'), 'shield+sonos disables DTS');
 assert(pr.disabled.includes('thd'), 'shield+sonos disables TrueHD');
+assert(pr.disabled.includes('dtx'), 'shield+sonos disables DTS:X');
+assert(pr.disabled.includes('flc'), 'shield+sonos disables FLAC');
+assert(!pr.disabled.includes('ddp'), 'shield+sonos keeps DD+');
+
+pr = A.resolvePreset(['shield_sonos']);
+assert(pr.deviceIds.includes('sonos'), 'shield_sonos expands to sonos');
+assertEqual(pr.settings.suggestedOrder, A.SONOS_FRIENDLY_ORDER, 'shield_sonos uses Sonos-friendly order');
 
 console.log('\nsurroundPriority ranking:');
 arr = [
