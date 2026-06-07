@@ -489,7 +489,7 @@ const _livePlaybackPrev = new Map();
 const _bufferingToastKeys = new Set();
 const LIVE_PLAYBACK_POLL_MS = 20000;
 const DASH_LIVE_POLL_MS = 8000;
-const BRIDGE_LIVE_MAX_AGE_MS = 3 * 60 * 1000; // keep in sync with lib/bridgeLive.js
+const BRIDGE_LIVE_MAX_AGE_MS = 90 * 1000; // keep in sync with lib/bridgeLive.js
 const LIVE_BROWSER_TIMEOUT_MS = 4000;
 let _dashLiveTimer = null;
 

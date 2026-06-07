@@ -73,12 +73,18 @@ A(titleDedup.length === 1 && titleDedup[0].server === 'Milkyway', 'sessions titl
 const attached = attachBridgeLive([], recent, { maxAgeMs: 10 * 60000 });
 A(attached.length === 1, 'attachBridgeLive fills gaps');
 
-// ─── Tightened freshness window: a browse from minutes ago isn't "live" ──────
-A(DEFAULT_BRIDGE_LIVE_MS === 3 * 60 * 1000, 'bridge-live window tightened to 3 minutes');
+// ─── Tightened freshness window: a stopped stream clears quickly ─────────────
+// No stop signal exists (streams go direct to Emby; /Sessions often blocked), so
+// the window is the only lever — keep it short so stops don't linger for minutes.
+A(DEFAULT_BRIDGE_LIVE_MS === 90 * 1000, 'bridge-live window tightened to 90 seconds');
 const staleInfer = inferLiveFromRecent([
   { title: 'Stale Browse', server: 'BK', found: true, ts: new Date(now - 5 * 60000).toISOString() },
 ]);
 A(staleInfer.length === 0, 'default window drops a 5-minute-old lookup');
+const twoMinInfer = inferLiveFromRecent([
+  { title: 'Stopped 2m ago', server: 'BK', found: true, ts: new Date(now - 2 * 60000).toISOString() },
+]);
+A(twoMinInfer.length === 0, 'default window drops a 2-minute-old lookup (stopped stream clears)');
 const freshInfer = inferLiveFromRecent([
   { title: 'Fresh', server: 'BK', found: true, ts: new Date(now - 60000).toISOString() },
 ]);
