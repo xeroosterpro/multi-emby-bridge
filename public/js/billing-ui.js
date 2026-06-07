@@ -67,6 +67,150 @@
     </div>`;
   }
 
+  const DEMO_STEPS = [
+    {
+      title: 'Your bridge into Stremio',
+      desc: 'Stream-Hub connects every Emby and Jellyfin server you own into one private Stremio addon. Browse in Stremio, play from your libraries — no uploads, no piracy, just your media.',
+      bullets: ['Works with Emby & Jellyfin', 'One addon, unlimited servers', 'Cloud-synced settings'],
+      visual: `<div class="demo-mock demo-mock-hero"><div class="demo-mock-logo">◢</div><p class="demo-mock-tagline">Stremio on the front.<br>Your servers on the back.</p></div>`,
+    },
+    {
+      title: 'Click play in Stremio',
+      desc: 'Install the addon once and every movie or episode you open in Stremio gets real streams from your libraries. It feels native — like the content was always there.',
+      bullets: ['Movies & series supported', 'Episode-aware for TV shows', 'Instant stream links'],
+      visual: `<div class="demo-mock"><div class="demo-mock-card"><div class="demo-mock-title">Stremio · Streams</div>
+        <div class="demo-mock-row"><div class="demo-mock-poster"></div><div><div class="demo-mock-name">Dune: Part Two</div><div class="demo-mock-meta">2160p · HDR · Atmos</div></div><span class="demo-mock-play">▶ Play</span></div>
+        <div class="demo-mock-row"><div class="demo-mock-poster"></div><div><div class="demo-mock-name">Breaking Bad S01E01</div><div class="demo-mock-meta">1080p · HEVC</div></div><span class="demo-mock-play">▶ Play</span></div></div></div>`,
+    },
+    {
+      title: 'Multi-server routing',
+      desc: 'When you hit play, the bridge searches all your servers in parallel and picks the best file — largest size, right quality, fastest response.',
+      bullets: ['Parallel lookup across servers', 'Automatic best-file selection', 'Fallback if one server is offline'],
+      visual: `<div class="demo-mock"><div class="demo-mock-card"><div class="demo-mock-title">Request log · routing</div>
+        <div class="demo-mock-flow"><span class="demo-mock-node">Stremio</span><span class="demo-mock-arrow">→</span><span class="demo-mock-node hub">Bridge</span><span class="demo-mock-arrow">→</span><span class="demo-mock-node">Servers</span></div>
+        <div class="demo-mock-servers"><span class="demo-mock-chip ok">✓ ARCTV</span><span class="demo-mock-chip miss">– Jellyfin</span><span class="demo-mock-chip win">★ Best pick</span></div></div></div>`,
+    },
+    {
+      title: 'Streaming preferences',
+      desc: 'Set defaults for quality, audio language, subtitles, and source priority. The bridge respects your choices every time Stremio asks for a stream.',
+      bullets: ['Quality & codec preferences', 'Audio / subtitle defaults', 'Per-server priority order'],
+      visual: `<div class="demo-mock"><div class="demo-mock-card"><div class="demo-mock-title">Streaming settings</div>
+        <div class="demo-mock-row"><div><div class="demo-mock-name">Prefer 4K when available</div><div class="demo-mock-meta">Largest file wins</div></div></div>
+        <div class="demo-mock-row"><div><div class="demo-mock-name">English audio first</div><div class="demo-mock-meta">Fallback to original</div></div></div>
+        <div class="demo-mock-row"><div><div class="demo-mock-name">Server priority</div><div class="demo-mock-meta">Emby → Jellyfin → Backup</div></div></div></div></div>`,
+    },
+    {
+      title: 'Custom catalog rows',
+      desc: 'Optional but powerful: add Trakt lists, MDBList collections, IMDb RSS, and Letterboxd lists as rows on your Stremio home screen — curated by you.',
+      bullets: ['Trakt & MDBList integration', 'Shuffle rows on refresh', 'Mix personal lists with your servers'],
+      visual: `<div class="demo-mock"><div class="demo-mock-card"><div class="demo-mock-title">Stremio home · catalogs</div>
+        <div class="demo-mock-row"><div><div class="demo-mock-name">🔥 Trakt Trending</div><div class="demo-mock-meta">Updated hourly</div></div></div>
+        <div class="demo-mock-row"><div><div class="demo-mock-name">📋 My Watchlist</div><div class="demo-mock-meta">MDBList · shuffled</div></div></div>
+        <div class="demo-mock-row"><div><div class="demo-mock-name">🎬 Continue Watching</div><div class="demo-mock-meta">From your servers</div></div></div></div></div>`,
+    },
+    {
+      title: 'Your private manifest',
+      desc: 'Every account gets a unique install URL. Paste it into Stremio once — settings update automatically whenever you change servers or preferences here.',
+      bullets: ['Personal /u/:token manifest', 'QR code for mobile Stremio', 'Encrypted API keys stored server-side'],
+      visual: `<div class="demo-mock"><div class="demo-mock-card"><div class="demo-mock-title">Install link</div>
+        <div class="demo-mock-url">…/u/your-token/manifest.json</div>
+        <div class="demo-mock-servers" style="margin-top:12px"><span class="demo-mock-chip">Copy link</span><span class="demo-mock-chip">QR scan</span><span class="demo-mock-chip win">Auto-sync</span></div></div></div>`,
+    },
+    {
+      title: 'Health & monitoring',
+      desc: 'The dashboard shows uptime bars and response charts per server. The request log records every lookup — so you always know what played and from where.',
+      bullets: ['Live server status cards', 'Ping test from browser & cloud', 'Request log with success rate'],
+      visual: `<div class="demo-mock"><div class="demo-mock-card"><div class="demo-mock-title">Dashboard · uptime</div>
+        <div class="demo-mock-row"><div><div class="demo-mock-name">ARCTV Emby</div><div class="demo-mock-meta">Online · 42ms</div></div></div>
+        <div class="demo-mock-bars"><span class="demo-mock-bar" style="height:80%"></span><span class="demo-mock-bar" style="height:100%"></span><span class="demo-mock-bar" style="height:95%"></span><span class="demo-mock-bar" style="height:88%"></span><span class="demo-mock-bar" style="height:100%"></span></div></div></div>`,
+    },
+    {
+      title: 'Ready to unlock?',
+      desc: 'Subscribe to Bridge Pro and get full streaming access in minutes: add servers, generate your install link, and start watching from Stremio today.',
+      bullets: ['Cancel anytime via PayPal', 'Discount codes supported', 'Priority support tickets included'],
+      visual: `<div class="demo-mock demo-mock-hero"><div class="demo-mock-logo">▶</div><p class="demo-mock-tagline">Subscribe below to activate your bridge and start streaming.</p></div>`,
+    },
+  ];
+
+  let demoStep = 0;
+
+  function renderDemoStep(i) {
+    const step = DEMO_STEPS[i];
+    if (!step) return;
+    const total = DEMO_STEPS.length;
+    const label = $('#bill-demo-step-label');
+    const title = $('#bill-demo-title');
+    const desc = $('#bill-demo-desc');
+    const bullets = $('#bill-demo-bullets');
+    const visual = $('#bill-demo-visual');
+    const dots = $('#bill-demo-dots');
+    const next = $('#bill-demo-next');
+    const back = $('#bill-demo-back');
+    if (label) label.textContent = `Step ${i + 1} of ${total}`;
+    if (title) title.textContent = step.title;
+    if (desc) desc.textContent = step.desc;
+    if (bullets) bullets.innerHTML = (step.bullets || []).map(b => `<li>${esc(b)}</li>`).join('');
+    if (visual) visual.innerHTML = step.visual;
+    if (dots) {
+      dots.innerHTML = DEMO_STEPS.map((_, j) =>
+        `<span class="bill-demo-dot${j === i ? ' on' : j < i ? ' done' : ''}"></span>`
+      ).join('');
+    }
+    if (back) back.style.visibility = i === 0 ? 'hidden' : 'visible';
+    if (next) next.textContent = i === total - 1 ? 'Got it — subscribe' : 'Next →';
+  }
+
+  function openDemoTour(start = 0) {
+    const overlay = $('#bill-demo-overlay');
+    if (!overlay) return;
+    demoStep = Math.max(0, Math.min(start, DEMO_STEPS.length - 1));
+    renderDemoStep(demoStep);
+    overlay.style.display = 'grid';
+    requestAnimationFrame(() => overlay.classList.add('on'));
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeDemoTour() {
+    const overlay = $('#bill-demo-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('on');
+    document.body.style.overflow = '';
+    setTimeout(() => { overlay.style.display = 'none'; }, 300);
+  }
+
+  function wireDemoTour() {
+    document.querySelectorAll('.bill-demo-open').forEach(btn => {
+      if (btn._demoW) return;
+      btn._demoW = 1;
+      btn.addEventListener('click', () => openDemoTour(0));
+    });
+    const close = $('#bill-demo-close');
+    const skip = $('#bill-demo-skip');
+    const back = $('#bill-demo-back');
+    const next = $('#bill-demo-next');
+    const overlay = $('#bill-demo-overlay');
+    if (close && !close._demoW) { close._demoW = 1; close.addEventListener('click', closeDemoTour); }
+    if (skip && !skip._demoW) { skip._demoW = 1; skip.addEventListener('click', closeDemoTour); }
+    if (back && !back._demoW) {
+      back._demoW = 1;
+      back.addEventListener('click', () => { if (demoStep > 0) { demoStep--; renderDemoStep(demoStep); } });
+    }
+    if (next && !next._demoW) {
+      next._demoW = 1;
+      next.addEventListener('click', () => {
+        if (demoStep < DEMO_STEPS.length - 1) { demoStep++; renderDemoStep(demoStep); }
+        else closeDemoTour();
+      });
+    }
+    if (overlay && !overlay._demoW) {
+      overlay._demoW = 1;
+      overlay.addEventListener('click', e => { if (e.target === overlay) closeDemoTour(); });
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && overlay.classList.contains('on')) closeDemoTour();
+      });
+    }
+  }
+
   function renderLockedShell(cfg) {
     const plans = cfg.plans || [
       { id: 'free', name: 'Free', price: '$0', period: 'forever', features: ['Browse only'], limited: true },
@@ -83,6 +227,12 @@
         ${preview}
         <h2 class="bill-hero-title">Unlock your bridge</h2>
         <p class="bill-hero-sub">Subscribe to stream from your Emby &amp; Jellyfin servers through Stremio</p>
+        <div class="bill-demo-cta">
+          <button class="bill-demo-btn bill-demo-open" type="button">
+            <span class="bill-demo-btn-ic">▶</span>
+            <span>Take the full demo tour</span>
+          </button>
+        </div>
       </div>
       <div class="bill-plans">
         <div class="bill-plan${free.limited ? ' bill-plan-muted' : ''}">
@@ -98,6 +248,12 @@
           <div class="bill-plan-price">${esc(pro.price)}</div>
           <div class="bill-plan-period">per ${esc(pro.period || 'month')}</div>
           <ul class="bill-plan-feats">${featList(pro.features)}</ul>
+          <div class="bill-plan-demo">
+            <button class="bill-demo-btn bill-demo-open" type="button">
+              <span class="bill-demo-btn-ic">▶</span>
+              <span>See what you can do</span>
+            </button>
+          </div>
           <div id="paypal-button-container" class="bill-paypal-slot"></div>
         </div>
       </div>
@@ -143,6 +299,7 @@
   }
 
   function wireLocked() {
+    wireDemoTour();
     $('#bill-redeem')?.addEventListener('click', async () => {
       const code = ($('#bill-code')?.value || '').trim();
       const r = await api('/api/billing/redeem', { method: 'POST', body: JSON.stringify({ code }) });
@@ -240,7 +397,7 @@
     }
   }
 
-  window.MEBBilling = { refresh: init };
-  document.addEventListener('DOMContentLoaded', init);
+  window.MEBBilling = { refresh: init, openDemo: openDemoTour };
+  document.addEventListener('DOMContentLoaded', () => { init(); wireDemoTour(); });
   document.addEventListener('viewas-changed', init);
 })();
