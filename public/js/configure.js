@@ -1199,24 +1199,89 @@ window.onPageShow = function(name) {
     if (pvWrap) pvWrap.style.display = sumOn ? '' : 'none';
     if (sumOn && typeof updateSummaryPreview === 'function') updateSummaryPreview();
   }
-  if (name === 'dashboard') { renderDashboard(); renderDashActivity(); renderOnboarding(); }
+  if (name === 'dashboard') { renderDashboard(); renderDashActivity(); renderOnboarding(); replayDashTileAnimations(); }
   if (name === 'health' && window.startHealth) window.startHealth();
   if (name === 'log' && typeof refreshLog === 'function') refreshLog();
   if (name === 'catalogs' && typeof refreshKeyPills === 'function') refreshKeyPills();
   if (window.Controls) Controls.syncAll();
 };
 
+function dashActivityEsc(x) {
+  return (typeof escHtml === 'function') ? escHtml(x) : String(x == null ? '' : x);
+}
+function dashActivityWhen(t) {
+  if (!t) return '';
+  const d = Date.now() - new Date(t).getTime();
+  const h = Math.floor(d / 3600000);
+  return h < 1 ? 'just now' : h < 24 ? h + 'h ago' : Math.floor(h / 24) + 'd ago';
+}
+
 async function renderDashActivity() {
-  const el = document.getElementById('dash-activity'); if (!el) return;
-  let a; try { a = await fetch('/api/user/activity', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null); } catch { a = null; }
+  const el = document.getElementById('dash-activity');
+  if (!el) return;
+
+  let resp;
+  try {
+    resp = await fetch('/api/user/activity', { credentials: 'same-origin' });
+  } catch {
+    el.innerHTML = '';
+    return;
+  }
+
+  if (resp.status === 401) {
+    el.innerHTML = `<div class="dash-activity-grid">
+      <div class="dash-act-panel"><h3 class="block-title dash-act-title">Live streaming</h3><div class="da-empty">Sign in to see live activity from your servers.</div></div>
+      <div class="dash-act-panel"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">Sign in to see your personal watch history.</div></div>
+    </div>`;
+    return;
+  }
+
+  const a = resp.ok ? await resp.json().catch(() => null) : null;
   if (!a) { el.innerHTML = ''; return; }
-  const esc = (typeof escHtml === 'function') ? escHtml : (x => String(x == null ? '' : x));
-  const when = t => { if (!t) return ''; const d = Date.now() - new Date(t).getTime(); const h = Math.floor(d/3600000); return h < 1 ? 'just now' : h < 24 ? h+'h ago' : Math.floor(h/24)+'d ago'; };
-  const live = (a.live || []).map(s => `<div class="da-row da-live"><span class="da-main"><span class="da-dot"></span><span class="da-title" title="${esc(s.title)}">▶ <strong>${esc(s.title)}</strong></span></span><span class="da-dim da-meta">on ${esc(s.server)}${s.user ? ' · ' + esc(s.user) : ''}</span></div>`).join('');
-  const recent = (a.recent || []).map(e => `<div class="da-row"><span class="da-main"><span class="da-title" title="${esc(e.title || '')}">${esc(e.title || '—')}${e.season ? ` S${e.season}E${e.episode || ''}` : ''}</span><span class="da-dim da-svr">· ${esc(e.server || '—')}</span></span><span class="da-dim da-meta">${when(e.ts)}</span></div>`).join('');
-  if (!live && !recent) { el.innerHTML = `<h3 class="block-title">Activity</h3><div class="da-empty">No recent streaming activity yet.</div>`; return; }
-  el.innerHTML = `${live ? `<h3 class="block-title">Now playing</h3><div class="da-list">${live}</div>` : ''}
-    <h3 class="block-title" style="margin-top:16px">Recent activity</h3><div class="da-list">${recent || '<div class="da-empty">Nothing yet.</div>'}</div>`;
+
+  const esc = dashActivityEsc;
+  const when = dashActivityWhen;
+  const hasServers = !!a.hasServers;
+
+  if (!hasServers) {
+    el.innerHTML = `<div class="dash-activity-grid">
+      <div class="dash-act-panel dash-act-live"><h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming</h3><div class="da-empty">Add servers on the <a href="#" data-page="servers">Servers</a> page to see live activity from your Emby/Jellyfin instances.</div></div>
+      <div class="dash-act-panel dash-act-history"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">Your personal Stremio watch history appears here once you have servers configured and start streaming.</div></div>
+    </div>`;
+    el.querySelectorAll('[data-page]').forEach(link => link.addEventListener('click', e => { e.preventDefault(); location.hash = '#/' + link.dataset.page; }));
+    return;
+  }
+
+  const liveRows = (a.live || []).map(s => `<div class="da-row da-live">
+      <span class="da-main"><span class="da-dot"></span><span class="da-title" title="${esc(s.title)}"><strong>${esc(s.title)}</strong></span></span>
+      <span class="da-dim da-meta">${esc(s.server)}${s.user ? ' · ' + esc(s.user) : ''}${s.client ? ' · ' + esc(s.client) : ''}</span>
+    </div>`).join('');
+
+  const recentRows = (a.recent || []).map(e => `<div class="da-row da-history">
+      <span class="da-main"><span class="da-title" title="${esc(e.title || '')}">${esc(e.title || '—')}${e.season ? ` <span class="da-ep">S${e.season}E${e.episode || ''}</span>` : ''}</span></span>
+      <span class="da-dim da-meta">${esc(e.server || '—')} · ${when(e.ts)}</span>
+    </div>`).join('');
+
+  el.innerHTML = `<div class="dash-activity-grid">
+    <div class="dash-act-panel dash-act-live">
+      <h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming <span class="dash-act-count">${(a.live || []).length}</span></h3>
+      <p class="dash-act-hint">Now playing across your ${a.serverCount || 0} configured server${(a.serverCount || 0) === 1 ? '' : 's'}</p>
+      <div class="da-list">${liveRows || '<div class="da-empty">Nothing playing right now on your servers.</div>'}</div>
+    </div>
+    <div class="dash-act-panel dash-act-history">
+      <h3 class="block-title dash-act-title">Watched history</h3>
+      <p class="dash-act-hint">Your personal Stremio requests only</p>
+      <div class="da-list">${recentRows || '<div class="da-empty">No watch history yet — start streaming through your bridge.</div>'}</div>
+    </div>
+  </div>`;
+}
+
+function replayDashTileAnimations() {
+  document.querySelectorAll('#page-dashboard .dash-tiles .tile').forEach(tile => {
+    tile.style.animation = 'none';
+    tile.offsetHeight;
+    tile.style.animation = '';
+  });
 }
 
 // Real-time: refresh the dashboard now-playing/activity widget every 45s while the
@@ -1342,6 +1407,11 @@ async function renderDashboard(force = false) {
     setTxt('dash-status', servers.length
       ? `Everything's loaded. ${upCount}/${servers.length} servers reachable.`
       : 'No servers yet — add one on the Servers page.');
+    document.querySelectorAll('#page-dashboard .dash-tiles .tile .n').forEach(n => {
+      n.classList.remove('tile-num-pop');
+      n.offsetHeight;
+      n.classList.add('tile-num-pop');
+    });
   } finally { _dashboardInFlight = false; }
 }
 
