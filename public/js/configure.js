@@ -2643,17 +2643,8 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
 
   const emptyMsg = live.length ? '' : liveEmptyMessage(probes, serverCount);
   const recentRows = (a.recent || []).map(e => {
-    const playing = e.isLiveNow && e.playingServer;
-    const picked = e.pickedServer || e.server;
-    const showDiff = playing && picked && playing !== picked;
-    const uncertain = e.isLiveNow && e.liveUncertain;
-    const serverLine = playing
-      ? `<span class="da-hist-live">${esc(playing)} <span class="da-hist-now">▶ now</span></span>`
-      : uncertain
-        ? `<span class="da-hist-live"><span class="da-hist-now">▶ now</span></span>`
-        : esc(e.displayServer || picked || '—');
-    const pickNote = showDiff
-      ? `<span class="da-hist-pick">bridge picked ${esc(picked)}</span>`
+    const liveTag = e.isLiveNow
+      ? `<span class="da-hist-live"><span class="da-hist-now">▶ now</span></span> · `
       : '';
     // Only show the S/E badge when the title doesn't already carry it (new log
     // rows embed "SxEy" in the title; legacy rows like "Episode 2" still need it).
@@ -2661,9 +2652,9 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
     const seBadge = seToken && !String(e.title || '').toUpperCase().includes(seToken.toUpperCase())
       ? ` <span class="da-ep">${seToken}</span>`
       : '';
-    return `<div class="da-row da-history${playing ? ' da-history-live' : ''}">
+    return `<div class="da-row da-history${e.isLiveNow ? ' da-history-live' : ''}">
       <span class="da-main"><span class="da-title" title="${esc(e.title || '')}">${esc(e.title || '—')}${seBadge}</span></span>
-      <span class="da-dim da-meta da-hist-meta">${serverLine}${pickNote ? `<span class="da-hist-sub">${pickNote}</span>` : ''} · ${when(e.ts)}</span>
+      <span class="da-dim da-meta da-hist-meta">${liveTag}${when(e.ts)}</span>
     </div>`;
   }).join('');
 
@@ -2676,7 +2667,7 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
     </div>
     <div class="dash-act-panel dash-act-history">
       <h3 class="block-title dash-act-title">Watched history</h3>
-      <p class="dash-act-hint">Bridge stream lookups — <strong>▶ now</strong> with a server only when Sessions confirms playback</p>
+      <p class="dash-act-hint">Bridge stream lookups — <strong>▶ now</strong> marks titles currently playing</p>
       <div class="da-list">${recentRows || '<div class="da-empty">No watch history yet — streams through your bridge appear here.</div>'}</div>
     </div>
   </div>`;

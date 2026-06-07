@@ -24,9 +24,6 @@ const match = matchLiveToEntry(entry, live);
 A(match && match.server === 'Milkyway', 'live session overrides bridge pick');
 
 const enriched = enrichRecentEntries([entry], live);
-A(enriched[0].playingServer === 'Milkyway', 'enriched playingServer');
-A(enriched[0].pickedServer === 'ARCTV', 'enriched pickedServer');
-A(enriched[0].displayServer === 'Milkyway', 'displayServer prefers live');
 A(enriched[0].isLiveNow === true, 'isLiveNow flag');
 A(enriched[0].availableOn.length === 2, 'availableOn lists found servers');
 
@@ -42,19 +39,16 @@ const bridgeLive = [{
 }];
 const bridgeEnriched = enrichRecentEntries(bridgeOnly, bridgeLive);
 A(bridgeEnriched[0].isLiveNow === true, 'bridge match marks live');
-A(bridgeEnriched[0].playingServer == null, 'multi-server bridge does not fake playing server');
-A(bridgeEnriched[0].liveUncertain === true, 'flags uncertain attribution');
-A(bridgeEnriched[0].displayServer == null, 'multi-server live omits display server');
 
 const multiIdle = enrichRecentEntries(bridgeOnly, []);
-A(multiIdle[0].displayServer == null, 'multi-server idle omits ranked pick as display server');
+A(multiIdle[0].isLiveNow === false, 'idle row not marked live');
 
 const singleBridge = enrichRecentEntries([{
   title: 'Battleship', server: 'BK', serverStatus: [{ label: 'BK', status: 'found' }],
 }], [{
   source: 'bridge', title: 'Battleship', server: 'BK', serverConfirmed: true, availableOn: ['BK'],
 }]);
-A(singleBridge[0].playingServer === 'BK', 'single-server bridge is confirmed');
+A(singleBridge[0].isLiveNow === true, 'single-server bridge marks live');
 
 // ─── dedupeRecentByContent: collapse repeat stream lookups into one row ───────
 // requestLog rows arrive newest-first; Stremio fires several lookups per episode.
