@@ -556,8 +556,9 @@ app.post('/api/test-connection', apiLimiter, requireAuthInProduction, express.js
   }
   let safeUrl;
   try {
-    const parsed = await assertSafeFetchUrl(url, 'server url');
-    safeUrl = parsed.origin;
+    await assertSafeFetchUrl(url, 'server url');
+    safeUrl = normalizeServerUrl(url);
+    if (!safeUrl) return res.status(400).json({ error: 'Invalid server url' });
   } catch (e) {
     return res.status(400).json({ error: e.message });
   }
@@ -635,6 +636,7 @@ app.post('/api/server-sessions', apiLimiter, express.json(), async (req, res) =>
       count: probe.count || 0,
       ms: probe.ms || 0,
       error: probe.error || null,
+      method: probe.method || null,
     },
   };
   const refreshed = getEffectiveApiKey(server);
@@ -655,8 +657,9 @@ app.post('/api/library-stats', apiLimiter, express.json(), async (req, res) => {
   }
   let safeUrl;
   try {
-    const parsed = await assertSafeFetchUrl(url, 'server url');
-    safeUrl = parsed.origin;
+    await assertSafeFetchUrl(url, 'server url');
+    safeUrl = normalizeServerUrl(url);
+    if (!safeUrl) return res.status(400).json({ error: 'Invalid server url' });
   } catch (e) {
     return res.status(400).json({ error: e.message });
   }

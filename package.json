@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/utils.test.js && node test/streams.test.js && node test/audioRanking.test.js && node test/crypto.test.js && node test/manifest.test.js && node test/accounts.test.js && node test/metrics.test.js && node test/db.test.js && node test/users.test.js && node test/sessions.test.js && node test/userConfig.test.js && node test/manifestStore.test.js && node test/billing.test.js && node test/payments.test.js && node test/serverHistory.test.js && node test/adminStats.test.js && node test/liveSessions.test.js && node test/livePlayback.test.js && node test/requestLog.test.js && node test/siteSettings.test.js && node test/urlSafety.test.js && node test/security.test.js && node test/streamDefaults.test.js"
+    "test": "node test/utils.test.js && node test/streams.test.js && node test/audioRanking.test.js && node test/crypto.test.js && node test/manifest.test.js && node test/accounts.test.js && node test/metrics.test.js && node test/db.test.js && node test/users.test.js && node test/sessions.test.js && node test/userConfig.test.js && node test/manifestStore.test.js && node test/billing.test.js && node test/payments.test.js && node test/serverHistory.test.js && node test/adminStats.test.js && node test/liveSessions.test.js && node test/livePlayback.test.js && node test/activityEnrich.test.js && node test/requestLog.test.js && node test/siteSettings.test.js && node test/urlSafety.test.js && node test/security.test.js && node test/streamDefaults.test.js"
   },
   "dependencies": {
     "express": "^4.18.2",

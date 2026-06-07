@@ -2500,6 +2500,16 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
 .da-empty a:hover { text-decoration:underline; }
 .da-loading { animation:da-pulse 1.2s ease-in-out infinite !important; }
 @keyframes da-pulse { 0%,100%{ opacity:.55; } 50%{ opacity:1; } }
+.da-hist-meta { display:flex; flex-direction:column; align-items:flex-end; gap:2px; text-align:right; }
+.da-hist-live { color:#6ee7b7; font-weight:700; }
+.da-hist-now { font-size:.62rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#34d399; margin-left:4px; }
+.da-hist-pick { color:var(--text-mute); font-size:.68rem; font-weight:600; }
+.da-hist-sub { display:block; }
+.da-row.da-history-live { background:color-mix(in srgb,#34d399 5%,transparent); }
+.da-source-tag {
+  display:inline-flex; margin-left:6px; padding:1px 6px; border-radius:999px; font-size:.58rem; font-weight:700;
+  color:var(--text-mute); border:1px solid var(--border); text-transform:uppercase; letter-spacing:.03em;
+}
 
 /* Dashboard scale-up, stat-tile sheen + number pop, two-panel activity */
 #page-dashboard { max-width:1480px !important; }

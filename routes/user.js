@@ -7,10 +7,27 @@ const { makeManifestStore } = require('../lib/manifestStore');
 const { makeServerHistory } = require('../lib/serverHistory');
 const { makeRequestLog } = require('../lib/requestLog');
 const { makeLiveSessions } = require('../lib/sessions');
+const { enrichRecentEntries } = require('../lib/activityEnrich');
 
 function manifestUrl(req, token) {
   const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0];
   return `${proto}://${req.get('host')}/u/${token}/manifest.json`;
+}
+
+function filterLiveServers(cfg) {
+  if (!cfg || !Array.isArray(cfg.servers)) return [];
+  return cfg.servers.filter(s => s && s.url && s.apiKey && s.userId && s.enabled !== false);
+}
+
+function mapLiveProbes(probes) {
+  return (probes || []).map(p => ({
+    server: p.server,
+    ok: !!p.ok,
+    count: p.count || 0,
+    ms: p.ms || 0,
+    error: p.error || null,
+    method: p.method || null,
+  }));
 }
 
 function makeUserRouter() {
@@ -26,6 +43,18 @@ function makeUserRouter() {
     if (!db.isConfigured()) return res.status(503).json({ error: 'accounts unavailable' });
     if (!req.user) return res.status(401).json({ error: 'not signed in' });
     next();
+  }
+
+  async function loadLiveForUser(userId) {
+    const cfg = await uc.getForServe(userId);
+    const servers = filterLiveServers(cfg);
+    if (!servers.length) return { servers, live: [], liveProbes: [] };
+    const detailed = await liveSessions.forUserDetailed(servers);
+    return {
+      servers,
+      live: detailed.live || [],
+      liveProbes: mapLiveProbes(detailed.probes),
+    };
   }
 
   // config blob + which keys are set (never the key values)
@@ -55,6 +84,21 @@ function makeUserRouter() {
     catch (e) { console.error('[user/server-history]', e.message); res.status(500).json({ error: 'history failed' }); }
   });
 
+  r.get('/live-sessions', requireAuth, async (req, res) => {
+    try {
+      const { servers, live, liveProbes } = await loadLiveForUser(req.user.id);
+      res.json({
+        hasServers: servers.length > 0,
+        serverCount: servers.length,
+        live,
+        liveProbes,
+      });
+    } catch (e) {
+      console.error('[user/live-sessions]', e.message);
+      res.status(500).json({ error: 'live sessions failed' });
+    }
+  });
+
   r.get('/activity', requireAuth, async (req, res) => {
     try {
       let live = [];
@@ -62,28 +106,22 @@ function makeUserRouter() {
       let servers = [];
       let recent = [];
       try {
-        const cfg = await uc.getForServe(req.user.id);
-        servers = (cfg && Array.isArray(cfg.servers))
-          ? cfg.servers.filter(s => s && s.url && s.apiKey && s.enabled !== false)
-          : [];
+        const loaded = await loadLiveForUser(req.user.id);
+        servers = loaded.servers;
+        live = loaded.live;
+        liveProbes = loaded.liveProbes;
         if (servers.length) {
-          const detailed = await liveSessions.forUserDetailed(servers);
-          live = detailed.live || [];
-          liveProbes = (detailed.probes || []).map(p => ({
-            server: p.server,
-            ok: !!p.ok,
-            count: p.count || 0,
-            ms: p.ms || 0,
-            error: p.error || null,
-          }));
           const labels = new Set(
             servers.map(s => (s.label || '').trim()).filter(Boolean)
           );
-          recent = (await requestLog.forUser(req.user.id, 60))
-            .filter(e => !e.server || labels.has(e.server))
+          const rawRecent = (await requestLog.forUser(req.user.id, 60))
+            .filter(e => !e.server || labels.has(e.server) || (e.serverStatus || []).some(s => labels.has(s.label)))
             .slice(0, 20);
+          recent = enrichRecentEntries(rawRecent, live);
         }
-      } catch (e) { /* best-effort */ }
+      } catch (e) {
+        console.error('[user/activity:inner]', e.message);
+      }
       res.json({
         hasServers: servers.length > 0,
         serverCount: servers.length,

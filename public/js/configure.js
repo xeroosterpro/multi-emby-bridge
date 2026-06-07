@@ -395,7 +395,7 @@ async function fetchLiveBundle(force = false) {
 
     if (!demoOn && window.currentUser) {
       try {
-        const r = await fetch('/api/user/activity', { credentials: 'same-origin' });
+        const r = await fetch('/api/user/live-sessions', { credentials: 'same-origin' });
         if (r.ok) {
           const d = await r.json().catch(() => null);
           if (d) {
@@ -494,8 +494,9 @@ function renderLiveProbeStrip(probes) {
   const esc = dashActivityEsc;
   return `<div class="da-probes">${probes.map(p => {
     const cls = p.ok ? ((p.count || 0) > 0 ? 'ok-live' : 'ok-idle') : 'bad';
+    const via = p.method ? ` via ${p.method}` : '';
     const detail = p.ok
-      ? ((p.count || 0) > 0 ? `${p.count} playing` : 'idle')
+      ? ((p.count || 0) > 0 ? `${p.count} playing${via}` : `idle${via}`)
       : esc(p.error || 'unreachable');
     return `<span class="da-probe ${cls}" title="${esc(p.server)} — ${detail}"><span class="da-probe-dot"></span>${esc(p.server)}</span>`;
   }).join('')}</div>`;
@@ -2341,6 +2342,7 @@ async function renderDashActivity(opts = {}) {
     else if (s.isPaused) tags.push('<span class="da-pause-tag">Paused</span>');
     else if (s.isTranscoding) tags.push('<span class="da-tx-tag">Transcode</span>');
     else if (s.playMethod === 'DirectStream' || s.playMethod === 'DirectPlay') tags.push('<span class="da-direct-tag">Direct</span>');
+    if (s.source === 'user-playing') tags.push('<span class="da-source-tag">IsPlaying</span>');
     const progress = s.progressPct != null
       ? `<span class="da-progress" title="${s.progressPct}%"><span class="da-progress-bar" style="width:${s.progressPct}%"></span></span>`
       : '';
@@ -2358,21 +2360,34 @@ async function renderDashActivity(opts = {}) {
   }).join('');
 
   const emptyMsg = live.length ? '' : liveEmptyMessage(probes, serverCount);
-  const recentRows = (a.recent || []).map(e => `<div class="da-row da-history">
+  const recentRows = (a.recent || []).map(e => {
+    const playing = e.isLiveNow && e.playingServer;
+    const picked = e.pickedServer || e.server;
+    const showDiff = playing && picked && playing !== picked;
+    const serverLine = playing
+      ? `<span class="da-hist-live">${esc(playing)} <span class="da-hist-now">▶ now</span></span>`
+      : esc(e.displayServer || picked || '—');
+    const pickNote = showDiff
+      ? `<span class="da-hist-pick">bridge picked ${esc(picked)}</span>`
+      : (!playing && (e.availableOn || []).length > 1
+        ? `<span class="da-hist-pick">also on ${esc(e.availableOn.filter(s => s !== picked).slice(0, 2).join(', '))}</span>`
+        : '');
+    return `<div class="da-row da-history${playing ? ' da-history-live' : ''}">
       <span class="da-main"><span class="da-title" title="${esc(e.title || '')}">${esc(e.title || '—')}${e.season ? ` <span class="da-ep">S${e.season}E${e.episode || ''}</span>` : ''}</span></span>
-      <span class="da-dim da-meta">${esc(e.server || '—')} · ${when(e.ts)}</span>
-    </div>`).join('');
+      <span class="da-dim da-meta da-hist-meta">${serverLine}${pickNote ? `<span class="da-hist-sub">${pickNote}</span>` : ''} · ${when(e.ts)}</span>
+    </div>`;
+  }).join('');
 
   el.innerHTML = `<div class="dash-activity-grid">
     <div class="dash-act-panel dash-act-live">
       <h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming <span class="dash-act-count">${live.length}</span></h3>
-      <p class="dash-act-hint">Sessions API across ${serverCount} server${serverCount === 1 ? '' : 's'} · refreshes every 20s</p>
+      <p class="dash-act-hint">Real playback from Sessions + IsPlaying fallback · ${serverCount} server${serverCount === 1 ? '' : 's'} · every 20s</p>
       ${renderLiveProbeStrip(probes)}
       <div class="da-list">${liveRows || `<div class="da-empty">${emptyMsg}</div>`}</div>
     </div>
     <div class="dash-act-panel dash-act-history">
       <h3 class="block-title dash-act-title">Watched history</h3>
-      <p class="dash-act-hint">Your personal bridge requests only</p>
+      <p class="dash-act-hint">Bridge stream lookups — <strong>▶ now</strong> shows actual server when live</p>
       <div class="da-list">${recentRows || '<div class="da-empty">No watch history yet — streams through your bridge appear here.</div>'}</div>
     </div>
   </div>`;

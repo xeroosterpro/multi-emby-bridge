@@ -228,6 +228,20 @@
         },
       } };
     }
+    if (path === '/api/user/live-sessions' && m === 'GET') {
+      return { body: {
+        hasServers: true, serverCount: 3,
+        live: [
+          { title: 'Dune: Part Two', server: S_CLOUD, user: 'Alex', client: 'Apple TV', positionTicks: 120000000000, isPaused: false, progressPct: 42, playMethod: 'DirectPlay', source: 'sessions' },
+          { title: 'Breaking Bad S01E01', server: S_HOME, user: 'demo', client: 'Stremio Web', positionTicks: 45000000000, isPaused: false, isTranscoding: true, progressPct: 18, source: 'sessions' },
+        ],
+        liveProbes: [
+          { server: S_CLOUD, ok: true, count: 1, ms: 42, error: null, method: 'sessions' },
+          { server: S_HOME, ok: true, count: 1, ms: 68, error: null, method: 'sessions' },
+          { server: S_NAS, ok: true, count: 0, ms: 31, error: null, method: 'sessions' },
+        ],
+      } };
+    }
     if (path === '/api/user/activity' && m === 'GET') {
       return { body: {
         hasServers: true, serverCount: 3,
