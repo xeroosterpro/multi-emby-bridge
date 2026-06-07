@@ -10,7 +10,7 @@ const paypal = require('../lib/paypal');
 const { makeUserConfig } = require('../lib/userConfig');
 const { makeLiveSessions } = require('../lib/sessions');
 const { summarizeRequestLog, userActivity, userAnalytics, timeSeries, serverBreakdown, topContent } = require('../lib/adminStats');
-const { makeRequestLog } = require('../lib/requestLog');
+const { makeRequestLog, normalizeServerLabel } = require('../lib/requestLog');
 const { makeSiteSettings, TOGGLEABLE_TABS } = require('../lib/siteSettings');
 
 function makeAdminRouter(opts = {}) {
@@ -236,7 +236,7 @@ function makeAdminRouter(opts = {}) {
         },
         recentActivity: recentGlobal.rows.map(r => ({
           ts: r.ts, title: r.content_name, type: r.type, season: r.season, episode: r.episode,
-          server: r.best_server, found: !!r.found, ms: r.response_ms,
+          server: normalizeServerLabel(r.best_server), found: !!r.found, ms: r.response_ms,
           username: r.username, userId: r.user_id,
         })),
       });

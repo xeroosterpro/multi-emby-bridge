@@ -1,5 +1,5 @@
 // Run with: node test/requestLog.test.js
-const { makeRequestLog } = require('../lib/requestLog');
+const { makeRequestLog, normalizeServerLabel } = require('../lib/requestLog');
 let passed = 0, failed = 0;
 const A = (c, m) => { c ? (console.log(`  ✓ ${m}`), passed++) : (console.error(`  ✗ ${m}`), failed++); };
 
@@ -68,6 +68,10 @@ function fakeDb() {
   // string bestServer (legacy / no detail) yields null bestFile, not a broken object
   const dune = r2.find(e => e.title === 'Dune');
   A(dune.bestFile === null && dune.serverStatus === null, 'string bestServer → bestFile/serverStatus null');
+
+  A(normalizeServerLabel('ARCTV') === 'ARCTV', 'normalizeServerLabel: plain string');
+  A(normalizeServerLabel('{"label":"BK","size":99}') === 'BK', 'normalizeServerLabel: legacy JSON string');
+  A(normalizeServerLabel({ label: 'OMEGA' }) === 'OMEGA', 'normalizeServerLabel: object');
 
   console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
   if (failed) process.exit(1);

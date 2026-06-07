@@ -1055,36 +1055,44 @@
           </div>
 
           <div class="adm-dash-grid">
-            <div class="adm-panel adm-panel-charts">
-              <div class="adm-panel-head">
-                <span class="adm-panel-title">Stream requests</span>
-                <div class="adm-chart-tabs" id="adm-chart-tabs">
-                  <button class="adm-chart-tab active" type="button" data-range="7d">7 days</button>
-                  <button class="adm-chart-tab" type="button" data-range="24h">24 hours</button>
+            <div class="adm-col-main">
+              <div class="adm-panel adm-panel-charts">
+                <div class="adm-panel-head">
+                  <span class="adm-panel-title">Stream requests</span>
+                  <div class="adm-chart-tabs" id="adm-chart-tabs">
+                    <button class="adm-chart-tab active" type="button" data-range="7d">7 days</button>
+                    <button class="adm-chart-tab" type="button" data-range="24h">24 hours</button>
+                  </div>
+                </div>
+                <div class="adm-chart-wrap" id="adm-chart-requests"></div>
+                <div class="adm-chart-meta" id="adm-chart-meta"></div>
+              </div>
+              <div class="adm-row-split">
+                <div class="adm-panel adm-panel-top">
+                  <div class="adm-panel-head"><span class="adm-panel-title">Top content (24h)</span></div>
+                  <div class="adm-rank-list" id="adm-top-content"></div>
+                </div>
+                <div class="adm-panel adm-panel-payments">
+                  <div class="adm-panel-head"><span class="adm-panel-title">Recent payments</span></div>
+                  <div class="adm-pay-list" id="adm-pay-list"></div>
                 </div>
               </div>
-              <div class="adm-chart-wrap" id="adm-chart-requests"></div>
-              <div class="adm-chart-meta" id="adm-chart-meta"></div>
             </div>
 
-            <div class="adm-panel adm-panel-live">
-              <div class="adm-panel-head">
-                <span class="adm-panel-title"><span class="adm-live-dot sm"></span> Live watching</span>
-                <span class="adm-panel-badge" id="adm-live-count">0</span>
+            <div class="adm-col-side">
+              <div class="adm-panel adm-panel-live">
+                <div class="adm-panel-head">
+                  <span class="adm-panel-title"><span class="adm-live-dot sm"></span> Live watching</span>
+                  <span class="adm-panel-badge" id="adm-live-count">0</span>
+                </div>
+                <div class="adm-live-list" id="adm-live-list">
+                  <div class="adm-loading">Scanning all servers…</div>
+                </div>
               </div>
-              <div class="adm-live-list" id="adm-live-list">
-                <div class="adm-loading">Scanning all servers…</div>
+              <div class="adm-panel adm-panel-servers">
+                <div class="adm-panel-head"><span class="adm-panel-title">Server load (24h)</span></div>
+                <div class="adm-bar-chart" id="adm-chart-servers"></div>
               </div>
-            </div>
-
-            <div class="adm-panel adm-panel-servers">
-              <div class="adm-panel-head"><span class="adm-panel-title">Server load (24h)</span></div>
-              <div class="adm-bar-chart" id="adm-chart-servers"></div>
-            </div>
-
-            <div class="adm-panel adm-panel-top">
-              <div class="adm-panel-head"><span class="adm-panel-title">Top content (24h)</span></div>
-              <div class="adm-rank-list" id="adm-top-content"></div>
             </div>
 
             <div class="adm-panel adm-panel-history adm-panel-wide">
@@ -1093,11 +1101,6 @@
                 <span class="adm-panel-hint">All bridge requests · newest first</span>
               </div>
               <div class="adm-history-list" id="adm-history-list"></div>
-            </div>
-
-            <div class="adm-panel adm-panel-payments">
-              <div class="adm-panel-head"><span class="adm-panel-title">Recent payments</span></div>
-              <div class="adm-pay-list" id="adm-pay-list"></div>
             </div>
           </div>
 

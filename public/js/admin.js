@@ -38,6 +38,15 @@
   const fmtWhen = x => x ? new Date(x).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
   const money = n => '$' + Number(n||0).toFixed(n >= 100 ? 0 : 2);
   const statusPill = s => `<span class="pay-status ${s==='active'||s==='comped'?'completed':(s==='past_due'?'refunded':'failed')}">${escU(s)}</span>`;
+  const serverLabel = v => {
+    if (!v) return '—';
+    if (typeof v === 'object') return v.label || '—';
+    const s = String(v);
+    if (s.startsWith('{') || s.startsWith('[')) {
+      try { const o = JSON.parse(s); if (o && o.label) return o.label; } catch {}
+    }
+    return s;
+  };
 
   // ── SVG charts (no external lib) ─────────────────────────────────────────
   let _chartUid = 0;
@@ -120,7 +129,7 @@
     el.innerHTML = rows.map(e => `<div class="adm-hist-row">
       <div class="adm-hist-main">
         <span class="adm-hist-title">${escU(e.title || '—')}${e.season ? ` <span class="da-ep">S${e.season}E${e.episode || ''}</span>` : ''}</span>
-        <div class="adm-hist-meta">${escU(e.server || '—')}${e.username ? ` · <span class="adm-hist-user">${escU(e.username)}</span>` : ''}${e.ms != null ? ` · ${e.ms}ms` : ''}</div>
+        <div class="adm-hist-meta">${escU(serverLabel(e.server))}${e.username ? ` · <span class="adm-hist-user">${escU(e.username)}</span>` : ''}${e.ms != null ? ` · ${e.ms}ms` : ''}</div>
       </div>
       <span class="adm-hist-found ${e.found ? 'ok' : 'fail'}">${e.found ? 'found' : 'miss'}</span>
       <span class="adm-hist-time">${fmtWhen(e.ts)}</span>
@@ -269,10 +278,7 @@
   function startUsersPolling() {
     stopUsersPolling();
     _usersTimer = setInterval(() => {
-      if ((location.hash || '').replace(/^#\//, '') === 'users') {
-        loadOverview();
-        loadLive();
-      }
+      if ((location.hash || '').replace(/^#\//, '') === 'users') refreshConsole(true);
     }, 20000);
   }
   function stopUsersPolling() { clearInterval(_usersTimer); _usersTimer = null; }
@@ -285,12 +291,12 @@
   }
   function stopLivePolling() { clearInterval(_liveTimer); _liveTimer = null; }
 
-  async function refreshConsole() {
+  async function refreshConsole(silent) {
     const btn = $('#adm-refresh-btn');
-    if (btn) { btn.disabled = true; btn.textContent = '↻ Loading…'; }
+    if (btn && !silent) { btn.disabled = true; btn.textContent = '↻ Loading…'; }
     await Promise.all([loadOverview(), loadUsers(), loadLive()]);
-    if (btn) { btn.disabled = false; btn.textContent = '↻ Refresh'; }
-    if (window.toast) window.toast('Console refreshed');
+    if (btn && !silent) { btn.disabled = false; btn.textContent = '↻ Refresh'; }
+    if (!silent && window.toast) window.toast('Console refreshed');
   }
 
   function wireChartTabs() {
