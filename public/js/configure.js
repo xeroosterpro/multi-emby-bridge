@@ -1025,9 +1025,121 @@ let logPage = 0;
 let logSearch = '';
 let logFilter = 'all';
 
+function normalizeLogEntry(e) {
+  const best = (e.bestServer && typeof e.bestServer === 'object') ? e.bestServer
+    : (e.bestFile && typeof e.bestFile === 'object') ? e.bestFile
+    : (e.bestServer ? { label: String(e.bestServer) } : null);
+  return { ...e, bestServer: best, serverStatus: Array.isArray(e.serverStatus) ? e.serverStatus : [] };
+}
+
+function logBestLabel(e) {
+  const n = normalizeLogEntry(e);
+  return n.bestServer?.label || null;
+}
+
 function logEntryFound(e) {
-  if (e.bestServer) return true;
-  return (e.serverStatus || []).some(s => s.status === 'found');
+  const n = normalizeLogEntry(e);
+  if (n.bestServer) return true;
+  return n.serverStatus.some(s => s.status === 'found');
+}
+
+function formatResCounts(resCounts, resLabels) {
+  if (resCounts && Object.keys(resCounts).length) {
+    const order = ['4K', '2160p', '1080p', '720p', '480p', 'SD'];
+    return Object.entries(resCounts)
+      .sort((a, b) => {
+        const ai = order.findIndex(o => a[0].toUpperCase().includes(o));
+        const bi = order.findIndex(o => b[0].toUpperCase().includes(o));
+        return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+      })
+      .map(([k, v]) => `${k}×${v}`)
+      .join(' · ');
+  }
+  if (resLabels?.length) return resLabels.join(' · ');
+  return '';
+}
+
+function aggregateResCounts(serverStatus) {
+  const agg = {};
+  serverStatus.filter(s => s.status === 'found').forEach(s => {
+    if (s.resCounts) Object.entries(s.resCounts).forEach(([k, v]) => { agg[k] = (agg[k] || 0) + v; });
+    else if (s.resLabels) s.resLabels.forEach(l => { agg[l] = (agg[l] || 0) + 1; });
+  });
+  return agg;
+}
+
+function getWinReason(entry, winnerSrv) {
+  if (!entry.bestServer) return '';
+  const found = entry.serverStatus.filter(s => s.status === 'found');
+  if (found.length <= 1) return 'Only source available';
+  const sizes = found.map(s => s.size || 0).filter(n => n > 0);
+  if (!sizes.length) return 'Best match';
+  const max = Math.max(...sizes);
+  if ((entry.bestServer.size || 0) >= max) {
+    const others = found.length - 1;
+    return `Largest file · beat ${others} server${others === 1 ? '' : 's'}`;
+  }
+  if (winnerSrv?.resLabels?.length) return `Best quality match · ${winnerSrv.resLabels[0]}`;
+  return 'Best match';
+}
+
+function serverStateLabel(status) {
+  if (status === 'found') return 'Found';
+  if (status === 'not_found') return 'No file';
+  if (status === 'timeout') return 'Timeout';
+  if (status === 'offline') return 'Offline';
+  return status || '—';
+}
+
+function serverStateClass(status) {
+  if (status === 'found') return 'found';
+  if (status === 'not_found') return 'miss';
+  if (status === 'timeout') return 'timeout';
+  return 'off';
+}
+
+function renderLogServers(entry) {
+  const winner = entry.bestServer?.label;
+  const agg = aggregateResCounts(entry.serverStatus);
+  const qualBar = formatResCounts(agg);
+  const foundN = entry.serverStatus.filter(s => s.status === 'found').length;
+  const summary = qualBar
+    ? `<div class="rlog-qual-bar"><span class="rlog-qual-tags">${escHtml(qualBar)}</span><span class="rlog-qual-sub">${foundN} server${foundN === 1 ? '' : 's'} had streams</span></div>`
+    : (foundN ? `<div class="rlog-qual-bar"><span class="rlog-qual-sub">${foundN} server${foundN === 1 ? '' : 's'} responded</span></div>` : '');
+
+  if (!entry.serverStatus.length) return '<span class="rlog-none">No server breakdown</span>';
+
+  const lines = entry.serverStatus.map(s => {
+    const isWin = winner && s.label === winner && s.status === 'found';
+    const res = formatResCounts(s.resCounts, s.resLabels);
+    const cnt = s.status === 'found' && s.count ? `${s.count} stream${s.count === 1 ? '' : 's'}` : '—';
+    const size = s.status === 'found' && s.size ? fmtBytes(s.size) : '';
+    const meta = [size, res].filter(Boolean).join(' · ') || '—';
+    return `<div class="rlog-srv-line ${serverStateClass(s.status)}${isWin ? ' is-win' : ''}">
+      <span class="rlog-srv-name">${isWin ? '★ ' : ''}${escHtml(s.label)}</span>
+      <span class="rlog-srv-state">${serverStateLabel(s.status)}</span>
+      <span class="rlog-srv-cnt">${cnt}</span>
+      <span class="rlog-srv-res">${escHtml(meta)}</span>
+    </div>`;
+  }).join('');
+
+  return `<div class="rlog-srv-panel">${summary}<div class="rlog-srv-grid">${lines}</div></div>`;
+}
+
+function renderLogWinner(entry) {
+  if (!entry.bestServer?.label) return '<span class="rlog-none">No winner</span>';
+  const winnerSrv = entry.serverStatus.find(s => s.label === entry.bestServer.label && s.status === 'found');
+  const size = entry.bestServer.size ? fmtBytes(entry.bestServer.size) : '';
+  const mbps = entry.bestServer.bitrate ? `${(entry.bestServer.bitrate / 1e6).toFixed(1)} Mbps` : '';
+  const res = formatResCounts(winnerSrv?.resCounts, winnerSrv?.resLabels);
+  const meta = [size, mbps, res].filter(Boolean).join(' · ');
+  const why = getWinReason(entry, winnerSrv);
+  return `<div class="rlog-winner">
+    <div class="rlog-winner-badge">Winner</div>
+    <div class="rlog-winner-srv">${escHtml(entry.bestServer.label)}</div>
+    ${meta ? `<div class="rlog-winner-meta">${escHtml(meta)}</div>` : ''}
+    ${why ? `<div class="rlog-winner-why">${escHtml(why)}</div>` : ''}
+  </div>`;
 }
 
 function computeLogStats(data) {
@@ -1037,7 +1149,8 @@ function computeLogStats(data) {
   const avgMs = msArr.length ? Math.round(msArr.reduce((a, b) => a + b, 0) / msArr.length) : null;
   const srvCounts = {};
   data.forEach(e => {
-    const lbl = e.bestServer?.label || (e.serverStatus || []).find(s => s.status === 'found')?.label;
+    const n = normalizeLogEntry(e);
+    const lbl = n.bestServer?.label || n.serverStatus.find(s => s.status === 'found')?.label;
     if (lbl) srvCounts[lbl] = (srvCounts[lbl] || 0) + 1;
   });
   const top = Object.entries(srvCounts).sort((a, b) => b[1] - a[1])[0];
@@ -1062,10 +1175,12 @@ function filterLogData() {
     if (logFilter === 'found' && !found) return false;
     if (logFilter === 'miss' && found) return false;
     if (!term) return true;
+    const n = normalizeLogEntry(e);
     const hay = [
-      e.contentName, e.imdbId,
-      e.bestServer?.label,
-      ...(e.serverStatus || []).map(s => s.label),
+      n.contentName, n.imdbId,
+      n.bestServer?.label,
+      ...n.serverStatus.map(s => s.label),
+      formatResCounts(aggregateResCounts(n.serverStatus)),
     ].filter(Boolean).join(' ').toLowerCase();
     return hay.includes(term);
   });
@@ -1097,7 +1212,8 @@ function renderLogPage() {
   if (logPage >= totalPages) logPage = totalPages - 1;
   const slice = filtered.slice(logPage * LOG_PAGE_SIZE, (logPage + 1) * LOG_PAGE_SIZE);
 
-  const rows = slice.map(e => {
+  const rows = slice.map(raw => {
+    const e = normalizeLogEntry(raw);
     const t = new Date(e.ts).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const d = new Date(e.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     const ep = e.type === 'series'
@@ -1108,37 +1224,17 @@ function renderLogPage() {
       : `<span class="rlog-imdb">${escHtml(e.imdbId || '—')}</span>${ep}`;
     const ms = e.ms == null ? '—' : (e.ms < 1000 ? `${e.ms}ms` : `${(e.ms/1000).toFixed(1)}s`);
     const msCls = msClass(e.ms);
-
-    let bestHtml = '<span class="rlog-none">—</span>';
-    if (e.bestServer) {
-      const size = fmtBytes(e.bestServer.size);
-      const mbps = e.bestServer.bitrate ? `${(e.bestServer.bitrate/1e6).toFixed(1)} Mbps` : null;
-      bestHtml = `<div class="rlog-best"><span class="rlog-srv-chip win">${escHtml(e.bestServer.label)}</span>
-        ${size || mbps ? `<span class="rlog-best-meta">${[size, mbps].filter(Boolean).join(' · ')}</span>` : ''}</div>`;
-    }
-
-    let serversHtml = '';
-    if (e.serverStatus?.length) {
-      const winner = e.bestServer?.label;
-      serversHtml = `<div class="rlog-srv-pills">${e.serverStatus.map(s => {
-        const size = fmtBytes(s.size);
-        const mbps = s.bitrate ? `${(s.bitrate/1e6).toFixed(1)}M` : '';
-        const meta = [size, mbps].filter(Boolean).join('/');
-        const win = winner && s.label === winner && s.status === 'found';
-        if (s.status === 'found') return `<span class="rlog-srv-chip ok${win ? ' win' : ''}" title="${escHtml(s.label)}${meta ? ' · '+meta : ''}">${win ? '★' : '✓'} ${escHtml(s.label)}${meta ? `<em>${meta}</em>` : ''}</span>`;
-        if (s.status === 'offline') return `<span class="rlog-srv-chip off">✕ ${escHtml(s.label)}</span>`;
-        if (s.status === 'not_found') return `<span class="rlog-srv-chip miss">– ${escHtml(s.label)}</span>`;
-        return `<span class="rlog-srv-chip">${escHtml(s.label)}</span>`;
-      }).join('')}</div>`;
-    }
-
     const ok = logEntryFound(e);
+
     return `<article class="rlog-row${ok ? '' : ' rlog-row-miss'}">
       <div class="rlog-row-time"><span class="rlog-date">${d}</span><span class="rlog-clock">${t}</span></div>
-      <div class="rlog-row-main"><div class="rlog-row-title">${typeBadge}${title}</div>${serversHtml || '<span class="rlog-none">No server breakdown</span>'}</div>
-      <div class="rlog-row-dur"><span class="rlog-ms ${msCls}">${ms}</span></div>
-      <div class="rlog-row-best">${bestHtml}</div>
-      <div class="rlog-row-status"><span class="rlog-found ${ok ? 'ok' : 'fail'}">${ok ? 'found' : 'miss'}</span></div>
+      <div class="rlog-row-title-col"><div class="rlog-row-title">${typeBadge}${title}</div></div>
+      <div class="rlog-row-servers">${renderLogServers(e)}</div>
+      <div class="rlog-row-winner">${renderLogWinner(e)}</div>
+      <div class="rlog-row-search">
+        <span class="rlog-ms ${msCls}">${ms}</span>
+        <span class="rlog-found ${ok ? 'ok' : 'fail'}">${ok ? 'found' : 'miss'}</span>
+      </div>
     </article>`;
   }).join('');
 
@@ -1151,7 +1247,7 @@ function renderLogPage() {
     pageButtons += `<button class="rlog-page-btn${i === logPage ? ' active' : ''}" onclick="goLogPage(${i})">${i + 1}</button>`;
   }
 
-  wrap.innerHTML = `<div class="rlog-head"><span>Time</span><span>Content &amp; servers</span><span>Duration</span><span>Best file</span><span>Status</span></div>
+  wrap.innerHTML = `<div class="rlog-head"><span>When</span><span>Title</span><span>Server results</span><span>Winner</span><span>Search</span></div>
     <div class="rlog-rows">${rows}</div>
     <div class="rlog-pagination">
       <span class="rlog-page-info">${logPage * LOG_PAGE_SIZE + 1}–${Math.min((logPage + 1) * LOG_PAGE_SIZE, filtered.length)} of ${filtered.length}${filtered.length !== logData.length ? ` (${logData.length} total)` : ''}</span>

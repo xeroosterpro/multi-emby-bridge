@@ -129,12 +129,22 @@
       serverStatus: statuses,
     });
     const S = [S_CLOUD, S_HOME, S_NAS];
+    const resFor = (size, i) => {
+      if (size > 15000000000) return { resCounts: { '4K': 2, '1080p': 1 + (i % 2) } };
+      if (size > 5000000000) return { resCounts: { '1080p': 2 + (i % 2), '720p': 1 } };
+      return { resCounts: { '1080p': 1, '720p': 1 } };
+    };
     const row = (mins, type, name, imdb, winnerIdx, sizes, ms, season = 0, episode = 0) => {
       const winner = S[winnerIdx];
       const best = sizes[winnerIdx] ? { label: winner, size: sizes[winnerIdx], bitrate: Math.round(sizes[winnerIdx] / 600) } : null;
       const statuses = S.map((label, i) => {
         if (!sizes[i]) return { label, status: i === 1 && mins % 5 === 0 ? 'offline' : 'not_found' };
-        return { label, status: 'found', size: sizes[i], bitrate: Math.round(sizes[i] / 600) };
+        const extra = resFor(sizes[i], i);
+        const count = Object.values(extra.resCounts).reduce((a, b) => a + b, 0);
+        return {
+          label, status: 'found', size: sizes[i], bitrate: Math.round(sizes[i] / 600),
+          count, resLabels: Object.keys(extra.resCounts), ...extra,
+        };
       });
       return mk(mins, type, name, imdb, best, statuses, ms, season, episode);
     };
