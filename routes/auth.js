@@ -34,6 +34,10 @@ function makeAuthRouter() {
 
   r.post('/register', async (req, res) => {
     if (!db.isConfigured()) return res.status(503).json({ error: 'accounts unavailable' });
+    const allowReg = process.env.ALLOW_PUBLIC_REGISTER;
+    if (allowReg === '0' || allowReg === 'false') {
+      return res.status(403).json({ error: 'registration disabled' });
+    }
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'username and password required' });
     try {

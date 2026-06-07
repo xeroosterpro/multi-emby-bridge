@@ -174,9 +174,16 @@ function _dashHealthPanel(history) {
   return '<div class="gcard-health-empty">Health charts loading…</div>';
 }
 
+function _healthUrlsQuery() {
+  const urls = [...document.querySelectorAll('.server-block .f-url, .server-card .f-url')]
+    .map(el => (el.value || '').trim().replace(/\/+$/, ''))
+    .filter(u => u && /^https?:\/\//i.test(u));
+  return urls.length ? `?urls=${encodeURIComponent(urls.join(','))}` : '';
+}
+
 async function _fetchHealthByUrl() {
   try {
-    const rows = await fetch('/api/health/history', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : []);
+    const rows = await fetch(`/api/health/history${_healthUrlsQuery()}`, { credentials: 'same-origin' }).then(r => r.ok ? r.json() : []);
     const map = {};
     (rows || []).forEach(h => { map[_normServerUrl(h.url)] = h; });
     return map;

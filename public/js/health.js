@@ -26,7 +26,16 @@ async function getServerHistory(){if(_svHistory)return _svHistory;try{_svHistory
 function uptimePct(daily){const t=daily.reduce((a,d)=>a+d.checks,0),u=daily.reduce((a,d)=>a+d.up_checks,0);return t?Math.round(u/t*1000)/10:null;}
 function setRange(r,btn){currentRange=r;document.querySelectorAll('.range-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderPage(rawData);}
 function filterH(h){if(currentRange==='all')return h;const c=Date.now()-rangeMs(currentRange);return h.filter(e=>e.ts>=c);}
-async function loadHistory(){try{rawData=await fetch('/api/health/history').then(r=>r.json());renderPage(rawData);}catch{document.getElementById('main-content').innerHTML='<div class="empty-state"><span class="icon">&#x26A0;&#xFE0F;</span>Could not load health data.</div>';}}
+async function loadHistory(){
+  try{
+    const urls=[...document.querySelectorAll('.server-block .f-url,.server-card .f-url')]
+      .map(el=>(el.value||'').trim().replace(/\/+$/,''))
+      .filter(u=>u&&/^https?:\/\//i.test(u));
+    const q=urls.length?`?urls=${encodeURIComponent(urls.join(','))}`:'';
+    rawData=await fetch('/api/health/history'+q,{credentials:'same-origin'}).then(r=>r.json());
+    renderPage(rawData);
+  }catch{document.getElementById('main-content').innerHTML='<div class="empty-state"><span class="icon">&#x26A0;&#xFE0F;</span>Could not load health data.</div>';}
+}
 async function pingNow(){document.getElementById('refresh-bar').textContent='Pinging&#x2026;';try{await fetch('/api/health/ping-now',{method:'POST'});await loadHistory();}catch{}}
 async function hBrowserPing(url,btn,msEl){if(btn.dataset.t)return;btn.dataset.t='1';btn.textContent='&#x2026;';msEl.className='loc-ms none';msEl.textContent='&#x2014;';const t0=performance.now();try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),8000);await fetch(url+'/System/Ping',{signal:ctrl.signal,mode:'no-cors'});clearTimeout(timer);const ms=Math.round(performance.now()-t0);browserPings[url]=ms;msEl.textContent=ms+'ms';msEl.className='loc-ms '+(ms<100?'fast':ms<400?'ok':'slow');}catch{browserPings[url]=null;msEl.textContent='Blocked';msEl.className='loc-ms none';}btn.textContent='Retest';delete btn.dataset.t;}
 function renderPage(data){const main=document.getElementById('main-content');if(!data||!data.length){main.innerHTML='<div class="notice">No servers registered. Go to <a href="/configure">Configure</a>.</div>';return;}const fd=data.map(s=>({...s,history:filterH(s.history||[])}));const up=fd.filter(s=>s.history[0]&&s.history[0].up===true).length;const dn=fd.filter(s=>s.history[0]&&s.history[0].up===false).length;const tot=fd.reduce((a,s)=>a+s.history.length,0);const rl={'24h':'last 24h','7d':'last 7 days','30d':'last 30 days','all':'all time'}[currentRange];document.getElementById('range-info').textContent=tot+' checks · '+rl;let sb='<div class="status-bar"><div>';if(!dn&&up)sb+='<span class="dot ok"></span>All '+up+' server'+(up>1?'s':'')+' online';else if(dn&&up)sb+='<span class="dot warn"></span>'+up+' online, '+dn+' offline';else if(dn)sb+='<span class="dot bad"></span>All servers offline';else sb+='<span class="dot"></span>Waiting…';sb+='</div><div style="color:#2e2e42">Pings every 5 min</div></div>';main.innerHTML=sb+'<div class="server-grid">'+fd.map(buildCard).join('')+'</div>';

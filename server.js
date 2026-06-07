@@ -38,6 +38,7 @@ const { hashPassword, loadProfiles, saveProfiles } = require('./lib/profiles');
 const { snapshot: systemMetrics } = require('./lib/metrics');
 const { ROW_NAMES, deriveLibraryRows } = require('./server-helpers');
 const audioRanking = require('./lib/audioRanking');
+const { assertSafeFetchUrl } = require('./lib/urlSafety');
 
 // Cross-row deduplication cache (60s TTL per config)
 const _dedupCache = new Map();
@@ -226,10 +227,10 @@ app.get('/configure', (req, res) => {
 app.get('/health',  (req, res) => res.json({ status: 'ok' }));
 app.get('/healthz', (req, res) => res.json({ status: 'ok' }));
 
-// ─── System metrics (CPU/RAM/uptime) for the admin panel ─────────────────────
-// NOTE: unauthenticated for now (returns only non-sensitive resource numbers).
-// To be gated behind admin auth in Phase 4 once accounts exist.
+// ─── System metrics (CPU/RAM/uptime) — admin only ────────────────────────────
 app.get('/api/metrics', apiLimiter, (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'not signed in' });
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'admin only' });
   try { res.json(systemMetrics()); }
   catch (e) { res.status(500).json({ error: 'metrics unavailable' }); }
 });
@@ -257,9 +258,16 @@ app.get('/:config/servers', (req, res) => {
 });
 
 // Register servers for 24/7 health monitoring
-app.post('/api/health/register', apiLimiter, express.json(), (req, res) => {
+app.post('/api/health/register', apiLimiter, express.json(), async (req, res) => {
   const { servers } = req.body || {};
   if (!Array.isArray(servers)) return res.status(400).json({ error: 'servers must be array' });
+  try {
+    for (const s of servers) {
+      if (s && s.url) await assertSafeFetchUrl(s.url, 'server url');
+    }
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
   registerHealthServers(servers, req.user && req.user.id);
   res.json({ ok: true, monitoring: healthServers.length });
 });
@@ -280,15 +288,32 @@ app.post('/api/health/cleanup', apiLimiter, express.json(), (req, res) => {
   res.json({ ok: true, removed, monitoring: healthServers.length });
 });
 
-// Return full history for all monitored servers
-app.get('/api/health/history', (req, res) => {
-  const result = healthServers.map(s => ({
-    url:     s.url,
-    label:   s.label,
-    type:    s.type,
-    history: (healthHistory[s.url] || []),
-  }));
-  res.json(result);
+// Return uptime history — scoped to the signed-in user's servers, or explicit ?urls= for local config
+app.get('/api/health/history', async (req, res) => {
+  try {
+    const { getUserServerUrlSet, historyForUrls } = require('./lib/health');
+    const urlSet = new Set();
+    if (req.user) {
+      for (const u of getUserServerUrlSet(req.user.id)) urlSet.add(u);
+      if (dbLib.isConfigured()) {
+        try {
+          const ed = await makeUserConfig(dbLib).getEditable(req.user.id);
+          for (const s of (ed?.config?.servers || [])) {
+            const u = (s.url || '').replace(/\/+$/, '');
+            if (u) urlSet.add(u);
+          }
+        } catch { /* best-effort */ }
+      }
+    } else {
+      String(req.query.urls || '').split(',').forEach(raw => {
+        const u = raw.trim().replace(/\/+$/, '');
+        if (u && /^https?:\/\//i.test(u)) urlSet.add(u);
+      });
+    }
+    res.json(historyForUrls(urlSet));
+  } catch (e) {
+    res.status(500).json({ error: 'history failed' });
+  }
 });
 
 // Trigger an immediate ping of all registered servers
@@ -442,8 +467,16 @@ app.post('/api/fetch-credentials', authLimiter, express.json(), async (req, res)
     return res.status(400).json({ error: 'url, username and password are required.' });
   }
 
+  let safeOrigin;
+  try {
+    const parsed = await assertSafeFetchUrl(url, 'server url');
+    safeOrigin = parsed.origin;
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+
   const authHeader = 'MediaBrowser Client="MultiEmbyBridge", Device="Web", DeviceId="meb-setup", Version="1.0.0"';
-  const baseUrl = url.replace(/\/+$/, '');
+  const baseUrl = safeOrigin;
 
   // Try multiple auth path patterns — shared/managed Emby servers sometimes
   // use a subpath prefix (/emby/, /mediabrowser/) or non-standard layouts.
@@ -513,8 +546,15 @@ app.post('/api/test-connection', apiLimiter, express.json(), async (req, res) =>
   if (!url || !apiKey || !userId) {
     return res.status(400).json({ error: 'url, apiKey and userId are required.' });
   }
+  let safeUrl;
+  try {
+    const parsed = await assertSafeFetchUrl(url, 'server url');
+    safeUrl = parsed.origin;
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
   const server = {
-    url: url.replace(/\/$/, ''), type: type || 'emby', apiKey, userId,
+    url: safeUrl, type: type || 'emby', apiKey, userId,
     username: username || '', password: password || '',
   };
   const sentKey = apiKey;
@@ -543,9 +583,10 @@ app.post('/api/ping-servers', apiLimiter, express.json(), async (req, res) => {
   const results = await Promise.all(servers.map(async s => {
     const t0 = Date.now();
     try {
+      const parsed = await assertSafeFetchUrl(s.url, 'server url');
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 5000);
-      try { await fetch(`${s.url}/System/Ping`, { headers: { 'User-Agent': BROWSER_UA }, signal: controller.signal }); }
+      try { await fetch(`${parsed.origin}/System/Ping`, { headers: { 'User-Agent': BROWSER_UA }, signal: controller.signal }); }
       finally { clearTimeout(timer); }
       return { label: s.label, ms: Date.now() - t0 };
     } catch {
@@ -559,9 +600,16 @@ app.post('/api/ping-servers', apiLimiter, express.json(), async (req, res) => {
 app.post('/api/server-sessions', apiLimiter, express.json(), async (req, res) => {
   const { url, type, apiKey, userId, label, username, password } = req.body || {};
   if (!url || !apiKey) return res.status(400).json({ error: 'url and apiKey required' });
+  let safeUrl;
+  try {
+    const parsed = await assertSafeFetchUrl(url, 'server url');
+    safeUrl = parsed.origin;
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
   const { fetchServerSessions } = require('./lib/sessions');
   const server = {
-    url: url.replace(/\/$/, ''),
+    url: safeUrl,
     type: type || 'emby',
     apiKey,
     userId: userId || '',
@@ -591,8 +639,15 @@ app.post('/api/library-stats', apiLimiter, express.json(), async (req, res) => {
   if (!url || !apiKey || !userId) {
     return res.status(400).json({ error: 'url, apiKey, userId required' });
   }
+  let safeUrl;
+  try {
+    const parsed = await assertSafeFetchUrl(url, 'server url');
+    safeUrl = parsed.origin;
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
   const server = {
-    url: url.replace(/\/$/, ''), type: type || 'emby', apiKey, userId, label: '',
+    url: safeUrl, type: type || 'emby', apiKey, userId, label: '',
     username: username || '', password: password || '',
   };
   const sentKey = apiKey;
@@ -626,6 +681,11 @@ app.post('/api/addon-catalogs', apiLimiter, express.json(), async (req, res) => 
   if (!/^https?:\/\//i.test(manifestUrl)) manifestUrl = 'https://' + manifestUrl;
   if (!/\/manifest\.json($|\?)/i.test(manifestUrl)) {
     manifestUrl = manifestUrl.replace(/\/+$/, '') + '/manifest.json';
+  }
+  try {
+    await assertSafeFetchUrl(manifestUrl, 'manifest url');
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
   }
   const baseUrl = manifestUrl.replace(/\/manifest\.json.*$/i, '');
   try {
