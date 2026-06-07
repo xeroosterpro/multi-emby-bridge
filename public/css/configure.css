@@ -1495,10 +1495,19 @@ body.noanim .acc2-body{ transition:none; }
 .gbrand{ animation:floaty 3.6s ease-in-out infinite, haloPulse 2.4s ease-in-out infinite !important; }
 .gbrand::after{ z-index:2; animation:brandSheen 4s ease-in-out infinite !important; }
 @keyframes brandBreathe{ 0%,100%{ transform:scale(1) } 50%{ transform:scale(1.05) } }
-.gstatus{ display:inline-flex; flex-direction:column; align-items:flex-end; gap:4px; flex:none; margin-left:auto; }
-.gpill{ display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:4px 11px;
-  font-weight:800; font-size:.6rem; letter-spacing:.04em; white-space:nowrap; font-variant-numeric:tabular-nums; }
-#page-dashboard .gpill.online { font-size:.64rem; padding:5px 12px; }
+.gstatus{ display:inline-flex; flex-direction:row; align-items:center; justify-content:flex-end; gap:5px; flex:none; margin-left:auto; }
+.gpill{ display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:3px 9px;
+  font-weight:800; font-size:.58rem; letter-spacing:.05em; white-space:nowrap; }
+.gbridge-now {
+  font-size:.72rem; font-weight:900; font-variant-numeric:tabular-nums;
+  letter-spacing:-.01em; line-height:1;
+}
+.gbridge-now:empty { display:none; }
+.gbridge-now.fast { color:#34d399; }
+.gbridge-now.ok { color:#fbbf24; }
+.gbridge-now.slow { color:#f87171; }
+#page-dashboard .gpill { padding:2px 8px; font-size:.54rem; }
+#page-dashboard .gbridge-now { font-size:.68rem; }
 .gpill::before{ content:''; width:6px; height:6px; border-radius:50%; flex:none; }
 .gpill.loading{ background:rgba(255,255,255,.06); color:var(--text-mute); }
 .gpill.loading::before{ background:var(--text-mute); }
@@ -2462,10 +2471,10 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
 #page-dashboard .dash-page-title { font-size:2rem; letter-spacing:-.02em; }
 #page-dashboard .dash-page-sub { font-size:.95rem; margin-bottom:6px; }
 #page-dashboard .block-title { font-size:1.05rem; margin-bottom:14px; }
-#page-dashboard .dash-tiles { gap:18px; margin-bottom:30px; }
-#page-dashboard .dash-tiles .tile { padding:22px 24px !important; overflow:hidden; position:relative; }
-#page-dashboard .dash-tiles .tile .n { font-size:2.45rem !important; font-weight:900 !important; line-height:1; }
-#page-dashboard .dash-tiles .tile .l { font-size:.72rem !important; margin-top:8px; }
+#page-dashboard .dash-tiles { gap:14px; margin-bottom:22px; }
+#page-dashboard .dash-tiles .tile { padding:16px 18px !important; overflow:hidden; position:relative; }
+#page-dashboard .dash-tiles .tile .n { font-size:2rem !important; font-weight:900 !important; line-height:1; }
+#page-dashboard .dash-tiles .tile .l { font-size:.64rem !important; margin-top:5px; letter-spacing:.05em; }
 #page-dashboard .dash-tiles .tile::after {
   content:''; position:absolute; top:0; left:0; width:46%; height:100%;
   background:linear-gradient(100deg, transparent, color-mix(in srgb, var(--accent) 28%, transparent), transparent);
@@ -2479,11 +2488,19 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
 @keyframes dash-tile-sheen { 0%,72%,100%{ transform:translateX(-130%); } 18%{ transform:translateX(290%); } }
 @keyframes tile-num-pop { 0%{ transform:scale(.84); opacity:.35; } 55%{ transform:scale(1.07); } 100%{ transform:scale(1); opacity:1; } }
 #page-dashboard .dash-tiles .tile .n.tile-num-pop { animation:tile-num-pop .48s cubic-bezier(.34,1.45,.64,1) !important; }
-#page-dashboard .dash-cards { grid-template-columns:repeat(auto-fit, minmax(400px, 1fr)); gap:20px; }
-#page-dashboard .gcard .gcard-pad { padding:20px 22px; }
-#page-dashboard .gcard-nm { font-size:1.14rem; }
-#page-dashboard .gcard-host { font-size:.78rem; }
-#page-dashboard .gchip .cn { font-size:1.05rem; }
+#page-dashboard .dash-cards { grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:14px; }
+#page-dashboard .gcard .gcard-pad { padding:14px 16px; }
+#page-dashboard .gcard-head { margin-bottom:6px !important; gap:8px !important; }
+#page-dashboard .gcard-nm { font-size:1.02rem; line-height:1.15; }
+#page-dashboard .gcard-host { font-size:.7rem; margin-bottom:0 !important; }
+#page-dashboard .gchips { margin-top:8px !important; gap:6px !important; }
+#page-dashboard .gchip { padding:7px 4px !important; }
+#page-dashboard .gchip .cn { font-size:.92rem !important; }
+#page-dashboard .gchip .ct { font-size:.54rem !important; margin-top:1px !important; }
+#page-dashboard .gcard-health {
+  margin-top:8px; padding-top:7px;
+  border-top:1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
 /* Inline health on dashboard server cards — compact sparkline + uptime strip */
 .gcard-health {
   margin-top:11px; padding-top:9px;
@@ -2495,15 +2512,21 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
   background:color-mix(in srgb, var(--bg-elevated) 70%, transparent);
 }
 .gcard-rt-graph { margin-bottom:5px; }
+.gcard-rt-graph.gcard-rt-compact { margin-bottom:3px; }
 .gcard-rt-graph .rt-graph-label {
   display:flex; justify-content:space-between; align-items:center;
   font-size:.58rem; color:var(--text-mute); margin-bottom:3px;
   letter-spacing:.03em; text-transform:uppercase;
 }
+.gcard-rt-compact .rt-graph-label {
+  font-size:.54rem; margin-bottom:2px; letter-spacing:.02em;
+}
+.gcard-rt-title { text-transform:uppercase; font-weight:800; }
 .gcard-rt-range {
   font-size:.58rem; font-weight:700; color:var(--accent-2);
-  text-transform:none; letter-spacing:0;
+  text-transform:none; letter-spacing:0; font-variant-numeric:tabular-nums;
 }
+.gcard-rt-compact .gcard-rt-range { font-size:.54rem; }
 .gcard-rt-hint {
   font-size:.52rem; color:var(--text-mute); opacity:.82;
   margin:-1px 0 5px; letter-spacing:.02em; line-height:1.25;
@@ -2513,7 +2536,16 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
   border:1px solid color-mix(in srgb, var(--border) 55%, transparent);
   border-radius:7px; padding:3px 5px 2px; overflow:hidden;
 }
+.gcard-rt-compact .gcard-rt-canvas { padding:2px 4px 1px; border-radius:5px; }
 .gcard-rt-graph svg { width:100%; height:26px; display:block; }
+.gcard-rt-compact svg { height:18px !important; }
+.gcard-uptime-bar-compact {
+  height:7px !important; margin-bottom:2px !important; padding:1px 2px !important;
+}
+.gcard-health-foot-compact {
+  font-size:.5rem !important; line-height:1.2 !important; gap:6px !important;
+  opacity:.9;
+}
 .gcard-rt-grid {
   stroke:color-mix(in srgb, var(--accent) 22%, var(--border));
   stroke-width:.6; opacity:.55;

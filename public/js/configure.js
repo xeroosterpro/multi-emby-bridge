@@ -169,7 +169,7 @@ function _normServerUrl(u) { return (u || '').replace(/\/+$/, '').toLowerCase();
 
 function _dashHealthPanel(history) {
   if (window.HealthWidgets && typeof window.HealthWidgets.buildMiniHealthPanel === 'function') {
-    return window.HealthWidgets.buildMiniHealthPanel(history, { range: '24h', segments: 36 });
+    return window.HealthWidgets.buildMiniHealthPanel(history, { range: '24h', compact: true });
   }
   return '<div class="gcard-health-empty">Health charts loading…</div>';
 }
@@ -2162,7 +2162,7 @@ async function renderDashboard(force = false) {
               <div class="gcard-nm">${escHtml(s.label)}</div>
               <div class="gcard-host">${escHtml((s.url||'').replace(/^https?:\/\//,''))}</div>
             </div>
-            <div class="gstatus"><span class="gpill loading" data-pill title="Bridge connection status">…</span></div>
+            <div class="gstatus"><span class="gpill loading" data-pill title="Bridge connection status">…</span><span class="gbridge-now" data-bridge-ms title="Bridge latency now (addon → server)"></span></div>
           </div>
           <div class="gtype" style="display:none">${brandName}</div>
           <div class="gchips">
@@ -2180,16 +2180,21 @@ async function renderDashboard(force = false) {
       };
       const setStatus = (online, bridgeMs) => {
         const pill = card.querySelector('[data-pill]');
+        const msEl = card.querySelector('[data-bridge-ms]');
         if (!pill) return;
         pill.className = 'gpill ' + (online ? 'online' : 'offline');
-        if (online) {
-          pill.textContent = bridgeMs != null ? `ONLINE · ${bridgeMs}ms` : 'ONLINE';
-          pill.title = bridgeMs != null
-            ? `Bridge reachable · ${bridgeMs}ms now (addon → server)`
-            : 'Bridge reachable · measuring latency…';
-        } else {
-          pill.textContent = 'OFFLINE';
-          pill.title = 'Bridge cannot authenticate or reach this server';
+        pill.textContent = online ? 'ONLINE' : 'OFFLINE';
+        pill.title = online
+          ? 'Bridge reachable (authenticated)'
+          : 'Bridge cannot authenticate or reach this server';
+        if (msEl) {
+          if (online && bridgeMs != null) {
+            msEl.textContent = bridgeMs + 'ms';
+            msEl.className = 'gbridge-now ' + _srvPingClass(bridgeMs);
+          } else {
+            msEl.textContent = '';
+            msEl.className = 'gbridge-now';
+          }
         }
       };
       dashMeta.push({ s, setStatus, setStats });

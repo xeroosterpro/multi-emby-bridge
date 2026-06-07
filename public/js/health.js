@@ -61,13 +61,13 @@ function _latencyColors(ms){
   if(ms<400)return{stroke:'#fbbf24',stroke2:'#fde68a'};
   return{stroke:'#f87171',stroke2:'#fca5a5'};
 }
-function buildSpark(pts, cls){
+function buildSpark(pts, cls, compact){
   if(pts.length<2)return'';
   const wrap=cls||'rt-graph-wrap';
   const isDash=wrap==='gcard-rt-graph';
   const vals=pts.map(p=>p.ms);
   const mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;
-  const W=400,H=isDash?32:44,p=3;
+  const W=400,H=isDash?(compact?20:32):44,p=3;
   const coords=vals.map((v,i)=>({
     x:p+(i/(vals.length-1))*(W-p*2),
     y:p+(1-(v-mn)/rng)*(H-p*2),
@@ -83,9 +83,13 @@ function buildSpark(pts, cls){
   const uid='gspark'+(_gsparkUid++);
   const area='M'+coords[0].x.toFixed(1)+','+H+' '+coords.map(c=>'L'+c.x.toFixed(1)+','+c.y.toFixed(1)).join(' ')+' L'+coords[coords.length-1].x.toFixed(1)+','+H+' Z';
   const midY=(H/2).toFixed(1);
-  return'<div class="'+wrap+'"><div class="rt-graph-label"><span>Bridge · 24h</span><span class="gcard-rt-range">'+mn+'ms – '+mx+'ms</span></div><div class="gcard-rt-hint">addon → server · range over last 24 hours</div><div class="gcard-rt-canvas"><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="'+uid+'-line" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="'+pal.stroke2+'" stop-opacity="0.45"/><stop offset="100%" stop-color="'+pal.stroke+'"/></linearGradient><linearGradient id="'+uid+'-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+pal.stroke+'" stop-opacity="0.32"/><stop offset="100%" stop-color="'+pal.stroke+'" stop-opacity="0"/></linearGradient></defs><line class="gcard-rt-grid" x1="'+p+'" y1="'+midY+'" x2="'+(W-p)+'" y2="'+midY+'"/><path class="gcard-spark-area" d="'+area+'" fill="url(#'+uid+'-fill)"/><polyline class="gcard-spark-line" points="'+pp+'" fill="none" stroke="url(#'+uid+'-line)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle class="gcard-spark-dot" cx="'+lx+'" cy="'+ly+'" r="2.6" fill="'+pal.stroke+'"/></svg></div></div>';
+  const dashLabel=compact
+    ?'<div class="rt-graph-label"><span class="gcard-rt-title" title="addon → server">Bridge 24h</span><span class="gcard-rt-range">'+mn+'–'+mx+'ms</span></div>'
+    :'<div class="rt-graph-label"><span>Bridge · 24h</span><span class="gcard-rt-range">'+mn+'ms – '+mx+'ms</span></div><div class="gcard-rt-hint">addon → server · range over last 24 hours</div>';
+  const dotR=compact?2:2.6;
+  return'<div class="'+wrap+(compact?' gcard-rt-compact':'')+'">'+dashLabel+'<div class="gcard-rt-canvas"><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="'+uid+'-line" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="'+pal.stroke2+'" stop-opacity="0.45"/><stop offset="100%" stop-color="'+pal.stroke+'"/></linearGradient><linearGradient id="'+uid+'-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+pal.stroke+'" stop-opacity="0.32"/><stop offset="100%" stop-color="'+pal.stroke+'" stop-opacity="0"/></linearGradient></defs><line class="gcard-rt-grid" x1="'+p+'" y1="'+midY+'" x2="'+(W-p)+'" y2="'+midY+'"/><path class="gcard-spark-area" d="'+area+'" fill="url(#'+uid+'-fill)"/><polyline class="gcard-spark-line" points="'+pp+'" fill="none" stroke="url(#'+uid+'-line)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle class="gcard-spark-dot" cx="'+lx+'" cy="'+ly+'" r="'+dotR+'" fill="'+pal.stroke+'"/></svg></div></div>';
 }
-function buildUptimeBar(h, segments, segCls, legendCls, barCls, footCls){
+function buildUptimeBar(h, segments, segCls, legendCls, barCls, footCls, compact){
   if(!h||!h.length){
     return { spark:'', legend:'', bar:'', foot:'<div class="'+(footCls||'gcard-health-foot')+'"><span>Waiting for first health check…</span></div>' };
   }
@@ -95,7 +99,7 @@ function buildUptimeBar(h, segments, segCls, legendCls, barCls, footCls){
   const pct=h.length?Math.round(uc/h.length*100):null;
   const old=h.length?new Date(h[h.length-1].ts).toLocaleDateString():'—';
   const rtp=h.filter(e=>e.up&&e.ms!=null).slice(0,80).reverse();
-  const spark=buildSpark(rtp, 'gcard-rt-graph');
+  const spark=buildSpark(rtp, 'gcard-rt-graph', compact);
   const isGcard=segCls==='gcard-seg';
   let segIdx=0;
   const bar=pad.map(e=>{
@@ -109,20 +113,25 @@ function buildUptimeBar(h, segments, segCls, legendCls, barCls, footCls){
   const useHi=footCls==='card-footer';
   const hiOpen=useHi?'<span class="highlight">':'<strong>';
   const hiClose=useHi?'</span>':'</strong>';
-  return {
-    spark,
-    legend:'<div class="'+(legendCls||'gcard-uptime-legend')+'"><span>'+old+'</span><span>'+(pct!==null?pct+'% uptime · '+h.length+' checks':'No history yet')+'</span><span>Now</span></div>',
-    bar:'<div class="'+(barCls||'gcard-uptime-bar')+'">'+bar+'</div>',
-    foot:'<div class="'+(footCls||'gcard-health-foot')+'"><span>Last checked: '+hiOpen+lt+hiClose+'</span>'+(pct!==null?'<span>Up: '+hiOpen+uc+'/'+h.length+hiClose+'</span>':'')+'</div>',
-  };
+  const legend=compact
+    ?''
+    :'<div class="'+(legendCls||'gcard-uptime-legend')+'"><span>'+old+'</span><span>'+(pct!==null?pct+'% uptime · '+h.length+' checks':'No history yet')+'</span><span>Now</span></div>';
+  const foot=compact
+    ?'<div class="'+(footCls||'gcard-health-foot')+' gcard-health-foot-compact"><span>'+(pct!==null?pct+'% · '+h.length+'×':'—')+'</span><span>'+lt+'</span></div>'
+    :'<div class="'+(footCls||'gcard-health-foot')+'"><span>Last checked: '+hiOpen+lt+hiClose+'</span>'+(pct!==null?'<span>Up: '+hiOpen+uc+'/'+h.length+hiClose+'</span>':'')+'</div>';
+  const barWrap=compact
+    ?'<div class="'+(barCls||'gcard-uptime-bar')+' gcard-uptime-bar-compact">'+bar+'</div>'
+    :'<div class="'+(barCls||'gcard-uptime-bar')+'">'+bar+'</div>';
+  return { spark, legend, bar:barWrap, foot };
 }
 function buildMiniHealthPanel(history, opts){
   const range=opts&&opts.range||'24h';
-  const segments=(opts&&opts.segments)||36;
+  const compact=!!(opts&&opts.compact);
+  const segments=(opts&&opts.segments)||(compact?24:36);
   let h=history||[];
   if(range==='24h') h=h.filter(e=>e.ts>=Date.now()-86400000);
   else if(range==='7d') h=h.filter(e=>e.ts>=Date.now()-604800000);
-  const parts=buildUptimeBar(h, segments);
+  const parts=buildUptimeBar(h, segments, undefined, undefined, undefined, undefined, compact);
   if(!h.length) return '<div class="gcard-health-empty">Collecting health data — pings run every 5 min</div>';
   return parts.spark+parts.legend+parts.bar+parts.foot;
 }
