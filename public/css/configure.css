@@ -16,7 +16,7 @@
   --grad-accent: linear-gradient(90deg, var(--accent-a), var(--accent-b));
   --grad-rgb: linear-gradient(90deg, #fb923c, #f472b6, #818cf8, #34d399, #fb923c);
   --r-sm: 11px; --r-md: 14px; --r-lg: 17px;
-  --side-w: 232px;
+  --side-w: 272px;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -1037,7 +1037,7 @@ input[type=range][data-slider] { flex: 1; accent-color: var(--accent-a); }
 /* ===================== Phase 1 re-skin: themes, font, animated bg, sidebar ===================== */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-:root{ --accent-2:#c4b5ff; --glow:var(--accent-glow); --side-collapsed:66px; --ease:cubic-bezier(.22,.61,.36,1); }
+:root{ --accent-2:#c4b5ff; --glow:var(--accent-glow); --side-collapsed:76px; --ease:cubic-bezier(.22,.61,.36,1); }
 /* Theme presets live in themes.css */
 
 html{ background:var(--bg-base, #141c2a); }
@@ -1230,7 +1230,7 @@ body.sb-locked .content{ margin-left:var(--side-w); }
 .nav{ flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding-bottom:6px; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
 .nav::-webkit-scrollbar{ width:4px; }
 .nav::-webkit-scrollbar-thumb{ background:var(--border); border-radius:4px; }
-.nav-item{ position:relative; overflow:hidden; padding:9px 14px; margin:1px 8px; border-radius:var(--r-md); border:1px solid transparent; }
+.nav-item{ position:relative; overflow:hidden; padding:11px 16px; margin:2px 10px; border-radius:var(--r-md); border:1px solid transparent; font-size:.9rem; }
 .nav-item.on{ animation:none !important; }
 
 /* pin button */
@@ -1267,7 +1267,7 @@ input[type=range]{ width:100%; accent-color:var(--accent); cursor:pointer; }
 /* mobile drawer nav — see consolidated block at end of file */
 
 /* ===================== nav line-icons + collapsible accordions ===================== */
-.nav-ic{ width:20px; height:20px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; position:relative; z-index:1; }
+.nav-ic{ width:22px; height:22px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; position:relative; z-index:1; }
 .nav-label{ position:relative; z-index:1; }
 .nav-item.on .nav-ic{ stroke:var(--accent); }
 
@@ -2048,12 +2048,12 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: .13em;
   text-transform: uppercase;
   color: var(--text-mute);
-  padding: 8px 12px 4px 18px;
+  padding: 10px 14px 5px 20px;
   margin: 0;
   white-space: nowrap;
   cursor: pointer;
@@ -2152,8 +2152,8 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
   display:flex !important; align-items:center; gap:10px;
   -webkit-text-fill-color:initial !important; color:var(--text) !important;
   animation:none !important;
-  padding:10px 40px 10px 10px !important;
-  margin:0 8px 14px !important;
+  padding:12px 44px 12px 12px !important;
+  margin:0 10px 16px !important;
   border-radius:14px !important;
   position:relative; overflow:hidden; isolation:isolate;
   background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--accent-2) 10%, transparent)) !important;
@@ -2177,7 +2177,7 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
   100%{ transform:translateX(130%); opacity:0; }
 }
 .brand-logo{
-  position:relative; width:34px; height:34px; flex:none;
+  position:relative; width:40px; height:40px; flex:none;
   display:grid; place-items:center;
   animation:brand-logo-float 3.2s ease-in-out infinite;
 }
@@ -2200,7 +2200,7 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
   70%{ transform:scale(1.18); opacity:0; }
   100%{ transform:scale(1.18); opacity:0; }
 }
-.brand-logo-svg{ width:34px; height:34px; position:relative; z-index:1; filter:drop-shadow(0 2px 8px rgba(0,0,0,.35)); }
+.brand-logo-svg{ width:40px; height:40px; position:relative; z-index:1; filter:drop-shadow(0 2px 8px rgba(0,0,0,.35)); }
 .brand-logo-bg{ filter:brightness(1.05); }
 .brand-logo-dot{ animation:brand-dot-pulse 2s ease-in-out infinite; transform-origin:16px 10px; }
 @keyframes brand-dot-pulse{
@@ -2215,12 +2215,12 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
 }
 .brand-text{ display:flex; align-items:baseline; gap:0; line-height:1; white-space:nowrap; position:relative; z-index:1; }
 .brand-name{
-  font-weight:800; font-size:1.05rem; letter-spacing:-.03em;
+  font-weight:800; font-size:1.18rem; letter-spacing:-.03em;
   background:linear-gradient(135deg, #fff 0%, color-mix(in srgb, var(--accent-2) 80%, #fff) 100%);
   -webkit-background-clip:text; background-clip:text; color:transparent;
 }
 .brand-hub{
-  font-weight:900; font-size:1.05rem; letter-spacing:-.02em;
+  font-weight:900; font-size:1.18rem; letter-spacing:-.02em;
   background:linear-gradient(135deg, var(--accent), var(--accent-2));
   background-size:200% 100%;
   -webkit-background-clip:text; background-clip:text; color:transparent;
@@ -2232,10 +2232,10 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
   100%{ background-position:200% 50%; }
 }
 .sidebar-foot{ border-top:1px solid var(--border); padding-top:8px !important; }
-.userbtn{ display:flex; align-items:center; gap:10px; padding:8px 10px; margin:8px 8px 0; border-radius:var(--r-md); cursor:pointer; color:var(--text-dim); }
+.userbtn{ display:flex; align-items:center; gap:12px; padding:10px 12px; margin:8px 10px 0; border-radius:var(--r-md); cursor:pointer; color:var(--text-dim); }
 .userbtn:hover{ background:var(--bg-hover); color:var(--text); }
-.userbtn .avatar{ width:30px; height:30px; border-radius:50%; flex:none; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:grid; place-items:center; color:#0a0a12; font-weight:800; font-size:.8rem; }
-.userbtn .um{ font-size:.8rem; white-space:nowrap; }
+.userbtn .avatar{ width:36px; height:36px; border-radius:50%; flex:none; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:grid; place-items:center; color:#0a0a12; font-weight:800; font-size:.9rem; }
+.userbtn .um{ font-size:.88rem; white-space:nowrap; }
 
 /* nav label + trailing badges (tickets, disabled dot) */
 .nav-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; position: relative; z-index: 1; }
@@ -2686,9 +2686,11 @@ html.view-as-user .admin-only { display: none !important; }
   max-width: none;
   width: 100%;
   min-height: calc(100dvh - 96px);
+  gap: 16px;
+}
+.content > #page-servers.on {
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 
 #page-servers .srv-toolbar {
