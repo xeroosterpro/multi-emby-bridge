@@ -204,7 +204,7 @@
     });
   }
 
-  const TAB_LABELS = { dashboard:'Dashboard', servers:'Servers', catalogs:'Catalogs', streaming:'Streaming', appearance:'Appearance', install:'Install', apikeys:'API Keys', health:'Health', ping:'Ping test', log:'Request log', settings:'Settings', billing:'Billing' };
+  const TAB_LABELS = { dashboard:'Dashboard', servers:'Servers', catalogs:'Catalogs', streaming:'Media Sources', appearance:'Media Sources', install:'Install', apikeys:'API Keys', health:'Health', ping:'Ping test', log:'Request log', settings:'Settings', billing:'Billing' };
 
   async function loadSiteControls() {
     const list = $('#site-tabs-list'); if (!list) return;

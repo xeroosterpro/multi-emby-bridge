@@ -1587,17 +1587,48 @@ function renderOnboarding() {
   el.querySelectorAll('.ob-step').forEach(s => s.addEventListener('click', e => { if (e.target.id !== 'ob-dismiss') location.hash = '#/' + s.dataset.goto; }));
 }
 
+function updateMediaSourceStats() {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const mode = document.querySelector('input[name="perf-mode"]:checked')?.value || 'normal';
+  set('ms-stat-mode', { normal: 'Normal', split: 'Split', timeout: 'Fast' }[mode] || mode);
+  const sortVal = document.getElementById('sort-order')?.value || 'size';
+  set('ms-stat-sort', { size: 'Size', audio: 'Audio', bitrate: 'Bitrate' }[sortVal] || sortVal);
+  const preset = document.getElementById('label-preset')?.value || 'standard';
+  set('ms-stat-label', { standard: 'Standard', compact: 'Compact', detailed: 'Detailed', cinema: 'Cinema', minimal: 'Minimal', custom: 'Custom' }[preset] || preset);
+}
+
+function updateInstallStats() {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const url = document.getElementById('acct-url')?.value?.trim();
+  set('inst-stat-link', url ? 'Ready' : 'Pending');
+  let count = 0;
+  try {
+    const cfg = collectConfig(true);
+    count = cfg?.servers?.length || 0;
+  } catch {}
+  if (!count) count = document.querySelectorAll('.server-block').length;
+  set('inst-stat-servers', count);
+  const mode = document.querySelector('input[name="perf-mode"]:checked')?.value || 'normal';
+  set('inst-stat-mode', { normal: 'Normal', split: 'Split', timeout: 'Fast' }[mode] || mode);
+}
+window.updateInstallStats = updateInstallStats;
+
+function _refreshMediaPreview() {
+  if (typeof updateLabelPreview === 'function') updateLabelPreview();
+  const sumOn = document.getElementById('show-summary')?.checked;
+  const pvWrap = document.getElementById('pv-summary-wrap');
+  if (pvWrap) pvWrap.style.display = sumOn ? '' : 'none';
+  if (sumOn && typeof updateSummaryPreview === 'function') updateSummaryPreview();
+}
+
 // ── Page-show hook (router calls this when a page is shown) ────────────────
 window.onPageShow = function(name) {
   if (name === 'servers') { renderServersPage(); _startServersAutoRefresh(); }
-  if (name === 'appearance') {
-    if (typeof updateLabelPreview === 'function') updateLabelPreview();
-    // sync the summary-preview section's visibility to the toggle (and populate if on)
-    const sumOn = document.getElementById('show-summary')?.checked;
-    const pvWrap = document.getElementById('pv-summary-wrap');
-    if (pvWrap) pvWrap.style.display = sumOn ? '' : 'none';
-    if (sumOn && typeof updateSummaryPreview === 'function') updateSummaryPreview();
+  if (name === 'streaming' || name === 'appearance') {
+    updateMediaSourceStats();
+    _refreshMediaPreview();
   }
+  if (name === 'install') updateInstallStats();
   if (name === 'dashboard') {
     (async () => {
       await ensureAccountConfigLoaded();
@@ -2244,6 +2275,7 @@ function updateLabelPreview() {
         ${descHtml}
       </div>
     </div>`;
+  updateMediaSourceStats();
   autoSave();
 }
 
@@ -2336,6 +2368,8 @@ function updateSummaryPreview() {
 function onModeChange() {
   const mode = document.querySelector('input[name="perf-mode"]:checked').value;
   document.getElementById('timeout-row').classList.toggle('visible', mode === 'timeout');
+  updateMediaSourceStats();
+  updateInstallStats();
 }
 
 function onShowPingChange() {

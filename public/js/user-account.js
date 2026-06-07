@@ -24,7 +24,10 @@
     const loggedIn = !!(me.body && me.body.enabled && me.body.user);
 
     const urlEl = $('#acct-url'), msg = $('#acct-msg');
-    const showUrl = url => { if (url && urlEl) { urlEl.value = url; } };
+    const showUrl = url => {
+      if (url && urlEl) urlEl.value = url;
+      if (typeof window.updateInstallStats === 'function') window.updateInstallStats();
+    };
 
     if (!loggedIn) {
       // accounts off / signed out — keys still save into the install blob, but

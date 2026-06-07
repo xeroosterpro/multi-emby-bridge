@@ -2,8 +2,8 @@
 (function () {
   const PAGES = [
     ['dashboard','Dashboard','Overview'], ['servers','Servers','Overview'],
-    ['catalogs','Catalogs','Configuration'], ['streaming','Streaming','Configuration'],
-    ['appearance','Appearance','Configuration'], ['install','API Keys & Manifest','Configuration'],
+    ['catalogs','Catalogs','Configuration'], ['streaming','Media Sources','Configuration'],
+    ['install','Install to Stremio','Configuration'],
     ['ping','Ping test','Monitoring'], ['log','Request log','Monitoring'],
     ['admin','Admin · System','Administration'], ['users','Admin · Console','Administration'],
     ['billing','Billing','Account'], ['settings','Settings','Account'],

@@ -103,8 +103,6 @@
   document.addEventListener('DOMContentLoaded', () => {
     try {
       byBlockTitle('page-catalogs', true);
-      byBlockTitle('page-appearance', true);
-      byField('page-streaming', true);
       if (window.bindDropdowns) window.bindDropdowns();
     } catch (e) { console.warn('accordionize skipped:', e); }
   });
