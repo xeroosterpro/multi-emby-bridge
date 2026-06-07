@@ -48,7 +48,7 @@ function _normServerUrl(u) { return (u || '').replace(/\/+$/, '').toLowerCase();
 
 function _dashHealthPanel(history) {
   if (window.HealthWidgets && typeof window.HealthWidgets.buildMiniHealthPanel === 'function') {
-    return window.HealthWidgets.buildMiniHealthPanel(history, { range: '24h', segments: 48 });
+    return window.HealthWidgets.buildMiniHealthPanel(history, { range: '24h', segments: 36 });
   }
   return '<div class="gcard-health-empty">Health charts loading…</div>';
 }

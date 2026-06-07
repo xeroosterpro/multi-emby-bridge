@@ -46,18 +46,35 @@ return '<div class="server-card '+state+'">'+
   upParts.spark+upParts.legend+upParts.bar+upParts.foot+
   (rows?'<div class="history-toggle" id="htog-'+id+'">▼ Show history</div><div class="history-table-wrap" id="hwrap-'+id+'"><table class="history-table"><thead><tr><th>Time</th><th>Result</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'')+
 '</div>';}
+let _gsparkUid=0;
+function _latencyColors(ms){
+  if(ms<100)return{stroke:'#34d399',stroke2:'#6ee7b7'};
+  if(ms<400)return{stroke:'#fbbf24',stroke2:'#fde68a'};
+  return{stroke:'#f87171',stroke2:'#fca5a5'};
+}
 function buildSpark(pts, cls){
   if(pts.length<2)return'';
   const wrap=cls||'rt-graph-wrap';
+  const isDash=wrap==='gcard-rt-graph';
   const vals=pts.map(p=>p.ms);
   const mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;
-  const W=400,H=44,p=3;
-  const pp=vals.map((v,i)=>((p+(i/(vals.length-1))*(W-p*2)).toFixed(1))+','+(H-p-((v-mn)/rng)*(H-p*2)).toFixed(1)).join(' ');
+  const W=400,H=isDash?32:44,p=3;
+  const coords=vals.map((v,i)=>({
+    x:p+(i/(vals.length-1))*(W-p*2),
+    y:p+(1-(v-mn)/rng)*(H-p*2),
+  }));
+  const pp=coords.map(c=>c.x.toFixed(1)+','+c.y.toFixed(1)).join(' ');
   const lv=vals[vals.length-1];
-  const col=lv<100?'#4caf7d':lv<400?'#f0a500':'#e05555';
-  const lx=(p+(W-p*2)).toFixed(1);
-  const ly=(H-p-((lv-mn)/rng)*(H-p*2)).toFixed(1);
-  return'<div class="'+wrap+'"><div class="rt-graph-label"><span>Response time</span><span>'+mn+'ms – '+mx+'ms</span></div><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none"><polyline points="'+pp+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-linejoin="round" opacity="0.85"/><circle cx="'+lx+'" cy="'+ly+'" r="3" fill="'+col+'"/></svg></div>';
+  const pal=_latencyColors(lv);
+  const lx=coords[coords.length-1].x.toFixed(1);
+  const ly=coords[coords.length-1].y.toFixed(1);
+  if(!isDash){
+    return'<div class="'+wrap+'"><div class="rt-graph-label"><span>Response time</span><span>'+mn+'ms – '+mx+'ms</span></div><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none"><polyline points="'+pp+'" fill="none" stroke="'+pal.stroke+'" stroke-width="1.5" stroke-linejoin="round" opacity="0.85"/><circle cx="'+lx+'" cy="'+ly+'" r="3" fill="'+pal.stroke+'"/></svg></div>';
+  }
+  const uid='gspark'+(_gsparkUid++);
+  const area='M'+coords[0].x.toFixed(1)+','+H+' '+coords.map(c=>'L'+c.x.toFixed(1)+','+c.y.toFixed(1)).join(' ')+' L'+coords[coords.length-1].x.toFixed(1)+','+H+' Z';
+  const midY=(H/2).toFixed(1);
+  return'<div class="'+wrap+'"><div class="rt-graph-label"><span>Response time</span><span class="gcard-rt-range">'+mn+'ms – '+mx+'ms</span></div><div class="gcard-rt-canvas"><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="'+uid+'-line" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="'+pal.stroke2+'" stop-opacity="0.45"/><stop offset="100%" stop-color="'+pal.stroke+'"/></linearGradient><linearGradient id="'+uid+'-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+pal.stroke+'" stop-opacity="0.32"/><stop offset="100%" stop-color="'+pal.stroke+'" stop-opacity="0"/></linearGradient></defs><line class="gcard-rt-grid" x1="'+p+'" y1="'+midY+'" x2="'+(W-p)+'" y2="'+midY+'"/><path class="gcard-spark-area" d="'+area+'" fill="url(#'+uid+'-fill)"/><polyline class="gcard-spark-line" points="'+pp+'" fill="none" stroke="url(#'+uid+'-line)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle class="gcard-spark-dot" cx="'+lx+'" cy="'+ly+'" r="2.6" fill="'+pal.stroke+'"/></svg></div></div>';
 }
 function buildUptimeBar(h, segments, segCls, legendCls, barCls, footCls){
   if(!h||!h.length){
@@ -70,11 +87,14 @@ function buildUptimeBar(h, segments, segCls, legendCls, barCls, footCls){
   const old=h.length?new Date(h[h.length-1].ts).toLocaleDateString():'—';
   const rtp=h.filter(e=>e.up&&e.ms!=null).slice(0,80).reverse();
   const spark=buildSpark(rtp, 'gcard-rt-graph');
+  const isGcard=segCls==='gcard-seg';
+  let segIdx=0;
   const bar=pad.map(e=>{
-    if(!e)return '<div class="'+(segCls||'gcard-seg')+' empty" title="No data"></div>';
+    const delay=isGcard?' style="animation-delay:'+(segIdx++*10)+'ms"':'';
+    if(!e)return '<div class="'+(segCls||'gcard-seg')+' empty"'+delay+' title="No data"></div>';
     const ts=new Date(e.ts).toLocaleString();
     const tip=e.up?ts+' · Online ('+e.ms+'ms)':ts+' · Offline';
-    return '<div class="'+(segCls||'gcard-seg')+' '+(e.up?'up':'down')+'" title="'+esc(tip)+'"></div>';
+    return '<div class="'+(segCls||'gcard-seg')+' '+(e.up?'up':'down')+'"'+delay+' title="'+esc(tip)+'"></div>';
   }).join('');
   const lt=h[0]?new Date(h[0].ts).toLocaleTimeString():'Never';
   const useHi=footCls==='card-footer';
@@ -89,7 +109,7 @@ function buildUptimeBar(h, segments, segCls, legendCls, barCls, footCls){
 }
 function buildMiniHealthPanel(history, opts){
   const range=opts&&opts.range||'24h';
-  const segments=(opts&&opts.segments)||48;
+  const segments=(opts&&opts.segments)||36;
   let h=history||[];
   if(range==='24h') h=h.filter(e=>e.ts>=Date.now()-86400000);
   else if(range==='7d') h=h.filter(e=>e.ts>=Date.now()-604800000);
