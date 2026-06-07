@@ -1518,33 +1518,29 @@ function buildServerBlock(id) {
     </div>
   `;
   div.innerHTML = `
-    <div class="sc-shell">
-      <div class="sc-accent"></div>
-      <div class="sc-row" onclick="toggleManage(${id})">
-        <div class="sc-row-main">
-          <div class="gbrand" data-bind="logo">${EMBY_LOGO}</div>
-          <div class="sc-id">
-            <div class="sc-name-row">
-              <span class="sc-index" data-bind="index"></span>
-              <span class="sc-name" data-bind="name">New server</span>
-            </div>
-            <div class="sc-host" data-bind="host">not configured</div>
-          </div>
-          <div class="sc-meta">
-            <span class="sc-ping" data-bind="ping"></span>
-            <span class="sc-badge unknown" data-bind="badge"><span class="sc-badge-dot"></span><span data-bind="badge-txt">Checking</span></span>
-            <button type="button" class="sc-reconnect" onclick="event.stopPropagation();reconnectServer(${id})">Reconnect</button>
-          </div>
-          <span class="sc-chev" aria-hidden="true">▾</span>
-        </div>
-        <div class="sc-chips" data-bind="chips" hidden>
-          <div class="sc-chip"><span class="sc-chip-n" data-chip="movies">—</span><span class="sc-chip-l">Movies</span></div>
-          <div class="sc-chip"><span class="sc-chip-n" data-chip="shows">—</span><span class="sc-chip-l">Shows</span></div>
-          <div class="sc-chip"><span class="sc-chip-n" data-chip="episodes">—</span><span class="sc-chip-l">Episodes</span></div>
-        </div>
+    <div class="srv-entry sc-shell" role="button" tabindex="0" onclick="toggleManage(${id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleManage(${id})}">
+      <div class="srv-rail sc-accent" aria-hidden="true"></div>
+      <span class="srv-idx sc-index" data-bind="index">—</span>
+      <div class="srv-type-icon" data-bind="logo">${EMBY_LOGO}</div>
+      <div class="srv-info sc-id">
+        <span class="srv-name sc-name" data-bind="name">New server</span>
+        <span class="srv-host sc-host" data-bind="host">not configured</span>
+      </div>
+      <div class="srv-metrics sc-chips" data-bind="chips" hidden>
+        <span class="srv-metric"><em class="sc-chip-n" data-chip="movies">—</em><small>M</small></span>
+        <span class="srv-metric-sep">·</span>
+        <span class="srv-metric"><em class="sc-chip-n" data-chip="shows">—</em><small>S</small></span>
+        <span class="srv-metric-sep">·</span>
+        <span class="srv-metric"><em class="sc-chip-n" data-chip="episodes">—</em><small>E</small></span>
+      </div>
+      <div class="srv-end sc-meta">
+        <span class="srv-lat sc-ping" data-bind="ping"></span>
+        <span class="srv-status sc-badge unknown" data-bind="badge"><span class="sc-badge-dot"></span><span data-bind="badge-txt">Checking</span></span>
+        <button type="button" class="srv-reconnect sc-reconnect" onclick="event.stopPropagation();reconnectServer(${id})">Fix</button>
+        <span class="srv-expand sc-chev" aria-hidden="true">▾</span>
       </div>
     </div>
-    <div class="sc-edit" id="edit-${id}">${fields}</div>
+    <div class="srv-drawer sc-edit" id="edit-${id}">${fields}</div>
   `;
   return div;
 }
@@ -1575,10 +1571,12 @@ function _srvPingClass(ms) {
 function _updateServersEmptyState() {
   const wrap = document.getElementById('servers-container');
   const empty = document.getElementById('srv-empty');
+  const head = document.querySelector('#page-servers .srv-registry-head');
   if (!wrap || !empty) return;
   const count = wrap.querySelectorAll('.server-block').length;
   empty.style.display = count ? 'none' : 'flex';
   wrap.style.display = count ? '' : 'none';
+  if (head) head.style.display = count ? '' : 'none';
 }
 
 const _reauthInflight = new Map();
@@ -1644,7 +1642,7 @@ async function reconnectServer(id) {
   }
   const badgeTxt = block.querySelector('[data-bind=badge-txt]');
   const badge = block.querySelector('[data-bind=badge]');
-  if (badge) badge.className = 'sc-badge checking';
+  if (badge) badge.className = 'srv-status sc-badge checking';
   if (badgeTxt) badgeTxt.textContent = 'Re-authing…';
   block.classList.add('reauthing');
   const result = await _reauthServerCredentials(block);
@@ -1654,7 +1652,7 @@ async function reconnectServer(id) {
     await renderServersPage();
     if (typeof window.toast === 'function') window.toast('Reconnected — credentials refreshed');
   } else {
-    if (badge) badge.className = 'sc-badge down';
+    if (badge) badge.className = 'srv-status sc-badge down';
     if (badgeTxt) badgeTxt.textContent = 'Token expired';
     if (typeof window.toast === 'function') window.toast(result.error || 'Re-auth failed — re-enter password');
     openManage(id);
@@ -1701,13 +1699,13 @@ async function refreshServerCard(block, opts = {}) {
     idxEl.textContent = n > 0 ? String(n) : '';
   }
   const setState = (cls, txt) => {
-    if (badge) badge.className = 'sc-badge ' + cls;
+    if (badge) badge.className = 'srv-status sc-badge ' + cls;
     if (badgeTxt) badgeTxt.textContent = txt;
     block.classList.toggle('ok', cls === 'up');
     block.classList.toggle('bad', cls === 'down');
     block.classList.toggle('checking', cls === 'checking');
   };
-  if (pingEl) { pingEl.textContent = ''; pingEl.className = 'sc-ping'; }
+  if (pingEl) { pingEl.textContent = ''; pingEl.className = 'srv-lat sc-ping'; }
   if (chipsEl) chipsEl.hidden = true;
   if (!url || !apiKey || !userId) { setState('unknown', 'Not set'); return null; }
   setState('checking', 'Checking…');
@@ -1725,7 +1723,7 @@ async function refreshServerCard(block, opts = {}) {
     }
     if (r.ok && st) {
       setState('up', 'Connected');
-      if (pingEl) { pingEl.textContent = ms + 'ms'; pingEl.className = 'sc-ping ' + _srvPingClass(ms); }
+      if (pingEl) { pingEl.textContent = ms + 'ms'; pingEl.className = 'srv-lat sc-ping ' + _srvPingClass(ms); }
       if (chipsEl) {
         chipsEl.hidden = false;
         const setChip = (k, v) => { const el = chipsEl.querySelector('[data-chip=' + k + ']'); if (el) el.textContent = (v || 0).toLocaleString(); };

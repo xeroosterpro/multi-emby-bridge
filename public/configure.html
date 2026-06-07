@@ -280,25 +280,30 @@
   <div class="dash-activity" id="dash-activity"></div>
 </section>
       <section class="page" id="page-servers">
-        <div class="srv-head">
-          <div>
-            <h2 class="page-title srv-page-title">Servers</h2>
-            <p class="page-sub srv-page-sub" id="srv-sub">Manage your personal Emby &amp; Jellyfin connections.</p>
+        <div class="srv-toolbar">
+          <div class="srv-toolbar-brand">
+            <h2 class="srv-page-title">Connections</h2>
+            <p class="srv-page-sub" id="srv-sub">Manage your Emby &amp; Jellyfin endpoints</p>
           </div>
-          <button class="btn-add srv-add-btn" id="btn-add" onclick="addServer()"><span class="plus">+</span> Add Server</button>
+          <div class="srv-toolbar-stats" id="srv-stats">
+            <span class="srv-pill"><strong id="srv-count">0</strong> configured</span>
+            <span class="srv-pill srv-pill-ok"><strong id="srv-up">0</strong> live</span>
+            <span class="srv-pill"><strong id="srv-fastest">—</strong> best ping</span>
+          </div>
+          <button class="btn-add srv-add-btn" id="btn-add" onclick="addServer()"><span class="plus">+</span> Add</button>
         </div>
-        <div class="srv-stats" id="srv-stats">
-          <div class="srv-stat"><div class="srv-stat-n" id="srv-count">0</div><div class="srv-stat-l">Configured</div></div>
-          <div class="srv-stat"><div class="srv-stat-n" id="srv-up">0</div><div class="srv-stat-l">Connected</div></div>
-          <div class="srv-stat"><div class="srv-stat-n" id="srv-fastest">—</div><div class="srv-stat-l">Fastest ping</div></div>
-        </div>
-        <div class="srv-list-wrap">
-          <div id="servers-container"></div>
-          <div class="srv-empty" id="srv-empty" style="display:none">
-            <div class="srv-empty-emoji">🖥️</div>
-            <div class="srv-empty-title">No servers yet</div>
-            <p class="srv-empty-desc">Add your Emby or Jellyfin server to start building your personal bridge.</p>
-            <button class="btn-add srv-empty-btn" type="button" onclick="addServer()"><span class="plus">+</span> Add your first server</button>
+        <div class="srv-registry">
+          <div class="srv-registry-head" aria-hidden="true">
+            <span>#</span><span>Server</span><span>Library</span><span>Status</span>
+          </div>
+          <div class="srv-list-wrap">
+            <div id="servers-container"></div>
+            <div class="srv-empty" id="srv-empty" style="display:none">
+              <div class="srv-empty-emoji">🔌</div>
+              <div class="srv-empty-title">No connections yet</div>
+              <p class="srv-empty-desc">Add an Emby or Jellyfin endpoint to start routing streams.</p>
+              <button class="btn-add srv-empty-btn" type="button" onclick="addServer()"><span class="plus">+</span> Add connection</button>
+            </div>
           </div>
         </div>
         <div class="profile-block srv-profile-card">
