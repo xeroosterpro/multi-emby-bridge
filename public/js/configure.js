@@ -1,4 +1,5 @@
 // ── State ─────────────────────────────────────────────────────────────────
+const LS_KEY = 'meb_config_v1';
 let nextId = 0;
 let nextCatId = 0;
 
@@ -18,6 +19,63 @@ function domHasEnabledServers() {
   );
 }
 
+function _mergeLocalCredsIntoServers(servers) {
+  let local = {};
+  try { local = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch {}
+  const localByUrl = new Map((local.servers || []).map(s => [_normServerUrl(s.url), s]));
+  return (servers || []).map(s => {
+    const loc = localByUrl.get(_normServerUrl(s.url));
+    if (!loc) return s;
+    const merged = { ...s };
+    if (loc.username && loc.password && (!merged.username || !merged.password)) {
+      merged.username = loc.username;
+      merged.password = loc.password;
+    }
+    return merged;
+  });
+}
+
+function _applyCredsToDomBlocks(servers) {
+  const byUrl = new Map((servers || []).map(s => [_normServerUrl(s.url), s]));
+  document.querySelectorAll('.server-block').forEach(block => {
+    const url = block.querySelector('.f-url')?.value.trim();
+    const acc = byUrl.get(_normServerUrl(url));
+    if (!acc) return;
+    const uEl = block.querySelector('.f-username');
+    const pEl = block.querySelector('.f-password');
+    if (uEl && acc.username && !uEl.value.trim()) uEl.value = acc.username;
+    if (pEl && acc.password && !pEl.value) pEl.value = acc.password;
+  });
+}
+
+let _accountSyncTimer = null;
+function scheduleAccountConfigSync() {
+  clearTimeout(_accountSyncTimer);
+  _accountSyncTimer = setTimeout(async () => {
+    try {
+      const me = await fetch('/api/auth/me', { credentials: 'same-origin' });
+      if (!me.ok) return;
+      const auth = await me.json().catch(() => null);
+      if (!auth?.user) return;
+      if (typeof generateLinks === 'function') generateLinks({ silent: true });
+      const enc = localStorage.getItem('meb-last-config');
+      if (!enc) return;
+      let b = enc.replace(/-/g, '+').replace(/_/g, '/');
+      while (b.length % 4) b += '=';
+      const bin = atob(b);
+      const json = decodeURIComponent(Array.prototype.map.call(bin, c =>
+        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+      const cfg = JSON.parse(json);
+      await fetch('/api/user/config', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cfg),
+      });
+    } catch { /* best-effort */ }
+  }, 2000);
+}
+
 async function ensureAccountConfigLoaded() {
   if (_accountConfigPromise) return _accountConfigPromise;
   _accountConfigPromise = (async () => {
@@ -30,11 +88,14 @@ async function ensureAccountConfigLoaded() {
       if (!r.ok) return null;
       const data = await r.json().catch(() => null);
       const cfg = data?.config || {};
-      const accountServers = Array.isArray(cfg.servers) ? cfg.servers : [];
+      const accountServers = _mergeLocalCredsIntoServers(cfg.servers);
+      cfg.servers = accountServers;
       if (!accountServers.length) return null;
       const domServers = (collectConfig(true) || {}).servers || [];
       if (!domHasEnabledServers() || accountServers.length > domServers.length) {
         populateFromConfig(cfg);
+      } else {
+        _applyCredsToDomBlocks(accountServers);
       }
       return cfg;
     } catch {
@@ -1177,7 +1238,7 @@ function buildServerBlock(id) {
           </div>
           <div class="field-group">
             <label>Password</label>
-            <input type="password" class="f-password" placeholder="••••••••" autocomplete="off" oninput="updateCredWarning(${id})" />
+            <input type="password" class="f-password" placeholder="••••••••" autocomplete="off" oninput="updateCredWarning(${id});autoSave()" />
           </div>
         </div>
         <button class="btn-fetch" onclick="fetchCredentials(${id})">Fetch API Key &amp; User ID</button>
@@ -1295,13 +1356,15 @@ function _applyRefreshedApiKey(block, apiKey) {
 
 async function _reauthServerCredentials(block) {
   const sid = block?.id;
-  if (!sid) return false;
+  if (!sid) return { ok: false, error: 'Server block missing' };
   if (_reauthInflight.has(sid)) return _reauthInflight.get(sid);
   const task = (async () => {
     const url = block.querySelector('.f-url')?.value.trim().replace(/\/+$/, '');
     const username = block.querySelector('.f-username')?.value.trim();
     const password = block.querySelector('.f-password')?.value;
-    if (!url || !username || !password) return false;
+    if (!url || !username || !password) {
+      return { ok: false, error: 'Enter username and password to auto-renew tokens' };
+    }
     try {
       const resp = await fetch('/api/fetch-credentials', {
         method: 'POST',
@@ -1309,17 +1372,20 @@ async function _reauthServerCredentials(block) {
         body: JSON.stringify({ url, username, password }),
       });
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok || !data.apiKey || !data.userId) return false;
+      if (!resp.ok || !data.apiKey || !data.userId) {
+        return { ok: false, error: data.error || 'Login rejected — check username/password' };
+      }
       block.querySelector('.f-apikey').value = data.apiKey;
       block.querySelector('.f-userid').value = data.userId;
       updateCredWarning(block.id.replace('server-', ''));
       autoSave();
+      scheduleAccountConfigSync();
       if (typeof window.generateLinks === 'function') {
         try { window.generateLinks({ silent: true }); } catch {}
       }
-      return true;
-    } catch {
-      return false;
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Could not reach auth endpoint' };
     }
   })().finally(() => _reauthInflight.delete(sid));
   _reauthInflight.set(sid, task);
@@ -1340,15 +1406,16 @@ async function reconnectServer(id) {
   if (badge) badge.className = 'sc-badge checking';
   if (badgeTxt) badgeTxt.textContent = 'Re-authing…';
   block.classList.add('reauthing');
-  const ok = await _reauthServerCredentials(block);
+  const result = await _reauthServerCredentials(block);
   block.classList.remove('reauthing');
-  if (ok) {
+  if (result.ok) {
     await refreshServerCard(block);
     await renderServersPage();
     if (typeof window.toast === 'function') window.toast('Reconnected — credentials refreshed');
   } else {
     if (badge) badge.className = 'sc-badge down';
-    if (badgeTxt) badgeTxt.textContent = 'Auth failed';
+    if (badgeTxt) badgeTxt.textContent = 'Token expired';
+    if (typeof window.toast === 'function') window.toast(result.error || 'Re-auth failed — re-enter password');
     openManage(id);
   }
 }
@@ -1430,9 +1497,10 @@ async function refreshServerCard(block, opts = {}) {
     if ((r.status === 401 || r.status === 403) && retry && username && password) {
       setState('checking', 'Re-authing…');
       const refreshed = await _reauthServerCredentials(block);
-      if (refreshed) return refreshServerCard(block, { retry: false });
+      if (refreshed.ok) return refreshServerCard(block, { retry: false });
     }
-    setState('down', r.status === 401 || r.status === 403 ? 'Auth failed' : 'Unreachable');
+    const authFail = r.status === 401 || r.status === 403;
+    setState('down', authFail ? (username && password ? 'Token expired' : 'Auth failed') : 'Unreachable');
     return { up: false, ms: null };
   } catch {
     setState('down', 'Unreachable');
@@ -1596,7 +1664,14 @@ async function renderDashActivity() {
     return;
   }
 
-  const live = localServers.length ? await fetchLiveSessionsForServers(localServers) : (a.live || []);
+  const frontendLive = localServers.length ? await fetchLiveSessionsForServers(localServers) : [];
+  const backendLive = Array.isArray(a.live) ? a.live : [];
+  const liveMap = new Map();
+  [...backendLive, ...frontendLive].forEach(s => {
+    const k = (s.server || '') + '|' + (s.title || '');
+    if (!liveMap.has(k)) liveMap.set(k, s);
+  });
+  const live = [...liveMap.values()];
 
   const liveRows = live.map(s => `<div class="da-row da-live">
       <span class="da-main"><span class="da-dot"></span><span class="da-title" title="${esc(s.title)}"><strong>${esc(s.title)}</strong></span></span>
@@ -1630,16 +1705,14 @@ function replayDashTileAnimations() {
   });
 }
 
-// Real-time: refresh the dashboard now-playing/activity widget every 45s while the
-// dashboard is the active page (lightweight — only re-fetches /api/user/activity,
-// not the per-server library pings).
+// Real-time: refresh live streaming every 20s on the dashboard (auth recovery + now-playing).
 setInterval(() => {
   const dash = document.getElementById('page-dashboard');
   if (dash && dash.classList.contains('on')) {
     renderDashActivity();
     refreshDashCardHealth();
   }
-}, 45000);
+}, 20000);
 
 const EMBY_LOGO = '<img class="brandimg" src="/img/emby.png" alt="Emby" decoding="async">';
 const JELLYFIN_LOGO = '<img class="brandimg" src="/img/jellyfin.png" alt="Jellyfin" decoding="async">';
@@ -2649,7 +2722,6 @@ async function runPingTest() {
 }
 
 // ── Auto-save ─────────────────────────────────────────────────────────────
-const LS_KEY = 'meb_config_v1';
 let saveTimer = null;
 
 function collectFormState() {
@@ -2733,7 +2805,10 @@ function saveToLocalStorage() {
 
 function autoSave() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveToLocalStorage, 600);
+  saveTimer = setTimeout(() => {
+    saveToLocalStorage();
+    scheduleAccountConfigSync();
+  }, 600);
 }
 
 function restoreFromLocalStorage() {
