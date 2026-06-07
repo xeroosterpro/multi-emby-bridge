@@ -182,6 +182,7 @@ function initShell() {
     });
 
     if (window.MEBSite && window.MEBSite.refresh) window.MEBSite.refresh();
+    if (window.MEBBilling && window.MEBBilling.refresh) window.MEBBilling.refresh();
     document.addEventListener('viewas-changed', () => {
       const pg = (location.hash || '#/home').replace(/^#\//, '');
       showPage(pg);
@@ -207,6 +208,7 @@ function initShell() {
       });
     });
     window.currentUser = null;
+    if (window.MEBBilling && window.MEBBilling.refresh) window.MEBBilling.refresh();
     const page = (location.hash || '#/home').replace(/^#\//, '');
     const adminPages = ['admin', 'users'];
     if (adminPages.includes(page)) {

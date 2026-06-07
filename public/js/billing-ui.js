@@ -25,14 +25,20 @@
     return window.MEBSite && window.MEBSite.getViewAsMode ? window.MEBSite.getViewAsMode() : 'off';
   }
 
+  let _gateLocked = false;
+
   function applyGate(locked) {
     if (window.MEBDemo && window.MEBDemo.isActive()) { locked = false; }
-    document.body.classList.toggle('locked-billing', locked);
+    const nowLocked = !!locked;
+    document.body.classList.toggle('locked-billing', nowLocked);
     try {
-      if (locked) sessionStorage.setItem('meb_billing_locked', '1');
-      else sessionStorage.setItem('meb_billing_locked', '0');
+      sessionStorage.setItem('meb_billing_locked', nowLocked ? '1' : '0');
     } catch {}
-    if (locked && location.hash !== '#/billing') location.hash = '#/billing';
+    /* Only redirect when newly locking — re-running init must not yank the route. */
+    if (nowLocked && !_gateLocked && location.hash !== '#/billing') {
+      location.hash = '#/billing';
+    }
+    _gateLocked = nowLocked;
   }
 
   function setBillingNav(subscribed) {
@@ -398,15 +404,35 @@
     </div>`;
   }
 
+  let _initGen = 0;
+
+  async function renderAdminBilling(body, cfg, st) {
+    const onBilling = (location.hash || '').replace(/^#\/?/, '') === 'billing';
+    if (!onBilling) return;
+    const realSub = st && (st.status === 'active' || st.status === 'comped');
+    if (realSub) {
+      body.innerHTML = renderActiveShell({ ...st, planPrice: cfg?.planPrice || '$4/mo' });
+      wireCancel();
+      await renderHistory();
+    } else {
+      body.innerHTML = `<div class="bill-shell"><div class="bill-card"><div class="bill-card-label">Access</div><div class="bill-stat-row"><span>Role</span><strong style="color:var(--success)">Admin · full access</strong></div></div></div>`;
+      await renderHistory(document.getElementById('bill-history-slot') || body);
+    }
+  }
+
   async function init() {
     const body = $('#billing-body');
     if (!body) return;
+    const gen = ++_initGen;
     document.body.classList.add('billing-resolving');
 
     try {
     const cfg = (await api('/api/billing/config')).body;
-    const me = (await api('/api/auth/me')).body;
-    const link = document.querySelector('.billing-link');
+    if (gen !== _initGen) return;
+    const me = window.currentUser
+      ? { user: window.currentUser }
+      : (await api('/api/auth/me')).body;
+    if (gen !== _initGen) return;
 
     if (!me || !me.user) {
       try { sessionStorage.removeItem('meb_billing_locked'); } catch {}
@@ -452,6 +478,18 @@
       return;
     }
 
+    /* Real admins are never subscription-gated (unless previewing unpaid). */
+    if (isAdmin && va === 'off') {
+      applyGate(false);
+      setBillingNav(true);
+      const statusRes = await api('/api/billing/status');
+      if (gen !== _initGen) return;
+      const st = statusRes.body || {};
+      if (statusRes.status !== 200) st.hasAccess = true;
+      await renderAdminBilling(body, cfg, st);
+      return;
+    }
+
     if (!cfg || !cfg.enabled) {
       try { sessionStorage.removeItem('meb_billing_locked'); } catch {}
       applyGate(false);
@@ -460,7 +498,9 @@
       return;
     }
 
-    const st = (await api('/api/billing/status')).body || {};
+    const statusRes = await api('/api/billing/status');
+    if (gen !== _initGen) return;
+    const st = statusRes.body || {};
     const realSub = st.status === 'active' || st.status === 'comped';
 
     if (realSub) {
@@ -490,6 +530,12 @@
 
   window.MEBBilling = { refresh: init, openDemo: openDemoTour };
   document.addEventListener('DOMContentLoaded', restoreBillingGate);
-  document.addEventListener('DOMContentLoaded', () => { init(); wireDemoTour(); });
+  document.addEventListener('DOMContentLoaded', wireDemoTour);
   document.addEventListener('viewas-changed', init);
+
+  const _origPageShow = window.onPageShow;
+  window.onPageShow = function (name) {
+    if (typeof _origPageShow === 'function') _origPageShow(name);
+    if (name === 'billing') init();
+  };
 })();
