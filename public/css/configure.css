@@ -2760,6 +2760,41 @@ html.view-as-user .admin-only { display: none !important; }
 }
 html.has-buffering-banner .content { padding-top: 8px; }
 
+#live-dock {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 58;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  max-width: min(720px, calc(100vw - 24px));
+  background: rgba(12, 18, 14, .97); backdrop-filter: blur(14px);
+  border: 1px solid color-mix(in srgb, var(--success) 50%, var(--border));
+  border-left: 3px solid var(--success);
+  color: var(--text-primary); padding: 12px 16px; border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(0,0,0,.55); font-size: .82rem;
+  animation: ld-in .35s var(--ease);
+}
+#live-dock .ld-pulse {
+  width: 10px; height: 10px; border-radius: 50%; flex: none;
+  background: var(--success); box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 60%, transparent);
+  animation: ld-pulse 1.6s ease-out infinite;
+}
+#live-dock .ld-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+#live-dock .ld-title { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#live-dock .ld-sub { font-size: .7rem; color: var(--text-mute); }
+#live-dock .ld-btn {
+  flex: none; background: color-mix(in srgb, var(--success) 20%, transparent);
+  color: #86efac; border: 1px solid color-mix(in srgb, var(--success) 45%, transparent);
+  border-radius: 999px; padding: 6px 14px; font-weight: 700; cursor: pointer; font-size: .72rem;
+}
+#live-dock .ld-btn:hover { filter: brightness(1.08); }
+@keyframes ld-in { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+@keyframes ld-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 55%, transparent); }
+  70% { box-shadow: 0 0 0 10px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+html.has-live-dock .content { padding-bottom: 72px; }
+.da-source-tag.da-bridge-tag { background: color-mix(in srgb, var(--accent) 25%, transparent); color: var(--accent); }
+#page-dashboard .dash-activity { min-height: 200px; scroll-margin-bottom: 88px; }
+
 #view-as-banner {
   position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60;
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;

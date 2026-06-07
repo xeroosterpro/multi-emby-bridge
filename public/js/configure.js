@@ -267,6 +267,133 @@ async function refreshDashCardHealth() {
   });
 }
 
+function formatLiveTitleClient(np) {
+  if (!np) return 'Unknown';
+  if (np.Type === 'Episode' && np.SeriesName) {
+    const s = np.ParentIndexNumber != null ? `S${np.ParentIndexNumber}` : '';
+    const e = np.IndexNumber != null ? `E${np.IndexNumber}` : '';
+    const ep = np.Name && np.Name !== np.SeriesName ? ` — ${np.Name}` : '';
+    return `${np.SeriesName} ${s}${e}${ep}`.trim();
+  }
+  return np.Name || 'Unknown';
+}
+
+function parseBrowserSessions(data, server) {
+  const out = [];
+  for (const sess of (Array.isArray(data) ? data : [])) {
+    const np = sess && sess.NowPlayingItem;
+    if (!np) continue;
+    const ps = sess.PlayState || {};
+    const runTicks = Number(np.RunTimeTicks) || 0;
+    const posTicks = ps.PositionTicks != null ? Number(ps.PositionTicks) : null;
+    let progressPct = null;
+    if (runTicks > 0 && posTicks != null && posTicks >= 0) {
+      progressPct = Math.min(100, Math.max(0, Math.round((posTicks / runTicks) * 100)));
+    }
+    out.push({
+      server: server.label || server.url,
+      title: formatLiveTitleClient(np),
+      rawTitle: np.Name || null,
+      season: np.ParentIndexNumber ?? null,
+      episode: np.IndexNumber ?? null,
+      user: sess.UserName || sess.DeviceName || null,
+      client: sess.Client || sess.AppName || null,
+      device: sess.DeviceName || null,
+      positionTicks: posTicks,
+      progressPct,
+      isPaused: !!ps.IsPaused,
+      playMethod: ps.PlayMethod || null,
+      isTranscoding: false,
+      sessionId: sess.Id || null,
+      source: 'browser-sessions',
+    });
+  }
+  return out;
+}
+
+async function fetchBrowserServerSessions(server) {
+  const label = server.label || server.url || 'server';
+  if (!server?.url || !server?.apiKey) {
+    return { live: [], probe: { server: label, ok: false, count: 0, error: 'missing credentials', method: null } };
+  }
+  const base = server.url.replace(/\/+$/, '');
+  const key = encodeURIComponent(server.apiKey);
+  const urls = [
+    `${base}/Sessions?api_key=${key}&ActiveWithinSeconds=7200`,
+    `${base}/emby/Sessions?api_key=${key}&ActiveWithinSeconds=7200`,
+    `${base}/Sessions?api_key=${key}`,
+    `${base}/emby/Sessions?api_key=${key}`,
+  ];
+  for (const url of urls) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      const r = await fetch(url, { signal: ctrl.signal, credentials: 'omit', cache: 'no-store' });
+      clearTimeout(timer);
+      if (!r.ok) continue;
+      const data = await r.json();
+      const live = parseBrowserSessions(data, server);
+      if (live.length) {
+        return {
+          live,
+          probe: { server: label, ok: true, count: live.length, error: null, method: 'browser-sessions' },
+        };
+      }
+    } catch { /* CORS / network — try next path */ }
+  }
+  return { live: [], probe: { server: label, ok: false, count: 0, error: 'browser blocked', method: null } };
+}
+
+function inferBridgeLiveFromRecent(recent) {
+  const now = Date.now();
+  const seen = new Map();
+  for (const entry of recent || []) {
+    if (!entry?.found || !entry.title) continue;
+    const ts = entry.ts ? new Date(entry.ts).getTime() : 0;
+    if (!ts) continue;
+    const age = now - ts;
+    if (age < 0 || age > BRIDGE_LIVE_MAX_AGE_MS) continue;
+    const server = entry.server || entry.pickedServer || null;
+    if (!server) continue;
+    const key = [server, entry.title, entry.season ?? '', entry.episode ?? ''].join('|');
+    if (seen.has(key)) continue;
+    seen.set(key, {
+      server,
+      title: entry.title,
+      rawTitle: entry.title,
+      season: entry.season ?? null,
+      episode: entry.episode ?? null,
+      user: null,
+      client: 'Stremio',
+      source: 'bridge',
+      inferredAgeMs: age,
+      isPaused: false,
+      progressPct: null,
+    });
+  }
+  return [...seen.values()];
+}
+
+function mergeLiveSourcesClient(lists) {
+  const prefer = ['sessions', 'user-playing', 'browser-sessions', 'bridge'];
+  const rank = new Map(prefer.map((s, i) => [s, i]));
+  const map = new Map();
+  const keyOf = s => [s.server || '', s.title || '', s.user || '', s.source || ''].join('|');
+  for (const list of lists) {
+    for (const s of list || []) {
+      if (!s?.title) continue;
+      const key = keyOf(s);
+      const prev = map.get(key);
+      if (!prev || (rank.get(s.source) ?? 99) < (rank.get(prev.source) ?? 99)) map.set(key, s);
+    }
+  }
+  const out = [...map.values()];
+  const sessionKeys = new Set(
+    out.filter(s => s.source !== 'bridge').map(s => `${s.server}|${s.title}`)
+  );
+  return out.filter(s => s.source !== 'bridge' || !sessionKeys.has(`${s.server}|${s.title}`));
+}
+
 async function fetchLiveSessionsForServers(servers) {
   if (!servers?.length) return [];
   const chunks = await Promise.all(servers.map(async (s) => {
@@ -301,6 +428,9 @@ async function fetchLiveSessionsForServers(servers) {
 const _livePlaybackPrev = new Map();
 const _bufferingToastKeys = new Set();
 const LIVE_PLAYBACK_POLL_MS = 20000;
+const DASH_LIVE_POLL_MS = 8000;
+const BRIDGE_LIVE_MAX_AGE_MS = 8 * 60 * 1000;
+let _dashLiveTimer = null;
 
 function annotateLiveSessions(sessions) {
   const lp = window.MEBLivePlayback;
@@ -373,6 +503,7 @@ function notifyNewBuffering(buffering) {
 
 let _liveBundleInFlight = null;
 let _liveBundleCache = { live: [], probes: [], ts: 0 };
+let _activityRecentCache = [];
 
 function collectServersForLive() {
   const cfg = collectConfig(true);
@@ -397,8 +528,9 @@ function mergeLiveSessions(lists) {
   return [...map.values()];
 }
 
-async function fetchLiveBundle(force = false) {
-  if (!force && _liveBundleCache.ts && Date.now() - _liveBundleCache.ts < LIVE_PLAYBACK_POLL_MS) {
+async function fetchLiveBundle(force = false, opts = {}) {
+  const ttl = opts.fast ? DASH_LIVE_POLL_MS : LIVE_PLAYBACK_POLL_MS;
+  if (!force && _liveBundleCache.ts && Date.now() - _liveBundleCache.ts < ttl) {
     return _liveBundleCache;
   }
   if (_liveBundleInFlight) return _liveBundleInFlight;
@@ -406,15 +538,18 @@ async function fetchLiveBundle(force = false) {
     const demoOn = window.MEBDemo && window.MEBDemo.isActive && window.MEBDemo.isActive();
     let live = [];
     let probes = [];
+    let recentForBridge = _activityRecentCache || [];
 
     if (!demoOn && window.currentUser) {
       try {
-        const r = await fetch('/api/user/live-sessions', { credentials: 'same-origin' });
+        const r = await fetch('/api/user/activity', { credentials: 'same-origin' });
         if (r.ok) {
           const d = await r.json().catch(() => null);
           if (d) {
             live = Array.isArray(d.live) ? d.live : [];
             probes = Array.isArray(d.liveProbes) ? d.liveProbes : [];
+            recentForBridge = Array.isArray(d.recent) ? d.recent : recentForBridge;
+            _activityRecentCache = recentForBridge;
           }
         }
       } catch { /* fall through to per-server probe */ }
@@ -443,29 +578,44 @@ async function fetchLiveBundle(force = false) {
             });
             if (block) _applyRefreshedApiKey(block, d.apiKey);
           }
-          const probe = d?.probe || {
+          let chunkLive = Array.isArray(d?.live) ? d.live : [];
+          let probe = d?.probe || {
             server: s.label || s.url,
             ok: r.ok,
-            count: Array.isArray(d?.live) ? d.live.length : 0,
+            count: chunkLive.length,
             error: d?.error || (!r.ok ? `HTTP ${r.status}` : null),
+            method: d?.probe?.method || null,
           };
-          return { live: Array.isArray(d?.live) ? d.live : [], probe };
+          if (!chunkLive.length) {
+            const browser = await fetchBrowserServerSessions(s);
+            if (browser.live.length) {
+              chunkLive = browser.live;
+              probe = browser.probe;
+            } else if (!probe.ok && browser.probe?.error === 'browser blocked') {
+              probe = { ...probe, browserNote: 'browser blocked' };
+            }
+          }
+          return { live: chunkLive, probe };
         } catch {
+          const browser = await fetchBrowserServerSessions(s).catch(() => ({ live: [], probe: null }));
+          if (browser.live?.length) return browser;
           return {
             live: [],
-            probe: { server: s.label || s.url, ok: false, count: 0, error: 'network error' },
+            probe: { server: s.label || s.url, ok: false, count: 0, error: 'network error', method: null },
           };
         }
       }));
       const clientLive = clientChunks.flatMap(c => c.live);
       const clientProbes = clientChunks.map(c => c.probe).filter(Boolean);
-      live = mergeLiveSessions([live, clientLive]);
+      live = mergeLiveSourcesClient([live, clientLive]);
       if (!probes.length) probes = clientProbes;
       else {
         const byServer = new Map(probes.map(p => [p.server, p]));
         clientProbes.forEach(p => {
           const prev = byServer.get(p.server);
-          if (!prev || (!prev.ok && p.ok)) byServer.set(p.server, p);
+          if (!prev || (!prev.ok && p.ok) || ((prev.count || 0) === 0 && (p.count || 0) > 0)) {
+            byServer.set(p.server, p);
+          }
         });
         probes = [...byServer.values()];
       }
@@ -473,11 +623,16 @@ async function fetchLiveBundle(force = false) {
       live = await fetchLiveSessionsForServers(collectServersForLive());
     }
 
+    if (!live.length && recentForBridge.length) {
+      live = mergeLiveSourcesClient([live, inferBridgeLiveFromRecent(recentForBridge)]);
+    }
+
     const annotated = annotateLiveSessions(live);
     _liveBundleCache = { live: annotated, probes, ts: Date.now() };
     window._mebAnnotatedLive = annotated;
     window._mebAnnotatedLiveTs = _liveBundleCache.ts;
     window._mebLiveProbes = probes;
+    renderLiveDock(annotated);
     return _liveBundleCache;
   })().finally(() => { _liveBundleInFlight = null; });
   return _liveBundleInFlight;
@@ -503,6 +658,56 @@ function liveEmptyMessage(probes, serverCount) {
   return 'Nothing playing right now on your servers.';
 }
 
+function renderLiveDock(live) {
+  const list = live || [];
+  let dock = document.getElementById('live-dock');
+  if (!list.length) {
+    if (dock) dock.remove();
+    document.documentElement.classList.remove('has-live-dock');
+    return;
+  }
+  const esc = dashActivityEsc;
+  const summary = list.length === 1
+    ? `${esc(list[0].title)} on ${esc(list[0].server)}`
+    : `${list.length} streams active`;
+  if (!dock) {
+    dock = document.createElement('div');
+    dock.id = 'live-dock';
+    dock.setAttribute('role', 'status');
+    dock.innerHTML = `<span class="ld-pulse" aria-hidden="true"></span>
+      <span class="ld-text"><span class="ld-title"></span><span class="ld-sub"></span></span>
+      <button type="button" class="ld-btn">Details</button>`;
+    dock.querySelector('.ld-btn').addEventListener('click', () => {
+      location.hash = '#/dashboard';
+      const target = document.getElementById('dash-activity');
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    document.body.appendChild(dock);
+  }
+  dock.querySelector('.ld-title').textContent = summary;
+  const sources = [...new Set(list.map(s => s.source).filter(Boolean))];
+  dock.querySelector('.ld-sub').textContent = sources.includes('bridge')
+    ? 'Live via bridge + server Sessions'
+    : 'Live from your media servers';
+  document.documentElement.classList.add('has-live-dock');
+}
+
+function renderDashActivityShell(serverCount) {
+  const el = document.getElementById('dash-activity');
+  if (!el) return;
+  const n = serverCount || collectServersForLive().length || 0;
+  el.innerHTML = `<div class="dash-activity-grid">
+    <div class="dash-act-panel dash-act-live">
+      <h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming</h3>
+      <div class="da-empty da-loading">Checking playback across ${n || 'your'} server${n === 1 ? '' : 's'}…</div>
+    </div>
+    <div class="dash-act-panel dash-act-history">
+      <h3 class="block-title dash-act-title">Watched history</h3>
+      <div class="da-empty da-loading">Loading history…</div>
+    </div>
+  </div>`;
+}
+
 function renderLiveProbeStrip(probes) {
   if (!probes?.length) return '';
   const esc = dashActivityEsc;
@@ -516,17 +721,31 @@ function renderLiveProbeStrip(probes) {
   }).join('')}</div>`;
 }
 
-async function pollLivePlaybackNotifications() {
-  const bundle = await fetchLiveBundle();
+async function pollLivePlaybackNotifications(opts = {}) {
+  const onDash = document.getElementById('page-dashboard')?.classList.contains('on');
+  const bundle = await fetchLiveBundle(!!opts.force, { fast: onDash });
   const buffering = (bundle.live || []).filter(s => s.buffering);
   renderBufferingBanner(buffering);
   updateDashboardBufferBadge(buffering.length);
   notifyNewBuffering(buffering);
-  const dash = document.getElementById('page-dashboard');
-  if (dash && dash.classList.contains('on') && typeof renderDashActivity === 'function') {
+  if (onDash && typeof renderDashActivity === 'function') {
     renderDashActivity({ skipFetch: true });
   }
   return bundle.live || [];
+}
+
+function startDashLivePolling() {
+  clearInterval(_dashLiveTimer);
+  _dashLiveTimer = setInterval(() => {
+    const dash = document.getElementById('page-dashboard');
+    if (!dash || !dash.classList.contains('on')) return;
+    pollLivePlaybackNotifications({ force: true });
+  }, DASH_LIVE_POLL_MS);
+}
+
+function stopDashLivePolling() {
+  clearInterval(_dashLiveTimer);
+  _dashLiveTimer = null;
 }
 
 try { _libStatsCache = JSON.parse(localStorage.getItem('meb-libstats-cache') || '{}'); } catch { _libStatsCache = {}; }
@@ -2267,13 +2486,18 @@ window.onPageShow = function(name) {
   }
   if (name === 'install') updateInstallStats();
   if (name === 'dashboard') {
+    renderDashActivityShell();
+    startDashLivePolling();
+    pollLivePlaybackNotifications({ force: true });
     (async () => {
       await ensureAccountConfigLoaded();
       renderDashboard();
-      renderDashActivity();
+      renderDashActivity({ force: true });
       renderOnboarding();
       replayDashTileAnimations();
     })();
+  } else {
+    stopDashLivePolling();
   }
   if (name === 'health' && typeof window.startHealth === 'function') window.startHealth();
   if (name === 'log' && typeof refreshLog === 'function') refreshLog();
@@ -2302,7 +2526,11 @@ async function renderDashActivity(opts = {}) {
   try {
     resp = await fetch('/api/user/activity', { credentials: 'same-origin' });
   } catch {
-    el.innerHTML = '';
+    if (!opts.skipFetch) renderDashActivityShell(localServers.length);
+    el.querySelector('.da-loading')?.replaceWith(Object.assign(document.createElement('div'), {
+      className: 'da-empty',
+      textContent: 'Could not load activity — check your connection.',
+    }));
     return;
   }
 
@@ -2315,7 +2543,16 @@ async function renderDashActivity(opts = {}) {
   }
 
   const a = resp.ok ? await resp.json().catch(() => null) : null;
-  if (!a) { el.innerHTML = ''; return; }
+  if (!a) {
+    if (!opts.skipFetch) renderDashActivityShell(localServers.length);
+    const slot = el.querySelector('.da-loading') || el;
+    if (slot.classList?.contains('da-loading')) {
+      slot.className = 'da-empty';
+      slot.textContent = 'Activity unavailable right now.';
+    }
+    return;
+  }
+  _activityRecentCache = Array.isArray(a.recent) ? a.recent : [];
 
   const esc = dashActivityEsc;
   const when = dashActivityWhen;
@@ -2331,22 +2568,11 @@ async function renderDashActivity(opts = {}) {
     return;
   }
 
-  if (!opts.skipFetch) {
-    el.innerHTML = `<div class="dash-activity-grid">
-      <div class="dash-act-panel dash-act-live">
-        <h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming</h3>
-        <div class="da-empty da-loading">Checking Sessions API across ${serverCount} server${serverCount === 1 ? '' : 's'}…</div>
-      </div>
-      <div class="dash-act-panel dash-act-history">
-        <h3 class="block-title dash-act-title">Watched history</h3>
-        <div class="da-list">${(a.recent || []).slice(0, 5).map(e => `<div class="da-row da-history"><span class="da-main"><span class="da-title">${esc(e.title || '—')}</span></span><span class="da-dim da-meta">${esc(e.server || '—')}</span></div>`).join('') || '<div class="da-empty">Loading…</div>'}</div>
-      </div>
-    </div>`;
-  }
+  if (!opts.skipFetch) renderDashActivityShell(serverCount);
 
   const bundle = opts.skipFetch && _liveBundleCache.ts
     ? _liveBundleCache
-    : await fetchLiveBundle(!!opts.force);
+    : await fetchLiveBundle(!!opts.force, { fast: true });
   const live = bundle.live || [];
   const probes = bundle.probes || a.liveProbes || [];
 
@@ -2357,6 +2583,8 @@ async function renderDashActivity(opts = {}) {
     else if (s.isTranscoding) tags.push('<span class="da-tx-tag">Transcode</span>');
     else if (s.playMethod === 'DirectStream' || s.playMethod === 'DirectPlay') tags.push('<span class="da-direct-tag">Direct</span>');
     if (s.source === 'user-playing') tags.push('<span class="da-source-tag">IsPlaying</span>');
+    else if (s.source === 'browser-sessions') tags.push('<span class="da-source-tag">Browser</span>');
+    else if (s.source === 'bridge') tags.push('<span class="da-source-tag da-bridge-tag">Via bridge</span>');
     const progress = s.progressPct != null
       ? `<span class="da-progress" title="${s.progressPct}%"><span class="da-progress-bar" style="width:${s.progressPct}%"></span></span>`
       : '';
@@ -2395,7 +2623,7 @@ async function renderDashActivity(opts = {}) {
   el.innerHTML = `<div class="dash-activity-grid">
     <div class="dash-act-panel dash-act-live">
       <h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming <span class="dash-act-count">${live.length}</span></h3>
-      <p class="dash-act-hint">Real playback from Sessions + IsPlaying fallback · ${serverCount} server${serverCount === 1 ? '' : 's'} · every 20s</p>
+      <p class="dash-act-hint">Sessions, browser, and bridge stream lookups · ${serverCount} server${serverCount === 1 ? '' : 's'} · refreshes every ${Math.round(DASH_LIVE_POLL_MS / 1000)}s on this page</p>
       ${renderLiveProbeStrip(probes)}
       <div class="da-list">${liveRows || `<div class="da-empty">${emptyMsg}</div>`}</div>
     </div>
@@ -2418,7 +2646,7 @@ function replayDashTileAnimations() {
 
 // Real-time: live playback + buffering notifications (all pages when signed in).
 setInterval(() => { pollLivePlaybackNotifications(); }, LIVE_PLAYBACK_POLL_MS);
-setTimeout(() => { pollLivePlaybackNotifications(); }, 3500);
+setTimeout(() => { pollLivePlaybackNotifications({ force: true }); }, 400);
 
 // Dashboard health tiles still refresh on the same cadence while that page is open.
 setInterval(() => {

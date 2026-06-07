@@ -8,6 +8,7 @@ const { makeServerHistory } = require('../lib/serverHistory');
 const { makeRequestLog } = require('../lib/requestLog');
 const { makeLiveSessions } = require('../lib/sessions');
 const { enrichRecentEntries } = require('../lib/activityEnrich');
+const { attachBridgeLive } = require('../lib/bridgeLive');
 
 function manifestUrl(req, token) {
   const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0];
@@ -45,14 +46,18 @@ function makeUserRouter() {
     next();
   }
 
-  async function loadLiveForUser(userId) {
+  async function loadLiveForUser(userId, recentForBridge) {
     const cfg = await uc.getForServe(userId);
     const servers = filterLiveServers(cfg);
     if (!servers.length) return { servers, live: [], liveProbes: [] };
     const detailed = await liveSessions.forUserDetailed(servers);
+    let live = detailed.live || [];
+    if (!live.length && Array.isArray(recentForBridge) && recentForBridge.length) {
+      live = attachBridgeLive(live, recentForBridge);
+    }
     return {
       servers,
-      live: detailed.live || [],
+      live,
       liveProbes: mapLiveProbes(detailed.probes),
     };
   }
@@ -86,7 +91,11 @@ function makeUserRouter() {
 
   r.get('/live-sessions', requireAuth, async (req, res) => {
     try {
-      const { servers, live, liveProbes } = await loadLiveForUser(req.user.id);
+      let recent = [];
+      try {
+        recent = await requestLog.forUser(req.user.id, 30);
+      } catch { /* optional */ }
+      const { servers, live, liveProbes } = await loadLiveForUser(req.user.id, recent);
       res.json({
         hasServers: servers.length > 0,
         serverCount: servers.length,
@@ -106,17 +115,22 @@ function makeUserRouter() {
       let servers = [];
       let recent = [];
       try {
-        const loaded = await loadLiveForUser(req.user.id);
+        const labels = new Set();
+        let rawRecent = [];
+        const cfg = await uc.getForServe(req.user.id);
+        const filteredServers = filterLiveServers(cfg);
+        servers = filteredServers;
+        if (filteredServers.length) {
+          filteredServers.forEach(s => { if (s.label) labels.add(s.label.trim()); });
+          rawRecent = (await requestLog.forUser(req.user.id, 60))
+            .filter(e => !e.server || labels.has(e.server) || (e.serverStatus || []).some(s => labels.has(s.label)))
+            .slice(0, 20);
+        }
+        const loaded = await loadLiveForUser(req.user.id, rawRecent);
         servers = loaded.servers;
         live = loaded.live;
         liveProbes = loaded.liveProbes;
         if (servers.length) {
-          const labels = new Set(
-            servers.map(s => (s.label || '').trim()).filter(Boolean)
-          );
-          const rawRecent = (await requestLog.forUser(req.user.id, 60))
-            .filter(e => !e.server || labels.has(e.server) || (e.serverStatus || []).some(s => labels.has(s.label)))
-            .slice(0, 20);
           recent = enrichRecentEntries(rawRecent, live);
         }
       } catch (e) {
