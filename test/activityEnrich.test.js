@@ -43,6 +43,10 @@ const bridgeEnriched = enrichRecentEntries(bridgeOnly, bridgeLive);
 A(bridgeEnriched[0].isLiveNow === true, 'bridge match marks live');
 A(bridgeEnriched[0].playingServer == null, 'multi-server bridge does not fake playing server');
 A(bridgeEnriched[0].liveUncertain === true, 'flags uncertain attribution');
+A(bridgeEnriched[0].displayServer == null, 'multi-server live omits display server');
+
+const multiIdle = enrichRecentEntries(bridgeOnly, []);
+A(multiIdle[0].displayServer == null, 'multi-server idle omits ranked pick as display server');
 
 const singleBridge = enrichRecentEntries([{
   title: 'Battleship', server: 'BK', serverStatus: [{ label: 'BK', status: 'found' }],

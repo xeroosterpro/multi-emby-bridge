@@ -422,14 +422,20 @@ function mergeLiveSourcesClient(lists) {
 }
 
 function formatBridgeServerLabel(s) {
-  if (s.source !== 'bridge') return s.server || '—';
-  if (s.serverConfirmed && s.server) return s.server;
-  if ((s.availableOn || []).length > 1) {
-    const list = s.availableOn.slice(0, 3).join(', ');
-    return s.availableOn.length > 3 ? `${list}…` : list;
-  }
-  if (s.pickedServer) return `picked ${s.pickedServer}`;
-  return s.server || '—';
+  if (!s) return '';
+  if (s.source === 'bridge') return (s.serverConfirmed && s.server) ? s.server : '';
+  return s.server || '';
+}
+
+function formatLiveMetaLine(s) {
+  const parts = [];
+  const server = formatBridgeServerLabel(s);
+  if (server) parts.push(server);
+  const user = s.user || '';
+  const client = s.client || s.device || '';
+  if (user) parts.push(user);
+  if (client) parts.push(client);
+  return parts.join(' · ');
 }
 
 async function fetchLiveSessionsForServers(servers) {
@@ -725,8 +731,10 @@ function renderLiveDock(live) {
     return;
   }
   const esc = dashActivityEsc;
-  const summary = list.length === 1
-    ? `${esc(list[0].title)} on ${esc(list[0].server)}`
+  const solo = list.length === 1 ? list[0] : null;
+  const soloServer = solo ? formatBridgeServerLabel(solo) : '';
+  const summary = solo
+    ? (soloServer ? `${esc(solo.title)} on ${esc(soloServer)}` : esc(solo.title))
     : `${list.length} streams active`;
   if (!dock) {
     dock = document.createElement('div');
@@ -2600,10 +2608,7 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
     const progress = s.progressPct != null
       ? `<span class="da-progress" title="${s.progressPct}%"><span class="da-progress-bar" style="width:${s.progressPct}%"></span></span>`
       : '';
-    const client = s.client || s.device || '';
-    const serverLabel = formatBridgeServerLabel(s);
-    const bridgeHint = (s.source === 'bridge' && !s.serverConfirmed && s.pickedServer && (s.availableOn || []).length > 1)
-      ? ` <span class="da-hist-pick">ranked ${esc(s.pickedServer)}</span>` : '';
+    const metaLine = formatLiveMetaLine(s);
     return `<div class="da-row da-live${s.buffering ? ' da-buffering' : ''}${s.isPaused ? ' da-paused' : ''}">
       <span class="da-main">
         <span class="da-dot${s.buffering ? ' da-dot-warn' : (s.isPaused ? ' da-dot-pause' : '')}"></span>
@@ -2612,7 +2617,7 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
           ${progress}
         </span>
       </span>
-      <span class="da-dim da-meta">${esc(serverLabel)}${bridgeHint}${s.user ? ' · ' + esc(s.user) : ''}${client ? ' · ' + esc(client) : ''}</span>
+      <span class="da-dim da-meta">${metaLine ? esc(metaLine) : '<span class="da-meta-mute">Stremio</span>'}</span>
     </div>`;
   }).join('');
 
@@ -2625,15 +2630,11 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
     const serverLine = playing
       ? `<span class="da-hist-live">${esc(playing)} <span class="da-hist-now">▶ now</span></span>`
       : uncertain
-        ? `<span class="da-hist-live"><span class="da-hist-now">▶ now</span> on ${esc((e.availableOn || []).slice(0, 3).join(', ') || 'bridge')}</span>`
+        ? `<span class="da-hist-live"><span class="da-hist-now">▶ now</span></span>`
         : esc(e.displayServer || picked || '—');
     const pickNote = showDiff
       ? `<span class="da-hist-pick">bridge picked ${esc(picked)}</span>`
-      : (uncertain && picked
-        ? `<span class="da-hist-pick">ranked ${esc(picked)}</span>`
-        : (!playing && !uncertain && (e.availableOn || []).length > 1
-          ? `<span class="da-hist-pick">also on ${esc(e.availableOn.filter(s => s !== picked).slice(0, 2).join(', '))}</span>`
-          : ''));
+      : '';
     return `<div class="da-row da-history${playing ? ' da-history-live' : ''}">
       <span class="da-main"><span class="da-title" title="${esc(e.title || '')}">${esc(e.title || '—')}${e.season ? ` <span class="da-ep">S${e.season}E${e.episode || ''}</span>` : ''}</span></span>
       <span class="da-dim da-meta da-hist-meta">${serverLine}${pickNote ? `<span class="da-hist-sub">${pickNote}</span>` : ''} · ${when(e.ts)}</span>
@@ -2649,7 +2650,7 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
     </div>
     <div class="dash-act-panel dash-act-history">
       <h3 class="block-title dash-act-title">Watched history</h3>
-      <p class="dash-act-hint">Bridge stream lookups — <strong>▶ now</strong> uses Sessions when available; multi-server titles list all copies</p>
+      <p class="dash-act-hint">Bridge stream lookups — <strong>▶ now</strong> with a server only when Sessions confirms playback</p>
       <div class="da-list">${recentRows || '<div class="da-empty">No watch history yet — streams through your bridge appear here.</div>'}</div>
     </div>
   </div>`;
