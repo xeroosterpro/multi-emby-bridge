@@ -35,6 +35,17 @@ const log = [
   A(an.topServer && an.topServer.server === 'ARCTV', 'userAnalytics top server = ARCTV');
   A(an.successRate === 67, 'userAnalytics successRate = round(2/3*100) = 67');
 
+  const { timeSeries, serverBreakdown, topContent } = require('../lib/adminStats');
+  const ts7 = timeSeries(log, { now: NOW, days: 7 });
+  A(ts7.length >= 1, 'timeSeries returns at least one bucket');
+  A(ts7.some(b => b.total > 0), 'timeSeries buckets have totals');
+
+  const sb = serverBreakdown(log, { now: NOW, windowMs: 86400000 });
+  A(sb[0].server === 'ARCTV', 'serverBreakdown ranks ARCTV first in 24h window');
+
+  const tc = topContent(log, { now: NOW, windowMs: 86400000, limit: 5 });
+  A(tc[0].title === 'Dune', 'topContent ranks Dune first');
+
   console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
   if (failed) process.exit(1);
 })();

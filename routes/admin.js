@@ -9,7 +9,7 @@ const { forgetUser } = require('../lib/health');
 const paypal = require('../lib/paypal');
 const { makeUserConfig } = require('../lib/userConfig');
 const { makeLiveSessions } = require('../lib/sessions');
-const { summarizeRequestLog, userActivity, userAnalytics } = require('../lib/adminStats');
+const { summarizeRequestLog, userActivity, userAnalytics, timeSeries, serverBreakdown, topContent } = require('../lib/adminStats');
 const { makeRequestLog } = require('../lib/requestLog');
 const { makeSiteSettings, TOGGLEABLE_TABS } = require('../lib/siteSettings');
 
@@ -38,7 +38,12 @@ function makeAdminRouter(opts = {}) {
       const q = await db.query(
         `SELECT u.id, u.username, u.role, u.created_at, u.last_seen_at,
                 COALESCE(s.status,'none') AS sub_status, s.current_period_end AS period_end,
-                COALESCE(jsonb_array_length(uc.config_json->'servers'),0) AS server_count
+                COALESCE(jsonb_array_length(uc.config_json->'servers'),0) AS server_count,
+                (SELECT COUNT(*)::int FROM request_log rl
+                  WHERE rl.user_id = u.id AND rl.ts > now() - interval '24 hours') AS requests_24h,
+                (SELECT COUNT(*)::int FROM request_log rl
+                  WHERE rl.user_id = u.id AND rl.ts > now() - interval '7 days') AS requests_7d,
+                (SELECT MAX(rl.ts) FROM request_log rl WHERE rl.user_id = u.id) AS last_request_at
            FROM users u
            LEFT JOIN subscriptions s ON s.user_id = u.id
            LEFT JOIN user_config uc ON uc.user_id = u.id
@@ -179,22 +184,96 @@ function makeAdminRouter(opts = {}) {
         `SELECT p.amount, p.currency, p.status, p.paid_at, us.username
            FROM payments p LEFT JOIN users us ON us.id=p.user_id
           ORDER BY p.paid_at DESC LIMIT 10`);
-      const logRows = (await requestLog.recent(1000)).map(r => ({ ...r, contentName: r.title, bestServer: r.server }));
+      const srv = await db.query(
+        `SELECT COALESCE(SUM(jsonb_array_length(uc.config_json->'servers')),0)::int AS total,
+                COUNT(*) FILTER (WHERE jsonb_array_length(uc.config_json->'servers') > 0)::int AS users_with_servers
+           FROM user_config uc`);
+      const active24 = await db.query(
+        `SELECT COUNT(DISTINCT user_id)::int AS n FROM request_log
+          WHERE user_id IS NOT NULL AND ts > now() - interval '24 hours'`);
+      const logRows = (await requestLog.recent(5000)).map(r => ({ ...r, contentName: r.title, bestServer: r.server }));
       const activity = summarizeRequestLog(logRows);
       const found24 = logRows.filter(e => e.found && (Date.now() - new Date(e.ts).getTime()) <= 86400000).length;
       const total24 = activity.requests24h || 0;
       const renew = await db.query(`SELECT COUNT(*)::int AS n FROM subscriptions WHERE status='active' AND current_period_end IS NOT NULL AND current_period_end BETWEEN now() AND now() + interval '7 days'`);
       const failed = await db.query(`SELECT COUNT(*)::int AS n FROM payments WHERE status <> 'completed'`);
+      let tickets = { open: 0, in_progress: 0, closed: 0, total: 0 };
+      try {
+        const tq = await db.query(
+          `SELECT status, COUNT(*)::int AS n FROM tickets GROUP BY status`);
+        for (const row of tq.rows) {
+          tickets.total += row.n;
+          if (row.status === 'open') tickets.open = row.n;
+          else if (row.status === 'in_progress') tickets.in_progress = row.n;
+          else if (['closed', 'resolved'].includes(row.status)) tickets.closed += row.n;
+        }
+      } catch { /* tickets table may not exist on older DBs */ }
+      const recentGlobal = await db.query(
+        `SELECT rl.ts, rl.content_name, rl.type, rl.season, rl.episode, rl.best_server, rl.found, rl.response_ms,
+                u.username, u.id AS user_id
+           FROM request_log rl LEFT JOIN users u ON u.id = rl.user_id
+          ORDER BY rl.ts DESC LIMIT 50`);
+      const avgMs = await db.query(
+        `SELECT ROUND(AVG(response_ms))::int AS avg FROM request_log
+          WHERE ts > now() - interval '24 hours' AND response_ms IS NOT NULL`);
       res.json({
         users: u.rows[0],
         revenue: { monthly: Number(rev.rows[0].monthly), lifetime: Number(rev.rows[0].lifetime), currency: 'USD' },
         recentPayments: pays.rows,
         activity,
-        successRate: total24 ? Math.round(found24/total24*100) : null,
+        successRate: total24 ? Math.round(found24 / total24 * 100) : null,
+        avgResponseMs: avgMs.rows[0]?.avg ?? null,
         upcomingRenewals: renew.rows[0].n,
         failedPayments: failed.rows[0].n,
+        servers: srv.rows[0],
+        activeUsers24h: active24.rows[0].n,
+        tickets,
+        charts: {
+          requests7d: timeSeries(logRows, { days: 7 }),
+          requests24h: timeSeries(logRows, { days: 1, hourly: true }),
+          servers24h: serverBreakdown(logRows, { windowMs: 86400000 }),
+          topContent24h: topContent(logRows, { windowMs: 86400000, limit: 10 }),
+        },
+        recentActivity: recentGlobal.rows.map(r => ({
+          ts: r.ts, title: r.content_name, type: r.type, season: r.season, episode: r.episode,
+          server: r.best_server, found: !!r.found, ms: r.response_ms,
+          username: r.username, userId: r.user_id,
+        })),
       });
     } catch (e) { console.error('[admin/overview]', e.message); res.status(500).json({ error: 'overview failed' }); }
+  });
+
+  r.get('/live', requireAdmin, async (req, res) => {
+    try {
+      const q = await db.query(
+        `SELECT u.id, u.username, uc.config_json
+           FROM users u
+           JOIN user_config uc ON uc.user_id = u.id
+          WHERE jsonb_array_length(uc.config_json->'servers') > 0`);
+      const sessions = [];
+      await Promise.all(q.rows.map(async (row) => {
+        try {
+          const cfg = typeof row.config_json === 'string' ? JSON.parse(row.config_json) : (row.config_json || {});
+          const servers = (cfg.servers || []).filter(s => s && s.url && s.apiKey);
+          if (!servers.length) return;
+          const full = await userConfig.getForServe(row.id);
+          const live = await liveSessions.forUser(full?.servers || servers);
+          for (const s of live) {
+            sessions.push({
+              ...s,
+              bridgeUserId: row.id,
+              bridgeUsername: row.username,
+            });
+          }
+        } catch (e) { console.error('[admin/live:user]', row.id, e.message); }
+      }));
+      res.json({
+        live: sessions,
+        count: sessions.length,
+        usersPolled: q.rows.length,
+        at: new Date().toISOString(),
+      });
+    } catch (e) { console.error('[admin/live]', e.message); res.status(500).json({ error: 'live failed' }); }
   });
 
   r.get('/users/:id/activity', requireAdmin, async (req, res) => {

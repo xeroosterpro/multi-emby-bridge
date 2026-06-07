@@ -1031,34 +1031,105 @@
       </section>
 
       <section class="page" id="page-users">
-        <h2 class="page-title">Admin · Console</h2>
-        <p class="page-sub">Users, activity, servers &amp; billing.</p>
+        <div class="adm-shell">
+          <div class="adm-top">
+            <div class="adm-top-main">
+              <h2 class="page-title adm-title">Admin · Console</h2>
+              <p class="page-sub adm-sub">Full platform visibility — users, live streams, watch history, servers &amp; billing</p>
+            </div>
+            <div class="adm-top-actions">
+              <span class="adm-live-pill" id="adm-live-pill"><span class="adm-live-dot"></span> Live</span>
+              <button class="btn-soft adm-refresh-btn" id="adm-refresh-btn" type="button" title="Refresh all data">↻ Refresh</button>
+            </div>
+          </div>
 
-        <div class="adm-overview" id="adm-overview"></div>
+          <div class="adm-stats" id="adm-stats">
+            <div class="adm-stat"><div class="adm-stat-n" id="adm-st-users">—</div><div class="adm-stat-l">Users</div></div>
+            <div class="adm-stat adm-stat-live"><div class="adm-stat-n" id="adm-st-live">—</div><div class="adm-stat-l">Live now</div></div>
+            <div class="adm-stat"><div class="adm-stat-n" id="adm-st-servers">—</div><div class="adm-stat-l">Servers</div></div>
+            <div class="adm-stat"><div class="adm-stat-n" id="adm-st-active">—</div><div class="adm-stat-l">Active (24h)</div></div>
+            <div class="adm-stat"><div class="adm-stat-n" id="adm-st-requests">—</div><div class="adm-stat-l">Requests (24h)</div></div>
+            <div class="adm-stat"><div class="adm-stat-n" id="adm-st-success">—</div><div class="adm-stat-l">Success rate</div></div>
+            <div class="adm-stat"><div class="adm-stat-n" id="adm-st-revenue">—</div><div class="adm-stat-l">Revenue (30d)</div></div>
+            <div class="adm-stat"><div class="adm-stat-n" id="adm-st-tickets">—</div><div class="adm-stat-l">Open tickets</div></div>
+          </div>
 
-        <div class="adm-bar">
-          <input class="input adm-search" id="adm-search" placeholder="Search users…" autocomplete="off" />
-          <select class="input adm-filter" id="adm-filter">
-            <option value="all">All statuses</option>
-            <option value="active">Active</option>
-            <option value="comped">Comped</option>
-            <option value="none">No subscription</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="past_due">Past due</option>
-          </select>
-          <select class="input adm-sort" id="adm-sort">
-            <option value="activity">Sort: recent activity</option>
-            <option value="name">Sort: name</option>
-            <option value="status">Sort: status</option>
-            <option value="newest">Sort: newest</option>
-          </select>
-        </div>
+          <div class="adm-dash-grid">
+            <div class="adm-panel adm-panel-charts">
+              <div class="adm-panel-head">
+                <span class="adm-panel-title">Stream requests</span>
+                <div class="adm-chart-tabs" id="adm-chart-tabs">
+                  <button class="adm-chart-tab active" type="button" data-range="7d">7 days</button>
+                  <button class="adm-chart-tab" type="button" data-range="24h">24 hours</button>
+                </div>
+              </div>
+              <div class="adm-chart-wrap" id="adm-chart-requests"></div>
+              <div class="adm-chart-meta" id="adm-chart-meta"></div>
+            </div>
 
-        <div class="adm-table-wrap"><table class="adm-table">
-          <thead><tr><th>User</th><th>Status</th><th>Last active</th><th>Servers</th><th></th></tr></thead>
-          <tbody id="adm-users-rows"></tbody>
-        </table></div>
-        <div class="adm-pager" id="adm-pager"></div>
+            <div class="adm-panel adm-panel-live">
+              <div class="adm-panel-head">
+                <span class="adm-panel-title"><span class="adm-live-dot sm"></span> Live watching</span>
+                <span class="adm-panel-badge" id="adm-live-count">0</span>
+              </div>
+              <div class="adm-live-list" id="adm-live-list">
+                <div class="adm-loading">Scanning all servers…</div>
+              </div>
+            </div>
+
+            <div class="adm-panel adm-panel-servers">
+              <div class="adm-panel-head"><span class="adm-panel-title">Server load (24h)</span></div>
+              <div class="adm-bar-chart" id="adm-chart-servers"></div>
+            </div>
+
+            <div class="adm-panel adm-panel-top">
+              <div class="adm-panel-head"><span class="adm-panel-title">Top content (24h)</span></div>
+              <div class="adm-rank-list" id="adm-top-content"></div>
+            </div>
+
+            <div class="adm-panel adm-panel-history adm-panel-wide">
+              <div class="adm-panel-head">
+                <span class="adm-panel-title">Global watch history</span>
+                <span class="adm-panel-hint">All bridge requests · newest first</span>
+              </div>
+              <div class="adm-history-list" id="adm-history-list"></div>
+            </div>
+
+            <div class="adm-panel adm-panel-payments">
+              <div class="adm-panel-head"><span class="adm-panel-title">Recent payments</span></div>
+              <div class="adm-pay-list" id="adm-pay-list"></div>
+            </div>
+          </div>
+
+          <div class="adm-users-section">
+            <div class="adm-users-head">
+              <h3 class="adm-section-title">User directory</h3>
+              <div class="adm-bar">
+                <input class="input adm-search" id="adm-search" placeholder="Search users…" autocomplete="off" />
+                <select class="input adm-filter" id="adm-filter">
+                  <option value="all">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="comped">Comped</option>
+                  <option value="none">No subscription</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="past_due">Past due</option>
+                </select>
+                <select class="input adm-sort" id="adm-sort">
+                  <option value="activity">Sort: recent activity</option>
+                  <option value="requests">Sort: requests (24h)</option>
+                  <option value="name">Sort: name</option>
+                  <option value="status">Sort: status</option>
+                  <option value="newest">Sort: newest</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="adm-table-wrap"><table class="adm-table">
+              <thead><tr><th>User</th><th>Status</th><th>Live</th><th>24h reqs</th><th>Last active</th><th>Servers</th><th></th></tr></thead>
+              <tbody id="adm-users-rows"></tbody>
+            </table></div>
+            <div class="adm-pager" id="adm-pager"></div>
+          </div>
 
         <details class="adm-section"><summary>Add user</summary>
           <div class="adm-section-body" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
