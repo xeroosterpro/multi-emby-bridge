@@ -94,10 +94,22 @@ function makeBillingRouter() {
     } catch (e) { res.status(500).json({ error: 'redeem failed' }); }
   });
 
-  // PayPal webhook (no auth). Signature verification added when PAYPAL_WEBHOOK_ID is set.
+  // PayPal webhook (no session auth — verified via PayPal signature when configured).
   r.post('/webhook', express.json({ type: '*/*' }), async (req, res) => {
     try {
       const ev = req.body || {};
+      const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+      if (paypal.isConfigured()) {
+        if (!webhookId) {
+          console.error('[billing/webhook] PAYPAL_WEBHOOK_ID not set — rejecting');
+          return res.status(503).json({ error: 'webhook verification not configured' });
+        }
+        const ok = await paypal.verifyWebhookSignature(req.headers, ev, webhookId);
+        if (!ok) {
+          console.error('[billing/webhook] signature verification failed');
+          return res.status(401).json({ error: 'invalid signature' });
+        }
+      }
       const type = ev.event_type || '';
       const resource = ev.resource || {};
       const subId = resource.id || (resource.billing_agreement_id) || null;

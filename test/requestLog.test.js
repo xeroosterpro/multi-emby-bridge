@@ -19,8 +19,15 @@ function fakeDb() {
         });
         return { rowCount: 1, rows: [] };
       }
+      if (/DELETE FROM request_log WHERE user_id/i.test(text)) {
+        const before = rows.length;
+        for (let i = rows.length - 1; i >= 0; i--) {
+          if (rows[i].user_id === params[0]) rows.splice(i, 1);
+        }
+        return { rowCount: before - rows.length, rows: [] };
+      }
       if (/SELECT .* FROM request_log WHERE user_id/i.test(text)) {
-        return { rows: rows.filter(r => r.user_id === params[0]).slice(0, 50) };
+        return { rows: rows.filter(r => r.user_id === params[0]).slice(0, params[1] || 50) };
       }
       if (/SELECT .* FROM request_log\b/i.test(text)) {
         return { rows: rows.slice(0, params && params[0] ? params[0] : 50) };
@@ -72,6 +79,12 @@ function fakeDb() {
   A(normalizeServerLabel('ARCTV') === 'ARCTV', 'normalizeServerLabel: plain string');
   A(normalizeServerLabel('{"label":"BK","size":99}') === 'BK', 'normalizeServerLabel: legacy JSON string');
   A(normalizeServerLabel({ label: 'OMEGA' }) === 'OMEGA', 'normalizeServerLabel: object');
+
+  await rl.clearForUser('u1');
+  const afterClear = await rl.forUser('u1');
+  A(afterClear.length === 0, 'clearForUser removes user rows');
+  const u2left = await rl.forUser('u2');
+  A(u2left.length === 1 && u2left[0].title === 'Heat', 'clearForUser leaves other users');
 
   console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
   if (failed) process.exit(1);

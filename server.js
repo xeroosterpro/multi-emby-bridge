@@ -302,20 +302,34 @@ app.post('/api/health/ping-now', apiLimiter, async (req, res) => {
   res.json(result);
 });
 
-// ─── Request log routes ───────────────────────────────────────────────────────
+// ─── Request log routes (per-user; requires sign-in) ─────────────────────────
+function mapRequestLogRows(rows) {
+  return rows.map(r => ({
+    ts: r.ts, type: r.type, contentName: r.title, bestServer: r.bestFile,
+    serverStatus: r.serverStatus, season: r.season, episode: r.episode, ms: r.ms, found: r.found,
+  }));
+}
 app.get('/api/request-log', async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'not signed in' });
   if (dbLib.isConfigured()) {
     try {
-      const rows = await _requestLogDb.recent(50);
-      // shape back to what the Request-log page expects: it renders bestServer as a
-      // rich object ({label,size,bitrate}) and serverStatus as a per-server array.
-      return res.json(rows.map(r => ({ ts: r.ts, type: r.type, contentName: r.title, bestServer: r.bestFile, serverStatus: r.serverStatus, season: r.season, episode: r.episode, ms: r.ms, found: r.found })));
+      const rows = await _requestLogDb.forUser(req.user.id, 50);
+      return res.json(mapRequestLogRows(rows));
     } catch (e) { /* fall through to in-memory */ }
   }
-  res.json(REQUEST_LOG);
+  res.json(REQUEST_LOG.filter(e => !e.userId || e.userId === req.user.id));
 });
-app.post('/api/clear-request-log', apiLimiter, (req, res) => {
-  REQUEST_LOG.length = 0;
+app.post('/api/clear-request-log', apiLimiter, async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'not signed in' });
+  if (dbLib.isConfigured()) {
+    try {
+      await _requestLogDb.clearForUser(req.user.id);
+      return res.json({ ok: true });
+    } catch (e) { return res.status(500).json({ error: 'clear failed' }); }
+  }
+  for (let i = REQUEST_LOG.length - 1; i >= 0; i--) {
+    if (!REQUEST_LOG[i].userId || REQUEST_LOG[i].userId === req.user.id) REQUEST_LOG.splice(i, 1);
+  }
   saveRequestLog();
   res.json({ ok: true });
 });

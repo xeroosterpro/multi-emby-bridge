@@ -343,21 +343,29 @@
 
   function wireLocked() {
     wireDemoTour();
-    $('#bill-redeem')?.addEventListener('click', async () => {
-      const code = ($('#bill-code')?.value || '').trim();
-      const r = await api('/api/billing/redeem', { method: 'POST', body: JSON.stringify({ code }) });
-      if (r.status === 200 && r.body && r.body.applied) { if (window.toast) window.toast('Code applied'); init(); }
-      else { const m = $('#bill-msg'); if (m) m.textContent = (r.body && (r.body.reason || r.body.error)) || 'Invalid code'; }
-    });
+    const redeem = $('#bill-redeem');
+    if (redeem && !redeem._billW) {
+      redeem._billW = 1;
+      redeem.addEventListener('click', async () => {
+        const code = ($('#bill-code')?.value || '').trim();
+        const r = await api('/api/billing/redeem', { method: 'POST', body: JSON.stringify({ code }) });
+        if (r.status === 200 && r.body && r.body.applied) { if (window.toast) window.toast('Code applied'); init(); }
+        else { const m = $('#bill-msg'); if (m) m.textContent = (r.body && (r.body.reason || r.body.error)) || 'Invalid code'; }
+      });
+    }
   }
 
   function wireCancel() {
-    document.querySelectorAll('.bill-cancel').forEach(b => b.addEventListener('click', async () => {
-      if (!confirm('Cancel your subscription?')) return;
-      await api('/api/billing/cancel', { method: 'POST' });
-      if (window.toast) window.toast('Subscription cancelled');
-      init();
-    }));
+    document.querySelectorAll('.bill-cancel').forEach(b => {
+      if (b._billW) return;
+      b._billW = 1;
+      b.addEventListener('click', async () => {
+        if (!confirm('Cancel your subscription?')) return;
+        await api('/api/billing/cancel', { method: 'POST' });
+        if (window.toast) window.toast('Subscription cancelled');
+        init();
+      });
+    });
   }
 
   async function renderHistory(slot) {

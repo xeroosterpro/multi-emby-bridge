@@ -76,6 +76,63 @@ function scheduleAccountConfigSync() {
   }, 2000);
 }
 
+function _applyExcludeRes(excludeRes) {
+  if (!Array.isArray(excludeRes)) return;
+  if (excludeRes.length && typeof excludeRes[0] === 'boolean') {
+    document.querySelectorAll('.res-cb').forEach((cb, i) => {
+      if (i < excludeRes.length) cb.checked = excludeRes[i];
+    });
+    return;
+  }
+  const set = new Set(excludeRes);
+  document.querySelectorAll('.res-cb').forEach(cb => { cb.checked = set.has(cb.value); });
+}
+
+function applyManifestSettings(cfg) {
+  if (!cfg || typeof cfg !== 'object') return;
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
+  const setChk = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined) el.checked = !!v; };
+  if (cfg.sortOrder) setVal('sort-order', cfg.sortOrder);
+  if (Array.isArray(cfg.excludeRes)) _applyExcludeRes(cfg.excludeRes);
+  setChk('show-recommend', cfg.recommend);
+  setChk('show-ping', cfg.ping);
+  setChk('ping-detail', cfg.pingDetail);
+  if (cfg.audioLang) setVal('audio-lang', cfg.audioLang);
+  if (cfg.prefCodec) setVal('pref-codec', cfg.prefCodec);
+  if (cfg.codecMode) setVal('codec-mode', cfg.codecMode);
+  if (cfg.audioRank != null) setAudioRankToggle(cfg.audioRank ? 'on' : 'off');
+  if (cfg.audioRankMode) setVal('audio-rank-mode', cfg.audioRankMode);
+  if (cfg.audioDisableAction) setVal('audio-disable-action', cfg.audioDisableAction);
+  if (Array.isArray(cfg.audioOrder) || Array.isArray(cfg.audioDisabled)) {
+    const order = (cfg.audioOrder && cfg.audioOrder.length) ? cfg.audioOrder : AUDIO_FORMATS.map(f => f.token);
+    renderAudioRankList(order, cfg.audioDisabled || []);
+  }
+  if (cfg.maxBitrate != null) setVal('max-bitrate', String(cfg.maxBitrate));
+  setChk('auto-select', cfg.autoSelect);
+  if (cfg.labelPreset) setVal('label-preset', cfg.labelPreset);
+  setChk('show-summary', cfg.showSummary);
+  if (cfg.summaryStyle) setVal('summary-style', cfg.summaryStyle);
+  if (cfg.qualityBadge != null) setVal('quality-badge', cfg.qualityBadge);
+  if (cfg.flagEmoji != null) setVal('flag-emoji', cfg.flagEmoji);
+  if (cfg.bitrateBar != null) setVal('bitrate-bar', cfg.bitrateBar);
+  if (cfg.subsStyle) setVal('subs-style', cfg.subsStyle);
+  if (cfg.showCatalog === false) { setChk('show-catalog', false); toggleCatalogOptions(); }
+  if (cfg.catalogContent) setVal('catalog-content', cfg.catalogContent);
+  if (Array.isArray(cfg.libraryRows)) {
+    ['recent', 'resume', 'nextup', 'favorites'].forEach(k => {
+      const el = document.getElementById('libchk-' + k);
+      if (el) el.checked = cfg.libraryRows.indexOf(k) !== -1;
+    });
+  }
+  if (cfg.rpdbKey) setVal('rpdb-key', cfg.rpdbKey);
+  if (Array.isArray(cfg.externalCatalogs) && cfg.externalCatalogs.length) {
+    const catList = document.getElementById('catalog-list');
+    if (catList) { catList.innerHTML = ''; nextCatId = 0; cfg.externalCatalogs.forEach(cat => addExternalCatalog(cat)); }
+  }
+  toggleCustomPreset();
+  if (window.Controls) Controls.syncAll();
+}
+
 async function ensureAccountConfigLoaded() {
   if (_accountConfigPromise) return _accountConfigPromise;
   _accountConfigPromise = (async () => {
@@ -91,9 +148,12 @@ async function ensureAccountConfigLoaded() {
       const accountServers = _mergeLocalCredsIntoServers(cfg.servers);
       cfg.servers = accountServers;
       if (!accountServers.length) return null;
+      const hadLocal = !!localStorage.getItem(LS_KEY);
       const domServers = (collectConfig(true) || {}).servers || [];
-      if (!domHasEnabledServers() || accountServers.length > domServers.length) {
+      if (!hadLocal || !domHasEnabledServers() || accountServers.length > domServers.length) {
         populateFromConfig(cfg);
+        applyManifestSettings(cfg);
+        saveToLocalStorage();
       } else {
         _applyCredsToDomBlocks(accountServers);
       }
@@ -1280,7 +1340,9 @@ function wireLogFilters() {
 
 async function refreshLog() {
   try {
-    const data = await fetch('/api/request-log').then(r => r.json());
+    const resp = await fetch('/api/request-log', { credentials: 'same-origin' });
+    if (!resp.ok) { logData = []; renderLogPage(); return; }
+    const data = await resp.json();
     const badge = document.getElementById('log-count-badge');
     if (badge) badge.textContent = data.length ? `${data.length} entries · stream resolution history` : 'Stream resolution history';
     logData = data;
@@ -1291,7 +1353,7 @@ async function refreshLog() {
 
 async function clearLog() {
   if (!confirm('Clear request history?')) return;
-  await fetch('/api/clear-request-log', { method: 'POST' });
+  await fetch('/api/clear-request-log', { method: 'POST', credentials: 'same-origin' });
   logData = []; logPage = 0;
   refreshLog();
 }
@@ -1795,6 +1857,7 @@ function _refreshMediaPreview() {
 
 // ── Page-show hook (router calls this when a page is shown) ────────────────
 window.onPageShow = function(name) {
+  if (name !== 'servers') _stopServersAutoRefresh();
   if (name === 'servers') { renderServersPage(); _startServersAutoRefresh(); }
   if (name === 'streaming' || name === 'appearance') {
     updateMediaSourceStats();
@@ -1810,7 +1873,7 @@ window.onPageShow = function(name) {
       replayDashTileAnimations();
     })();
   }
-  if (name === 'health') location.hash = '#/dashboard';
+  if (name === 'health' && typeof window.startHealth === 'function') window.startHealth();
   if (name === 'log' && typeof refreshLog === 'function') refreshLog();
   if (name === 'catalogs' && typeof refreshKeyPills === 'function') refreshKeyPills();
   if (window.Controls) Controls.syncAll();
@@ -2936,7 +2999,7 @@ function collectFormState() {
     mode,
     timeoutValue: document.getElementById('timeout-value')?.value,
     sortOrder: document.getElementById('sort-order')?.value,
-    excludeRes: [...document.querySelectorAll('.res-cb')].map(cb => cb.checked),
+    excludeRes: [...document.querySelectorAll('.res-cb:checked')].map(cb => cb.value),
     recommend: document.getElementById('show-recommend')?.checked,
     showPing: document.getElementById('show-ping')?.checked,
     pingDetail: document.getElementById('ping-detail')?.checked,
@@ -3009,7 +3072,9 @@ function saveToLocalStorage() {
   if (ind) { ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(() => ind.classList.remove('visible'), 1800); }
 }
 
-function autoSave() {
+const _AUTOSAVE_IGNORE = '#rlog-search,.rlog-search,#tkt-search,.tkt-search,#adm-search,#bill-code,#cmdk-input,.cmdk-input,[data-no-autosave]';
+function autoSave(e) {
+  if (e && e.target && e.target.closest && e.target.closest(_AUTOSAVE_IGNORE)) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveToLocalStorage();
@@ -3125,11 +3190,7 @@ function restoreFromLocalStorage() {
       document.querySelectorAll(".cd-field").forEach(function(cb){ cb.checked = state.customDescFields.indexOf(cb.value) >= 0; });
     }
     toggleCustomPreset();
-    if (Array.isArray(state.excludeRes)) {
-      document.querySelectorAll('.res-cb').forEach((cb, i) => {
-        if (i < state.excludeRes.length) cb.checked = state.excludeRes[i];
-      });
-    }
+    if (Array.isArray(state.excludeRes)) _applyExcludeRes(state.excludeRes);
 
     if (window.Controls) Controls.syncAll();
     return true;

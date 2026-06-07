@@ -39,7 +39,6 @@ function showPage(name) {
 
 function routeFromHash() {
   let name = (location.hash || '#/home').replace(/^#\//, '');
-  if (name === 'health') name = 'dashboard';
   if (name === 'appearance') name = 'streaming';
   showPage(name);
 }
