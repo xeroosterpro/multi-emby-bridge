@@ -129,6 +129,7 @@ function applyManifestSettings(cfg) {
   setAudioRankToggle(c.audioRank ? 'on' : 'off');
   setVal('audio-rank-mode', c.audioRankMode || 'audioFirst');
   setVal('audio-disable-action', c.audioDisableAction || 'hide');
+  setSurroundPriorityToggle(c.surroundPriority ? 'on' : 'off');
   if (Array.isArray(c.audioOrder) || Array.isArray(c.audioDisabled) || c.audioRank) {
     const order = (c.audioOrder && c.audioOrder.length) ? c.audioOrder : AUDIO_FORMATS.map(f => f.token);
     renderAudioRankList(order, c.audioDisabled || []);
@@ -2828,14 +2829,15 @@ let AUDIO_FORMATS = [];
 let AUDIO_PRESETS = [];
 const AUDIO_CAT_LABEL = { object: 'Object-Based', lossless: 'Lossless', lossy: 'Lossy', other: 'Other' };
 
-// Set the #audio-rank seg + its hidden-canonical <select> programmatically.
-// Mirrors the file's convention: set the canonical .value, then Controls.syncAll()
-// repaints the .seg[data-target] buttons (see controls.js syncSegment).
-function setAudioRankToggle(v) {
-  const sel = document.getElementById('audio-rank');
+// Set a seg-backed hidden-canonical <select> programmatically.
+function setSegSelect(id, v) {
+  const sel = document.getElementById(id);
   if (sel) sel.value = v;
   if (window.Controls) Controls.syncAll();
 }
+
+function setAudioRankToggle(v) { setSegSelect('audio-rank', v); }
+function setSurroundPriorityToggle(v) { setSegSelect('surround-priority', v); }
 
 async function initAudioCard() {
   try {
@@ -2846,6 +2848,19 @@ async function initAudioCard() {
   } catch { AUDIO_FORMATS = []; AUDIO_PRESETS = []; }
   renderAudioPresetChips();
   renderAudioRankList(AUDIO_FORMATS.map(f => f.token), []);
+}
+
+function applyPresetStreamSettings(settings) {
+  if (!settings) return;
+  if (settings.surroundPriority) setSurroundPriorityToggle('on');
+  if (settings.autoSelect === true) {
+    const el = document.getElementById('auto-select');
+    if (el) el.checked = true;
+  } else if (settings.autoSelect === false) {
+    const el = document.getElementById('auto-select');
+    if (el) el.checked = false;
+  }
+  if (window.Controls) Controls.syncAll();
 }
 
 function tokenMeta(token) { return AUDIO_FORMATS.find(f => f.token === token) || null; }
@@ -2903,16 +2918,43 @@ function wireAudioDrag(ol) {
 }
 
 function renderAudioPresetChips() {
-  const wrap = document.getElementById('audio-preset-chips');
-  if (!wrap) return;
-  wrap.innerHTML = '';
-  AUDIO_PRESETS.forEach(p => {
+  const comboWrap = document.getElementById('audio-combo-chips');
+  const deviceWrap = document.getElementById('audio-preset-chips');
+  if (!deviceWrap) return;
+  if (comboWrap) {
+    comboWrap.innerHTML = '';
+    AUDIO_PRESETS.filter(p => p.kind === 'combo').forEach(p => {
+      const chip = document.createElement('span');
+      chip.className = 'chip chip-combo';
+      chip.dataset.combo = p.id;
+      chip.textContent = p.label;
+      chip.title = 'One-tap: sets devices + surround-friendly ranking';
+      chip.addEventListener('click', () => applyComboPreset(p.id));
+      comboWrap.appendChild(chip);
+    });
+  }
+  deviceWrap.innerHTML = '';
+  AUDIO_PRESETS.filter(p => p.supports).forEach(p => {
     const chip = document.createElement('span');
     chip.className = 'chip';
     chip.dataset.preset = p.id;
     chip.textContent = p.label;
-    chip.addEventListener('click', () => { chip.classList.toggle('on'); applyAudioPresets(); });
-    wrap.appendChild(chip);
+    chip.addEventListener('click', () => {
+      chip.classList.toggle('on');
+      clearComboHighlight();
+      applyAudioPresets();
+    });
+    deviceWrap.appendChild(chip);
+  });
+}
+
+function clearComboHighlight() {
+  document.querySelectorAll('#audio-combo-chips .chip.on').forEach(c => c.classList.remove('on'));
+}
+
+function setDevicePresetChips(deviceIds) {
+  document.querySelectorAll('#audio-preset-chips .chip').forEach(c => {
+    c.classList.toggle('on', deviceIds.includes(c.dataset.preset));
   });
 }
 
@@ -2920,20 +2962,76 @@ function selectedPresetIds() {
   return [...document.querySelectorAll('#audio-preset-chips .chip.on')].map(c => c.dataset.preset);
 }
 
-// Mirror of server resolvePreset for instant UI feedback.
-function applyAudioPresets() {
-  const ids = selectedPresetIds();
-  if (ids.length === 0) { renderAudioRankList(AUDIO_FORMATS.map(f => f.token), []); autoSave(); return; }
-  const chosen = ids.map(id => AUDIO_PRESETS.find(p => p.id === id)).filter(Boolean);
+function resolvePresetClient(selectedIds) {
+  const deviceIds = [];
+  const devicePresets = [];
+  for (const id of selectedIds || []) {
+    const p = AUDIO_PRESETS.find(x => x.id === id);
+    if (!p) continue;
+    if (p.kind === 'combo' && p.combo) p.combo.forEach(d => { if (!deviceIds.includes(d)) deviceIds.push(d); });
+    else if (p.supports) { deviceIds.push(id); devicePresets.push(p); }
+  }
+  if (deviceIds.length === 0) return null;
   const allIds = AUDIO_FORMATS.map(f => f.id);
-  const supportedAll = allIds.filter(fmt => chosen.every(p => p.supports.includes(fmt)));
+  const presets = deviceIds.map(id => AUDIO_PRESETS.find(p => p.id === id)).filter(p => p && p.supports);
+  const supportedAll = allIds.filter(fmt => presets.every(p => p.supports.includes(fmt)));
   const disabledIds = allIds.filter(fmt => !supportedAll.includes(fmt));
-  const orderIds = [...supportedAll, ...disabledIds];
+  let orderIds = [...supportedAll, ...disabledIds];
+
+  let surroundPriority = false;
+  let autoSelect;
+  let suggestedOrder = null;
+  for (const id of selectedIds || []) {
+    const p = AUDIO_PRESETS.find(x => x.id === id);
+    if (!p?.settings) continue;
+    if (p.settings.surroundPriority) surroundPriority = true;
+    if (p.settings.autoSelect !== undefined) autoSelect = p.settings.autoSelect;
+    if (p.settings.suggestedOrder) suggestedOrder = p.settings.suggestedOrder;
+  }
+  const hasShield = deviceIds.includes('shield');
+  const hasAppleTv = deviceIds.includes('appletv');
+  const hasSoundbar = deviceIds.includes('soundbar');
+  if (hasShield || hasAppleTv) surroundPriority = true;
+  if ((hasShield || hasAppleTv) && hasSoundbar) {
+    surroundPriority = true;
+    if (autoSelect === undefined) autoSelect = false;
+    if (!suggestedOrder) suggestedOrder = ['atmos','dtsx','truehd','dtshd_ma','ddplus','dts','dd','aac','flac','lpcm','other'];
+  }
+  if (suggestedOrder) {
+    const supportedSet = new Set(supportedAll);
+    orderIds = [...suggestedOrder.filter(id => supportedSet.has(id)), ...disabledIds];
+  }
+
   const toToken = id => (AUDIO_FORMATS.find(f => f.id === id) || {}).token;
-  renderAudioRankList(orderIds.map(toToken), disabledIds.map(toToken));
+  return {
+    orderTokens: orderIds.map(toToken),
+    disabledTokens: disabledIds.map(toToken),
+    action: deviceIds.length > 1 ? 'bottom' : 'hide',
+    settings: { surroundPriority, autoSelect, suggestedOrder },
+  };
+}
+
+function applyComboPreset(comboId) {
+  const combo = AUDIO_PRESETS.find(p => p.id === comboId);
+  if (!combo || !combo.combo) return;
+  document.querySelectorAll('#audio-combo-chips .chip').forEach(c => {
+    c.classList.toggle('on', c.dataset.combo === comboId);
+  });
+  setDevicePresetChips(combo.combo);
+  applyAudioPresets([comboId, ...combo.combo]);
+}
+
+// Mirror of server resolvePreset for instant UI feedback.
+function applyAudioPresets(extraIds) {
+  const ids = [...new Set([...(extraIds || []), ...selectedPresetIds()])];
+  if (ids.length === 0) { renderAudioRankList(AUDIO_FORMATS.map(f => f.token), []); autoSave(); return; }
+  const resolved = resolvePresetClient(ids);
+  if (!resolved) { renderAudioRankList(AUDIO_FORMATS.map(f => f.token), []); autoSave(); return; }
+  renderAudioRankList(resolved.orderTokens, resolved.disabledTokens);
   setAudioRankToggle('on');
   const actionEl = document.getElementById('audio-disable-action');
-  if (actionEl) actionEl.value = ids.length > 1 ? 'bottom' : 'hide';
+  if (actionEl) actionEl.value = resolved.action;
+  applyPresetStreamSettings(resolved.settings);
   autoSave();
 }
 
@@ -3046,6 +3144,7 @@ Continue anyway?`;
   const audioRankMode = document.getElementById('audio-rank-mode').value;
   const audioDisableAction = document.getElementById('audio-disable-action').value;
   const audioOrderChanged = audioOrder.length > 0 && audioOrder.join(',') !== AUDIO_FORMATS.map(f => f.token).join(',');
+  const surroundPriority = document.getElementById('surround-priority')?.value === 'on';
   const maxBitrate = document.getElementById('max-bitrate').value;
   const autoSelect = document.getElementById('auto-select').checked;
   const labelPreset = document.getElementById('label-preset').value;
@@ -3088,6 +3187,7 @@ Continue anyway?`;
       if (audioOrderChanged) sc.audioOrder = audioOrder;
       if (audioDisabled.length) sc.audioDisabled = audioDisabled;
       if (audioDisabled.length && audioDisableAction !== 'hide') sc.audioDisableAction = audioDisableAction;
+      if (surroundPriority) sc.surroundPriority = true;
       if (labelPreset !== 'standard') sc.labelPreset = labelPreset;
       if (autoSelect) sc.autoSelect = true;
       if (showSummary) { sc.showSummary = true; if (summaryStyle !== 'compact') sc.summaryStyle = summaryStyle; }
@@ -3133,6 +3233,7 @@ Continue anyway?`;
     if (audioOrderChanged) config.audioOrder = audioOrder;
     if (audioDisabled.length) config.audioDisabled = audioDisabled;
     if (audioDisabled.length && audioDisableAction !== 'hide') config.audioDisableAction = audioDisableAction;
+    if (surroundPriority) config.surroundPriority = true;
     if (labelPreset !== 'standard') config.labelPreset = labelPreset;
     if (autoSelect) config.autoSelect = true;
     if (showSummary) { config.showSummary = true; if (summaryStyle !== 'compact') config.summaryStyle = summaryStyle; }
@@ -3265,6 +3366,7 @@ function collectFormState() {
     audioDisabled: [...document.querySelectorAll('#audio-rank-list .arl-disable:checked')].map(cb => cb.closest('.audio-rank-row').dataset.token),
     audioRankMode: document.getElementById('audio-rank-mode')?.value,
     audioDisableAction: document.getElementById('audio-disable-action')?.value,
+    surroundPriority: document.getElementById('surround-priority')?.value === 'on',
     audioPresets: [...document.querySelectorAll('#audio-preset-chips .chip.on')].map(c => c.dataset.preset),
     maxBitrate: document.getElementById('max-bitrate')?.value,
     autoSelect: document.getElementById('auto-select')?.checked,
@@ -3391,6 +3493,7 @@ function restoreFromLocalStorage() {
     setAudioRankToggle(restored.audioRank ? 'on' : 'off');
     setVal('audio-rank-mode', restored.audioRankMode || 'audioFirst');
     setVal('audio-disable-action', restored.audioDisableAction || 'hide');
+    setSurroundPriorityToggle(restored.surroundPriority ? 'on' : 'off');
     const _audioOrder = (restored.audioOrder && restored.audioOrder.length) ? restored.audioOrder : AUDIO_FORMATS.map(f => f.token);
     renderAudioRankList(_audioOrder, restored.audioDisabled || []);
     (restored.audioPresets || []).forEach(id => {

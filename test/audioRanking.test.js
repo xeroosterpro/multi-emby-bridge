@@ -162,11 +162,19 @@ input = A.attachAudioKeys([mk(['atmos'])], { audioDisabled:[] });
 r = A.filterDisabledHide(input, { audioDisabled:[] });
 assertEqual(r.streams.length, 1, 'empty disabled set: passthrough');
 
+console.log('\nchannelRank:');
+assertEqual(A.channelRank(8), 0, '7.1 -> 0');
+assertEqual(A.channelRank(6), 1, '5.1 -> 1');
+assertEqual(A.channelRank(2), 3, 'stereo -> 3');
+assertEqual(A.channelRank(0), 4, 'unknown -> 4');
+
 console.log('\nAUDIO_PRESETS:');
 assert(A.AUDIO_PRESETS.some(p => p.id === 'shield'), 'shield preset exists');
+assert(A.AUDIO_PRESETS.some(p => p.id === 'shield_earc'), 'shield_earc combo exists');
 assert(A.AUDIO_PRESETS.some(p => p.id === 'sonos'), 'sonos preset exists');
 assert(A.AUDIO_PRESETS.some(p => p.id === 'firestick'), 'firestick preset exists');
-assertEqual(A.AUDIO_PRESETS.length, 8, '8 device presets defined');
+assertEqual(A.DEVICE_PRESETS.length, 9, '9 device presets defined');
+assertEqual(A.COMBO_PRESETS.length, 3, '3 combo presets defined');
 
 console.log('\nresolvePreset:');
 // none selected -> no change
@@ -196,6 +204,34 @@ assertEqual(pr, null, 'null input -> null');
 pr = A.resolvePreset(['shield','totally_bogus']);
 assertEqual(pr.action, 'hide', 'unknown id filtered out -> treated as single-select (hide)');
 assertEqual(pr.disabled, [], 'shield+bogus -> only shield counts -> nothing disabled');
+
+console.log('\nresolvePreset — combos:');
+pr = A.resolvePreset(['shield_earc']);
+assert(pr.deviceIds.includes('shield') && pr.deviceIds.includes('soundbar'), 'shield_earc expands to shield+soundbar');
+assertEqual(pr.settings.surroundPriority, true, 'shield_earc enables surround priority');
+assertEqual(pr.settings.autoSelect, false, 'shield_earc disables auto-select');
+assert(pr.order.indexOf('ddp') < pr.order.indexOf('flc'), 'surround-friendly order puts DD+ above FLAC');
+
+pr = A.resolvePreset(['shield', 'soundbar']);
+assertEqual(pr.settings.surroundPriority, true, 'manual shield+soundbar enables surround');
+assertEqual(pr.settings.autoSelect, false, 'manual shield+soundbar disables auto-select');
+
+console.log('\nsurroundPriority ranking:');
+arr = [
+  { _audioFormats: ['flac', 'truehd'], _defaultAudioFormat: 'flac', _defaultChannels: 2, _maxChannels: 8, _resLabel: '1080p', _sizeBytes: 99, _bitrate: 5, _audioRank: 20 },
+  { _audioFormats: ['ddplus'], _defaultAudioFormat: 'ddplus', _defaultChannels: 6, _maxChannels: 6, _resLabel: '1080p', _sizeBytes: 50, _bitrate: 5, _audioRank: 40 },
+];
+A.attachAudioKeys(arr, { audioDisabled: [], surroundPriority: true });
+arr.sort(A.audioComparator({ sortOrder: 'size', audioRank: true, audioRankMode: 'audioFirst', surroundPriority: true }));
+assertEqual(arr[0]._defaultAudioFormat, 'ddplus', 'surround: DD+ 5.1 beats FLAC 2.0 default even if file has TrueHD');
+
+arr = [
+  { _audioFormats: ['flac', 'truehd'], _defaultAudioFormat: 'flac', _defaultChannels: 2, _maxChannels: 8, _resLabel: '1080p', _sizeBytes: 99, _bitrate: 5, _audioRank: 20 },
+  { _audioFormats: ['ddplus'], _defaultAudioFormat: 'ddplus', _defaultChannels: 6, _maxChannels: 6, _resLabel: '1080p', _sizeBytes: 50, _bitrate: 5, _audioRank: 40 },
+];
+A.attachAudioKeys(arr, { audioDisabled: [], surroundPriority: false });
+arr.sort(A.audioComparator({ sortOrder: 'size', audioRank: true, audioRankMode: 'audioFirst', surroundPriority: false }));
+assertEqual(arr[0]._audioFormats[0], 'flac', 'no surround: FLAC file with TrueHD track still ranks by best format');
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

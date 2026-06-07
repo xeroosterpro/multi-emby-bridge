@@ -902,6 +902,7 @@ app.get('/:config/stream/:type/:id.json', streamLimiter, async (req, res) => {
       audioDisabled:      cfg.audioDisabled || [],
       audioRankMode:      cfg.audioRankMode || 'audioFirst',
       audioDisableAction: cfg.audioDisableAction || 'hide',
+      surroundPriority:   cfg.surroundPriority === true,
     });
 
     // ── Results summary card (optional — pinned to top of stream list) ──────────
