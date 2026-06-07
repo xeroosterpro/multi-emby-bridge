@@ -799,15 +799,8 @@ input::placeholder { color: var(--text-muted); }
 .page.on { display: block; }
 .page-ph { color: var(--text-mute); font-size: 1.2rem; }
 
-/* mobile: collapse sidebar to top bar */
+/* mobile menu button — hidden on desktop */
 .menu-toggle { display: none; }
-@media (max-width: 720px) {
-  .app { flex-direction: column; }
-  .sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; padding: 10px; }
-  .nav { flex-direction: row; flex-wrap: wrap; }
-  .sidebar-foot { margin: 0; width: 100%; }
-  .content { padding: 16px; }
-}
 
 /* ── Servers page (OMEGA cards) ─────────────────────────────────────────── */
 .page-title { font-size: 1.45rem; font-weight: 800; margin: 0 0 4px; }
@@ -1142,10 +1135,7 @@ input[type=range]{ width:100%; accent-color:var(--accent); cursor:pointer; }
 .toast{ background:rgba(20,20,30,.95); backdrop-filter:blur(14px); border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border)); border-left:3px solid var(--accent); color:var(--text-primary); padding:11px 15px; border-radius:var(--r-md); font-size:.82rem; box-shadow:0 16px 40px rgba(0,0,0,.5); transform:translateX(120%); opacity:0; transition:transform .35s var(--ease),opacity .35s var(--ease); max-width:320px; }
 .toast.show{ transform:none; opacity:1; }
 
-@media (max-width:720px){
-  .sidebar{ width:0; border:0; } .sidebar.locked{ width:var(--side-w); }
-  .content, body.sb-locked .content{ margin-left:0; }
-}
+/* mobile drawer nav — see consolidated block at end of file */
 
 /* ===================== nav line-icons + collapsible accordions ===================== */
 .nav-ic{ width:20px; height:20px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; position:relative; z-index:1; }
@@ -4473,4 +4463,168 @@ html.view-as-user .admin-only { display: none !important; }
   .guide-step { gap: 14px; }
   .guide-step-num { width: 30px; height: 30px; font-size: .85rem; }
 }
+
+/* ===================== MOBILE UI (≤720px) — drawer nav + page fixes ===================== */
+@media (max-width: 720px) {
+  /* ── Drawer shell ── */
+  .menu-toggle {
+    display: grid; place-items: center;
+    position: fixed; top: 10px; left: 10px; z-index: 35;
+    width: 44px; height: 44px; padding: 0;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: color-mix(in srgb, var(--bg-surface) 92%, transparent);
+    backdrop-filter: blur(12px); color: var(--text-primary);
+    cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.35);
+  }
+  .menu-toggle svg { width: 22px; height: 22px; }
+  .sidebar-backdrop {
+    position: fixed; inset: 0; z-index: 29;
+    background: rgba(4,4,10,.55); backdrop-filter: blur(2px);
+    opacity: 0; pointer-events: none; transition: opacity .28s var(--ease);
+  }
+  .sidebar-backdrop.on { opacity: 1; pointer-events: auto; }
+  .sidebar {
+    width: min(88vw, 280px) !important;
+    transform: translateX(-105%);
+    transition: transform .34s var(--side-ease) !important;
+    box-shadow: none !important;
+    z-index: 31;
+  }
+  .sidebar:hover { width: min(88vw, 280px) !important; }
+  body.sidebar-open .sidebar { transform: translateX(0); box-shadow: 0 0 48px rgba(0,0,0,.55) !important; }
+  .sidebar:not(:hover):not(.locked) .nav-item .nav-label,
+  .sidebar:not(:hover):not(.locked) .nav-item .nav-ticket-badge,
+  .sidebar:not(:hover):not(.locked) .brand-text,
+  .sidebar:not(:hover):not(.locked) .sidebar-foot,
+  .sidebar:not(:hover):not(.locked) .nav-sec { opacity: 1 !important; pointer-events: auto !important; }
+  .sidebar:not(:hover):not(.locked) .brand { justify-content: flex-start !important; padding-right: 14px !important; }
+  .content, body.sb-locked .content { margin-left: 0 !important; }
+  .content {
+    padding: 58px 14px 24px !important;
+    min-width: 0; overflow-x: hidden;
+  }
+  .pin-btn { display: none !important; }
+  .nav-item { padding: 11px 14px; min-height: 44px; }
+  .nav-sec-toggle { min-height: 40px; padding: 8px 10px; }
+
+  /* ── Global controls ── */
+  .seg { flex-wrap: wrap; gap: 6px; }
+  .seg [data-val], .seg button { min-height: 40px; padding: 8px 12px !important; }
+  .btn-soft, .btn-generate, .btn-add { min-height: 44px; }
+  .toast-wrap {
+    left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom));
+    align-items: stretch;
+  }
+  .toast { max-width: none; }
+  .page-title { font-size: 1.25rem !important; }
+  .page-sub { font-size: .78rem !important; margin-bottom: 14px !important; }
+  .pref-row { flex-wrap: wrap; align-items: flex-start; }
+  .cmdk { padding-top: 8vh; }
+
+  /* ── Home ── */
+  .home-wrap { padding: 8px 0 24px !important; }
+  .home-greeting { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 18px; }
+  .home-launch-btn { width: 100%; justify-content: center; min-height: 44px; }
+  .home-panel-head { flex-direction: column; align-items: stretch; gap: 8px; }
+  .home-hero-grid { grid-template-columns: 1fr !important; }
+
+  /* ── Dashboard ── */
+  .tiles { grid-template-columns: repeat(2, 1fr) !important; gap: 8px; }
+  .tile .n { font-size: 1.35rem; }
+  .dash-cards { grid-template-columns: 1fr !important; }
+  .dash-activity-grid { grid-template-columns: 1fr !important; }
+  .da-row { flex-wrap: wrap; gap: 6px; }
+  .home-hero-cards { grid-template-columns: repeat(2, 1fr) !important; }
+  #page-streaming .ms-head { flex-direction: column; align-items: stretch; }
+  #page-streaming .ms-stats-inline { justify-content: flex-start; width: 100%; }
+  .bill-compare-grid { grid-template-columns: 1fr !important; }
+
+  /* ── Servers ── */
+  #page-servers .srv-head { flex-direction: column; align-items: stretch; gap: 10px; }
+  #page-servers .srv-add-btn { width: 100%; justify-content: center; }
+  #page-servers .srv-stats { grid-template-columns: 1fr !important; }
+  #page-servers .srv-profile-actions { flex-direction: column; }
+  #page-servers .srv-profile-actions .btn-soft { width: 100%; text-align: center; }
+
+  /* ── Catalogs ── */
+  .cat-provider-tiles { grid-template-columns: repeat(3, 1fr) !important; margin-bottom: 10px; }
+  .catalog-add-row { flex-direction: column; }
+  .catalog-add-row input, .catalog-add-row .btn-add-catalog { width: 100%; }
+  .catalog-list-header { flex-wrap: wrap; gap: 8px; }
+  .cat-row { flex-wrap: wrap; gap: 8px; }
+  .cat-row-actions { width: 100%; justify-content: flex-end; }
+  #page-catalogs .tmdb-discover-row { flex-direction: column !important; align-items: stretch !important; }
+  #page-catalogs .tmdb-discover-row select,
+  #page-catalogs .tmdb-discover-row input { width: 100% !important; max-width: none !important; }
+
+  /* ── Install ── */
+  #page-install .inst-url-wrap { flex-direction: column; align-items: stretch; }
+  #page-install .inst-copy-btn { width: 100%; }
+  #page-install .inst-actions { flex-direction: column; }
+  #page-install .inst-regen-btn, #page-install .inst-install-btn { width: 100%; }
+
+  /* ── Request log ── */
+  .rlog-top { flex-direction: column; gap: 10px; }
+  .rlog-top-actions { width: 100%; justify-content: flex-start; }
+  .rlog-top-actions .rlog-btn { flex: 1; min-width: 0; text-align: center; justify-content: center; }
+  .rlog-stats { grid-template-columns: repeat(2, 1fr) !important; }
+  .rlog-srv-line { grid-template-columns: 1fr 1fr; }
+  .rlog-srv-res { grid-column: 1 / -1; }
+
+  /* ── Billing ── */
+  .bill-hero { padding: 20px 14px !important; }
+  .bill-pitch-grid { gap: 12px; }
+  .bill-pitch-actions { flex-direction: column; width: 100%; }
+  .bill-pitch-actions .bill-demo-btn { width: 100%; }
+  .bill-plans { grid-template-columns: 1fr !important; }
+
+  /* ── Admin system ── */
+  .sys-top { flex-direction: column; align-items: stretch; }
+  .sys-viewas { flex-direction: column; align-items: stretch; gap: 10px; }
+  .sys-viewas-modes { width: 100%; justify-content: stretch; }
+  .sys-vamode { flex: 1; min-height: 40px; }
+  .sys-tab-grid { grid-template-columns: 1fr !important; }
+  .sys-metrics-grid { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* ── Admin users ── */
+  .adm-users-head { flex-direction: column; align-items: stretch; }
+  .adm-bar { flex-direction: column; align-items: stretch; }
+  .adm-bar input, .adm-bar select { width: 100% !important; }
+  .adm-stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .adm-row-split { grid-template-columns: 1fr !important; }
+
+  /* ── Tickets ── */
+  .tkt-toolbar { flex-wrap: wrap; }
+  .tkt-stat-tabs { flex-wrap: wrap; }
+
+  /* ── Guide ── */
+  .guide-back { margin-bottom: 12px; }
+
+  /* ── Ping ── */
+  .ping-controls { flex-direction: column; align-items: stretch; }
+  .ping-controls select, .ping-controls .btn-ping-test { width: 100%; min-height: 44px; }
+
+  /* ── Settings ── */
+  .themes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+  /* ── API keys ── */
+  .ak-grid { grid-template-columns: 1fr !important; }
+
+  /* ── Auth stays usable (already has rules) ── */
+  #view-as-banner { left: 8px; right: 8px; transform: none; width: auto; border-radius: 16px; }
+  .demo-site-banner { flex-wrap: wrap; padding: 8px 10px; font-size: .72rem; }
+}
+
+@media (max-width: 480px) {
+  .tiles { grid-template-columns: 1fr !important; }
+  .cat-provider-tiles { grid-template-columns: repeat(2, 1fr) !important; }
+  .rlog-stats { grid-template-columns: 1fr !important; }
+  .sys-metrics-grid { grid-template-columns: 1fr !important; }
+  .home-title { font-size: 1.45rem !important; }
+  .home-hero-cards { grid-template-columns: 1fr !important; }
+  .menu-toggle { top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); }
+}
+
+/* catalog provider tiles — responsive base */
+.cat-provider-tiles { grid-template-columns: repeat(5, 1fr); margin-bottom: 10px; }
 

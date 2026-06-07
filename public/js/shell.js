@@ -32,6 +32,9 @@ function showPage(name) {
   });
   if (window.onPageShow) window.onPageShow(name);   // hook for live data
   if (window.ensureActiveNavGroupOpen) window.ensureActiveNavGroupOpen();
+  if (window.MEBMobile && window.MEBMobile.isMobile && window.MEBMobile.isMobile()) {
+    window.MEBMobile.close();
+  }
 }
 
 function routeFromHash() {

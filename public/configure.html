@@ -154,6 +154,9 @@
       </div>
     </aside>
 
+    <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
     <main class="content" id="content">
       <section class="page" id="page-home">
         <div class="home-wrap">
@@ -426,7 +429,7 @@
           <h3 class="block-title">Add a row</h3>
           <div class="catalog-add-form">
             <div class="field-label">Provider</div>
-            <div class="tilegroup" data-target="#cat-provider" style="grid-template-columns:repeat(5,1fr);margin-bottom:10px">
+            <div class="tilegroup cat-provider-tiles" data-target="#cat-provider">
               <div class="tile" data-val="trakt"><span class="tic">&#x1F3AC;</span>Trakt</div>
               <div class="tile" data-val="mdblist"><span class="tic">&#x1F4DD;</span>MDbList</div>
               <div class="tile" data-val="imdb"><span class="tic">&#x2B50;</span>IMDb</div>
@@ -1534,6 +1537,7 @@
   <script src="/js/home-ui.js"></script>
   <script src="/js/tickets-ui.js"></script>
   <script src="/js/theme.js"></script>
+  <script src="/js/mobile-shell.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/configure.js"></script>
   <script src="/js/controls.js"></script>

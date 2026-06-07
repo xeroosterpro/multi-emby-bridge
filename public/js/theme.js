@@ -40,6 +40,8 @@
   };
 
   function boot() {
+    const mobile = window.matchMedia('(max-width: 720px)').matches;
+    if (mobile) prefs.lock = false;
     applyTheme(prefs.theme); applyScale(prefs.scale); applyMotion(prefs.motion); applyLock(prefs.lock);
     // reflect into controls if present
     const scaleEl = document.getElementById('ui-scale');
