@@ -44,19 +44,19 @@ body {
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-base: #111824;
-  --bg-surface: #1f2a3c;
-  --bg-elevated: #2a3649;
-  --bg-hover: #354558;
-  --bg-input: #0f1622;
-  --border: #566b84;
-  --border-focus: #5aabf0;
-  --text-primary: #f5f9fd;
-  --text-secondary: #c2d0e0;
-  --text-muted: #8499b0;
-  --accent: #5aabf0;
-  --accent-dim: #3d8fd4;
-  --accent-glow: rgba(90, 171, 240, 0.16);
+  --bg-base: #151a24;
+  --bg-surface: #1f2735;
+  --bg-elevated: #2a3344;
+  --bg-hover: #353f52;
+  --bg-input: #111720;
+  --border: #4a5568;
+  --border-focus: #6389db;
+  --text-primary: #f2f5fa;
+  --text-secondary: #b8c4d4;
+  --text-muted: #7a8a9e;
+  --accent: #6389db;
+  --accent-dim: #4a72c4;
+  --accent-glow: rgba(99, 137, 219, 0.16);
   --card-shadow: 0 10px 32px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.05);
   --success: #4caf7d;
   --error: #e05555;
