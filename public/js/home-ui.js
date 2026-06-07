@@ -21,8 +21,10 @@
       if (svcNum && c.servicesNum != null) svcNum.textContent = c.servicesNum;
       const invNum = document.getElementById('hc-invoices-num');
       if (invNum && c.invoicesNum != null) invNum.textContent = c.invoicesNum;
-      const ticketNum = document.querySelector('#hc-discord .hhc-num');
+      const ticketNum = document.getElementById('hc-tickets-num');
+      const ticketSub = document.getElementById('hc-tickets-sub');
       if (ticketNum && c.ticketsNum != null) ticketNum.textContent = c.ticketsNum;
+      if (ticketSub && c.ticketsSub != null) ticketSub.textContent = c.ticketsSub;
       const servicesBody = document.getElementById('home-services-body');
       if (servicesBody && c.servicesHtml) servicesBody.innerHTML = c.servicesHtml;
       const ticketsBody = document.getElementById('home-recent-tickets-body');
@@ -46,7 +48,8 @@
       dashBtn: dashBtn ? dashBtn.style.display !== 'none' : false,
       servicesNum: document.getElementById('hc-services-num')?.textContent ?? '',
       invoicesNum: document.getElementById('hc-invoices-num')?.textContent ?? '',
-      ticketsNum: document.querySelector('#hc-discord .hhc-num')?.textContent ?? '',
+      ticketsNum: document.getElementById('hc-tickets-num')?.textContent ?? '',
+      ticketsSub: document.getElementById('hc-tickets-sub')?.textContent ?? '',
       servicesHtml: servicesBody.innerHTML,
       ticketsHtml: ticketsBody.innerHTML,
       newsHtml: newsBody.innerHTML,
@@ -63,17 +66,29 @@
   const esc = x => String(x ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const fmtAgo = d => { const s=Math.floor((Date.now()-new Date(d))/1000); if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+'m ago'; if(s<86400) return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; };
 
+  const STATUS_LABEL = { open: 'Open', in_progress: 'In progress', closed: 'Closed', resolved: 'Resolved' };
+  const CAT_LABEL = { general: 'General', streaming: 'Streaming', servers: 'Servers', billing: 'Billing', bug: 'Bug', feature: 'Feature' };
+
   // ── Greeting ────────────────────────────────────────────────────────────────
   function loadGreeting() {
     const el = document.getElementById('home-title');
+    const sub = document.getElementById('home-sub');
     if (!el) return;
     if (_me && _me.user) {
       const cap = (_me.user.username||'there')[0].toUpperCase() + (_me.user.username||'there').slice(1);
       const h = new Date().getHours();
       const tod = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
       el.innerHTML = `${tod}, ${cap} <span class="wave">👋</span>`;
+      if (sub) {
+        if (_me.user.role === 'admin') {
+          sub.textContent = 'Full admin access — manage servers, users, and support from here.';
+        } else {
+          sub.textContent = 'Glad you\'re here — your bridge settings are synced and ready.';
+        }
+      }
     } else {
       el.innerHTML = 'Welcome to Stream-Hub <span class="wave">👋</span>';
+      if (sub) sub.textContent = 'Sign in to manage your servers, manifest, and support tickets.';
     }
   }
 
@@ -151,45 +166,60 @@
       <div class="home-view-more" data-page="billing">View More ›</div>`;
   }
 
+  function updateTicketStats(tickets) {
+    const list = Array.isArray(tickets) ? tickets : [];
+    const open = list.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+    const total = list.length;
+    const num = document.getElementById('hc-tickets-num');
+    const sub = document.getElementById('hc-tickets-sub');
+    if (num) num.textContent = String(total);
+    if (sub) sub.textContent = open === 1 ? '1 open' : `${open} open`;
+  }
+
+  function openTicket(id) {
+    try { sessionStorage.setItem('meb_open_ticket', id); } catch {}
+    location.hash = '#/tickets';
+  }
+
   // ── Recent tickets — renders pre-fetched data immediately ───────────────────
   function renderRecentTickets(tickets) {
     const body = document.getElementById('home-recent-tickets-body');
     if (!body) return;
 
-    // Update hero card
-    const hcNum = document.querySelector('#hc-discord .hhc-num');
-    if (hcNum) hcNum.textContent = Array.isArray(tickets) ? tickets.filter(t => t.status === 'open').length : 0;
+    updateTicketStats(tickets);
 
     if (!Array.isArray(tickets) || tickets.length === 0) {
       body.innerHTML = `
         <div class="home-empty-state">
           <span class="empty-emoji">🕊️</span>
           <div style="font-weight:600; color:var(--text-primary); margin-bottom:2px;">All quiet here</div>
-          <div style="font-size:.78rem; opacity:.75;">Use the <strong>+ Open New Ticket</strong> button above to get started.</div>
+          <div style="font-size:.78rem; opacity:.75;">Use <strong>+ New Ticket</strong> above when you need help.</div>
         </div>`;
       return;
     }
 
     const tagFor = t => {
-      if (t.status === 'closed') return ['Closed',    'hrc-tag-closed'];
-      if (t.unread  > 0)         return ['Responded', 'hrc-tag-responded'];
-      return                            ['Waiting',   'hrc-tag-waiting'];
+      if (t.status === 'closed' || t.status === 'resolved') return [STATUS_LABEL[t.status] || 'Closed', 'hrc-tag-closed'];
+      if (t.unread > 0) return ['New reply', 'hrc-tag-responded'];
+      if (t.status === 'in_progress') return ['In progress', 'hrc-tag-progress'];
+      return ['Open', 'hrc-tag-waiting'];
     };
 
     body.innerHTML = tickets.slice(0, 5).map(t => {
       const [tag, cls] = tagFor(t);
+      const cat = CAT_LABEL[t.category] || t.category || 'General';
       return `<div class="hrc-row" data-id="${esc(t.id)}">
         <div class="hrc-dot hrc-dot-${esc(t.status)}"></div>
         <div class="hrc-info">
           <div class="hrc-subject">${esc(t.subject)}</div>
-          <div class="hrc-meta">${fmtAgo(t.updated_at)}</div>
+          <div class="hrc-meta">${esc(cat)} · ${fmtAgo(t.updated_at)}${t.unread > 0 ? ` · <span class="hrc-unread">${t.unread} new</span>` : ''}</div>
         </div>
         <span class="hrc-tag ${cls}">${tag}</span>
       </div>`;
     }).join('');
 
     body.querySelectorAll('.hrc-row').forEach(row =>
-      row.addEventListener('click', () => { location.hash = '#/tickets'; })
+      row.addEventListener('click', () => openTicket(row.dataset.id))
     );
   }
 
@@ -246,7 +276,23 @@
 
   function setupTicketLinks() {
     const btn = document.getElementById('home-ticket-btn');
-    if (btn) btn.addEventListener('click', e => { e.preventDefault(); location.hash = '#/tickets'; });
+    if (btn) btn.addEventListener('click', e => {
+      e.preventDefault();
+      try { sessionStorage.setItem('meb_new_ticket', '1'); } catch {}
+      location.hash = '#/tickets';
+    });
+    document.getElementById('home-view-tickets')?.addEventListener('click', e => {
+      e.preventDefault();
+      location.hash = '#/tickets';
+    });
+  }
+
+  function setupQuickActions() {
+    const wrap = document.getElementById('home-quick-actions');
+    if (!wrap) return;
+    wrap.querySelectorAll('[data-page]').forEach(btn => {
+      btn.addEventListener('click', () => { location.hash = '#/' + btn.dataset.page; });
+    });
   }
 
   // ── Re-run animations + refresh data when home becomes active ───────────────
@@ -348,6 +394,7 @@
     setupHeroCards();
     setupGreetingBtn();
     setupTicketLinks();
+    setupQuickActions();
     setupPageTransition();
     setupMouseGlow();
     setupCardTilts();

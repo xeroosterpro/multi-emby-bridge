@@ -199,8 +199,9 @@
             <div class="home-hero-card hhc-discord" id="hc-discord" role="button" tabindex="0">
               <span class="hhc-bg-emoji" aria-hidden="true">🎫</span>
               <span class="hhc-emoji" aria-hidden="true">🎫</span>
-              <div class="hhc-num">0</div>
+              <div class="hhc-num" id="hc-tickets-num">0</div>
               <div class="hhc-label">Tickets</div>
+              <div class="hhc-sub" id="hc-tickets-sub">0 open</div>
             </div>
             <div class="home-hero-card hhc-invoices" data-page="billing" role="button" tabindex="0">
               <span class="hhc-bg-emoji" aria-hidden="true">🧾</span>
@@ -208,6 +209,14 @@
               <div class="hhc-num" id="hc-invoices-num">0</div>
               <div class="hhc-label">Invoices</div>
             </div>
+          </div>
+
+          <div class="home-quick-actions" id="home-quick-actions">
+            <button class="home-quick-chip" type="button" data-page="dashboard"><span class="home-quick-ic">▦</span>Dashboard</button>
+            <button class="home-quick-chip" type="button" data-page="servers"><span class="home-quick-ic">⬡</span>Servers</button>
+            <button class="home-quick-chip" type="button" data-page="install"><span class="home-quick-ic">🚀</span>Install</button>
+            <button class="home-quick-chip" type="button" data-page="tickets"><span class="home-quick-ic">🎫</span>Tickets</button>
+            <button class="home-quick-chip" type="button" data-page="settings"><span class="home-quick-ic">⚙</span>Settings</button>
           </div>
 
           <!-- active services panel -->
@@ -233,7 +242,10 @@
                   <div class="home-ph-dot" style="background:linear-gradient(90deg,var(--accent-a),var(--accent-b))"></div>
                   <span>Recent Support Tickets</span>
                 </div>
-                <a class="home-panel-btn" id="home-ticket-btn" href="#" target="_blank" rel="noopener">+ Open New Ticket</a>
+                <div class="home-panel-actions">
+                  <a class="home-panel-btn" href="#" data-page="tickets" id="home-view-tickets">View all</a>
+                  <a class="home-panel-btn home-panel-btn-accent" href="#" id="home-ticket-btn">+ New Ticket</a>
+                </div>
               </div>
               <div class="home-panel-body" id="home-recent-tickets-body">
                 <div class="home-svc-loading">Loading…</div>

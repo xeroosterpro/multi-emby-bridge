@@ -3127,6 +3127,40 @@ html.view-as-user .admin-only { display: none !important; }
 .home-launch-btn:hover::after { left: 260%; }
 .home-launch-btn:active { transform: translateY(-1px) scale(0.98); filter: brightness(.92); }
 
+.home-quick-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px;
+}
+.home-quick-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 14px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  background: color-mix(in srgb, var(--bg-surface) 88%, transparent);
+  color: var(--text-secondary); font-size: .78rem; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+  transition: transform .16s var(--ease), border-color .16s, color .16s, box-shadow .16s;
+}
+.home-quick-chip:hover {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.home-quick-ic { font-size: .9rem; line-height: 1; opacity: .9; }
+
+.home-panel-actions {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.home-panel-btn-accent {
+  background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+  color: #120a18 !important;
+  border: none;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.home-panel-btn-accent:hover {
+  filter: brightness(1.08);
+  transform: translateY(-2px);
+}
+
 /* ── Hero cards — warm, welcoming, with pop + smooth motion — */
 .home-hero-cards {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px;
@@ -3560,6 +3594,9 @@ html.view-as-user .admin-only { display: none !important; }
 .hrc-info { flex: 1; min-width: 0; }
 .hrc-subject { font-size: .83rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hrc-meta { font-size: .72rem; color: var(--text-muted); margin-top: 2px; }
+.hrc-unread { color: var(--accent-a); font-weight: 700; }
+.hrc-dot-in_progress { background: #f59e0b; }
+.hrc-dot-resolved { background: var(--text-mute, #64748b); }
 
 .hrc-tag {
   flex-shrink: 0; font-size: .68rem; font-weight: 700; border-radius: 20px;
@@ -3579,6 +3616,11 @@ html.view-as-user .admin-only { display: none !important; }
   color: var(--warning, #fbbf24);
   background: color-mix(in srgb, var(--warning, #fbbf24) 12%, transparent);
   border-color: color-mix(in srgb, var(--warning, #fbbf24) 28%, transparent);
+}
+.hrc-tag-progress {
+  color: #f59e0b;
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  border-color: color-mix(in srgb, #f59e0b 28%, transparent);
 }
 .hrc-tag-closed {
   color: var(--text-muted);
@@ -3867,6 +3909,31 @@ html.view-as-user .admin-only { display: none !important; }
 .tkt-thread-header {
   background: var(--bg-elevated); border: 1px solid var(--border);
   border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; flex-shrink: 0;
+}
+.tkt-thread-top {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+}
+.tkt-delete-btn {
+  flex-shrink: 0; font-size: .74rem; padding: 6px 12px;
+  color: var(--error, #f87171);
+  border-color: color-mix(in srgb, var(--error, #f87171) 35%, var(--border));
+}
+.tkt-delete-btn:hover {
+  color: #fff;
+  background: color-mix(in srgb, var(--error, #f87171) 22%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--error, #f87171) 55%, var(--border));
+}
+.tkt-row-delete {
+  flex: none; width: 22px; height: 22px; border-radius: 6px;
+  border: 1px solid transparent; background: transparent;
+  color: var(--text-mute); font-size: 1rem; line-height: 1;
+  cursor: pointer; opacity: 0; transition: opacity .14s, color .14s, background .14s, border-color .14s;
+}
+.tkt-row:hover .tkt-row-delete { opacity: 1; }
+.tkt-row-delete:hover {
+  color: var(--error, #f87171);
+  background: color-mix(in srgb, var(--error, #f87171) 12%, transparent);
+  border-color: color-mix(in srgb, var(--error, #f87171) 30%, transparent);
 }
 .tkt-thread-subject { font-size: 1rem; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; }
 .tkt-thread-meta {

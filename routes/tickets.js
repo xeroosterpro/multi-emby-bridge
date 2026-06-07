@@ -212,6 +212,22 @@ function makeTicketsRouter() {
     }
   });
 
+  // DELETE /api/tickets/:id — admin: any; user: own tickets only
+  r.delete('/:id', requireAuth, async (req, res) => {
+    try {
+      const { rows: [ticket] } = await db.query('SELECT * FROM tickets WHERE id=$1', [req.params.id]);
+      if (!ticket) return res.status(404).json({ error: 'not found' });
+      const isAdmin = req.user.role === 'admin';
+      if (!isAdmin && ticket.user_id !== req.user.id)
+        return res.status(403).json({ error: 'forbidden' });
+      await db.query('DELETE FROM tickets WHERE id=$1', [req.params.id]);
+      res.json({ ok: true });
+    } catch (e) {
+      console.error('[tickets/delete]', e.message);
+      res.status(500).json({ error: 'failed' });
+    }
+  });
+
   // PATCH /api/tickets/:id — admin: full control; user: close own ticket
   r.patch('/:id', requireAuth, express.json(), async (req, res) => {
     const { status, priority, category } = req.body || {};

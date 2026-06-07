@@ -24,6 +24,7 @@
   }
 
   let _isAdmin = false;
+  let _currentUserId = null;
   let _currentTicketId = null;
   let _filterStatus = 'all';
   let _filterCategory = 'all';
@@ -72,6 +73,76 @@
     return tickets.filter(t => t.unread > 0 && (t.status === 'open' || t.status === 'in_progress'));
   }
 
+  function canDeleteTicket(ticket) {
+    if (!ticket) return false;
+    if (_isAdmin) return true;
+    if (!_currentUserId) return false;
+    if (ticket.user_id) return ticket.user_id === _currentUserId;
+    return true;
+  }
+
+  function ticketRowHTML(t) {
+    const code = ticketCode(t.id);
+    const status = t.status || 'open';
+    const statusLabel = STATUS_LABEL[status] || status;
+    const catLabel = CAT_LABEL[t.category] || t.category || 'General';
+    const pri = t.priority && t.priority !== 'normal' ? t.priority : '';
+    const active = t.id === _currentTicketId ? ' tkt-row-active' : '';
+    const av = t.username ? esc(t.username[0].toUpperCase()) : '?';
+    const del = canDeleteTicket(t)
+      ? `<button class="tkt-row-delete" type="button" data-del="${esc(t.id)}" title="Delete ticket" aria-label="Delete ticket">×</button>`
+      : '';
+    return `
+      <div class="tkt-row${t.unread > 0 ? ' tkt-row-unread' : ''}${active}" data-id="${esc(t.id)}">
+        <div class="tkt-row-top">
+          <span class="tkt-row-av">${av}</span>
+          <div class="tkt-row-main">
+            <div class="tkt-row-subject-line">
+              ${pri ? `<span class="tkt-pri tkt-pri-${esc(pri)}">${esc(PRI_LABEL[pri] || pri)}</span>` : ''}
+              <span class="tkt-subject">${esc(t.subject)}</span>
+              ${t.unread > 0 ? `<span class="tkt-unread-pill">${t.unread}</span>` : ''}
+            </div>
+            <div class="tkt-row-preview">${code} · ${esc(catLabel)} · ${t.message_count || 0} msg${(t.message_count || 0) !== 1 ? 's' : ''}</div>
+          </div>
+          <span class="tkt-status-pill tkt-status-${esc(status)}">${esc(statusLabel)}</span>
+          ${del}
+        </div>
+        <div class="tkt-row-foot">
+          ${_isAdmin && t.username ? `<span class="tkt-by">${esc(t.username)}</span> · ` : ''}
+          <span class="tkt-updated">${fmtAgo(t.updated_at)}</span>
+        </div>
+      </div>`;
+  }
+
+  function wireTicketRows(root) {
+    root.querySelectorAll('.tkt-row').forEach(row => {
+      row.addEventListener('click', () => openThread(row.dataset.id));
+    });
+    root.querySelectorAll('.tkt-row-delete').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        deleteTicket(btn.dataset.del);
+      });
+    });
+  }
+
+  async function deleteTicket(id) {
+    const t = _allTickets.find(x => x.id === id);
+    const label = t?.subject || 'this ticket';
+    if (!confirm(`Delete “${label}”? This cannot be undone.`)) return;
+    const r = await api(`/api/tickets/${id}`, { method: 'DELETE' });
+    if (r.status === 200) {
+      if (window.toast) window.toast('Ticket deleted');
+      if (_currentTicketId === id) {
+        _currentTicketId = null;
+        showDetailPanel(false);
+      }
+      await loadTickets();
+    } else if (window.toast) {
+      window.toast((r.body && r.body.error) || 'Could not delete ticket');
+    }
+  }
+
   // ── Ticket list ─────────────────────────────────────────────────────────────
   async function loadTickets(selectId) {
     const body = document.getElementById('tkt-list-body');
@@ -112,38 +183,8 @@
       return;
     }
 
-    body.innerHTML = shown.map(t => {
-      const code = ticketCode(t.id);
-      const status = t.status || 'open';
-      const statusLabel = STATUS_LABEL[status] || status;
-      const catLabel = CAT_LABEL[t.category] || t.category || 'General';
-      const pri = t.priority && t.priority !== 'normal' ? t.priority : '';
-      const active = t.id === _currentTicketId ? ' tkt-row-active' : '';
-      const av = t.username ? esc(t.username[0].toUpperCase()) : '?';
-      return `
-      <div class="tkt-row${t.unread > 0 ? ' tkt-row-unread' : ''}${active}" data-id="${esc(t.id)}">
-        <div class="tkt-row-top">
-          <span class="tkt-row-av">${av}</span>
-          <div class="tkt-row-main">
-            <div class="tkt-row-subject-line">
-              ${pri ? `<span class="tkt-pri tkt-pri-${esc(pri)}">${esc(PRI_LABEL[pri] || pri)}</span>` : ''}
-              <span class="tkt-subject">${esc(t.subject)}</span>
-              ${t.unread > 0 ? `<span class="tkt-unread-pill">${t.unread}</span>` : ''}
-            </div>
-            <div class="tkt-row-preview">${code} · ${esc(catLabel)} · ${t.message_count || 0} msg${(t.message_count || 0) !== 1 ? 's' : ''}</div>
-          </div>
-          <span class="tkt-status-pill tkt-status-${esc(status)}">${esc(statusLabel)}</span>
-        </div>
-        <div class="tkt-row-foot">
-          ${_isAdmin && t.username ? `<span class="tkt-by">${esc(t.username)}</span> · ` : ''}
-          <span class="tkt-updated">${fmtAgo(t.updated_at)}</span>
-        </div>
-      </div>`;
-    }).join('');
-
-    body.querySelectorAll('.tkt-row').forEach(row => {
-      row.addEventListener('click', () => openThread(row.dataset.id));
-    });
+    body.innerHTML = shown.map(ticketRowHTML).join('');
+    wireTicketRows(body);
 
     if (selectId) openThread(selectId);
     else if (_currentTicketId && shown.some(t => t.id === _currentTicketId)) {
@@ -195,6 +236,7 @@
     const statusLabel = STATUS_LABEL[ticket.status] || ticket.status;
     const catLabel = CAT_LABEL[ticket.category] || ticket.category;
 
+    const showDelete = canDeleteTicket(ticket);
     if (header) {
       header.innerHTML = `
         <div class="tkt-thread-top">
@@ -208,7 +250,9 @@
               · opened ${fmtDate(ticket.created_at)}
             </div>
           </div>
+          ${showDelete ? `<button class="btn-soft tkt-delete-btn" type="button" id="tkt-delete-btn">Delete ticket</button>` : ''}
         </div>`;
+      document.getElementById('tkt-delete-btn')?.addEventListener('click', () => deleteTicket(ticket.id));
     }
 
     if (messages) {
@@ -246,38 +290,8 @@
     if (countEl) countEl.textContent = `${shown.length} ticket${shown.length !== 1 ? 's' : ''}`;
     if (!shown.length) { loadTickets(); return; }
 
-    body.innerHTML = shown.map(t => {
-      const code = ticketCode(t.id);
-      const st = t.status || 'open';
-      const statusLabel = STATUS_LABEL[st] || st;
-      const catLabel = CAT_LABEL[t.category] || t.category || 'General';
-      const pri = t.priority && t.priority !== 'normal' ? t.priority : '';
-      const active = t.id === _currentTicketId ? ' tkt-row-active' : '';
-      const av = t.username ? esc(t.username[0].toUpperCase()) : '?';
-      return `
-      <div class="tkt-row${t.unread > 0 ? ' tkt-row-unread' : ''}${active}" data-id="${esc(t.id)}">
-        <div class="tkt-row-top">
-          <span class="tkt-row-av">${av}</span>
-          <div class="tkt-row-main">
-            <div class="tkt-row-subject-line">
-              ${pri ? `<span class="tkt-pri tkt-pri-${esc(pri)}">${esc(PRI_LABEL[pri] || pri)}</span>` : ''}
-              <span class="tkt-subject">${esc(t.subject)}</span>
-              ${t.unread > 0 ? `<span class="tkt-unread-pill">${t.unread}</span>` : ''}
-            </div>
-            <div class="tkt-row-preview">${code} · ${esc(catLabel)} · ${t.message_count || 0} msg${(t.message_count || 0) !== 1 ? 's' : ''}</div>
-          </div>
-          <span class="tkt-status-pill tkt-status-${esc(st)}">${esc(statusLabel)}</span>
-        </div>
-        <div class="tkt-row-foot">
-          ${_isAdmin && t.username ? `<span class="tkt-by">${esc(t.username)}</span> · ` : ''}
-          <span class="tkt-updated">${fmtAgo(t.updated_at)}</span>
-        </div>
-      </div>`;
-    }).join('');
-
-    body.querySelectorAll('.tkt-row').forEach(row => {
-      row.addEventListener('click', () => openThread(row.dataset.id));
-    });
+    body.innerHTML = shown.map(ticketRowHTML).join('');
+    wireTicketRows(body);
   }
 
   function renderAdminActions(ticket) {
@@ -476,7 +490,19 @@
     _currentTicketId = null;
     showDetailPanel(false);
     document.getElementById('tkt-list-panel')?.classList.remove('tkt-mobile-hidden');
-    loadTickets();
+    let openId = null;
+    try {
+      if (sessionStorage.getItem('meb_open_ticket')) {
+        openId = sessionStorage.getItem('meb_open_ticket');
+        sessionStorage.removeItem('meb_open_ticket');
+      }
+      if (sessionStorage.getItem('meb_new_ticket') === '1') {
+        sessionStorage.removeItem('meb_new_ticket');
+        loadTickets().then(() => openModal());
+        return;
+      }
+    } catch {}
+    loadTickets(openId || undefined);
   }
 
   function setupGuideLinks() {
@@ -494,10 +520,13 @@
     try {
       const r = await fetch('/api/auth/me', { credentials: 'same-origin' });
       const d = await r.json().catch(() => null);
-      if (d?.user?.role === 'admin') {
-        _isAdmin = true;
-        const pw = document.getElementById('tkt-priority-wrap');
-        if (pw) pw.style.display = '';
+      if (d?.user) {
+        _currentUserId = d.user.id;
+        if (d.user.role === 'admin') {
+          _isAdmin = true;
+          const pw = document.getElementById('tkt-priority-wrap');
+          if (pw) pw.style.display = '';
+        }
       }
     } catch {}
 
