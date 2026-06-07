@@ -144,21 +144,26 @@ function initShell() {
       });
     }
 
-    // Hide nav items that require an account when not signed in.
-    // This prevents users from landing on pages that will 401 (tickets, billing, admin, users, etc.)
-    // and getting stuck on "Loading..." placeholders.
+    const isAdmin = !!(d && d.user && d.user.role === 'admin');
+
+    // Hide nav items that require an account (or admin role) when not allowed.
     const authGatedPages = ['tickets', 'billing', 'admin', 'users'];
     authGatedPages.forEach(p => {
+      const show = loggedIn && (p !== 'admin' && p !== 'users' || isAdmin);
       document.querySelectorAll(`.nav-item[data-page="${p}"], .foot-link[data-page="${p}"]`).forEach(el => {
-        el.style.display = loggedIn ? '' : 'none';
+        el.style.display = show ? '' : 'none';
       });
     });
 
-    // Hide admin-only nav items (like Users & Permissions) for non-admins
-    const isAdmin = !!(d && d.user && d.user.role === 'admin');
-    document.querySelectorAll('.nav-item.admin-only, .nav-group.admin-only').forEach(el => {
+    // Show/hide the Administration section and its admin-only items
+    document.querySelectorAll('.nav-group.admin-only').forEach(el => {
+      el.style.display = isAdmin ? 'block' : 'none';
+    });
+    document.querySelectorAll('.nav-item.admin-only, .nav-sec-toggle.admin-only').forEach(el => {
       el.style.display = isAdmin ? '' : 'none';
     });
+
+    if (window.MEBSite && window.MEBSite.refresh) window.MEBSite.refresh();
 
     // If a non-admin somehow landed on admin page, redirect
     const page = (location.hash || '#/home').replace(/^#\//, '');
