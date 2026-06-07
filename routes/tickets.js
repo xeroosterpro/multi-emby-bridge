@@ -2,6 +2,10 @@
 const express = require('express');
 const db = require('../lib/db');
 
+const VALID_STATUS = ['open', 'in_progress', 'closed', 'resolved'];
+const VALID_PRIORITY = ['low', 'normal', 'high', 'urgent'];
+const VALID_CATEGORY = ['general', 'streaming', 'servers', 'billing', 'bug', 'feature'];
+
 function makeTicketsRouter() {
   const r = express.Router();
 
@@ -16,30 +20,121 @@ function makeTicketsRouter() {
     next();
   }
 
-  // GET /api/tickets — user sees own, admin sees all
+  const listSelect = `
+    SELECT t.id, t.subject, t.status, t.priority, t.category, t.created_at, t.updated_at, u.username,
+           (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id=t.id)::int AS message_count,
+           (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id=t.id AND m.is_admin=false
+              AND m.created_at > COALESCE((SELECT MAX(m2.created_at) FROM ticket_messages m2
+                WHERE m2.ticket_id=t.id AND m2.is_admin=true), '1970-01-01'))::int AS unread_admin,
+           (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id=t.id AND m.is_admin=true
+              AND m.created_at > COALESCE((SELECT MAX(m2.created_at) FROM ticket_messages m2
+                WHERE m2.ticket_id=t.id AND m2.is_admin=false), '1970-01-01'))::int AS unread_user
+    FROM tickets t JOIN users u ON t.user_id=u.id`;
+
+  const listSelectUser = `
+    SELECT t.id, t.subject, t.status, t.priority, t.category, t.created_at, t.updated_at,
+           (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id=t.id)::int AS message_count,
+           (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id=t.id AND m.is_admin=true
+              AND m.created_at > COALESCE((SELECT MAX(m2.created_at) FROM ticket_messages m2
+                WHERE m2.ticket_id=t.id AND m2.is_admin=false), '1970-01-01'))::int AS unread
+    FROM tickets t`;
+
+  function buildFilters(query, isAdmin, userId) {
+    const clauses = [];
+    const params = [];
+    let n = 1;
+
+    if (!isAdmin) {
+      clauses.push(`t.user_id=$${n++}`);
+      params.push(userId);
+    }
+
+    const status = (query.status || '').trim();
+    if (status && status !== 'all') {
+      if (status === 'closed') {
+        clauses.push(`t.status IN ('closed', 'resolved')`);
+      } else if (VALID_STATUS.includes(status)) {
+        clauses.push(`t.status=$${n++}`);
+        params.push(status);
+      }
+    }
+
+    const category = (query.category || '').trim();
+    if (category && category !== 'all' && VALID_CATEGORY.includes(category)) {
+      clauses.push(`t.category=$${n++}`);
+      params.push(category);
+    }
+
+    const priority = (query.priority || '').trim();
+    if (priority && priority !== 'all' && VALID_PRIORITY.includes(priority)) {
+      clauses.push(`t.priority=$${n++}`);
+      params.push(priority);
+    }
+
+    const q = (query.q || '').trim();
+    if (q) {
+      clauses.push(`(t.subject ILIKE $${n} OR t.id::text ILIKE $${n})`);
+      params.push(`%${q}%`);
+      n++;
+    }
+
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    return { where, params };
+  }
+
+  function mapListRow(row, isAdmin) {
+    const unread = isAdmin ? (row.unread_admin || 0) : (row.unread || row.unread_user || 0);
+    return { ...row, unread };
+  }
+
+  // GET /api/tickets/stats — counts for dashboard tiles
+  r.get('/stats', requireAuth, async (req, res) => {
+    try {
+      const isAdmin = req.user.role === 'admin';
+      const baseWhere = isAdmin ? '' : 'WHERE user_id=$1';
+      const baseParams = isAdmin ? [] : [req.user.id];
+      const { rows } = await db.query(`
+        SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE status='open')::int AS open,
+          COUNT(*) FILTER (WHERE status='in_progress')::int AS in_progress,
+          COUNT(*) FILTER (WHERE status IN ('closed','resolved'))::int AS closed,
+          COUNT(*) FILTER (WHERE status='resolved')::int AS resolved
+        FROM tickets ${baseWhere}`, baseParams);
+      const stats = rows[0] || { total: 0, open: 0, in_progress: 0, closed: 0, resolved: 0 };
+
+      const unreadSql = isAdmin
+        ? `SELECT COUNT(DISTINCT t.id)::int AS awaiting FROM tickets t
+           WHERE t.status IN ('open','in_progress')
+           AND EXISTS (
+             SELECT 1 FROM ticket_messages m WHERE m.ticket_id=t.id AND m.is_admin=false
+             AND m.created_at > COALESCE((SELECT MAX(m2.created_at) FROM ticket_messages m2
+               WHERE m2.ticket_id=t.id AND m2.is_admin=true), '1970-01-01')
+           )`
+        : `SELECT COUNT(DISTINCT t.id)::int AS awaiting FROM tickets t
+           WHERE t.user_id=$1 AND t.status IN ('open','in_progress')
+           AND EXISTS (
+             SELECT 1 FROM ticket_messages m WHERE m.ticket_id=t.id AND m.is_admin=true
+             AND m.created_at > COALESCE((SELECT MAX(m2.created_at) FROM ticket_messages m2
+               WHERE m2.ticket_id=t.id AND m2.is_admin=false), '1970-01-01')
+           )`;
+      const { rows: ur } = await db.query(unreadSql, isAdmin ? [] : [req.user.id]);
+      stats.awaiting = ur[0]?.awaiting || 0;
+      res.json(stats);
+    } catch (e) {
+      console.error('[tickets/stats]', e.message);
+      res.status(500).json({ error: 'failed' });
+    }
+  });
+
+  // GET /api/tickets — user sees own, admin sees all (filterable)
   r.get('/', requireAuth, async (req, res) => {
     try {
-      let rows;
-      if (req.user.role === 'admin') {
-        ({ rows } = await db.query(`
-          SELECT t.id, t.subject, t.status, t.created_at, t.updated_at, u.username,
-                 (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id=t.id)::int AS message_count,
-                 (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id=t.id AND m.is_admin=false
-                    AND m.created_at > COALESCE((SELECT MAX(m2.created_at) FROM ticket_messages m2
-                      WHERE m2.ticket_id=t.id AND m2.is_admin=true), '1970-01-01'))::int AS unread
-          FROM tickets t JOIN users u ON t.user_id=u.id
-          ORDER BY t.updated_at DESC LIMIT 200`));
-      } else {
-        ({ rows } = await db.query(`
-          SELECT t.id, t.subject, t.status, t.created_at, t.updated_at,
-                 (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id=t.id)::int AS message_count,
-                 (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id=t.id AND m.is_admin=true
-                    AND m.created_at > COALESCE((SELECT MAX(m2.created_at) FROM ticket_messages m2
-                      WHERE m2.ticket_id=t.id AND m2.is_admin=false), '1970-01-01'))::int AS unread
-          FROM tickets t WHERE t.user_id=$1
-          ORDER BY t.updated_at DESC`, [req.user.id]));
-      }
-      res.json(rows);
+      const isAdmin = req.user.role === 'admin';
+      const { where, params } = buildFilters(req.query, isAdmin, req.user.id);
+      const sql = `${isAdmin ? listSelect : listSelectUser} ${where} ORDER BY t.updated_at DESC LIMIT 200`;
+      const { rows } = await db.query(sql, params);
+      res.json(rows.map(row => mapListRow(row, isAdmin)));
     } catch (e) {
       console.error('[tickets/list]', e.message);
       res.status(500).json({ error: 'failed' });
@@ -48,13 +143,16 @@ function makeTicketsRouter() {
 
   // POST /api/tickets — create with first message
   r.post('/', requireAuth, express.json(), async (req, res) => {
-    const { subject, body } = req.body || {};
+    const { subject, body, category, priority } = req.body || {};
     if (!subject || !subject.trim()) return res.status(400).json({ error: 'subject required' });
     if (!body || !body.trim()) return res.status(400).json({ error: 'message required' });
+    const cat = VALID_CATEGORY.includes(category) ? category : 'general';
+    const pri = req.user.role === 'admin' && VALID_PRIORITY.includes(priority) ? priority : 'normal';
     try {
       const { rows: [ticket] } = await db.query(
-        'INSERT INTO tickets(user_id,subject) VALUES($1,$2) RETURNING id,subject,status,created_at,updated_at',
-        [req.user.id, subject.trim()]
+        `INSERT INTO tickets(user_id, subject, category, priority) VALUES($1,$2,$3,$4)
+         RETURNING id, subject, status, category, priority, created_at, updated_at`,
+        [req.user.id, subject.trim(), cat, pri]
       );
       await db.query(
         'INSERT INTO ticket_messages(ticket_id,user_id,body,is_admin) VALUES($1,$2,$3,false)',
@@ -69,6 +167,7 @@ function makeTicketsRouter() {
 
   // GET /api/tickets/:id — full thread
   r.get('/:id', requireAuth, async (req, res) => {
+    if (req.params.id === 'stats') return res.status(404).json({ error: 'not found' });
     try {
       const { rows: [ticket] } = await db.query(
         'SELECT t.*, u.username FROM tickets t JOIN users u ON t.user_id=u.id WHERE t.id=$1',
@@ -97,15 +196,15 @@ function makeTicketsRouter() {
       if (!ticket) return res.status(404).json({ error: 'not found' });
       if (req.user.role !== 'admin' && ticket.user_id !== req.user.id)
         return res.status(403).json({ error: 'forbidden' });
-      if (ticket.status === 'closed' && req.user.role !== 'admin')
+      if (['closed', 'resolved'].includes(ticket.status) && req.user.role !== 'admin')
         return res.status(400).json({ error: 'ticket is closed' });
       const isAdmin = req.user.role === 'admin';
       const { rows: [msg] } = await db.query(
         'INSERT INTO ticket_messages(ticket_id,user_id,body,is_admin) VALUES($1,$2,$3,$4) RETURNING id,body,is_admin,created_at',
         [req.params.id, req.user.id, body.trim(), isAdmin]
       );
-      await db.query('UPDATE tickets SET updated_at=now() WHERE id=$1', [req.params.id]);
-      // reopen if closed and user replies (shouldn't happen but safety)
+      const newStatus = isAdmin && ticket.status === 'open' ? 'in_progress' : ticket.status;
+      await db.query('UPDATE tickets SET status=$1, updated_at=now() WHERE id=$2', [newStatus, req.params.id]);
       res.json(msg);
     } catch (e) {
       console.error('[tickets/reply]', e.message);
@@ -113,16 +212,46 @@ function makeTicketsRouter() {
     }
   });
 
-  // PATCH /api/tickets/:id — admin: open/close
-  r.patch('/:id', requireAdmin, express.json(), async (req, res) => {
-    const { status } = req.body || {};
-    if (!['open', 'closed'].includes(status)) return res.status(400).json({ error: 'invalid status' });
+  // PATCH /api/tickets/:id — admin: full control; user: close own ticket
+  r.patch('/:id', requireAuth, express.json(), async (req, res) => {
+    const { status, priority, category } = req.body || {};
     try {
+      const { rows: [ticket] } = await db.query('SELECT * FROM tickets WHERE id=$1', [req.params.id]);
+      if (!ticket) return res.status(404).json({ error: 'not found' });
+      const isAdmin = req.user.role === 'admin';
+      if (!isAdmin && ticket.user_id !== req.user.id)
+        return res.status(403).json({ error: 'forbidden' });
+
+      const updates = [];
+      const params = [];
+      let n = 1;
+
+      if (status !== undefined) {
+        if (!VALID_STATUS.includes(status)) return res.status(400).json({ error: 'invalid status' });
+        if (!isAdmin && !['closed', 'resolved'].includes(status))
+          return res.status(403).json({ error: 'users may only close tickets' });
+        updates.push(`status=$${n++}`);
+        params.push(status);
+      }
+      if (isAdmin && priority !== undefined) {
+        if (!VALID_PRIORITY.includes(priority)) return res.status(400).json({ error: 'invalid priority' });
+        updates.push(`priority=$${n++}`);
+        params.push(priority);
+      }
+      if (isAdmin && category !== undefined) {
+        if (!VALID_CATEGORY.includes(category)) return res.status(400).json({ error: 'invalid category' });
+        updates.push(`category=$${n++}`);
+        params.push(category);
+      }
+
+      if (!updates.length) return res.status(400).json({ error: 'nothing to update' });
+      updates.push('updated_at=now()');
+      params.push(req.params.id);
+
       const { rows: [t] } = await db.query(
-        'UPDATE tickets SET status=$1, updated_at=now() WHERE id=$2 RETURNING *',
-        [status, req.params.id]
+        `UPDATE tickets SET ${updates.join(', ')} WHERE id=$${n} RETURNING *`,
+        params
       );
-      if (!t) return res.status(404).json({ error: 'not found' });
       res.json(t);
     } catch (e) {
       console.error('[tickets/patch]', e.message);

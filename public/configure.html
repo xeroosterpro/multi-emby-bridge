@@ -1084,47 +1084,120 @@
 
       <!-- ── TICKETS PAGE ── -->
       <section class="page" id="page-tickets">
-        <div class="tkt-wrap">
-          <div class="tkt-list-view" id="tkt-list-view">
-            <div class="tkt-header">
-              <div>
-                <h2 class="page-title">Support Tickets</h2>
-                <p class="page-sub">Track and manage all support requests • <span id="tkt-total-count">0</span> total</p>
-              </div>
-              <button class="btn-generate tkt-new-btn" id="tkt-new-btn" type="button">+ New Ticket</button>
+        <div class="tkt-shell">
+          <div class="tkt-top">
+            <div class="tkt-top-main">
+              <h2 class="page-title tkt-title">Support Tickets</h2>
+              <p class="page-sub tkt-sub">Track requests, filter by status, and reply in real time</p>
             </div>
+            <button class="btn-generate tkt-new-btn" id="tkt-new-btn" type="button">+ New Ticket</button>
+          </div>
 
-            <!-- New ticket form (hidden by default) -->
-            <div class="tkt-form-card" id="tkt-form" style="display:none">
-              <div class="tkt-form-title">New Ticket</div>
-              <div class="field-label" style="margin-top:10px">Subject</div>
-              <input class="input" id="tkt-subject" placeholder="What do you need help with?" autocomplete="off"/>
-              <div class="field-label" style="margin-top:10px">Message</div>
-              <textarea class="input tkt-textarea" id="tkt-body" placeholder="Describe your issue in detail…" rows="5"></textarea>
-              <div class="tkt-form-actions">
-                <button class="btn-soft" id="tkt-cancel" type="button">Cancel</button>
-                <button class="btn-generate" id="tkt-submit" type="button">Submit Ticket</button>
-              </div>
-              <div class="auth-err" id="tkt-err"></div>
+          <div class="tkt-stats" id="tkt-stats">
+            <div class="tkt-stat" data-filter="open"><div class="tkt-stat-n" id="tkt-stat-open">0</div><div class="tkt-stat-l">Open</div></div>
+            <div class="tkt-stat" data-filter="in_progress"><div class="tkt-stat-n" id="tkt-stat-progress">0</div><div class="tkt-stat-l">In progress</div></div>
+            <div class="tkt-stat" data-filter="closed"><div class="tkt-stat-n" id="tkt-stat-closed">0</div><div class="tkt-stat-l">Closed</div></div>
+            <div class="tkt-stat tkt-stat-accent" data-filter="awaiting"><div class="tkt-stat-n" id="tkt-stat-awaiting">0</div><div class="tkt-stat-l">Awaiting reply</div></div>
+          </div>
+
+          <div class="tkt-toolbar">
+            <div class="tkt-tabs" id="tkt-tabs">
+              <button class="tkt-tab active" type="button" data-status="all">All</button>
+              <button class="tkt-tab" type="button" data-status="open">Open</button>
+              <button class="tkt-tab" type="button" data-status="in_progress">In progress</button>
+              <button class="tkt-tab" type="button" data-status="closed">Closed</button>
             </div>
-
-            <div id="tkt-list-body">
-              <div class="tkt-loading">Loading tickets…</div>
+            <div class="tkt-toolbar-right">
+              <select class="pick tkt-filter-select" id="tkt-cat-filter" title="Category">
+                <option value="all">All categories</option>
+                <option value="general">General</option>
+                <option value="streaming">Streaming</option>
+                <option value="servers">Servers</option>
+                <option value="billing">Billing</option>
+                <option value="bug">Bug report</option>
+                <option value="feature">Feature request</option>
+              </select>
+              <div class="tkt-search-wrap">
+                <input class="input tkt-search" id="tkt-search" type="search" placeholder="Search tickets…" autocomplete="off"/>
+              </div>
             </div>
           </div>
 
-          <!-- Thread view (slides in) -->
-          <div class="tkt-thread-view" id="tkt-thread-view" style="display:none">
-            <button class="tkt-back-btn" id="tkt-back">← Back to tickets</button>
-            <div class="tkt-thread-header" id="tkt-thread-header"></div>
-            <div class="tkt-messages" id="tkt-messages"></div>
-            <div class="tkt-reply-box" id="tkt-reply-box">
-              <textarea class="input tkt-textarea" id="tkt-reply-body" placeholder="Write a reply…" rows="3"></textarea>
-              <div class="tkt-reply-actions">
-                <div style="display:flex;gap:8px;align-items:center" id="tkt-admin-actions"></div>
-                <button class="btn-generate" id="tkt-reply-submit" type="button">Send Reply</button>
+          <div class="tkt-panels">
+            <div class="tkt-panel-list" id="tkt-list-panel">
+              <div class="tkt-list-meta"><span id="tkt-list-count">0 tickets</span></div>
+              <div id="tkt-list-body">
+                <div class="tkt-loading">Loading tickets…</div>
               </div>
-              <div class="auth-err" id="tkt-reply-err"></div>
+            </div>
+
+            <div class="tkt-panel-detail" id="tkt-detail-panel">
+              <div class="tkt-detail-empty" id="tkt-detail-empty">
+                <div class="tkt-detail-empty-ic">💬</div>
+                <div class="tkt-detail-empty-t">Select a ticket</div>
+                <p>Choose a ticket from the list or create a new one to start a conversation.</p>
+              </div>
+
+              <div class="tkt-thread-view" id="tkt-thread-view" style="display:none">
+                <button class="tkt-back-btn" id="tkt-back" type="button">← Back</button>
+                <div class="tkt-thread-header" id="tkt-thread-header"></div>
+                <div class="tkt-messages" id="tkt-messages"></div>
+                <div class="tkt-reply-box" id="tkt-reply-box">
+                  <textarea class="input tkt-textarea" id="tkt-reply-body" placeholder="Write a reply… (Ctrl+Enter to send)" rows="3"></textarea>
+                  <div class="tkt-reply-actions">
+                    <div class="tkt-admin-actions" id="tkt-admin-actions"></div>
+                    <button class="btn-generate" id="tkt-reply-submit" type="button">Send Reply</button>
+                  </div>
+                  <div class="auth-err" id="tkt-reply-err"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- New ticket modal -->
+        <div class="tkt-modal-overlay" id="tkt-modal" style="display:none">
+          <div class="tkt-modal" role="dialog" aria-labelledby="tkt-modal-title">
+            <div class="tkt-modal-head">
+              <div class="tkt-modal-title" id="tkt-modal-title">New Support Ticket</div>
+              <button class="tkt-modal-close" id="tkt-modal-close" type="button" aria-label="Close">×</button>
+            </div>
+            <div class="tkt-modal-body">
+              <div class="tkt-form-grid">
+                <div class="field">
+                  <div class="field-label">Category</div>
+                  <select class="pick" id="tkt-category">
+                    <option value="general">General</option>
+                    <option value="streaming">Streaming / playback</option>
+                    <option value="servers">Servers / connection</option>
+                    <option value="billing">Billing / account</option>
+                    <option value="bug">Bug report</option>
+                    <option value="feature">Feature request</option>
+                  </select>
+                </div>
+                <div class="field tkt-priority-field" id="tkt-priority-wrap" style="display:none">
+                  <div class="field-label">Priority</div>
+                  <select class="pick" id="tkt-priority">
+                    <option value="normal">Normal</option>
+                    <option value="low">Low</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field">
+                <div class="field-label">Subject</div>
+                <input class="input" id="tkt-subject" placeholder="Brief summary of your issue" autocomplete="off"/>
+              </div>
+              <div class="field">
+                <div class="field-label">Message</div>
+                <textarea class="input tkt-textarea" id="tkt-body" placeholder="Include server type, what you see in Stremio, and any error messages…" rows="6"></textarea>
+              </div>
+              <div class="auth-err" id="tkt-err"></div>
+            </div>
+            <div class="tkt-modal-foot">
+              <button class="btn-soft" id="tkt-cancel" type="button">Cancel</button>
+              <button class="btn-generate" id="tkt-submit" type="button">Submit Ticket</button>
             </div>
           </div>
         </div>
