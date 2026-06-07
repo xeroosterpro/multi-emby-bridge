@@ -207,7 +207,6 @@ html[data-theme="streamhub"] { background: var(--bg-base); }
 
 /* Standard glassy panels — all pages */
 [data-theme="streamhub"] .home-panel,
-[data-theme="streamhub"] .home-hero-card,
 [data-theme="streamhub"] .content .tiles .tile,
 [data-theme="streamhub"] .dash-card,
 [data-theme="streamhub"] .dash-act-panel,
@@ -253,7 +252,6 @@ html[data-theme="streamhub"] { background: var(--bg-base); }
 }
 
 [data-theme="streamhub"] .home-panel:hover,
-[data-theme="streamhub"] .home-hero-card:hover,
 [data-theme="streamhub"] .content .tiles .tile:hover,
 [data-theme="streamhub"] .server-block.server-card:hover,
 [data-theme="streamhub"] .acc:hover,
@@ -269,6 +267,48 @@ html[data-theme="streamhub"] { background: var(--bg-base); }
   background: color-mix(in srgb, var(--sh-surface-deep) 88%, var(--accent) 12%) !important;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.36), 0 0 20px color-mix(in srgb, var(--accent) 14%, transparent) !important;
   transform: translateY(-3px);
+}
+
+/* Home hero header cards — colorful (exempt from glass surface) */
+[data-theme="streamhub"] .home-hero-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+[data-theme="streamhub"] .home-hero-card.hhc-services {
+  background: linear-gradient(145deg, #4f6ef0 0%, #3a4cc7 100%) !important;
+  border-color: color-mix(in srgb, #7b9bff 40%, transparent) !important;
+  box-shadow: 0 6px 22px rgba(58, 76, 199, 0.35) !important;
+}
+[data-theme="streamhub"] .home-hero-card.hhc-started {
+  background: linear-gradient(142deg, #e07a4d 0%, #c55a9e 100%) !important;
+  border-color: color-mix(in srgb, #f0a080 40%, transparent) !important;
+  box-shadow: 0 6px 22px rgba(197, 90, 158, 0.32) !important;
+}
+[data-theme="streamhub"] .home-hero-card.hhc-discord {
+  background: linear-gradient(142deg, #e85d4a 0%, #b93a2e 100%) !important;
+  border-color: color-mix(in srgb, #ff8a78 38%, transparent) !important;
+  box-shadow: 0 6px 22px rgba(185, 58, 46, 0.32) !important;
+}
+[data-theme="streamhub"] .home-hero-card.hhc-invoices {
+  background: linear-gradient(145deg, #d9772e 0%, #b45a1f 100%) !important;
+  border-color: color-mix(in srgb, #f0a050 40%, transparent) !important;
+  box-shadow: 0 6px 22px rgba(180, 90, 31, 0.32) !important;
+}
+[data-theme="streamhub"] .home-hero-card.hhc-services:hover {
+  background: linear-gradient(145deg, #5a7af5 0%, #4256d4 100%) !important;
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.52), 0 0 42px rgba(79, 110, 240, 0.55) !important;
+}
+[data-theme="streamhub"] .home-hero-card.hhc-started:hover {
+  background: linear-gradient(142deg, #e8885e 0%, #d066ab 100%) !important;
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.52), 0 0 42px rgba(224, 122, 77, 0.58) !important;
+}
+[data-theme="streamhub"] .home-hero-card.hhc-discord:hover {
+  background: linear-gradient(142deg, #f06a58 0%, #c94438 100%) !important;
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.52), 0 0 42px rgba(232, 93, 74, 0.58) !important;
+}
+[data-theme="streamhub"] .home-hero-card.hhc-invoices:hover {
+  background: linear-gradient(145deg, #e88838 0%, #c46828 100%) !important;
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.52), 0 0 42px rgba(217, 119, 46, 0.55) !important;
 }
 
 [data-theme="streamhub"] .gcard .gcard-top,
