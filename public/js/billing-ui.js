@@ -85,12 +85,12 @@
         <div class="demo-mock-row"><div class="demo-mock-poster"></div><div><div class="demo-mock-name">Breaking Bad S01E01</div><div class="demo-mock-meta">1080p · HEVC</div></div><span class="demo-mock-play">▶ Play</span></div></div></div>`,
     },
     {
-      title: 'Multi-server routing',
-      desc: 'When you hit play, the bridge searches all your servers in parallel and picks the best file — largest size, right quality, fastest response.',
-      bullets: ['Parallel lookup across servers', 'Automatic best-file selection', 'Fallback if one server is offline'],
+      title: 'The bread & butter: best file wins',
+      desc: 'When you hit play, StreamHub digs into every server for the same title, compares file size, quality, and your audio preferences — then serves the winner in Stremio.',
+      bullets: ['Parallel search across all servers', 'Largest / best-quality file wins', 'Your audio & codec rules apply'],
       visual: `<div class="demo-mock"><div class="demo-mock-card"><div class="demo-mock-title">Request log · routing</div>
         <div class="demo-mock-flow"><span class="demo-mock-node">Stremio</span><span class="demo-mock-arrow">→</span><span class="demo-mock-node hub">Bridge</span><span class="demo-mock-arrow">→</span><span class="demo-mock-node">Servers</span></div>
-        <div class="demo-mock-servers"><span class="demo-mock-chip ok">✓ ARCTV</span><span class="demo-mock-chip miss">– Jellyfin</span><span class="demo-mock-chip win">★ Best pick</span></div></div></div>`,
+        <div class="demo-mock-servers"><span class="demo-mock-chip ok">✓ Cloud Emby 4K</span><span class="demo-mock-chip miss">– Jellyfin</span><span class="demo-mock-chip win">★ Best pick</span></div></div></div>`,
     },
     {
       title: 'Streaming preferences',
@@ -123,7 +123,7 @@
       desc: 'The dashboard shows uptime bars and response charts per server. The request log records every lookup — so you always know what played and from where.',
       bullets: ['Live server status cards', 'Ping test from browser & cloud', 'Request log with success rate'],
       visual: `<div class="demo-mock"><div class="demo-mock-card"><div class="demo-mock-title">Dashboard · uptime</div>
-        <div class="demo-mock-row"><div><div class="demo-mock-name">ARCTV Emby</div><div class="demo-mock-meta">Online · 42ms</div></div></div>
+        <div class="demo-mock-row"><div><div class="demo-mock-name">Cloud Emby</div><div class="demo-mock-meta">Online · 42ms</div></div></div>
         <div class="demo-mock-bars"><span class="demo-mock-bar" style="height:80%"></span><span class="demo-mock-bar" style="height:100%"></span><span class="demo-mock-bar" style="height:95%"></span><span class="demo-mock-bar" style="height:88%"></span><span class="demo-mock-bar" style="height:100%"></span></div></div></div>`,
     },
     {
@@ -230,12 +230,36 @@
     const featList = (arr) => (arr || []).map(f => `<li>${esc(f)}</li>`).join('');
     const preview = viewAsMode() === 'unpaid' ? '<span class="bill-preview-tag">Preview · unpaid user</span>' : '';
 
-    return `<div class="bill-shell">
-      <div class="bill-hero">
-        <div class="bill-hero-glow"></div>
+    const proFeats = [
+      'Search every Emby & Jellyfin server at once',
+      'Auto-pick the biggest / best-quality file',
+      'Your preferred audio, codec & language rules',
+      'Personal Stremio manifest URL',
+      'Health monitoring & request log',
+      'Unlimited servers · cancel anytime',
+    ];
+
+    return `<div class="bill-shell bill-shell-v2">
+      <div class="bill-pitch-hero">
+        <div class="bill-pitch-glow"></div>
         ${preview}
-        <h2 class="bill-hero-title">Unlock your bridge</h2>
-        <p class="bill-hero-sub">Subscribe to stream from your Emby &amp; Jellyfin servers through Stremio</p>
+        <p class="bill-pitch-eyebrow">The bread &amp; butter</p>
+        <h1 class="bill-pitch-title">All your servers.<br>One Stremio addon.<br><span class="bill-pitch-accent">The best file wins.</span></h1>
+        <p class="bill-pitch-lead">Add every Emby and Jellyfin server you own. When you press play in Stremio, StreamHub digs into each library, compares file size, quality, and your audio preferences — then serves the winner.</p>
+        <div class="bill-pitch-flow">
+          <div class="bpf-node">▶ Stremio</div>
+          <span class="bpf-arrow">→</span>
+          <div class="bpf-node bpf-hub">StreamHub</div>
+          <span class="bpf-arrow">→</span>
+          <div class="bpf-servers"><span>Emby</span><span>Jellyfin</span><span>+ more</span></div>
+          <span class="bpf-arrow">→</span>
+          <div class="bpf-win">★ Best stream</div>
+        </div>
+        <div class="bill-pitch-steps">
+          <div class="bps"><span class="bps-n">1</span><div><strong>Search every server</strong><p>Parallel lookup — all libraries at once</p></div></div>
+          <div class="bps"><span class="bps-n">2</span><div><strong>Compare files</strong><p>Biggest file, codec &amp; audio you prefer</p></div></div>
+          <div class="bps"><span class="bps-n">3</span><div><strong>Play in Stremio</strong><p>One link — always the best pick</p></div></div>
+        </div>
         <div class="bill-demo-cta">
           <button class="bill-demo-btn bill-demo-site" type="button">
             <span class="bill-demo-btn-ic">◆</span>
@@ -243,16 +267,16 @@
           </button>
           <button class="bill-demo-btn bill-demo-tour bill-demo-open" type="button">
             <span class="bill-demo-btn-ic">▶</span>
-            <span>Quick tour</span>
+            <span>Quick slideshow</span>
           </button>
         </div>
       </div>
-      <div class="bill-plans">
+      <div class="bill-plans bill-plans-v2">
         <div class="bill-plan${free.limited ? ' bill-plan-muted' : ''}">
           <div class="bill-plan-name">${esc(free.name)}</div>
           <div class="bill-plan-price">${esc(free.price)}</div>
           <div class="bill-plan-period">${esc(free.period || '')}</div>
-          <ul class="bill-plan-feats">${featList(free.features)}</ul>
+          <ul class="bill-plan-feats"><li>Browse the site</li><li>No streaming access</li><li>No multi-server routing</li></ul>
           <div class="bill-plan-cta muted">Current access level</div>
         </div>
         <div class="bill-plan bill-plan-featured">
@@ -260,23 +284,23 @@
           <div class="bill-plan-name">${esc(pro.name)}</div>
           <div class="bill-plan-price">${esc(pro.price)}</div>
           <div class="bill-plan-period">per ${esc(pro.period || 'month')}</div>
-          <ul class="bill-plan-feats">${featList(pro.features)}</ul>
+          <ul class="bill-plan-feats">${proFeats.map(f => `<li>${esc(f)}</li>`).join('')}</ul>
           <div class="bill-plan-demo">
             <button class="bill-demo-btn bill-demo-site" type="button">
               <span class="bill-demo-btn-ic">◆</span>
-              <span>Launch full demo site</span>
+              <span>Launch full demo site + guided tour</span>
             </button>
           </div>
           <div id="paypal-button-container" class="bill-paypal-slot"></div>
         </div>
       </div>
-      <div class="bill-compare">
-        <div class="bill-compare-head">What you get with Bridge Pro</div>
+      <div class="bill-compare bill-compare-v2">
+        <div class="bill-compare-head">Why subscribers love Bridge Pro</div>
         <div class="bill-compare-grid">
-          <div class="bill-compare-item"><span class="bill-compare-ic">⬡</span><div><strong>Multi-server routing</strong><span>Pick the best stream across all your servers</span></div></div>
-          <div class="bill-compare-item"><span class="bill-compare-ic">▶</span><div><strong>Stremio manifest</strong><span>Your own private install link</span></div></div>
-          <div class="bill-compare-item"><span class="bill-compare-ic">♥</span><div><strong>Health monitoring</strong><span>Uptime bars &amp; response charts</span></div></div>
-          <div class="bill-compare-item"><span class="bill-compare-ic">◎</span><div><strong>Priority support</strong><span>In-house ticket system</span></div></div>
+          <div class="bill-compare-item bill-compare-featured"><span class="bill-compare-ic">⬡</span><div><strong>Best file across all servers</strong><span>Digs into every library and picks the largest, highest-quality match — with your audio rules</span></div></div>
+          <div class="bill-compare-item"><span class="bill-compare-ic">▶</span><div><strong>One Stremio install</strong><span>Private manifest URL — add once, streams from everywhere</span></div></div>
+          <div class="bill-compare-item"><span class="bill-compare-ic">♥</span><div><strong>See the winner</strong><span>Request log shows which server had the best file for every play</span></div></div>
+          <div class="bill-compare-item"><span class="bill-compare-ic">◎</span><div><strong>Unlimited servers</strong><span>Cloud Emby, home Jellyfin, NAS — all bridged together</span></div></div>
         </div>
       </div>
       <div class="bill-code-card">
@@ -361,9 +385,13 @@
       const fakeEnd = new Date(Date.now() + 28 * 86400000).toISOString();
       body.innerHTML = renderActiveShell({ status: 'active', periodEnd: fakeEnd, planPrice: cfg?.planPrice || '$4/mo' }, { demo: true })
         + `<div class="bill-card" style="margin-top:14px"><div class="bill-card-label">Try before you buy</div>
-           <p style="font-size:.84rem;color:var(--text-dim);margin:0 0 12px">You're browsing the full site with sample servers (ARCTV Emby, Home Jellyfin, Backup NAS) and realistic fake data. Explore every tab — nothing is saved.</p>
-           <button class="bill-demo-btn bill-demo-site" type="button" style="width:100%;justify-content:center;border-radius:12px"><span class="bill-demo-btn-ic">◆</span><span>Restart demo from Dashboard</span></button></div>`;
+           <p style="font-size:.84rem;color:var(--text-dim);margin:0 0 12px">You're browsing the full site with sample servers and realistic fake data. Use the guided tour to see how best-file routing works — nothing is saved.</p>
+           <button class="bill-demo-btn bill-demo-site" type="button" style="width:100%;justify-content:center;border-radius:12px;margin-bottom:8px"><span class="bill-demo-btn-ic">◆</span><span>Restart demo</span></button>
+           <button class="btn-soft" type="button" id="bill-demo-tour-restart" style="width:100%">↻ Replay guided tour</button></div>`;
       wireDemoTour();
+      document.getElementById('bill-demo-tour-restart')?.addEventListener('click', () => {
+        if (window.MEBDemo && window.MEBDemo.openTour) window.MEBDemo.openTour(0);
+      });
       return;
     }
 

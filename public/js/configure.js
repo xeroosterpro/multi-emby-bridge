@@ -2387,9 +2387,9 @@ function refreshKeyPills() {
 }
 
 const PREVIEW_SERVERS = [
-  { label: 'ARCTV', emoji: '', type: 'emby', status: 'found', count: 5, resLabels: ['4K','1080p'], resCounts: {'4K':2,'1080p':3}, pingMs: 12 },
-  { label: 'STREAMER', emoji: '', type: 'emby', status: 'found', count: 2, resLabels: ['1080p'], resCounts: {'1080p':2}, pingMs: 28 },
-  { label: 'BACKUP', emoji: '', type: 'jellyfin', status: 'not_found', count: 0, resLabels: [], resCounts: {}, pingMs: null },
+  { label: 'Cloud Emby', emoji: '', type: 'emby', status: 'found', count: 5, resLabels: ['4K','1080p'], resCounts: {'4K':2,'1080p':3}, pingMs: 12 },
+  { label: 'Home Jellyfin', emoji: '', type: 'jellyfin', status: 'found', count: 2, resLabels: ['1080p'], resCounts: {'1080p':2}, pingMs: 28 },
+  { label: 'Backup NAS', emoji: '', type: 'emby', status: 'not_found', count: 0, resLabels: [], resCounts: {}, pingMs: null },
 ];
 
 function updateSummaryPreview() {

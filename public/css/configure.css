@@ -1381,8 +1381,132 @@ body.demo-site.locked-billing .pin-btn{ display:revert; }
 }
 
 /* ═══ BILLING PAGE ═══ */
-#page-billing { max-width: 900px; }
+#page-billing { max-width: 980px; }
 .bill-shell { padding: 8px 4px 40px; }
+.bill-shell-v2 { padding: 4px 2px 48px; }
+
+/* sales pitch hero */
+.bill-pitch-hero{
+  position:relative; text-align:center; padding:36px 28px 32px; margin-bottom:22px;
+  background:linear-gradient(165deg,color-mix(in srgb,var(--accent) 12%,var(--bg-surface)),var(--bg-surface));
+  border:1px solid color-mix(in srgb,var(--accent) 32%,var(--border)); border-radius:var(--r-lg);
+  overflow:hidden;
+}
+.bill-pitch-glow{
+  position:absolute; inset:-50% -30% auto; height:280px;
+  background:radial-gradient(ellipse,color-mix(in srgb,var(--accent) 28%,transparent),transparent 68%);
+  pointer-events:none;
+}
+.bill-pitch-eyebrow{
+  position:relative; font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em;
+  color:var(--accent); margin:0 0 12px;
+}
+.bill-pitch-title{
+  position:relative; font-size:clamp(1.5rem,4vw,2.15rem); font-weight:900; letter-spacing:-.03em;
+  line-height:1.15; margin:0 0 14px;
+}
+.bill-pitch-accent{
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.bill-pitch-lead{
+  position:relative; font-size:.92rem; color:var(--text-dim); line-height:1.65;
+  max-width:52ch; margin:0 auto 22px;
+}
+.bill-pitch-flow{
+  position:relative; display:flex; align-items:center; justify-content:center; flex-wrap:wrap;
+  gap:8px; margin-bottom:22px; padding:14px 16px;
+  background:rgba(0,0,0,.22); border-radius:14px; border:1px solid var(--border);
+}
+.bpf-node{
+  font-size:.72rem; font-weight:800; padding:8px 12px; border-radius:10px;
+  background:var(--bg-elevated); border:1px solid var(--border); color:var(--text-dim);
+}
+.bpf-node.bpf-hub{
+  color:var(--accent); border-color:color-mix(in srgb,var(--accent) 40%,var(--border));
+  background:color-mix(in srgb,var(--accent) 12%,transparent);
+}
+.bpf-servers{ display:flex; gap:5px; flex-wrap:wrap; justify-content:center; }
+.bpf-servers span{
+  font-size:.64rem; font-weight:700; padding:6px 10px; border-radius:999px;
+  background:var(--bg-elevated); border:1px solid var(--border); color:var(--text-mute);
+}
+.bpf-arrow{ color:var(--text-mute); font-size:.85rem; }
+.bpf-win{
+  font-size:.68rem; font-weight:800; padding:8px 12px; border-radius:999px;
+  color:#0a0a12; background:linear-gradient(135deg,var(--accent),var(--accent-2));
+}
+.bill-pitch-steps{
+  position:relative; display:grid; grid-template-columns:repeat(3,1fr); gap:12px;
+  margin-bottom:20px; text-align:left;
+}
+.bps{
+  display:flex; gap:12px; align-items:flex-start; padding:14px 14px;
+  background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px;
+}
+.bps-n{
+  width:28px; height:28px; border-radius:8px; flex:none; display:grid; place-items:center;
+  font-size:.78rem; font-weight:900; color:#0a0a12;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+}
+.bps strong{ display:block; font-size:.82rem; margin-bottom:3px; }
+.bps p{ margin:0; font-size:.72rem; color:var(--text-mute); line-height:1.45; }
+.bill-plans-v2{ margin-bottom:20px; }
+.bill-compare-v2 .bill-compare-featured{
+  border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border));
+  background:color-mix(in srgb,var(--accent) 6%,var(--bg-elevated));
+}
+.demo-site-banner .dsb-tour{
+  background:color-mix(in srgb,var(--accent) 18%,var(--bg-elevated)); color:var(--accent);
+  border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border));
+}
+
+/* demo site guided tour */
+#demo-site-tour{
+  position:fixed; inset:0; z-index:700; pointer-events:none;
+}
+#demo-site-tour.on{ pointer-events:auto; }
+#demo-site-tour .dst-backdrop{
+  position:absolute; inset:0; background:rgba(4,4,10,.72); backdrop-filter:blur(2px);
+  opacity:0; transition:opacity .28s var(--ease);
+}
+#demo-site-tour.on .dst-backdrop{ opacity:1; }
+#demo-site-tour .dst-spot{
+  position:fixed; display:none; border-radius:12px; pointer-events:none; z-index:1;
+  border:2px solid var(--accent);
+  box-shadow:0 0 0 9999px rgba(4,4,10,.72),0 0 24px color-mix(in srgb,var(--accent) 45%,transparent);
+  transition:top .3s var(--ease),left .3s var(--ease),width .3s var(--ease),height .3s var(--ease);
+}
+#demo-site-tour .dst-card{
+  position:fixed; left:50%; bottom:88px; transform:translateX(-50%) translateY(12px);
+  width:min(92vw,480px); z-index:2; pointer-events:auto;
+  background:var(--bg-surface); border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border));
+  border-radius:18px; padding:18px 20px 16px;
+  box-shadow:0 24px 60px rgba(0,0,0,.55);
+  opacity:0; transition:opacity .28s var(--ease),transform .32s var(--ease);
+}
+#demo-site-tour.on .dst-card{ opacity:1; transform:translateX(-50%) translateY(0); }
+.dst-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.dst-badge{
+  font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.07em;
+  color:var(--accent); padding:4px 9px; border-radius:999px;
+  background:color-mix(in srgb,var(--accent) 12%,transparent);
+}
+.dst-step{ font-size:.68rem; color:var(--text-mute); font-weight:700; }
+.dst-title{ font-size:1.1rem; font-weight:900; margin:0 0 8px; letter-spacing:-.02em; }
+.dst-desc{ font-size:.84rem; color:var(--text-dim); line-height:1.55; margin:0 0 10px; }
+.dst-bullets{ list-style:none; padding:0; margin:0 0 14px; display:flex; flex-direction:column; gap:5px; }
+.dst-bullets li{ font-size:.76rem; color:var(--text-secondary); padding-left:16px; position:relative; }
+.dst-bullets li::before{ content:'✓'; position:absolute; left:0; color:var(--accent); font-weight:800; font-size:.68rem; }
+.dst-nav{ display:flex; gap:8px; justify-content:flex-end; align-items:center; }
+.dst-nav .btn-soft#dst-skip{ margin-right:auto; font-size:.76rem !important; }
+body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
+
+@media (max-width:720px){
+  .bill-pitch-steps{ grid-template-columns:1fr; }
+  .bill-pitch-flow{ gap:6px; padding:12px; }
+  #demo-site-tour .dst-card{ bottom:100px; }
+}
 .bill-hero {
   position: relative; text-align: center; padding: 32px 20px 28px; margin-bottom: 20px;
   background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-lg);
