@@ -1,4 +1,4 @@
-const { upgradeStreamProfile, needsStreamProfileUpgrade, STREMIO_STREAM_DEFAULTS } = require('../lib/streamDefaults');
+const { upgradeStreamProfile, applyMissingStreamDefaults, needsStreamProfileUpgrade, STREMIO_STREAM_DEFAULTS } = require('../lib/streamDefaults');
 
 let passed = 0;
 let failed = 0;
@@ -16,7 +16,7 @@ console.log('\nstreamDefaults');
   const { cfg, changed } = upgradeStreamProfile({ servers: [{ label: 'A' }], labelPreset: 'standard' });
   assert(changed, 'upgrade reports changed');
   assert(cfg.autoSelect === true, 'autoSelect on');
-  assert(cfg.labelPreset === 'compact', 'compact labels');
+  assert(cfg.labelPreset === 'standard', 'preserves explicit labelPreset on upgrade');
   assert(cfg.audioRank === true, 'audio rank on');
   assert(cfg.showSummary === true && cfg.summaryStyle === 'compact', 'compact summary');
   assert(cfg.ping === true && cfg.recommend === true, 'ping + recommend on');
@@ -24,7 +24,19 @@ console.log('\nstreamDefaults');
 
   const again = upgradeStreamProfile(cfg);
   assert(!again.changed, 'second upgrade is no-op');
-  assert(again.cfg.labelPreset === 'compact', 'preserves settings');
+  assert(again.cfg.labelPreset === 'standard', 'preserves settings');
+
+  const merged = applyMissingStreamDefaults({
+    streamProfile: 1,
+    audioRank: false,
+    audioRankMode: 'tiebreak',
+    sortOrder: 'bitrate',
+  });
+  assert(merged.streamProfile === 2, 'bumps stream profile');
+  assert(merged.audioRank === false, 'keeps saved audioRank');
+  assert(merged.audioRankMode === 'tiebreak', 'keeps saved audioRankMode');
+  assert(merged.sortOrder === 'bitrate', 'keeps unrelated fields');
+  assert(merged.labelPreset === 'compact', 'fills missing labelPreset');
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

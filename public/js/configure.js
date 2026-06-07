@@ -108,7 +108,10 @@ function needsStreamProfileUpgrade(obj) {
 
 function upgradeStreamProfileState(obj) {
   if (!obj || !needsStreamProfileUpgrade(obj)) return false;
-  Object.assign(obj, STREMIO_STREAM_DEFAULTS, { streamProfile: STREAM_PROFILE_VERSION });
+  for (const [k, v] of Object.entries(STREMIO_STREAM_DEFAULTS)) {
+    if (obj[k] === undefined) obj[k] = v;
+  }
+  obj.streamProfile = STREAM_PROFILE_VERSION;
   return true;
 }
 
@@ -118,6 +121,13 @@ function applyManifestSettings(cfg) {
   const c = { ...STREMIO_STREAM_DEFAULTS, ...cfg };
   const setVal = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
   const setChk = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined) el.checked = !!v; };
+  const deliveryMode = c.mode || (c.timeout != null ? 'timeout' : null);
+  if (deliveryMode) {
+    const radio = document.querySelector(`input[name="perf-mode"][value="${deliveryMode}"]`);
+    if (radio) { radio.checked = true; onModeChange(); }
+  }
+  if (c.timeoutValue != null) setVal('timeout-value', String(c.timeoutValue));
+  else if (c.timeout != null) setVal('timeout-value', String(c.timeout));
   if (c.sortOrder) setVal('sort-order', c.sortOrder);
   if (Array.isArray(c.excludeRes)) _applyExcludeRes(c.excludeRes);
   setChk('show-recommend', c.recommend);
@@ -134,6 +144,10 @@ function applyManifestSettings(cfg) {
     const order = (c.audioOrder && c.audioOrder.length) ? c.audioOrder : AUDIO_FORMATS.map(f => f.token);
     renderAudioRankList(order, c.audioDisabled || []);
   }
+  (c.audioPresets || []).forEach(id => {
+    const chip = document.querySelector('#audio-preset-chips .chip[data-preset="' + id + '"]');
+    if (chip) chip.classList.add('on');
+  });
   if (c.maxBitrate != null) setVal('max-bitrate', String(c.maxBitrate));
   setChk('auto-select', c.autoSelect);
   setVal('label-preset', c.labelPreset || 'compact');
@@ -3565,7 +3579,7 @@ Continue anyway?`;
     if (!confirm(msg)) return;
   }
 
-  const mode = silent ? 'normal' : document.querySelector('input[name="perf-mode"]:checked').value;
+  const mode = document.querySelector('input[name="perf-mode"]:checked')?.value || 'normal';
   const sortOrder = document.getElementById('sort-order').value;
   const excludeRes = [...document.querySelectorAll('.res-cb:checked')].map(cb => cb.value);
   const recommend = document.getElementById('show-recommend').checked;
@@ -3787,6 +3801,7 @@ let saveTimer = null;
 function collectFormState() {
   const mode = document.querySelector('input[name="perf-mode"]:checked')?.value || 'normal';
   const state = {
+    streamProfile: STREAM_PROFILE_VERSION,
     mode,
     timeoutValue: document.getElementById('timeout-value')?.value,
     sortOrder: document.getElementById('sort-order')?.value,
@@ -3858,6 +3873,7 @@ function saveToLocalStorage() {
     if (!newState.traktClientId && existing.traktClientId) newState.traktClientId = existing.traktClientId;
     if (!newState.mdblistApiKey && existing.mdblistApiKey) newState.mdblistApiKey = existing.mdblistApiKey;
     if (!newState.tmdbApiKey && existing.tmdbApiKey) newState.tmdbApiKey = existing.tmdbApiKey;
+    if (!newState.streamProfile && existing.streamProfile) newState.streamProfile = existing.streamProfile;
     localStorage.setItem(LS_KEY, JSON.stringify(newState));
   } catch {}
   const ind = document.getElementById('autosave-indicator');
@@ -3988,7 +4004,7 @@ function restoreFromLocalStorage() {
     if (window.Controls) Controls.syncAll();
     updateRankingUX();
     if (profileUpgraded) {
-      try { localStorage.setItem(LS_KEY, JSON.stringify({ ...state, ...STREMIO_STREAM_DEFAULTS, streamProfile: STREAM_PROFILE_VERSION })); } catch {}
+      try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {}
     }
     return true;
   } catch { return false; }
