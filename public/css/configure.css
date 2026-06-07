@@ -402,16 +402,14 @@ input::placeholder { color: var(--text-muted); }
 .rlog-filter{ width:auto; min-width:140px; font-size:.8rem !important; cursor:pointer; }
 .rlog-list{
   background:var(--bg-surface); border:1px solid var(--border); border-radius:var(--r-lg);
-  padding:0; overflow:hidden; display:flex; flex-direction:column;
-  max-height:min(64vh,680px);
+  padding:0; overflow:hidden;
 }
 .rlog-head{
   display:grid; grid-template-columns:92px minmax(120px,0.85fr) minmax(240px,1.55fr) minmax(170px,1fr) 76px; gap:10px; align-items:center;
   padding:8px 12px; font-size:.58rem; font-weight:800; text-transform:uppercase; letter-spacing:.07em;
   color:var(--text-mute); border-bottom:1px solid var(--border); background:var(--bg-elevated);
-  position:sticky; top:0; z-index:2; flex:none;
 }
-.rlog-rows{ display:flex; flex-direction:column; overflow-y:auto; flex:1; min-height:0; }
+.rlog-rows{ display:flex; flex-direction:column; }
 .rlog-row{
   display:grid; grid-template-columns:92px minmax(120px,0.85fr) minmax(240px,1.55fr) minmax(170px,1fr) 76px; gap:10px; align-items:start;
   padding:11px 12px; border-bottom:1px solid color-mix(in srgb,var(--border) 70%,transparent);
