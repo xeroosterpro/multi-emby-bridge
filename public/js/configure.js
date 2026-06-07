@@ -2921,7 +2921,7 @@ const _SOURCE_DEVICE_IDS = new Set(['shield', 'appletv', 'chromecast', 'firestic
 const _PASSTHROUGH_SINK_IDS = new Set(['soundbar', 'sonos']);
 const _PLAYBACK_CHAIN_IDS = new Set([..._SOURCE_DEVICE_IDS, ..._PASSTHROUGH_SINK_IDS, 'tv']);
 const _EARC_FRIENDLY_ORDER = ['atmos','truehd','ddplus','dd','aac','other'];
-const _SONOS_FRIENDLY_ORDER = ['atmos','ddplus','dd','aac','other'];
+const _SONOS_FRIENDLY_ORDER = ['atmos','truehd','ddplus','dts','dd','aac','other'];
 
 function renderAudioPresetChips() {
   const comboWrap = document.getElementById('audio-combo-chips');

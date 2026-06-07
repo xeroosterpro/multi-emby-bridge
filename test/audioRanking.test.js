@@ -227,9 +227,18 @@ pr = A.resolvePreset(['shield', 'tv']);
 assert(!pr.disabled.includes('dts'), 'shield→TV decodes DTS (not passthrough-limited)');
 assertEqual(pr.action, 'hide', 'shield+tv chain uses hide action');
 
+pr = A.resolvePreset(['sonos']);
+assert(!pr.disabled.includes('dts'), 'sonos keeps DTS 5.1');
+assert(!pr.disabled.includes('thd'), 'sonos keeps TrueHD');
+assert(!pr.disabled.includes('ddp'), 'sonos keeps DD+');
+assert(pr.disabled.includes('dtx'), 'sonos disables DTS:X');
+assert(pr.disabled.includes('dma'), 'sonos disables DTS-HD MA');
+assert(pr.disabled.includes('flc'), 'sonos disables FLAC');
+assert(pr.disabled.includes('pcm'), 'sonos disables LPCM');
+
 pr = A.resolvePreset(['shield', 'sonos']);
-assert(pr.disabled.includes('dts'), 'shield+sonos disables DTS');
-assert(pr.disabled.includes('thd'), 'shield+sonos disables TrueHD');
+assert(!pr.disabled.includes('dts'), 'shield+sonos keeps DTS 5.1');
+assert(!pr.disabled.includes('thd'), 'shield+sonos keeps TrueHD');
 assert(pr.disabled.includes('dtx'), 'shield+sonos disables DTS:X');
 assert(pr.disabled.includes('flc'), 'shield+sonos disables FLAC');
 assert(!pr.disabled.includes('ddp'), 'shield+sonos keeps DD+');
