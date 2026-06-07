@@ -11,6 +11,15 @@ function showPage(name) {
       name = 'home';
     }
   }
+  // Admin preview: unpaid users are locked to billing; hide admin pages in preview
+  if (window.MEBSite) {
+    if (window.MEBSite.isViewAsUnpaid && window.MEBSite.isViewAsUnpaid() && name !== 'billing') {
+      name = 'billing';
+    }
+    if (window.MEBSite.isViewAs && window.MEBSite.isViewAs() && adminPages.includes(name)) {
+      name = 'dashboard';
+    }
+  }
   PAGES.forEach(p => {
     const sec = document.getElementById('page-' + p);
     if (sec) sec.classList.toggle('on', p === name);
@@ -166,6 +175,11 @@ function initShell() {
     });
 
     if (window.MEBSite && window.MEBSite.refresh) window.MEBSite.refresh();
+    document.addEventListener('viewas-changed', () => {
+      const pg = (location.hash || '#/home').replace(/^#\//, '');
+      showPage(pg);
+      if (window.MEBBilling && window.MEBBilling.refresh) window.MEBBilling.refresh();
+    });
 
     // If a non-admin somehow landed on admin page, redirect
     const page = (location.hash || '#/home').replace(/^#\//, '');

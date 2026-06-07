@@ -1001,8 +1001,6 @@
       </section>
 
       <section class="page" id="page-billing">
-        <h2 class="page-title">Billing</h2>
-        <p class="page-sub" id="billing-sub">Subscription &amp; payment</p>
         <div id="billing-body"></div>
       </section>
 
@@ -1067,10 +1065,14 @@
               <div class="sys-controls-body">
                 <div class="sys-viewas">
                   <div class="sys-viewas-text">
-                    <div class="sys-viewas-label">View as normal user</div>
-                    <div class="sys-viewas-hint">Preview the site without admin UI. You keep full admin access.</div>
+                    <div class="sys-viewas-label">Preview as user</div>
+                    <div class="sys-viewas-hint">Simulate unpaid (billing locked) or paid (full access) experience. Admin API access unchanged.</div>
                   </div>
-                  <button type="button" class="switch" id="view-as-switch" role="switch" aria-checked="false"></button>
+                  <div class="sys-viewas-modes" id="view-as-modes">
+                    <button type="button" class="sys-vamode active" data-mode="off">Admin</button>
+                    <button type="button" class="sys-vamode" data-mode="unpaid">Unpaid</button>
+                    <button type="button" class="sys-vamode" data-mode="paid">Paid</button>
+                  </div>
                 </div>
                 <div class="sys-tabs-section">
                   <div class="sys-tabs-head">Visible tabs</div>

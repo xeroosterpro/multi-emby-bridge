@@ -5,6 +5,21 @@ const paypal = require('../lib/paypal');
 const { makeBilling } = require('../lib/billing');
 
 const PLAN_PRICE = process.env.PLAN_PRICE || '$4/mo';
+const PLAN_FEATURES = {
+  pro: [
+    'Unlimited Emby & Jellyfin servers',
+    'Personal manifest URL for Stremio',
+    'Multi-server stream routing',
+    'Health monitoring & uptime history',
+    'Priority support tickets',
+    'Cancel anytime',
+  ],
+  free: [
+    'Browse the site',
+    'No streaming access',
+    'No manifest URL',
+  ],
+};
 
 function makeBillingRouter() {
   const { makePayments } = require('../lib/payments');
@@ -19,7 +34,15 @@ function makeBillingRouter() {
   }
 
   // public-ish: frontend needs clientId/planId to render PayPal buttons
-  r.get('/config', (req, res) => res.json({ ...paypal.publicConfig(), planPrice: PLAN_PRICE }));
+  r.get('/config', (req, res) => res.json({
+    ...paypal.publicConfig(),
+    planPrice: PLAN_PRICE,
+    planName: 'Bridge Pro',
+    plans: [
+      { id: 'free', name: 'Free', price: '$0', period: 'forever', features: PLAN_FEATURES.free, limited: true },
+      { id: 'pro', name: 'Bridge Pro', price: PLAN_PRICE, period: 'month', features: PLAN_FEATURES.pro, featured: true },
+    ],
+  }));
 
   r.get('/status', requireAuth, async (req, res) => {
     try {

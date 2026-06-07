@@ -544,18 +544,28 @@
 
   const TAB_LABELS = { dashboard:'Dashboard', servers:'Servers', catalogs:'Catalogs', streaming:'Media Sources', appearance:'Media Sources', install:'Install', apikeys:'API Keys', health:'Health', ping:'Ping test', log:'Request log', settings:'Settings', billing:'Billing' };
 
+  function wireViewAsModes() {
+    const wrap = $('#view-as-modes'); if (!wrap || wrap._w) return;
+    wrap._w = 1;
+    const sync = () => {
+      const mode = window.MEBSite ? window.MEBSite.getViewAsMode() : 'off';
+      wrap.querySelectorAll('.sys-vamode').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+      });
+    };
+    wrap.querySelectorAll('.sys-vamode').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (window.MEBSite) window.MEBSite.setViewAs(btn.dataset.mode);
+        sync();
+      });
+    });
+    document.addEventListener('viewas-changed', sync);
+    sync();
+  }
+
   async function loadSiteControls() {
     const list = $('#site-tabs-list'); if (!list) return;
-    const vs = $('#view-as-switch');
-    if (vs) {
-      const on = window.MEBSite && window.MEBSite.isViewAs();
-      vs.classList.toggle('on', !!on); vs.setAttribute('aria-checked', on ? 'true' : 'false');
-      if (!vs._w) { vs._w = 1; vs.addEventListener('click', () => {
-        const next = !vs.classList.contains('on');
-        vs.classList.toggle('on', next); vs.setAttribute('aria-checked', next ? 'true' : 'false');
-        if (window.MEBSite) window.MEBSite.setViewAs(next);
-      }); }
-    }
+    wireViewAsModes();
     const r = await api('/api/admin/site-config');
     if (r.status !== 200 || !r.body) { list.innerHTML = '<div class="field-hint">Site config unavailable.</div>'; return; }
     const disabled = new Set(r.body.disabledTabs || []);
