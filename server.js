@@ -39,7 +39,7 @@ const { hashPassword, loadProfiles, saveProfiles } = require('./lib/profiles');
 const { snapshot: systemMetrics } = require('./lib/metrics');
 const { ROW_NAMES, deriveLibraryRows } = require('./server-helpers');
 const audioRanking = require('./lib/audioRanking');
-const { assertSafeFetchUrl } = require('./lib/urlSafety');
+const { assertSafeFetchUrl, normalizeServerUrl } = require('./lib/urlSafety');
 const {
   requireAuthInProduction,
   applyConfigureSecurityHeaders,
@@ -610,12 +610,13 @@ app.post('/api/server-sessions', apiLimiter, express.json(), async (req, res) =>
   if (!url || !apiKey) return res.status(400).json({ error: 'url and apiKey required' });
   let safeUrl;
   try {
-    const parsed = await assertSafeFetchUrl(url, 'server url');
-    safeUrl = parsed.origin;
+    await assertSafeFetchUrl(url, 'server url');
+    safeUrl = normalizeServerUrl(url);
+    if (!safeUrl) return res.status(400).json({ error: 'Invalid server url' });
   } catch (e) {
     return res.status(400).json({ error: e.message });
   }
-  const { fetchServerSessions } = require('./lib/sessions');
+  const { fetchServerSessionsDetailed } = require('./lib/sessions');
   const server = {
     url: safeUrl,
     type: type || 'emby',
@@ -626,19 +627,24 @@ app.post('/api/server-sessions', apiLimiter, express.json(), async (req, res) =>
     password: password || '',
   };
   const sentKey = apiKey;
-  try {
-    const live = await fetchServerSessions(server);
-    const out = { live };
-    const refreshed = getEffectiveApiKey(server);
-    if (refreshed && refreshed !== sentKey) out.apiKey = refreshed;
-    res.json(out);
-  } catch (err) {
-    if (err.status === 401 || err.status === 403)
-      return res.status(401).json({ error: 'Authentication failed' });
-    if (err.name === 'AbortError')
-      return res.status(504).json({ error: 'Connection timed out' });
-    res.status(502).json({ error: err.message });
+  const probe = await fetchServerSessionsDetailed(server);
+  const out = {
+    live: probe.live || [],
+    probe: {
+      ok: !!probe.ok,
+      count: probe.count || 0,
+      ms: probe.ms || 0,
+      error: probe.error || null,
+    },
+  };
+  const refreshed = getEffectiveApiKey(server);
+  if (refreshed && refreshed !== sentKey) out.apiKey = refreshed;
+  if (!probe.ok && probe.error) {
+    const status = /HTTP 401|HTTP 403/i.test(probe.error) ? 401
+      : /timeout/i.test(probe.error) ? 504 : 502;
+    return res.status(status).json({ ...out, error: probe.error });
   }
+  res.json(out);
 });
 
 // ─── Library stats ────────────────────────────────────────────────────────────

@@ -218,14 +218,27 @@
         : body.label === S_HOME
           ? [{ title: 'Breaking Bad', server: S_HOME, user: 'demo', client: 'Stremio Web', positionTicks: 45000000000, isPaused: false, playMethod: 'Transcode', isTranscoding: true }]
           : [];
-      return { body: { live } };
+      return { body: {
+        live,
+        probe: {
+          ok: live.length > 0 || body.label === S_NAS,
+          count: live.length,
+          ms: body.label === S_CLOUD ? 42 : body.label === S_HOME ? 68 : 31,
+          error: null,
+        },
+      } };
     }
     if (path === '/api/user/activity' && m === 'GET') {
       return { body: {
         hasServers: true, serverCount: 3,
         live: [
-          { title: 'Dune: Part Two', server: S_CLOUD, user: 'Alex', client: 'Apple TV', positionTicks: 120000000000, isPaused: false },
-          { title: 'Breaking Bad S01E01', server: S_HOME, user: 'demo', client: 'Stremio Web', positionTicks: 45000000000, isPaused: false, isTranscoding: true },
+          { title: 'Dune: Part Two', server: S_CLOUD, user: 'Alex', client: 'Apple TV', positionTicks: 120000000000, isPaused: false, progressPct: 42, playMethod: 'DirectPlay' },
+          { title: 'Breaking Bad S01E01', server: S_HOME, user: 'demo', client: 'Stremio Web', positionTicks: 45000000000, isPaused: false, isTranscoding: true, progressPct: 18 },
+        ],
+        liveProbes: [
+          { server: S_CLOUD, ok: true, count: 1, ms: 42, error: null },
+          { server: S_HOME, ok: true, count: 1, ms: 68, error: null },
+          { server: S_NAS, ok: true, count: 0, ms: 31, error: null },
         ],
         recent: [
           { title: 'Oppenheimer', server: S_CLOUD, ts: new Date(Date.now() - 3600000).toISOString() },

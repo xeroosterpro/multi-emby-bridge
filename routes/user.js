@@ -58,15 +58,24 @@ function makeUserRouter() {
   r.get('/activity', requireAuth, async (req, res) => {
     try {
       let live = [];
+      let liveProbes = [];
       let servers = [];
       let recent = [];
       try {
         const cfg = await uc.getForServe(req.user.id);
         servers = (cfg && Array.isArray(cfg.servers))
-          ? cfg.servers.filter(s => s && s.url && s.apiKey)
+          ? cfg.servers.filter(s => s && s.url && s.apiKey && s.enabled !== false)
           : [];
         if (servers.length) {
-          live = await liveSessions.forUser(servers);
+          const detailed = await liveSessions.forUserDetailed(servers);
+          live = detailed.live || [];
+          liveProbes = (detailed.probes || []).map(p => ({
+            server: p.server,
+            ok: !!p.ok,
+            count: p.count || 0,
+            ms: p.ms || 0,
+            error: p.error || null,
+          }));
           const labels = new Set(
             servers.map(s => (s.label || '').trim()).filter(Boolean)
           );
@@ -79,6 +88,7 @@ function makeUserRouter() {
         hasServers: servers.length > 0,
         serverCount: servers.length,
         live,
+        liveProbes,
         recent,
       });
     } catch (e) { console.error('[user/activity]', e.message); res.status(500).json({ error: 'activity failed' }); }

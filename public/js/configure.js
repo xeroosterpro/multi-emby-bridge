@@ -357,44 +357,161 @@ function notifyNewBuffering(buffering) {
   }
 }
 
-let _annotatedLiveInFlight = null;
+let _liveBundleInFlight = null;
+let _liveBundleCache = { live: [], probes: [], ts: 0 };
 
-async function fetchAnnotatedLiveSessions() {
-  if (_annotatedLiveInFlight) return _annotatedLiveInFlight;
-  _annotatedLiveInFlight = (async () => {
-    const demoOn = window.MEBDemo && window.MEBDemo.isActive && window.MEBDemo.isActive();
-    if (!demoOn && !window.currentUser) return [];
-    await ensureAccountConfigLoaded();
-    const cfg = collectConfig(true);
-    const servers = cfg?.servers || [];
-    if (!servers.length) return [];
-    const raw = await fetchLiveSessionsForServers(servers);
-    return annotateLiveSessions(raw);
-  })().finally(() => { _annotatedLiveInFlight = null; });
-  return _annotatedLiveInFlight;
+function collectServersForLive() {
+  const cfg = collectConfig(true);
+  if (cfg?.servers?.length) return cfg.servers;
+  const state = collectFormState();
+  return (state.servers || []).filter(s =>
+    s.enabled !== false && s.url && s.apiKey && s.userId && s.label
+  );
 }
 
-async function getAnnotatedLiveForDashboard() {
-  if (window._mebAnnotatedLive && Date.now() - (window._mebAnnotatedLiveTs || 0) < LIVE_PLAYBACK_POLL_MS) {
-    return window._mebAnnotatedLive;
+function mergeLiveSessions(lists) {
+  const lp = window.MEBLivePlayback;
+  const map = new Map();
+  for (const list of lists) {
+    for (const s of list || []) {
+      const k = lp
+        ? lp.liveSessionKey(s)
+        : [s.server, s.user, s.title, s.client, s.sessionId].join('|');
+      if (!map.has(k)) map.set(k, s);
+    }
   }
-  const live = await fetchAnnotatedLiveSessions();
-  window._mebAnnotatedLive = live;
-  window._mebAnnotatedLiveTs = Date.now();
-  return live;
+  return [...map.values()];
+}
+
+async function fetchLiveBundle(force = false) {
+  if (!force && _liveBundleCache.ts && Date.now() - _liveBundleCache.ts < LIVE_PLAYBACK_POLL_MS) {
+    return _liveBundleCache;
+  }
+  if (_liveBundleInFlight) return _liveBundleInFlight;
+  _liveBundleInFlight = (async () => {
+    const demoOn = window.MEBDemo && window.MEBDemo.isActive && window.MEBDemo.isActive();
+    let live = [];
+    let probes = [];
+
+    if (!demoOn && window.currentUser) {
+      try {
+        const r = await fetch('/api/user/activity', { credentials: 'same-origin' });
+        if (r.ok) {
+          const d = await r.json().catch(() => null);
+          if (d) {
+            live = Array.isArray(d.live) ? d.live : [];
+            probes = Array.isArray(d.liveProbes) ? d.liveProbes : [];
+          }
+        }
+      } catch { /* fall through to per-server probe */ }
+    }
+
+    await ensureAccountConfigLoaded();
+    const servers = collectServersForLive();
+    if (servers.length) {
+      const clientChunks = await Promise.all(servers.map(async (s) => {
+        try {
+          const r = await fetch('/api/server-sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+              url: s.url, type: s.type, apiKey: s.apiKey, userId: s.userId, label: s.label,
+              username: s.username || '', password: s.password || '',
+            }),
+          });
+          const d = await r.json().catch(() => null);
+          if (d?.apiKey) {
+            const norm = (s.url || '').replace(/\/+$/, '');
+            const block = [...document.querySelectorAll('.server-block')].find(b => {
+              const u = b.querySelector('.f-url')?.value.trim().replace(/\/+$/, '');
+              return u && u === norm;
+            });
+            if (block) _applyRefreshedApiKey(block, d.apiKey);
+          }
+          const probe = d?.probe || {
+            server: s.label || s.url,
+            ok: r.ok,
+            count: Array.isArray(d?.live) ? d.live.length : 0,
+            error: d?.error || (!r.ok ? `HTTP ${r.status}` : null),
+          };
+          return { live: Array.isArray(d?.live) ? d.live : [], probe };
+        } catch {
+          return {
+            live: [],
+            probe: { server: s.label || s.url, ok: false, count: 0, error: 'network error' },
+          };
+        }
+      }));
+      const clientLive = clientChunks.flatMap(c => c.live);
+      const clientProbes = clientChunks.map(c => c.probe).filter(Boolean);
+      live = mergeLiveSessions([live, clientLive]);
+      if (!probes.length) probes = clientProbes;
+      else {
+        const byServer = new Map(probes.map(p => [p.server, p]));
+        clientProbes.forEach(p => {
+          const prev = byServer.get(p.server);
+          if (!prev || (!prev.ok && p.ok)) byServer.set(p.server, p);
+        });
+        probes = [...byServer.values()];
+      }
+    } else if (demoOn) {
+      live = await fetchLiveSessionsForServers(collectServersForLive());
+    }
+
+    const annotated = annotateLiveSessions(live);
+    _liveBundleCache = { live: annotated, probes, ts: Date.now() };
+    window._mebAnnotatedLive = annotated;
+    window._mebAnnotatedLiveTs = _liveBundleCache.ts;
+    window._mebLiveProbes = probes;
+    return _liveBundleCache;
+  })().finally(() => { _liveBundleInFlight = null; });
+  return _liveBundleInFlight;
+}
+
+function liveEmptyMessage(probes, serverCount) {
+  const list = probes || [];
+  const failed = list.filter(p => !p.ok);
+  const okEmpty = list.filter(p => p.ok && (p.count || 0) === 0);
+  if (!list.length) {
+    return 'Nothing playing right now on your servers.';
+  }
+  if (failed.length === list.length) {
+    return `Could not read Sessions API on any of your ${serverCount} server${serverCount === 1 ? '' : 's'}. Check API keys on the <a href="#" data-page="servers">Servers</a> page.`;
+  }
+  if (failed.length) {
+    const names = failed.slice(0, 3).map(p => p.server).join(', ');
+    return `Nothing playing right now. ${failed.length} server${failed.length === 1 ? '' : 's'} could not be polled${names ? ` (${names}${failed.length > 3 ? '…' : ''})` : ''}.`;
+  }
+  if (okEmpty.length === list.length) {
+    return 'All servers reachable — nothing playing right now.';
+  }
+  return 'Nothing playing right now on your servers.';
+}
+
+function renderLiveProbeStrip(probes) {
+  if (!probes?.length) return '';
+  const esc = dashActivityEsc;
+  return `<div class="da-probes">${probes.map(p => {
+    const cls = p.ok ? ((p.count || 0) > 0 ? 'ok-live' : 'ok-idle') : 'bad';
+    const detail = p.ok
+      ? ((p.count || 0) > 0 ? `${p.count} playing` : 'idle')
+      : esc(p.error || 'unreachable');
+    return `<span class="da-probe ${cls}" title="${esc(p.server)} — ${detail}"><span class="da-probe-dot"></span>${esc(p.server)}</span>`;
+  }).join('')}</div>`;
 }
 
 async function pollLivePlaybackNotifications() {
-  const live = await getAnnotatedLiveForDashboard();
-  const buffering = live.filter(s => s.buffering);
+  const bundle = await fetchLiveBundle();
+  const buffering = (bundle.live || []).filter(s => s.buffering);
   renderBufferingBanner(buffering);
   updateDashboardBufferBadge(buffering.length);
   notifyNewBuffering(buffering);
   const dash = document.getElementById('page-dashboard');
   if (dash && dash.classList.contains('on') && typeof renderDashActivity === 'function') {
-    renderDashActivity();
+    renderDashActivity({ skipFetch: true });
   }
-  return live;
+  return bundle.live || [];
 }
 
 try { _libStatsCache = JSON.parse(localStorage.getItem('meb-libstats-cache') || '{}'); } catch { _libStatsCache = {}; }
@@ -2159,13 +2276,12 @@ function dashActivityWhen(t) {
   return h < 1 ? 'just now' : h < 24 ? h + 'h ago' : Math.floor(h / 24) + 'd ago';
 }
 
-async function renderDashActivity() {
+async function renderDashActivity(opts = {}) {
   const el = document.getElementById('dash-activity');
   if (!el) return;
 
   await ensureAccountConfigLoaded();
-  const cfg = collectConfig(true);
-  const localServers = cfg?.servers || [];
+  const localServers = collectServersForLive();
 
   let resp;
   try {
@@ -2200,18 +2316,48 @@ async function renderDashActivity() {
     return;
   }
 
-  let live = [];
-  if (localServers.length) {
-    live = await getAnnotatedLiveForDashboard();
-  } else if (Array.isArray(a.live) && a.live.length) {
-    live = annotateLiveSessions(a.live);
+  if (!opts.skipFetch) {
+    el.innerHTML = `<div class="dash-activity-grid">
+      <div class="dash-act-panel dash-act-live">
+        <h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming</h3>
+        <div class="da-empty da-loading">Checking Sessions API across ${serverCount} server${serverCount === 1 ? '' : 's'}…</div>
+      </div>
+      <div class="dash-act-panel dash-act-history">
+        <h3 class="block-title dash-act-title">Watched history</h3>
+        <div class="da-list">${(a.recent || []).slice(0, 5).map(e => `<div class="da-row da-history"><span class="da-main"><span class="da-title">${esc(e.title || '—')}</span></span><span class="da-dim da-meta">${esc(e.server || '—')}</span></div>`).join('') || '<div class="da-empty">Loading…</div>'}</div>
+      </div>
+    </div>`;
   }
 
-  const liveRows = live.map(s => `<div class="da-row da-live${s.buffering ? ' da-buffering' : ''}">
-      <span class="da-main"><span class="da-dot${s.buffering ? ' da-dot-warn' : ''}"></span><span class="da-title" title="${esc(s.title)}"><strong>${esc(s.title)}</strong>${s.buffering ? '<span class="da-buffer-tag">Buffering</span>' : ''}</span></span>
-      <span class="da-dim da-meta">${esc(s.server)}${s.user ? ' · ' + esc(s.user) : ''}${s.client ? ' · ' + esc(s.client) : ''}</span>
-    </div>`).join('');
+  const bundle = opts.skipFetch && _liveBundleCache.ts
+    ? _liveBundleCache
+    : await fetchLiveBundle(!!opts.force);
+  const live = bundle.live || [];
+  const probes = bundle.probes || a.liveProbes || [];
 
+  const liveRows = live.map(s => {
+    const tags = [];
+    if (s.buffering) tags.push('<span class="da-buffer-tag">Buffering</span>');
+    else if (s.isPaused) tags.push('<span class="da-pause-tag">Paused</span>');
+    else if (s.isTranscoding) tags.push('<span class="da-tx-tag">Transcode</span>');
+    else if (s.playMethod === 'DirectStream' || s.playMethod === 'DirectPlay') tags.push('<span class="da-direct-tag">Direct</span>');
+    const progress = s.progressPct != null
+      ? `<span class="da-progress" title="${s.progressPct}%"><span class="da-progress-bar" style="width:${s.progressPct}%"></span></span>`
+      : '';
+    const client = s.client || s.device || '';
+    return `<div class="da-row da-live${s.buffering ? ' da-buffering' : ''}${s.isPaused ? ' da-paused' : ''}">
+      <span class="da-main">
+        <span class="da-dot${s.buffering ? ' da-dot-warn' : (s.isPaused ? ' da-dot-pause' : '')}"></span>
+        <span class="da-title-wrap">
+          <span class="da-title" title="${esc(s.title)}"><strong>${esc(s.title)}</strong>${tags.join('')}</span>
+          ${progress}
+        </span>
+      </span>
+      <span class="da-dim da-meta">${esc(s.server)}${s.user ? ' · ' + esc(s.user) : ''}${client ? ' · ' + esc(client) : ''}</span>
+    </div>`;
+  }).join('');
+
+  const emptyMsg = live.length ? '' : liveEmptyMessage(probes, serverCount);
   const recentRows = (a.recent || []).map(e => `<div class="da-row da-history">
       <span class="da-main"><span class="da-title" title="${esc(e.title || '')}">${esc(e.title || '—')}${e.season ? ` <span class="da-ep">S${e.season}E${e.episode || ''}</span>` : ''}</span></span>
       <span class="da-dim da-meta">${esc(e.server || '—')} · ${when(e.ts)}</span>
@@ -2220,8 +2366,9 @@ async function renderDashActivity() {
   el.innerHTML = `<div class="dash-activity-grid">
     <div class="dash-act-panel dash-act-live">
       <h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming <span class="dash-act-count">${live.length}</span></h3>
-      <p class="dash-act-hint">Now playing across your ${serverCount} configured server${serverCount === 1 ? '' : 's'} (Emby, Jellyfin, Apple TV, etc.)</p>
-      <div class="da-list">${liveRows || '<div class="da-empty">Nothing playing right now on your servers.</div>'}</div>
+      <p class="dash-act-hint">Sessions API across ${serverCount} server${serverCount === 1 ? '' : 's'} · refreshes every 20s</p>
+      ${renderLiveProbeStrip(probes)}
+      <div class="da-list">${liveRows || `<div class="da-empty">${emptyMsg}</div>`}</div>
     </div>
     <div class="dash-act-panel dash-act-history">
       <h3 class="block-title dash-act-title">Watched history</h3>
@@ -2229,6 +2376,7 @@ async function renderDashActivity() {
       <div class="da-list">${recentRows || '<div class="da-empty">No watch history yet — streams through your bridge appear here.</div>'}</div>
     </div>
   </div>`;
+  el.querySelectorAll('[data-page]').forEach(link => link.addEventListener('click', e => { e.preventDefault(); location.hash = '#/' + link.dataset.page; }));
 }
 
 function replayDashTileAnimations() {

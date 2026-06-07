@@ -2472,7 +2472,34 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
   color:#fcd34d; background:color-mix(in srgb,#f59e0b 18%,transparent); border:1px solid color-mix(in srgb,#f59e0b 45%,transparent);
 }
 .da-row.da-buffering { background:color-mix(in srgb,#f59e0b 6%,transparent); border-radius:var(--r-sm); }
+.da-row.da-paused { opacity:.82; }
+.da-dot-pause { background:#94a3b8; box-shadow:none; animation:none !important; }
+.da-title-wrap { display:flex; flex-direction:column; gap:5px; min-width:0; flex:1; }
+.da-progress { display:block; height:4px; border-radius:999px; background:color-mix(in srgb,var(--border) 80%,transparent); overflow:hidden; max-width:220px; }
+.da-progress-bar { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,var(--accent),var(--accent-2)); }
+.da-pause-tag, .da-tx-tag, .da-direct-tag {
+  display:inline-flex; align-items:center; margin-left:8px; padding:2px 7px; border-radius:999px;
+  font-size:.6rem; font-weight:800; letter-spacing:.03em; text-transform:uppercase; vertical-align:middle;
+}
+.da-pause-tag { color:#cbd5e1; background:color-mix(in srgb,#94a3b8 16%,transparent); border:1px solid color-mix(in srgb,#94a3b8 35%,transparent); }
+.da-tx-tag { color:#c4b5ff; background:color-mix(in srgb,var(--accent) 16%,transparent); border:1px solid color-mix(in srgb,var(--accent) 35%,transparent); }
+.da-direct-tag { color:#6ee7b7; background:color-mix(in srgb,#34d399 14%,transparent); border:1px solid color-mix(in srgb,#34d399 35%,transparent); }
+.da-probes { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; }
+.da-probe {
+  display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border-radius:999px;
+  font-size:.66rem; font-weight:700; border:1px solid var(--border); background:var(--bg-elevated); color:var(--text-mute);
+}
+.da-probe-dot { width:6px; height:6px; border-radius:50%; flex:none; }
+.da-probe.ok-live { color:#6ee7b7; border-color:color-mix(in srgb,#34d399 35%,var(--border)); }
+.da-probe.ok-live .da-probe-dot { background:#34d399; box-shadow:0 0 6px #34d399; }
+.da-probe.ok-idle .da-probe-dot { background:#64748b; }
+.da-probe.bad { color:#fca5a5; border-color:color-mix(in srgb,#f87171 35%,var(--border)); }
+.da-probe.bad .da-probe-dot { background:#f87171; }
 .da-empty { background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--r-md); padding:22px 18px; color:var(--text-dim); font-size:.88rem; text-align:center; line-height:1.5; }
+.da-empty a { color:var(--accent); font-weight:600; text-decoration:none; }
+.da-empty a:hover { text-decoration:underline; }
+.da-loading { animation:da-pulse 1.2s ease-in-out infinite !important; }
+@keyframes da-pulse { 0%,100%{ opacity:.55; } 50%{ opacity:1; } }
 
 /* Dashboard scale-up, stat-tile sheen + number pop, two-panel activity */
 #page-dashboard { max-width:1480px !important; }
