@@ -1202,18 +1202,31 @@ function buildServerBlock(id) {
     </div>
   `;
   div.innerHTML = `
-    <div class="sc-row" onclick="toggleManage(${id})">
-      <div class="gbrand" data-bind="logo">${EMBY_LOGO}</div>
-      <div class="sc-id">
-        <div class="sc-name" data-bind="name">New server</div>
-        <div class="sc-host" data-bind="host">not configured</div>
+    <div class="sc-shell">
+      <div class="sc-accent"></div>
+      <div class="sc-row" onclick="toggleManage(${id})">
+        <div class="sc-row-main">
+          <div class="gbrand" data-bind="logo">${EMBY_LOGO}</div>
+          <div class="sc-id">
+            <div class="sc-name-row">
+              <span class="sc-index" data-bind="index"></span>
+              <span class="sc-name" data-bind="name">New server</span>
+            </div>
+            <div class="sc-host" data-bind="host">not configured</div>
+          </div>
+          <div class="sc-meta">
+            <span class="sc-ping" data-bind="ping"></span>
+            <span class="sc-badge unknown" data-bind="badge"><span class="sc-badge-dot"></span><span data-bind="badge-txt">Checking</span></span>
+            <button type="button" class="sc-reconnect" onclick="event.stopPropagation();openManage(${id})">Reconnect</button>
+          </div>
+          <span class="sc-chev" aria-hidden="true">▾</span>
+        </div>
+        <div class="sc-chips" data-bind="chips" hidden>
+          <div class="sc-chip"><span class="sc-chip-n" data-chip="movies">—</span><span class="sc-chip-l">Movies</span></div>
+          <div class="sc-chip"><span class="sc-chip-n" data-chip="shows">—</span><span class="sc-chip-l">Shows</span></div>
+          <div class="sc-chip"><span class="sc-chip-n" data-chip="episodes">—</span><span class="sc-chip-l">Episodes</span></div>
+        </div>
       </div>
-      <div class="sc-meta">
-        <span class="sc-ping" data-bind="ping"></span>
-        <span class="sc-badge unknown" data-bind="badge">● —</span>
-        <button type="button" class="sc-reconnect" onclick="event.stopPropagation();openManage(${id})">Reconnect</button>
-      </div>
-      <span class="sc-chev">▾</span>
     </div>
     <div class="sc-edit" id="edit-${id}">${fields}</div>
   `;
@@ -1236,6 +1249,35 @@ function openManage(id) {
   c.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+function _srvPingClass(ms) {
+  if (ms == null) return '';
+  if (ms < 200) return 'fast';
+  if (ms < 600) return 'ok';
+  return 'slow';
+}
+
+function _updateServersEmptyState() {
+  const wrap = document.getElementById('servers-container');
+  const empty = document.getElementById('srv-empty');
+  if (!wrap || !empty) return;
+  const count = wrap.querySelectorAll('.server-block').length;
+  empty.style.display = count ? 'none' : 'flex';
+  wrap.style.display = count ? '' : 'none';
+}
+
+function _updateServersHeaderStats(up, total, fastest) {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('srv-count', total);
+  set('srv-up', up);
+  set('srv-fastest', fastest != null ? fastest + 'ms' : '—');
+  const sub = document.getElementById('srv-sub');
+  if (sub) {
+    sub.textContent = total
+      ? `${up}/${total} connected · click a server to edit credentials`
+      : 'Manage your personal Emby & Jellyfin connections.';
+  }
+}
+
 async function refreshServerCard(block) {
   const get = sel => block.querySelector(sel)?.value.trim() || '';
   const label = get('.f-label'), url = get('.f-url').replace(/\/+$/, '');
@@ -1245,30 +1287,77 @@ async function refreshServerCard(block) {
   const hostEl = block.querySelector('[data-bind=host]');
   const logoEl = block.querySelector('[data-bind=logo]');
   const badge = block.querySelector('[data-bind=badge]');
+  const badgeTxt = block.querySelector('[data-bind=badge-txt]');
   const pingEl = block.querySelector('[data-bind=ping]');
+  const chipsEl = block.querySelector('[data-bind=chips]');
+  const idxEl = block.querySelector('[data-bind=index]');
   if (logoEl) logoEl.innerHTML = type === 'jellyfin' ? JELLYFIN_LOGO : EMBY_LOGO;
+  block.classList.remove('type-emby', 'type-jellyfin');
+  block.classList.add('type-' + type);
   if (nameEl) nameEl.textContent = label || 'New server';
   if (hostEl) hostEl.textContent = url ? url.replace(/^https?:\/\//, '') : 'not configured';
+  if (idxEl) {
+    const cards = [...document.querySelectorAll('#servers-container .server-block')];
+    const n = cards.indexOf(block) + 1;
+    idxEl.textContent = n > 0 ? String(n) : '';
+  }
   const setState = (cls, txt) => {
-    if (badge) { badge.textContent = '● ' + txt; badge.className = 'sc-badge ' + cls; }
+    if (badge) badge.className = 'sc-badge ' + cls;
+    if (badgeTxt) badgeTxt.textContent = txt;
     block.classList.toggle('ok', cls === 'up');
     block.classList.toggle('bad', cls === 'down');
+    block.classList.toggle('checking', cls === 'checking');
   };
-  if (pingEl) pingEl.textContent = '';
-  if (!url || !apiKey || !userId) { setState('unknown', 'Not set'); return; }
+  if (pingEl) { pingEl.textContent = ''; pingEl.className = 'sc-ping'; }
+  if (chipsEl) chipsEl.hidden = true;
+  if (!url || !apiKey || !userId) { setState('unknown', 'Not set'); return null; }
+  setState('checking', 'Checking…');
   try {
     const t0 = Date.now();
     const r = await fetch('/api/library-stats', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, type, apiKey, userId }) });
     const ms = Date.now() - t0;
-    if (r.ok) { setState('up', 'Connected'); if (pingEl) pingEl.textContent = ms + 'ms'; }
-    else setState('down', 'Auth failed');
-  } catch { setState('down', 'Unreachable'); }
+    if (r.ok) {
+      const st = await r.json().catch(() => ({}));
+      setState('up', 'Connected');
+      if (pingEl) { pingEl.textContent = ms + 'ms'; pingEl.className = 'sc-ping ' + _srvPingClass(ms); }
+      if (chipsEl) {
+        chipsEl.hidden = false;
+        const setChip = (k, v) => { const el = chipsEl.querySelector('[data-chip=' + k + ']'); if (el) el.textContent = (v || 0).toLocaleString(); };
+        setChip('movies', st.movies);
+        setChip('shows', st.shows);
+        setChip('episodes', st.episodes);
+      }
+      return { up: true, ms };
+    }
+    setState('down', 'Auth failed');
+    return { up: false, ms: null };
+  } catch {
+    setState('down', 'Unreachable');
+    return { up: false, ms: null };
+  }
 }
 
-function renderServersPage() {
-  document.querySelectorAll('#servers-container .server-card').forEach(refreshServerCard);
+async function renderServersPage() {
+  await ensureAccountConfigLoaded();
+  _updateServersEmptyState();
+  const blocks = [...document.querySelectorAll('#servers-container .server-card')];
+  let up = 0, fastest = null;
+  await Promise.all(blocks.map(async (block) => {
+    const res = await refreshServerCard(block);
+    if (res?.up) {
+      up++;
+      if (res.ms != null && (fastest === null || res.ms < fastest)) fastest = res.ms;
+    }
+  }));
+  _updateServersHeaderStats(up, blocks.length, fastest);
+  const healthServers = blocks.map(b => ({
+    url: b.querySelector('.f-url')?.value.trim().replace(/\/+$/, ''),
+    label: b.querySelector('.f-label')?.value.trim(),
+    type: b.querySelector('.f-type')?.value || 'emby',
+  })).filter(s => s.url);
+  _registerHealthServers(healthServers);
 }
 
 function renderOnboarding() {
@@ -1293,7 +1382,7 @@ function renderOnboarding() {
 
 // ── Page-show hook (router calls this when a page is shown) ────────────────
 window.onPageShow = function(name) {
-  if (name === 'servers') renderServersPage();
+  if (name === 'servers') { renderServersPage(); }
   if (name === 'appearance') {
     if (typeof updateLabelPreview === 'function') updateLabelPreview();
     // sync the summary-preview section's visibility to the toggle (and populate if on)
@@ -1630,7 +1719,8 @@ function addServer(data = null) {
   }
   renumberBlocks();
   updateCredWarning(id);
-  refreshServerCard(block);
+  refreshServerCard(block).then(() => renderServersPage());
+  _updateServersEmptyState();
   if (!data) {
     block.classList.add('open');          // new manual add → open the drawer to fill in
     block.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1641,6 +1731,8 @@ function addServer(data = null) {
 function removeServer(id) {
   const el = document.getElementById(`server-${id}`);
   if (el) el.remove();
+  _updateServersEmptyState();
+  renderServersPage();
   renumberBlocks();
   autoSave();
 }
@@ -2621,6 +2713,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await initAudioCard();   // populate AUDIO_FORMATS/PRESETS + render card before restore reads them
   if (!restoreFromLocalStorage()) addServer();
   await ensureAccountConfigLoaded();
+  _updateServersEmptyState();
   // TEMP scaffold: these page-init calls belong to Catalogs/Appearance/Streaming
   // pages not yet migrated; their target DOM is absent now, so guard each call.
   // Later tasks move them to fire on their page's onPageShow.
