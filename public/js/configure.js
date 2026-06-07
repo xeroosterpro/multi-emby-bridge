@@ -5,6 +5,66 @@ let nextCatId = 0;
 // Library-stats cache: key = url|apiKey|userId -> {movies,shows,episodes,ms,ts}
 let _libStatsCache = {};
 let _dashboardInFlight = false;
+let _accountConfigPromise = null;
+
+function domHasEnabledServers() {
+  const blocks = document.querySelectorAll('.server-block');
+  if (!blocks.length) return false;
+  return [...blocks].some(b =>
+    b.querySelector('.f-enabled')?.checked &&
+    b.querySelector('.f-url')?.value.trim() &&
+    b.querySelector('.f-apikey')?.value.trim() &&
+    b.querySelector('.f-userid')?.value.trim()
+  );
+}
+
+async function ensureAccountConfigLoaded() {
+  if (_accountConfigPromise) return _accountConfigPromise;
+  _accountConfigPromise = (async () => {
+    try {
+      const me = await fetch('/api/auth/me', { credentials: 'same-origin' });
+      if (!me.ok) return null;
+      const auth = await me.json().catch(() => null);
+      if (!auth?.user) return null;
+      const r = await fetch('/api/user/config', { credentials: 'same-origin' });
+      if (!r.ok) return null;
+      const data = await r.json().catch(() => null);
+      const cfg = data?.config || {};
+      const accountServers = Array.isArray(cfg.servers) ? cfg.servers : [];
+      if (!accountServers.length) return null;
+      const domServers = (collectConfig(true) || {}).servers || [];
+      if (!domHasEnabledServers() || accountServers.length > domServers.length) {
+        populateFromConfig(cfg);
+      }
+      return cfg;
+    } catch {
+      return null;
+    }
+  })();
+  return _accountConfigPromise;
+}
+
+async function fetchLiveSessionsForServers(servers) {
+  if (!servers?.length) return [];
+  const chunks = await Promise.all(servers.map(async (s) => {
+    try {
+      const r = await fetch('/api/server-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          url: s.url, type: s.type, apiKey: s.apiKey, userId: s.userId, label: s.label,
+        }),
+      });
+      if (!r.ok) return [];
+      const d = await r.json().catch(() => null);
+      return Array.isArray(d?.live) ? d.live : [];
+    } catch {
+      return [];
+    }
+  }));
+  return chunks.flat();
+}
 try { _libStatsCache = JSON.parse(localStorage.getItem('meb-libstats-cache') || '{}'); } catch { _libStatsCache = {}; }
 function _libKey(s){ return [s.url, s.apiKey, s.userId].join('|'); }
 function _saveLibCache(){ try { localStorage.setItem('meb-libstats-cache', JSON.stringify(_libStatsCache)); } catch {} }
@@ -1199,7 +1259,15 @@ window.onPageShow = function(name) {
     if (pvWrap) pvWrap.style.display = sumOn ? '' : 'none';
     if (sumOn && typeof updateSummaryPreview === 'function') updateSummaryPreview();
   }
-  if (name === 'dashboard') { renderDashboard(); renderDashActivity(); renderOnboarding(); replayDashTileAnimations(); }
+  if (name === 'dashboard') {
+    (async () => {
+      await ensureAccountConfigLoaded();
+      renderDashboard();
+      renderDashActivity();
+      renderOnboarding();
+      replayDashTileAnimations();
+    })();
+  }
   if (name === 'health' && window.startHealth) window.startHealth();
   if (name === 'log' && typeof refreshLog === 'function') refreshLog();
   if (name === 'catalogs' && typeof refreshKeyPills === 'function') refreshKeyPills();
@@ -1219,6 +1287,10 @@ function dashActivityWhen(t) {
 async function renderDashActivity() {
   const el = document.getElementById('dash-activity');
   if (!el) return;
+
+  await ensureAccountConfigLoaded();
+  const cfg = collectConfig(true);
+  const localServers = cfg?.servers || [];
 
   let resp;
   try {
@@ -1241,18 +1313,21 @@ async function renderDashActivity() {
 
   const esc = dashActivityEsc;
   const when = dashActivityWhen;
-  const hasServers = !!a.hasServers;
+  const hasServers = localServers.length > 0 || !!a.hasServers;
+  const serverCount = localServers.length || a.serverCount || 0;
 
   if (!hasServers) {
     el.innerHTML = `<div class="dash-activity-grid">
       <div class="dash-act-panel dash-act-live"><h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming</h3><div class="da-empty">Add servers on the <a href="#" data-page="servers">Servers</a> page to see live activity from your Emby/Jellyfin instances.</div></div>
-      <div class="dash-act-panel dash-act-history"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">Your personal Stremio watch history appears here once you have servers configured and start streaming.</div></div>
+      <div class="dash-act-panel dash-act-history"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">Your personal watch history appears here once you have servers configured.</div></div>
     </div>`;
     el.querySelectorAll('[data-page]').forEach(link => link.addEventListener('click', e => { e.preventDefault(); location.hash = '#/' + link.dataset.page; }));
     return;
   }
 
-  const liveRows = (a.live || []).map(s => `<div class="da-row da-live">
+  const live = localServers.length ? await fetchLiveSessionsForServers(localServers) : (a.live || []);
+
+  const liveRows = live.map(s => `<div class="da-row da-live">
       <span class="da-main"><span class="da-dot"></span><span class="da-title" title="${esc(s.title)}"><strong>${esc(s.title)}</strong></span></span>
       <span class="da-dim da-meta">${esc(s.server)}${s.user ? ' · ' + esc(s.user) : ''}${s.client ? ' · ' + esc(s.client) : ''}</span>
     </div>`).join('');
@@ -1264,14 +1339,14 @@ async function renderDashActivity() {
 
   el.innerHTML = `<div class="dash-activity-grid">
     <div class="dash-act-panel dash-act-live">
-      <h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming <span class="dash-act-count">${(a.live || []).length}</span></h3>
-      <p class="dash-act-hint">Now playing across your ${a.serverCount || 0} configured server${(a.serverCount || 0) === 1 ? '' : 's'}</p>
+      <h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming <span class="dash-act-count">${live.length}</span></h3>
+      <p class="dash-act-hint">Now playing across your ${serverCount} configured server${serverCount === 1 ? '' : 's'} (Emby, Jellyfin, Apple TV, etc.)</p>
       <div class="da-list">${liveRows || '<div class="da-empty">Nothing playing right now on your servers.</div>'}</div>
     </div>
     <div class="dash-act-panel dash-act-history">
       <h3 class="block-title dash-act-title">Watched history</h3>
-      <p class="dash-act-hint">Your personal Stremio requests only</p>
-      <div class="da-list">${recentRows || '<div class="da-empty">No watch history yet — start streaming through your bridge.</div>'}</div>
+      <p class="dash-act-hint">Your personal bridge requests only</p>
+      <div class="da-list">${recentRows || '<div class="da-empty">No watch history yet — streams through your bridge appear here.</div>'}</div>
     </div>
   </div>`;
 }
@@ -1309,14 +1384,18 @@ function openServerManage(index) {
 async function renderDashboard(force = false) {
   if (_dashboardInFlight) return;
   _dashboardInFlight = true;
+  const wrap = document.getElementById('dash-cards');
   try {
+    if (wrap && !wrap.children.length) {
+      wrap.innerHTML = '<div class="dash-loading">Loading your servers…</div>';
+    }
+    await ensureAccountConfigLoaded();
     const now = Date.now();
     const cfg = collectConfig(true) || { servers: [] };
     const servers = cfg.servers || [];
     const catCount = (typeof collectExternalCatalogs === 'function' ? collectExternalCatalogs() : []).length;
     const catEl = document.getElementById('tile-catalogs');
     if (catEl) catEl.textContent = catCount;
-    const wrap = document.getElementById('dash-cards');
     if (!wrap) return;
     wrap.innerHTML = '';
     let upCount = 0, movieTotal = 0, showTotal = 0, fastest = null;
@@ -2491,6 +2570,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!document.getElementById('servers-container')) return; // shell not ready / page absent
   await initAudioCard();   // populate AUDIO_FORMATS/PRESETS + render card before restore reads them
   if (!restoreFromLocalStorage()) addServer();
+  await ensureAccountConfigLoaded();
   // TEMP scaffold: these page-init calls belong to Catalogs/Appearance/Streaming
   // pages not yet migrated; their target DOM is absent now, so guard each call.
   // Later tasks move them to fire on their page's onPageShow.

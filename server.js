@@ -536,6 +536,30 @@ app.post('/api/ping-servers', apiLimiter, express.json(), async (req, res) => {
   res.json({ results });
 });
 
+// ─── Live sessions (now playing) for one server ─────────────────────────────
+app.post('/api/server-sessions', apiLimiter, express.json(), async (req, res) => {
+  const { url, type, apiKey, userId, label } = req.body || {};
+  if (!url || !apiKey) return res.status(400).json({ error: 'url and apiKey required' });
+  const { fetchServerSessions } = require('./lib/sessions');
+  const server = {
+    url: url.replace(/\/$/, ''),
+    type: type || 'emby',
+    apiKey,
+    userId: userId || '',
+    label: label || '',
+  };
+  try {
+    const live = await fetchServerSessions(server);
+    res.json({ live });
+  } catch (err) {
+    if (err.status === 401 || err.status === 403)
+      return res.status(401).json({ error: 'Authentication failed' });
+    if (err.name === 'AbortError')
+      return res.status(504).json({ error: 'Connection timed out' });
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // ─── Library stats ────────────────────────────────────────────────────────────
 app.post('/api/library-stats', apiLimiter, express.json(), async (req, res) => {
   const { url, type, apiKey, userId } = req.body || {};

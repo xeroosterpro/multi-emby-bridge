@@ -1527,6 +1527,11 @@ body.locked-billing .pin-btn{ display:none; }
 #page-dashboard .gcard-host { font-size:.78rem; }
 #page-dashboard .gchip .cn { font-size:1.05rem; }
 #page-dashboard .gcard-hint { font-size:.76rem; margin-top:4px; }
+.dash-loading {
+  grid-column:1 / -1; padding:28px 20px; text-align:center; color:var(--text-mute);
+  font-size:.9rem; border:1px dashed var(--border); border-radius:var(--r-lg);
+  animation:dash-tile-sheen 2.8s ease-in-out infinite;
+}
 
 .dash-activity-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 .dash-act-panel {
