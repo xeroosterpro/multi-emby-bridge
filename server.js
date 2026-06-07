@@ -32,6 +32,7 @@ const { parseStreamId } = require('./lib/utils');
 const { fetchWithTimeout, authHeaders, appendAuth, apiFetch, pingServer, buildStreamUrl, getEffectiveApiKey, BROWSER_UA } = require('./lib/auth');
 const { resolveImdbName, queryServerForMovie, queryServerForEpisode, searchServersForCatalog, getRecentlyAdded } = require('./lib/search');
 const { getAllStreams } = require('./lib/streams');
+const { upgradeStreamProfile } = require('./lib/streamDefaults');
 const { fetchExternalCatalog } = require('./lib/catalogs');
 const { healthServers, healthHistory, registerHealthServers, unregisterHealthServer, cleanupStaleServers, pingHealthServers } = require('./lib/health');
 const { hashPassword, loadProfiles, saveProfiles } = require('./lib/profiles');
@@ -209,8 +210,9 @@ app.use('/u/:token', async (req, res, next) => {
       }
       if (!allowed) return res.status(402).json({ error: 'subscription required' });
     }
-    const cfg = await makeUserConfig(dbLib).getForServe(rec.user_id);
+    let cfg = await makeUserConfig(dbLib).getForServe(rec.user_id);
     if (!cfg) return res.status(404).json({ error: 'no configuration saved' });
+    cfg = upgradeStreamProfile(cfg).cfg;
     req._mebUserId = rec.user_id;
     const rest = req.url === '/' ? '/manifest.json' : req.url; // req.url is post-mount remainder
     req.url = '/' + encodeConfig(cfg) + rest;
@@ -712,7 +714,7 @@ app.post('/api/addon-catalogs', apiLimiter, express.json(), async (req, res) => 
 app.get('/:config/manifest.json', (req, res) => {
   let cfg;
   try {
-    cfg = decodeConfig(req.params.config);
+    cfg = upgradeStreamProfile(decodeConfig(req.params.config)).cfg;
   } catch {
     return res.status(400).json({ error: 'Invalid config' });
   }
@@ -767,7 +769,7 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
   const query = searchMatch ? searchMatch[1].trim() : null;
 
   let cfg;
-  try { cfg = decodeConfig(req.params.config); } catch { return res.json({ metas: [] }); }
+  try { cfg = upgradeStreamProfile(decodeConfig(req.params.config)).cfg; } catch { return res.json({ metas: [] }); }
 
   const { type } = req.params;
   if (!['movie', 'series'].includes(type)) return res.json({ metas: [] });
@@ -813,7 +815,7 @@ app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res
 // Route without extras — recently added feed
 app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
   let cfg;
-  try { cfg = decodeConfig(req.params.config); } catch { return res.json({ metas: [] }); }
+  try { cfg = upgradeStreamProfile(decodeConfig(req.params.config)).cfg; } catch { return res.json({ metas: [] }); }
 
   const { type } = req.params;
   if (!['movie', 'series'].includes(type)) return res.json({ metas: [] });
@@ -854,7 +856,7 @@ app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
 app.get('/:config/stream/:type/:id.json', streamLimiter, async (req, res) => {
   let cfg;
   try {
-    cfg = decodeConfig(req.params.config);
+    cfg = upgradeStreamProfile(decodeConfig(req.params.config)).cfg;
   } catch {
     return res.json({ streams: [] });
   }

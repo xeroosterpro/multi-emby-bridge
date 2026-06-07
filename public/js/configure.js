@@ -88,48 +88,80 @@ function _applyExcludeRes(excludeRes) {
   document.querySelectorAll('.res-cb').forEach(cb => { cb.checked = set.has(cb.value); });
 }
 
+const STREAM_PROFILE_VERSION = 2;
+const STREMIO_STREAM_DEFAULTS = {
+  autoSelect: true,
+  labelPreset: 'compact',
+  audioRank: true,
+  audioRankMode: 'audioFirst',
+  audioDisableAction: 'hide',
+  showSummary: true,
+  summaryStyle: 'compact',
+  recommend: true,
+  ping: true,
+  pingDetail: false,
+};
+
+function needsStreamProfileUpgrade(obj) {
+  return !obj || (obj.streamProfile | 0) < STREAM_PROFILE_VERSION;
+}
+
+function upgradeStreamProfileState(obj) {
+  if (!obj || !needsStreamProfileUpgrade(obj)) return false;
+  Object.assign(obj, STREMIO_STREAM_DEFAULTS, { streamProfile: STREAM_PROFILE_VERSION });
+  return true;
+}
+
 function applyManifestSettings(cfg) {
   if (!cfg || typeof cfg !== 'object') return;
+  upgradeStreamProfileState(cfg);
+  const c = { ...STREMIO_STREAM_DEFAULTS, ...cfg };
   const setVal = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
   const setChk = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined) el.checked = !!v; };
-  if (cfg.sortOrder) setVal('sort-order', cfg.sortOrder);
-  if (Array.isArray(cfg.excludeRes)) _applyExcludeRes(cfg.excludeRes);
-  setChk('show-recommend', cfg.recommend);
-  setChk('show-ping', cfg.ping);
-  setChk('ping-detail', cfg.pingDetail);
-  if (cfg.audioLang) setVal('audio-lang', cfg.audioLang);
-  if (cfg.prefCodec) setVal('pref-codec', cfg.prefCodec);
-  if (cfg.codecMode) setVal('codec-mode', cfg.codecMode);
-  if (cfg.audioRank != null) setAudioRankToggle(cfg.audioRank ? 'on' : 'off');
-  if (cfg.audioRankMode) setVal('audio-rank-mode', cfg.audioRankMode);
-  if (cfg.audioDisableAction) setVal('audio-disable-action', cfg.audioDisableAction);
-  if (Array.isArray(cfg.audioOrder) || Array.isArray(cfg.audioDisabled)) {
-    const order = (cfg.audioOrder && cfg.audioOrder.length) ? cfg.audioOrder : AUDIO_FORMATS.map(f => f.token);
-    renderAudioRankList(order, cfg.audioDisabled || []);
+  if (c.sortOrder) setVal('sort-order', c.sortOrder);
+  if (Array.isArray(c.excludeRes)) _applyExcludeRes(c.excludeRes);
+  setChk('show-recommend', c.recommend);
+  setChk('show-ping', c.ping);
+  setChk('ping-detail', c.pingDetail);
+  if (c.audioLang) setVal('audio-lang', c.audioLang);
+  if (c.prefCodec) setVal('pref-codec', c.prefCodec);
+  if (c.codecMode) setVal('codec-mode', c.codecMode);
+  setAudioRankToggle(c.audioRank ? 'on' : 'off');
+  setVal('audio-rank-mode', c.audioRankMode || 'audioFirst');
+  setVal('audio-disable-action', c.audioDisableAction || 'hide');
+  if (Array.isArray(c.audioOrder) || Array.isArray(c.audioDisabled) || c.audioRank) {
+    const order = (c.audioOrder && c.audioOrder.length) ? c.audioOrder : AUDIO_FORMATS.map(f => f.token);
+    renderAudioRankList(order, c.audioDisabled || []);
   }
-  if (cfg.maxBitrate != null) setVal('max-bitrate', String(cfg.maxBitrate));
-  setChk('auto-select', cfg.autoSelect);
-  if (cfg.labelPreset) setVal('label-preset', cfg.labelPreset);
-  setChk('show-summary', cfg.showSummary);
-  if (cfg.summaryStyle) setVal('summary-style', cfg.summaryStyle);
-  if (cfg.qualityBadge != null) setVal('quality-badge', cfg.qualityBadge);
-  if (cfg.flagEmoji != null) setVal('flag-emoji', cfg.flagEmoji);
-  if (cfg.bitrateBar != null) setVal('bitrate-bar', cfg.bitrateBar);
-  if (cfg.subsStyle) setVal('subs-style', cfg.subsStyle);
-  if (cfg.showCatalog === false) { setChk('show-catalog', false); toggleCatalogOptions(); }
-  if (cfg.catalogContent) setVal('catalog-content', cfg.catalogContent);
-  if (Array.isArray(cfg.libraryRows)) {
+  if (c.maxBitrate != null) setVal('max-bitrate', String(c.maxBitrate));
+  setChk('auto-select', c.autoSelect);
+  setVal('label-preset', c.labelPreset || 'compact');
+  setChk('show-summary', c.showSummary);
+  setVal('summary-style', c.summaryStyle || 'compact');
+  if (c.showSummary) {
+    const opts = document.getElementById('summary-options');
+    if (opts) opts.style.display = 'flex';
+  }
+  if (c.qualityBadge != null) setVal('quality-badge', c.qualityBadge);
+  if (c.flagEmoji != null) setVal('flag-emoji', c.flagEmoji);
+  if (c.bitrateBar != null) setVal('bitrate-bar', c.bitrateBar);
+  if (c.subsStyle) setVal('subs-style', c.subsStyle);
+  if (c.showCatalog === false) { setChk('show-catalog', false); toggleCatalogOptions(); }
+  if (c.catalogContent) setVal('catalog-content', c.catalogContent);
+  if (Array.isArray(c.libraryRows)) {
     ['recent', 'resume', 'nextup', 'favorites'].forEach(k => {
       const el = document.getElementById('libchk-' + k);
-      if (el) el.checked = cfg.libraryRows.indexOf(k) !== -1;
+      if (el) el.checked = c.libraryRows.indexOf(k) !== -1;
     });
   }
-  if (cfg.rpdbKey) setVal('rpdb-key', cfg.rpdbKey);
-  if (Array.isArray(cfg.externalCatalogs) && cfg.externalCatalogs.length) {
+  if (c.rpdbKey) setVal('rpdb-key', c.rpdbKey);
+  if (Array.isArray(c.externalCatalogs) && c.externalCatalogs.length) {
     const catList = document.getElementById('catalog-list');
-    if (catList) { catList.innerHTML = ''; nextCatId = 0; cfg.externalCatalogs.forEach(cat => addExternalCatalog(cat)); }
+    if (catList) { catList.innerHTML = ''; nextCatId = 0; c.externalCatalogs.forEach(cat => addExternalCatalog(cat)); }
   }
   toggleCustomPreset();
+  if (typeof updateLabelPreview === 'function') updateLabelPreview();
+  if (typeof updateSummaryPreview === 'function') updateSummaryPreview();
   if (window.Controls) Controls.syncAll();
 }
 
@@ -145,15 +177,19 @@ async function ensureAccountConfigLoaded() {
       if (!r.ok) return null;
       const data = await r.json().catch(() => null);
       const cfg = data?.config || {};
+      const profileUpgraded = upgradeStreamProfileState(cfg);
       const accountServers = _mergeLocalCredsIntoServers(cfg.servers);
       cfg.servers = accountServers;
       if (!accountServers.length) return null;
       const hadLocal = !!localStorage.getItem(LS_KEY);
       const domServers = (collectConfig(true) || {}).servers || [];
-      if (!hadLocal || !domHasEnabledServers() || accountServers.length > domServers.length) {
+      if (!hadLocal || !domHasEnabledServers() || accountServers.length > domServers.length || profileUpgraded) {
         populateFromConfig(cfg);
         applyManifestSettings(cfg);
         saveToLocalStorage();
+        if (profileUpgraded && typeof generateLinks === 'function') {
+          try { await generateLinks({ silent: true }); } catch {}
+        }
       } else {
         _applyCredsToDomBlocks(accountServers);
       }
@@ -3123,6 +3159,7 @@ Continue anyway?`;
       config.customNameFields = Array.from(document.querySelectorAll(".cn-field:checked")).map(function(cb){return cb.value;});
       config.customDescFields = Array.from(document.querySelectorAll(".cd-field:checked")).map(function(cb){return cb.value;});
     }
+    config.streamProfile = STREAM_PROFILE_VERSION;
 
     if (!silent) await renderTokenInstallUI(config, mode);
   }
@@ -3304,6 +3341,7 @@ function restoreFromLocalStorage() {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return false;
     const state = JSON.parse(raw);
+    const profileUpgraded = upgradeStreamProfileState(state);
     // Fallback: recover traktClientId/mdblistApiKey/externalCatalogs from last generated config if missing
     try {
       const lastRaw = localStorage.getItem('meb-last-config');
@@ -3342,34 +3380,33 @@ function restoreFromLocalStorage() {
       if (radio) { radio.checked = true; onModeChange(); }
     }
 
+    const restored = { ...STREMIO_STREAM_DEFAULTS, ...state };
     const setVal = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
     const setChk = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined) el.checked = v; };
-    setVal('timeout-value', state.timeoutValue);
-    setVal('sort-order', state.sortOrder);
-    setVal('audio-lang', state.audioLang);
-    setVal('pref-codec', state.prefCodec);
-    setVal('codec-mode', state.codecMode);
-    setAudioRankToggle(state.audioRank ? 'on' : 'off');
-    setVal('audio-rank-mode', state.audioRankMode || 'audioFirst');
-    setVal('audio-disable-action', state.audioDisableAction || 'hide');
-    const _audioOrder = (state.audioOrder && state.audioOrder.length) ? state.audioOrder : AUDIO_FORMATS.map(f => f.token);
-    renderAudioRankList(_audioOrder, state.audioDisabled || []);
-    // Re-highlight the device-preset chips that were selected (visual state only;
-    // saved order/disabled are restored above, so manual tweaks aren't clobbered).
-    (state.audioPresets || []).forEach(id => {
+    setVal('timeout-value', restored.timeoutValue);
+    setVal('sort-order', restored.sortOrder);
+    setVal('audio-lang', restored.audioLang);
+    setVal('pref-codec', restored.prefCodec);
+    setVal('codec-mode', restored.codecMode);
+    setAudioRankToggle(restored.audioRank ? 'on' : 'off');
+    setVal('audio-rank-mode', restored.audioRankMode || 'audioFirst');
+    setVal('audio-disable-action', restored.audioDisableAction || 'hide');
+    const _audioOrder = (restored.audioOrder && restored.audioOrder.length) ? restored.audioOrder : AUDIO_FORMATS.map(f => f.token);
+    renderAudioRankList(_audioOrder, restored.audioDisabled || []);
+    (restored.audioPresets || []).forEach(id => {
       const chip = document.querySelector('#audio-preset-chips .chip[data-preset="' + id + '"]');
       if (chip) chip.classList.add('on');
     });
-    setVal('max-bitrate', state.maxBitrate);
-    setVal('label-preset', state.labelPreset);
-    setVal('ping-origin', state.pingOrigin);
-    setChk('show-recommend', state.recommend);
-    setChk('show-ping', state.showPing);
-    setChk('ping-detail', state.pingDetail);
-    setChk('auto-select', state.autoSelect);
-    setChk('show-summary', state.showSummary);
-    setVal('summary-style', state.summaryStyle);
-    if (state.showSummary) {
+    setVal('max-bitrate', restored.maxBitrate);
+    setVal('label-preset', restored.labelPreset || 'compact');
+    setVal('ping-origin', restored.pingOrigin);
+    setChk('show-recommend', restored.recommend);
+    setChk('show-ping', restored.showPing);
+    setChk('ping-detail', restored.pingDetail);
+    setChk('auto-select', restored.autoSelect);
+    setChk('show-summary', restored.showSummary);
+    setVal('summary-style', restored.summaryStyle || 'compact');
+    if (restored.showSummary) {
       const opts = document.getElementById('summary-options');
       if (opts) opts.style.display = 'flex';
       updateSummaryPreview();
@@ -3410,6 +3447,9 @@ function restoreFromLocalStorage() {
     if (Array.isArray(state.excludeRes)) _applyExcludeRes(state.excludeRes);
 
     if (window.Controls) Controls.syncAll();
+    if (profileUpgraded) {
+      try { localStorage.setItem(LS_KEY, JSON.stringify({ ...state, ...STREMIO_STREAM_DEFAULTS, streamProfile: STREAM_PROFILE_VERSION })); } catch {}
+    }
     return true;
   } catch { return false; }
 }
@@ -3420,6 +3460,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   await initAudioCard();   // populate AUDIO_FORMATS/PRESETS + render card before restore reads them
   if (!restoreFromLocalStorage()) addServer();
   await ensureAccountConfigLoaded();
+  try {
+    const ls = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    if (ls.streamProfile === STREAM_PROFILE_VERSION && typeof generateLinks === 'function') {
+      generateLinks({ silent: true }).catch(() => {});
+    }
+  } catch {}
   _updateServersEmptyState();
   if (_isServersPageActive()) {
     await renderServersPage({ full: true });

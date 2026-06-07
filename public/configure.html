@@ -684,7 +684,7 @@
             <div class="hidden-canonical">
               <input type="checkbox" id="show-recommend" checked />
               <input type="checkbox" id="show-ping" checked onchange="onShowPingChange()" />
-              <input type="checkbox" id="auto-select" />
+              <input type="checkbox" id="auto-select" checked />
               <span id="ping-detail-item"><input type="checkbox" id="ping-detail" /></span>
             </div>
           </div>
@@ -718,7 +718,7 @@
             </div>
             <select id="audio-rank" class="hidden-canonical">
               <option value="off">Off</option>
-              <option value="on">On</option>
+              <option value="on" selected>On</option>
             </select>
             </div>
           </div>
@@ -761,7 +761,7 @@
     <div class="field-label">Stream label format</div>
     <select id="label-preset" class="pick" onchange="updateLabelPreview()">
       <option value="standard">Standard — res + HDR in name, full desc</option>
-      <option value="compact">Compact — res + HDR + codec in name, 1-line desc</option>
+      <option value="compact" selected>Compact — res + HDR + codec in name, 1-line desc</option>
       <option value="detailed">Detailed — HDR in name, multi-audio + subs in desc</option>
       <option value="cinema">Cinema — res + HDR + source in name</option>
       <option value="minimal">Minimal — res only, size in desc</option>
@@ -891,10 +891,10 @@
       <span class="knob"></span>
       <span><span class="sw-lbl">Results summary card</span><br><span class="sw-sub">Pins a summary at the top showing how many streams each server found.</span></span>
     </div>
-    <input type="checkbox" id="show-summary" class="hidden-canonical" onchange="toggleSummaryStyle()" />
+    <input type="checkbox" id="show-summary" class="hidden-canonical" checked onchange="toggleSummaryStyle()" />
   </div>
 
-  <div id="summary-options" style="display:none;flex-direction:column;gap:0.5rem;margin:-6px 0 0;padding:0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)">
+  <div id="summary-options" style="display:flex;flex-direction:column;gap:0.5rem;margin:-6px 0 0;padding:0.6rem;background:var(--bg-base);border-radius:var(--radius-sm);border:1px solid var(--border)">
     <!-- Summary style: hidden select + segment control -->
     <select id="summary-style" class="hidden-canonical" onchange="updateSummaryPreview();autoSave()">
       <option value="compact">Compact</option>
