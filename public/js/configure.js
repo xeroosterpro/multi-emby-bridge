@@ -2655,8 +2655,14 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
     const pickNote = showDiff
       ? `<span class="da-hist-pick">bridge picked ${esc(picked)}</span>`
       : '';
+    // Only show the S/E badge when the title doesn't already carry it (new log
+    // rows embed "SxEy" in the title; legacy rows like "Episode 2" still need it).
+    const seToken = e.season ? `S${e.season}E${e.episode || ''}` : '';
+    const seBadge = seToken && !String(e.title || '').toUpperCase().includes(seToken.toUpperCase())
+      ? ` <span class="da-ep">${seToken}</span>`
+      : '';
     return `<div class="da-row da-history${playing ? ' da-history-live' : ''}">
-      <span class="da-main"><span class="da-title" title="${esc(e.title || '')}">${esc(e.title || '—')}${e.season ? ` <span class="da-ep">S${e.season}E${e.episode || ''}</span>` : ''}</span></span>
+      <span class="da-main"><span class="da-title" title="${esc(e.title || '')}">${esc(e.title || '—')}${seBadge}</span></span>
       <span class="da-dim da-meta da-hist-meta">${serverLine}${pickNote ? `<span class="da-hist-sub">${pickNote}</span>` : ''} · ${when(e.ts)}</span>
     </div>`;
   }).join('');

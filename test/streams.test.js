@@ -28,7 +28,7 @@ stubModule('search', {
   queryServerForEpisode: async () => null,
 });
 
-const { mediaSourcesToStreams } = require('../lib/streams');
+const { mediaSourcesToStreams, buildItemTitle } = require('../lib/streams');
 
 let passed = 0;
 let failed = 0;
@@ -164,6 +164,26 @@ console.log('\nmediaSourcesToStreams — _audioFormats');
   });
   const af = mediaSourcesToStreams(server, 'itemX', [multiAudioSource], 'standard');
   assertEqual(af[0]._audioFormats.sort().join(','), 'atmos,dd', '_audioFormats lists all tracks classified');
+}
+
+// ─── buildItemTitle: log a meaningful name for the dashboard ─────────────────
+// The bug: episodes logged their own Name ("Episode 2") instead of the series,
+// so Live streaming / Watched history showed "Episode 2" with no series context.
+{
+  const ep = { Name: 'Episode 2', SeriesName: 'Michael Jackson: The Verdict', ParentIndexNumber: 1, IndexNumber: 2 };
+  assertEqual(buildItemTitle(ep), 'Michael Jackson: The Verdict S1E2 — Episode 2', 'episode title = series + SxEy + episode name');
+
+  const epNamed = { Name: 'The Fly', SeriesName: 'Breaking Bad', ParentIndexNumber: 3, IndexNumber: 10 };
+  assertEqual(buildItemTitle(epNamed), 'Breaking Bad S3E10 — The Fly', 'episode with a real name keeps it');
+
+  const epNoName = { Name: 'Breaking Bad', SeriesName: 'Breaking Bad', ParentIndexNumber: 1, IndexNumber: 1 };
+  assertEqual(buildItemTitle(epNoName), 'Breaking Bad S1E1', 'omits episode suffix when it equals the series name');
+
+  const movie = { Name: 'Dune: Part Two' };
+  assertEqual(buildItemTitle(movie), 'Dune: Part Two', 'movie title is just its name');
+
+  assertEqual(buildItemTitle(null), null, 'null item → null');
+  assertEqual(buildItemTitle({}), null, 'empty item → null');
 }
 
 // ─── Results ─────────────────────────────────────────────────────────────────
