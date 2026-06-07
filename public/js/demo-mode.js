@@ -73,7 +73,7 @@
       title: 'Tell it what “best” means',
       desc: 'This is where you set the rules: prefer the largest file (usually best quality), favorite audio language, codec priority, and server order. The bridge compares every match against these preferences.',
       bullets: ['Sort by file size = best quality', 'Audio language & codec prefs', 'Per-server priority'],
-      highlight: '#sort-order',
+      highlight: '#ms-prefs-panel',
     },
     {
       page: 'log',
@@ -100,6 +100,8 @@
 
   let tourStep = 0;
   let tourOpen = false;
+  let tourScrollHandler = null;
+  const HIGHLIGHT_STOP = new Set(['ms-prefs-panel', 'ms-controls', 'ms-card', 'dash-cards', 'rlog-stats', 'inst-stats', 'servers-container', 'acc']);
 
   function isActive() {
     try { return sessionStorage.getItem(FLAG) === '1'; } catch { return false; }
@@ -340,24 +342,63 @@
     document.querySelectorAll('.demo-tour-highlight').forEach(el => el.classList.remove('demo-tour-highlight'));
   }
 
+  function isVisibleTarget(el) {
+    if (!el || el === document.body) return false;
+    if (el.classList.contains('hidden-canonical')) return false;
+    const st = getComputedStyle(el);
+    if (st.display === 'none' || st.visibility === 'hidden') return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 8 && r.height > 8;
+  }
+
+  function resolveHighlightTarget(el) {
+    if (!el) return null;
+    let best = null;
+    let node = el;
+    while (node && node !== document.body) {
+      if (isVisibleTarget(node)) best = node;
+      if ([...HIGHLIGHT_STOP].some(cls => node.classList?.contains(cls)) || node.id === 'servers-container') break;
+      node = node.parentElement;
+    }
+    return best || el;
+  }
+
+  function detachTourScroll() {
+    if (!tourScrollHandler) return;
+    window.removeEventListener('scroll', tourScrollHandler);
+    tourScrollHandler = null;
+  }
+
   function positionSpot(sel) {
     const spot = document.getElementById('dst-spot');
     if (!spot) return;
     clearTourHighlight();
+    detachTourScroll();
     if (!sel) { spot.style.display = 'none'; return; }
-    const el = document.querySelector(sel);
-    if (!el) { spot.style.display = 'none'; return; }
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => {
-      const r = el.getBoundingClientRect();
+    const raw = document.querySelector(sel);
+    if (!raw) { spot.style.display = 'none'; return; }
+    const target = resolveHighlightTarget(raw);
+    if (!target) { spot.style.display = 'none'; return; }
+
+    const place = () => {
+      const r = target.getBoundingClientRect();
+      if (r.width < 8 || r.height < 8) return;
       const pad = 8;
+      clearTourHighlight();
       spot.style.display = 'block';
       spot.style.top = (r.top - pad) + 'px';
       spot.style.left = (r.left - pad) + 'px';
       spot.style.width = (r.width + pad * 2) + 'px';
       spot.style.height = (r.height + pad * 2) + 'px';
-      el.classList.add('demo-tour-highlight');
-    }, 350);
+      target.classList.add('demo-tour-highlight');
+    };
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    place();
+    requestAnimationFrame(() => requestAnimationFrame(place));
+    setTimeout(place, 450);
+    tourScrollHandler = () => { if (tourOpen) place(); };
+    window.addEventListener('scroll', tourScrollHandler, { passive: true });
   }
 
   function renderSiteTourStep() {
@@ -400,6 +441,7 @@
 
   function closeSiteTour() {
     tourOpen = false;
+    detachTourScroll();
     clearTourHighlight();
     const el = document.getElementById('demo-site-tour');
     if (!el) return;
