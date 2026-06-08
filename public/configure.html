@@ -707,15 +707,23 @@
           <div class="cw-preset-sheet" id="cw-preset-sheet" role="dialog" aria-labelledby="cw-preset-title">
             <div class="cw-preset-grab" aria-hidden="true"></div>
             <div class="cw-preset-sheet-head">
-              <div>
+              <div class="cw-preset-platform-mark" id="cw-preset-mark" aria-hidden="true">N</div>
+              <div class="cw-preset-head-text">
                 <strong id="cw-preset-title">Platform rows</strong>
                 <span class="cw-preset-sub" id="cw-preset-sub"></span>
               </div>
               <button type="button" class="cw-preset-close" id="cw-preset-close" aria-label="Close preview">✕</button>
             </div>
+            <div class="cw-preset-quick" id="cw-preset-quick" role="group" aria-label="Quick select" hidden>
+              <button type="button" class="cw-preset-quick-btn on" data-quick="both">Both</button>
+              <button type="button" class="cw-preset-quick-btn" data-quick="movie">Movies</button>
+              <button type="button" class="cw-preset-quick-btn" data-quick="series">Shows</button>
+            </div>
             <div class="cw-preset-list" id="cw-preset-list"></div>
             <div class="cw-preset-foot">
-              <button type="button" class="cw-btn-primary" id="btn-apply-preset" onclick="applyPreset()">+ Add selected rows</button>
+              <p class="cw-preset-foot-hint" id="cw-preset-foot-hint" aria-live="polite">Movies + Shows</p>
+              <button type="button" class="cw-preset-add-btn" id="btn-apply-preset" onclick="applyPreset()">Add to home</button>
+              <button type="button" class="cw-preset-cancel" id="cw-preset-cancel">Not now</button>
             </div>
           </div>
         </div>
@@ -734,10 +742,16 @@
                   <span class="cw-tv-empty-ic">📺</span>
                   <p>Your rows will appear here as you build</p>
                 </div>
-                <div class="cw-tv-rows" id="cw-tv-rows"></div>
+                <div class="cw-tv-rows-wrap">
+                  <div class="cw-tv-rows" id="cw-tv-rows"></div>
+                  <div class="cw-tv-fade" aria-hidden="true"></div>
+                </div>
+                <div class="cw-tv-status" id="cw-tv-status" hidden>
+                  <span id="cw-tv-row-total">0</span> rows · matches your review order
+                </div>
               </div>
             </div>
-            <p class="cw-tv-caption">Live preview — order matches your review list</p>
+            <p class="cw-tv-caption">Live preview — updates as you add rows</p>
           </div>
         </aside>
         </div><!-- /.cw-shell -->

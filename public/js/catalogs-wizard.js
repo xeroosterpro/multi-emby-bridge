@@ -115,6 +115,36 @@ const STREAMING_PRESETS = {
 const GALLERY_KEYS = Object.keys(STREAMING_PRESETS);
 const PRESET_CATS = Object.fromEntries(GALLERY_KEYS.map(k => [k, STREAMING_PRESETS[k].category || 'all']));
 
+function shortSheetLabel(cat) {
+  if (cat.mediaType === 'series') return 'Top 10 Shows';
+  return 'Top 10 Movies';
+}
+
+function applySheetTheme(p) {
+  var sheet = document.getElementById('cw-preset-sheet');
+  var mark = document.getElementById('cw-preset-mark');
+  if (sheet && p) sheet.style.setProperty('--sheet-accent', p.color || 'var(--accent)');
+  if (mark && p) mark.textContent = p.letter || p.label.charAt(0);
+}
+
+function presetQuickSelect(mode) {
+  document.querySelectorAll('.cw-preset-quick-btn').forEach(function(btn) {
+    btn.classList.toggle('on', btn.dataset.quick === mode);
+  });
+  document.querySelectorAll('.preset-cb').forEach(function(cb) {
+    var cat = STREAMING_PRESETS[_selectedPreset];
+    if (!cat) return;
+    var entry = cat.catalogs[Number(cb.dataset.idx)];
+    if (!entry) return;
+    if (mode === 'both') cb.checked = true;
+    else if (mode === 'movie') cb.checked = entry.mediaType === 'movie';
+    else if (mode === 'series') cb.checked = entry.mediaType === 'series';
+    var row = cb.closest('.cw-preset-row');
+    if (row) row.classList.toggle('is-checked', cb.checked);
+  });
+  updatePresetCount();
+}
+
 function initPresets() { /* gallery built by renderGallery() */ }
 function selectPreset(key) {
   _selectedPreset = key;
@@ -123,30 +153,77 @@ function selectPreset(key) {
   var list = document.getElementById('cw-preset-list');
   var sheet = document.getElementById('cw-preset-sheet');
   var sub = document.getElementById('cw-preset-sub');
+  var quick = document.getElementById('cw-preset-quick');
   if (!list || !sheet) return;
-  if (sub) sub.textContent = p.catalogs.length + ' rows · uncheck any you don\'t want';
+  applySheetTheme(p);
+  if (sub) sub.textContent = 'Tap a row to include or exclude · both selected by default';
+  if (quick) {
+    quick.hidden = p.catalogs.length < 2;
+    quick.querySelectorAll('.cw-preset-quick-btn').forEach(function(btn) {
+      btn.classList.toggle('on', btn.dataset.quick === 'both');
+    });
+  }
+  list.className = 'cw-preset-list' + (p.catalogs.length === 2 ? ' cw-preset-list--duo' : '');
   list.innerHTML = '';
   p.catalogs.forEach(function(cat, idx) {
-    var row = document.createElement('label'); row.className = 'cw-preset-row preset-preview-item';
-    var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true;
-    cb.className = 'preset-cb'; cb.dataset.idx = idx;
-    cb.addEventListener('change', function() { updatePresetCount(); });
-    var badge = document.createElement('span');
-    if (cat.provider === 'addon') {
-      badge.className = 'preset-preview-badge preset-badge-charts';
-      badge.textContent = cat.mediaType === 'series' ? 'Shows' : 'Movies';
-    } else {
-      badge.className = 'preset-preview-badge preset-badge-' + cat.provider;
-      badge.textContent = cat.provider === 'mdblist' ? 'MDB' : cat.provider.toUpperCase();
-    }
-    var nm = document.createElement('span'); nm.className = 'preset-preview-name'; nm.textContent = cat.name;
-    var tp = document.createElement('span'); tp.className = 'preset-preview-type'; tp.textContent = cat.mediaType === 'series' ? 'Shows' : 'Movies';
-    row.appendChild(cb); row.appendChild(badge); row.appendChild(nm); row.appendChild(tp); list.appendChild(row);
+    var row = document.createElement('label');
+    row.className = 'cw-preset-row preset-preview-item is-checked';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.className = 'preset-cb';
+    cb.dataset.idx = idx;
+    cb.addEventListener('change', function() {
+      row.classList.toggle('is-checked', cb.checked);
+      updatePresetCount();
+      syncPresetQuickFromChecks();
+    });
+    var icon = document.createElement('span');
+    icon.className = 'cw-preset-row-icon';
+    icon.textContent = cat.mediaType === 'series' ? '📺' : '🎬';
+    icon.setAttribute('aria-hidden', 'true');
+    var body = document.createElement('span');
+    body.className = 'cw-preset-row-body';
+    var title = document.createElement('span');
+    title.className = 'cw-preset-row-title';
+    title.textContent = shortSheetLabel(cat);
+    var hint = document.createElement('span');
+    hint.className = 'cw-preset-row-hint';
+    hint.textContent = cat.mediaType === 'series' ? '10 trending series' : '10 trending movies';
+    body.appendChild(title);
+    body.appendChild(hint);
+    var tick = document.createElement('span');
+    tick.className = 'cw-preset-row-tick';
+    tick.textContent = '✓';
+    row.appendChild(cb);
+    row.appendChild(icon);
+    row.appendChild(body);
+    row.appendChild(tick);
+    list.appendChild(row);
   });
   updatePresetCount();
   sheet.classList.add('on');
   setSheetOpen(true);
   document.getElementById('cw-preset-title').textContent = p.label;
+}
+
+function syncPresetQuickFromChecks() {
+  var cbs = document.querySelectorAll('.preset-cb');
+  if (!cbs.length) return;
+  var all = true, movies = true, series = true;
+  cbs.forEach(function(cb) {
+    if (!cb.checked) all = false;
+    var cat = STREAMING_PRESETS[_selectedPreset];
+    if (!cat) return;
+    var entry = cat.catalogs[Number(cb.dataset.idx)];
+    if (!entry) return;
+    if (entry.mediaType === 'movie' && !cb.checked) movies = false;
+    if (entry.mediaType === 'series' && !cb.checked) series = false;
+  });
+  var mode = all ? 'both' : (movies && !series ? 'movie' : (!movies && series ? 'series' : 'custom'));
+  document.querySelectorAll('.cw-preset-quick-btn').forEach(function(btn) {
+    btn.classList.toggle('on', btn.dataset.quick === mode);
+  });
 }
 
 function closePresetSheet() {
@@ -158,13 +235,27 @@ function closePresetSheet() {
 }
 function updatePresetCount() {
   if (!_selectedPreset) return;
-  var p = STREAMING_PRESETS[_selectedPreset];
+  var cbs = document.querySelectorAll('.preset-cb');
   var checked = document.querySelectorAll('.preset-cb:checked').length;
   var ab = document.getElementById('btn-apply-preset');
+  var hint = document.getElementById('cw-preset-foot-hint');
   if (!ab) return;
-  ab.textContent = '+ Add ' + checked + ' row' + (checked === 1 ? '' : 's');
-  ab.style.background = p.color;
+  ab.textContent = 'Add to home';
   ab.disabled = checked === 0;
+  if (hint) {
+    if (!checked) {
+      hint.textContent = 'Select at least one row';
+    } else if (checked === cbs.length) {
+      hint.textContent = cbs.length === 1 ? '1 chart row' : 'Movies + Shows · ' + checked + ' rows';
+    } else if (checked === 1) {
+      var only = document.querySelector('.preset-cb:checked');
+      var row = only && only.closest('.cw-preset-row');
+      var title = row && row.querySelector('.cw-preset-row-title');
+      hint.textContent = (title ? title.textContent : '1 row') + ' only';
+    } else {
+      hint.textContent = checked + ' rows selected';
+    }
+  }
 }
 function catalogRowExists(cat) {
   var dominated = false;
@@ -845,7 +936,14 @@ function addTraktBrowseSelection() {
       btn.innerHTML = '<span class="cw-svc-count">' + p.catalogs.length + '</span>'
         + '<div class="cw-svc-letter">' + escHtml(p.letter) + '</div>'
         + '<div class="cw-svc-label">' + escHtml(p.label) + '</div>';
+      btn.title = 'Click to choose rows · double-click to add both instantly';
       btn.addEventListener('click', () => selectPreset(k));
+      btn.addEventListener('dblclick', function(e) {
+        e.preventDefault();
+        selectPreset(k);
+        presetQuickSelect('both');
+        applyPreset();
+      });
       gal.appendChild(btn);
     });
   }
@@ -947,9 +1045,72 @@ function addTraktBrowseSelection() {
   }
 
   const LIB_NAMES = { recent: 'Recently Added', resume: 'Continue Watching', nextup: 'Next Up', favorites: 'Favorites' };
-  const PROVIDER_HUES = { library: 215, trakt: 0, tmdb: 195, mdblist: 248, imdb: 45, letterboxd: 130, addon: 280 };
+  const LIB_TV = {
+    recent: { icon: '✨', hint: 'From your servers', variant: 'library' },
+    resume: { icon: '▶', hint: 'In progress', variant: 'resume', progress: [72, 45, 88, 33, 61] },
+    nextup: { icon: '⏭', hint: 'Next episode', variant: 'library' },
+    favorites: { icon: '★', hint: 'Starred titles', variant: 'favorites' },
+  };
+  const PROVIDER_HUES = { library: 215, trakt: 0, tmdb: 195, mdblist: 248, imdb: 45, letterboxd: 130, addon: 265 };
   const PROVIDER_LABELS = { library: 'Library', trakt: 'Trakt', tmdb: 'TMDB', mdblist: 'MDB', imdb: 'IMDb', letterboxd: 'LB', addon: 'Charts' };
+  const MOCK_TITLES = {
+    library: ['Fresh Cut', 'Last Light', 'Northbound', 'Glass House', 'Afterglow'],
+    resume: ['Episode 4', 'S2 E7', 'Part II', 'Ch. 12', 'Finale'],
+    favorites: ['Saved One', 'Starred', 'Pinned', 'Loved', 'Top Pick'],
+    chart: ['#1 Hit', 'Rising', 'Trending', 'Hot Now', 'Chart Top'],
+    catalog: ['Pick One', 'Featured', 'Curated', 'Spotlight', 'Fresh'],
+  };
   let _lastRowTotal = -1;
+
+  function mockTitleFor(row, rowIndex, posterIndex) {
+    const pool = MOCK_TITLES[row.variant] || MOCK_TITLES.catalog;
+    return pool[(rowIndex * 3 + posterIndex) % pool.length];
+  }
+
+  function chartAccentForCatalog(r) {
+    const match = TOP_STREAMING_MANIFEST_CATALOGS.find(function(c) { return c.id === r.catalogId; });
+    if (!match) return null;
+    const preset = STREAMING_PRESETS[match.group];
+    return preset ? preset.color : null;
+  }
+
+  function buildTvPoster(row, index, posterIndex) {
+    var p = document.createElement('div');
+    p.className = 'cw-tv-poster';
+    p.style.setProperty('--ph', String((row.hue + posterIndex * 22) % 360));
+    if (row.variant === 'chart') p.classList.add('cw-tv-poster-chart');
+    if (row.variant === 'resume') p.classList.add('cw-tv-poster-resume');
+    if (row.variant === 'favorites') p.classList.add('cw-tv-poster-fav');
+    var shine = document.createElement('span');
+    shine.className = 'cw-tv-poster-shine';
+    p.appendChild(shine);
+    if (row.variant === 'chart') {
+      var rank = document.createElement('span');
+      rank.className = 'cw-tv-poster-rank';
+      rank.textContent = String(posterIndex + 1);
+      p.appendChild(rank);
+    }
+    if (row.variant === 'favorites') {
+      var star = document.createElement('span');
+      star.className = 'cw-tv-poster-star';
+      star.textContent = '★';
+      p.appendChild(star);
+    }
+    if (row.variant === 'resume' && row.progress && row.progress[posterIndex] != null) {
+      var track = document.createElement('span');
+      track.className = 'cw-tv-poster-progress';
+      var fill = document.createElement('span');
+      fill.className = 'cw-tv-poster-progress-fill';
+      fill.style.width = row.progress[posterIndex] + '%';
+      track.appendChild(fill);
+      p.appendChild(track);
+    }
+    var cap = document.createElement('span');
+    cap.className = 'cw-tv-poster-cap';
+    cap.textContent = mockTitleFor(row, index, posterIndex);
+    p.appendChild(cap);
+    return p;
+  }
 
   function pulseRowCount() {
     const stat = document.getElementById('cw-review-stat');
@@ -966,55 +1127,98 @@ function addTraktBrowseSelection() {
     if (document.getElementById('show-catalog')?.checked) {
       ['recent','resume','nextup','favorites'].forEach(k => {
         const chk = document.getElementById('libchk-' + k);
+        const meta = LIB_TV[k] || {};
         if (chk && chk.checked) {
-          previewRows.push({ title: LIB_NAMES[k] || k, kind: 'library', hue: PROVIDER_HUES.library });
+          const libHue = { recent: 215, resume: 28, nextup: 165, favorites: 42 }[k] || PROVIDER_HUES.library;
+          previewRows.push({
+            title: LIB_NAMES[k] || k,
+            kind: 'library',
+            hue: libHue,
+            accent: k === 'favorites' ? '#f5c842' : (k === 'resume' ? '#ff8c42' : '#3b9dff'),
+            icon: meta.icon || '◆',
+            hint: meta.hint || 'Your library',
+            variant: meta.variant || 'library',
+            progress: meta.progress,
+            libKey: k,
+          });
         }
       });
     }
     enabled.forEach(r => {
+      const isChart = r.provider === 'addon';
+      const accent = isChart ? chartAccentForCatalog(r) : null;
       previewRows.push({
         title: r.name || r.provider,
         kind: r.provider || 'addon',
-        hue: PROVIDER_HUES[r.provider] != null ? PROVIDER_HUES[r.provider] : 280,
+        hue: PROVIDER_HUES[r.provider] != null ? PROVIDER_HUES[r.provider] : 265,
+        accent: accent,
+        icon: isChart ? '10' : '◆',
+        hint: isChart ? 'Top 10 · refreshes automatically' : (PROVIDER_LABELS[r.provider] || 'Catalog'),
+        variant: isChart ? 'chart' : 'catalog',
+        pill: isChart ? 'Charts' : (PROVIDER_LABELS[r.provider] || null),
       });
     });
     const empty = document.getElementById('cw-tv-empty');
+    const wrap = document.querySelector('.cw-tv-rows-wrap');
     const container = document.getElementById('cw-tv-rows');
     const live = document.getElementById('cw-tv-live');
+    const status = document.getElementById('cw-tv-status');
+    const statusN = document.getElementById('cw-tv-row-total');
     if (!container) return;
     if (!previewRows.length) {
       if (empty) empty.style.display = '';
+      if (wrap) wrap.hidden = true;
       if (live) live.classList.remove('on');
+      if (status) status.hidden = true;
       container.classList.remove('on');
       container.innerHTML = '';
       return;
     }
     if (empty) empty.style.display = 'none';
+    if (wrap) wrap.hidden = false;
     if (live) live.classList.add('on');
+    if (status) { status.hidden = false; if (statusN) statusN.textContent = String(previewRows.length); }
     container.classList.add('on');
     container.innerHTML = '';
-    previewRows.slice(0, 8).forEach((row, ri) => {
+    previewRows.slice(0, 10).forEach((row, ri) => {
       const el = document.createElement('div');
-      el.className = 'cw-tv-row';
-      el.style.animationDelay = (ri * 0.05) + 's';
+      el.className = 'cw-tv-row cw-tv-row-' + (row.variant || 'catalog');
+      el.style.animationDelay = (ri * 0.04) + 's';
       const head = document.createElement('div');
       head.className = 'cw-tv-row-head';
-      const badge = document.createElement('span');
-      badge.className = 'cw-tv-badge cw-tv-badge-' + (row.kind || 'addon');
-      badge.textContent = PROVIDER_LABELS[row.kind] || String(row.kind || '').toUpperCase();
+      const icon = document.createElement('span');
+      icon.className = 'cw-tv-row-icon';
+      icon.textContent = row.icon || '◆';
+      const textWrap = document.createElement('div');
+      textWrap.className = 'cw-tv-row-text';
       const h = document.createElement('div');
       h.className = 'cw-tv-row-title';
       h.textContent = row.title;
-      head.appendChild(badge);
-      head.appendChild(h);
+      const meta = document.createElement('div');
+      meta.className = 'cw-tv-row-meta';
+      meta.textContent = row.hint || '';
+      textWrap.appendChild(h);
+      if (row.hint) textWrap.appendChild(meta);
+      head.appendChild(icon);
+      head.appendChild(textWrap);
+      if (row.accent) {
+        el.style.setProperty('--row-accent', row.accent);
+        icon.style.setProperty('--row-accent', row.accent);
+      }
+      if (row.kind === 'library') {
+        const pill = document.createElement('span');
+        pill.className = 'cw-tv-row-pill cw-tv-row-pill-library';
+        pill.textContent = 'Library';
+        head.appendChild(pill);
+      } else if (row.pill) {
+        const pill = document.createElement('span');
+        pill.className = 'cw-tv-row-pill' + (row.variant === 'chart' ? ' cw-tv-row-pill-chart' : '');
+        pill.textContent = row.pill;
+        head.appendChild(pill);
+      }
       const posters = document.createElement('div');
       posters.className = 'cw-tv-posters';
-      for (let i = 0; i < 5; i++) {
-        const p = document.createElement('div');
-        p.className = 'cw-tv-poster';
-        p.style.setProperty('--ph', String((row.hue + i * 18) % 360));
-        posters.appendChild(p);
-      }
+      for (let i = 0; i < 5; i++) posters.appendChild(buildTvPoster(row, ri, i));
       el.appendChild(head);
       el.appendChild(posters);
       container.appendChild(el);
@@ -1084,7 +1288,11 @@ function addTraktBrowseSelection() {
       });
     });
     document.getElementById('cw-preset-close')?.addEventListener('click', closePresetSheet);
+    document.getElementById('cw-preset-cancel')?.addEventListener('click', closePresetSheet);
     document.getElementById('cw-preset-backdrop')?.addEventListener('click', closePresetSheet);
+    document.querySelectorAll('.cw-preset-quick-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { presetQuickSelect(btn.dataset.quick); });
+    });
     const showCat = document.getElementById('show-catalog');
     if (showCat) showCat.addEventListener('change', () => {
       toggleCatalogOptions();
@@ -1144,6 +1352,7 @@ function addTraktBrowseSelection() {
   window.updateTmdbAutoName = updateTmdbAutoName;
   window.selectPreset = selectPreset;
   window.closePresetSheet = closePresetSheet;
+  window.presetQuickSelect = presetQuickSelect;
   window.installTopStreamingAll = installTopStreamingAll;
   window.installTopStreamingMain = installTopStreamingMain;
   window.TOP_STREAMING = TOP_STREAMING;
