@@ -30,7 +30,6 @@ function makeAuthRouter() {
   const users = makeUsers(db);
   const sessions = makeSessions(db);
   const r = express.Router();
-  r.use(express.json());
 
   r.post('/register', async (req, res) => {
     if (!db.isConfigured()) return res.status(503).json({ error: 'accounts unavailable' });

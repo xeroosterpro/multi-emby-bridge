@@ -142,7 +142,7 @@ function makeTicketsRouter() {
   });
 
   // POST /api/tickets — create with first message
-  r.post('/', requireAuth, express.json(), async (req, res) => {
+  r.post('/', requireAuth, async (req, res) => {
     const { subject, body, category, priority } = req.body || {};
     if (!subject || !subject.trim()) return res.status(400).json({ error: 'subject required' });
     if (!body || !body.trim()) return res.status(400).json({ error: 'message required' });
@@ -188,7 +188,7 @@ function makeTicketsRouter() {
   });
 
   // POST /api/tickets/:id/reply
-  r.post('/:id/reply', requireAuth, express.json(), async (req, res) => {
+  r.post('/:id/reply', requireAuth, async (req, res) => {
     const { body } = req.body || {};
     if (!body || !body.trim()) return res.status(400).json({ error: 'message required' });
     try {
@@ -229,7 +229,7 @@ function makeTicketsRouter() {
   });
 
   // PATCH /api/tickets/:id — admin: full control; user: close own ticket
-  r.patch('/:id', requireAuth, express.json(), async (req, res) => {
+  r.patch('/:id', requireAuth, async (req, res) => {
     const { status, priority, category } = req.body || {};
     try {
       const { rows: [ticket] } = await db.query('SELECT * FROM tickets WHERE id=$1', [req.params.id]);

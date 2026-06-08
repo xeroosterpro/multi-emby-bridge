@@ -40,7 +40,6 @@ function makeUserRouter() {
   const serverHistory = makeServerHistory(db);
   const requestLog = makeRequestLog(db);
   const liveSessions = makeLiveSessions();
-  r.use(express.json({ limit: '1mb' }));
 
   function requireAuth(req, res, next) {
     if (!db.isConfigured()) return res.status(503).json({ error: 'accounts unavailable' });

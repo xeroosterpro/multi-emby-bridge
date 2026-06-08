@@ -174,7 +174,7 @@ function applyManifestSettings(cfg) {
   if (c.rpdbKey) setVal('rpdb-key', c.rpdbKey);
   if (Array.isArray(c.externalCatalogs) && c.externalCatalogs.length) {
     const catList = document.getElementById('catalog-list');
-    if (catList && window.addExternalCatalog) { catList.innerHTML = ''; window.nextCatId = 0; c.externalCatalogs.forEach(cat => window.addExternalCatalog(cat)); }
+    if (catList && window.addExternalCatalog) { catList.innerHTML = ''; window.nextCatId = 0; c.externalCatalogs.forEach(cat => window.addExternalCatalog(cat, { autoTest: false })); }
   }
   toggleCustomPreset();
   if (typeof updateLabelPreview === 'function') updateLabelPreview();
@@ -3582,7 +3582,7 @@ function restoreFromLocalStorage() {
     if (window.refreshKeyPills) window.refreshKeyPills();
     if (Array.isArray(state.externalCatalogs) && state.externalCatalogs.length) {
       const catList = document.getElementById('catalog-list');
-      if (catList && window.addExternalCatalog) { catList.innerHTML = ''; window.nextCatId = 0; state.externalCatalogs.forEach(function(cat){ window.addExternalCatalog(cat); }); }
+      if (catList && window.addExternalCatalog) { catList.innerHTML = ''; window.nextCatId = 0; state.externalCatalogs.forEach(function(cat){ window.addExternalCatalog(cat, { autoTest: false }); }); }
     }
 
     if (state.catalogLang) setVal("catalog-lang", state.catalogLang);

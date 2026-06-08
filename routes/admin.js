@@ -26,7 +26,7 @@ function makeAdminRouter(opts = {}) {
   const billing = makeBilling(db, payments); // events sink
   const siteSettings = makeSiteSettings(db);
   const r = express.Router();
-  r.use(express.json());
+
 
   function requireAdmin(req, res, next) {
     if (!db.isConfigured()) return res.status(503).json({ error: 'accounts unavailable' });

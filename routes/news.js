@@ -26,7 +26,7 @@ function makeNewsRouter() {
   });
 
   // POST /api/news — admin: create news item
-  r.post('/', requireAdmin, express.json(), async (req, res) => {
+  r.post('/', requireAdmin, async (req, res) => {
     const { title, body } = req.body || {};
     if (!title || !title.trim()) return res.status(400).json({ error: 'title required' });
     try {

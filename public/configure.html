@@ -381,7 +381,7 @@
             <h3 class="cw-lead">Connect your sources</h3>
             <p class="cw-hint">Keys are AES-encrypted on our servers. Add only what you need — you can skip and come back later.</p>
           </div>
-          <div class="cw-skip-hint" id="cw-connect-skip">No keys yet? Continue to pick rows — MDbList presets work without a key for public lists.</div>
+          <div class="cw-skip-hint" id="cw-connect-skip">No keys yet? Continue — TOP Streaming Top 10 rows work without any API keys.</div>
           <div class="cw-key-list">
             <div class="cw-key-card" data-provider="trakt">
               <div class="cw-key-card-h">
@@ -510,32 +510,37 @@
           </div>
         </div>
 
-        <!-- Step 3: Discover presets -->
+        <!-- Step 3: Discover — TOP Streaming -->
         <div class="cw-panel" data-step="discover">
           <div class="cw-panel-head">
-            <h3 class="cw-lead">Add streaming &amp; chart rows</h3>
-            <p class="cw-hint">Start with a one-click layout, or pick services individually. Preview updates live on the right.</p>
+            <h3 class="cw-lead">Add streaming rows</h3>
+            <p class="cw-hint">Real Top 10 charts from the TOP Streaming addon — pick platforms or install the full set.</p>
           </div>
-          <div class="cw-quickstart" id="cw-quickstart" role="group" aria-label="Quick start layouts">
-            <button type="button" class="cw-qs-card" data-qs="movie-night">
-              <span class="cw-qs-icon">🍿</span>
-              <span class="cw-qs-body"><span class="cw-qs-title">Movie Night</span><span class="cw-qs-desc">Netflix + trending charts</span></span>
-            </button>
-            <button type="button" class="cw-qs-card" data-qs="family">
-              <span class="cw-qs-icon">👨‍👩‍👧</span>
-              <span class="cw-qs-body"><span class="cw-qs-title">Family TV</span><span class="cw-qs-desc">Kids-safe curated rows</span></span>
-            </button>
-            <button type="button" class="cw-qs-card" data-qs="trending">
-              <span class="cw-qs-icon">📈</span>
-              <span class="cw-qs-body"><span class="cw-qs-title">Trending</span><span class="cw-qs-desc">Charts &amp; discovery picks</span></span>
-            </button>
+          <div class="cw-addon-card" id="cw-addon-card">
+            <div class="cw-addon-logo" aria-hidden="true">
+              <span class="cw-addon-logo-top">TOP</span>
+              <span class="cw-addon-logo-play">▶</span>
+              <span class="cw-addon-logo-stream">STREAMING</span>
+            </div>
+            <div class="cw-addon-body">
+              <div class="cw-addon-title-row">
+                <span class="cw-addon-crowns">👑</span>
+                <h4 class="cw-addon-title">TOP Streaming</h4>
+                <span class="cw-addon-globe">🌍</span>
+                <span class="cw-addon-ver">v4.2.1</span>
+              </div>
+              <p class="cw-addon-sub">Movie &amp; Series</p>
+              <p class="cw-addon-desc">Top 10 Catalog Lists from the main Streaming Platforms — Catalogs: <span id="cw-addon-catalog-count">23</span> — Content language: en-US</p>
+              <div class="cw-addon-actions">
+                <button type="button" class="cw-addon-btn-install" onclick="installTopStreamingAll()">+ Install all catalogs</button>
+                <button type="button" class="cw-addon-btn-main" onclick="installTopStreamingMain()">Main 6 platforms</button>
+              </div>
+            </div>
           </div>
-          <div class="cw-cat-tabs" id="cw-cat-tabs" role="tablist" aria-label="Row categories">
+          <div class="cw-cat-tabs" id="cw-cat-tabs" role="tablist" aria-label="Platform categories">
             <button type="button" class="cw-cat-tab active" data-cat="all" role="tab">All</button>
             <button type="button" class="cw-cat-tab" data-cat="streaming" role="tab">Streaming</button>
-            <button type="button" class="cw-cat-tab" data-cat="charts" role="tab">Charts</button>
-            <button type="button" class="cw-cat-tab" data-cat="genres" role="tab">Genres</button>
-            <button type="button" class="cw-cat-tab" data-cat="family" role="tab">Family</button>
+            <button type="button" class="cw-cat-tab" data-cat="more" role="tab">More</button>
           </div>
           <div class="cw-gallery" id="cw-gallery"></div>
           <div class="cw-preset-backdrop" id="cw-preset-backdrop" hidden></div>
@@ -714,7 +719,7 @@
           <div class="browse-section">
             <div class="browse-header"><strong>📥 Import Stremio addon</strong></div>
             <div class="browse-input-row">
-              <input type="text" id="addon-import-url" placeholder="https://…/manifest.json" />
+              <input type="text" id="addon-import-url" placeholder="https://…/manifest.json" value="https://top-streaming.stream/471c23c0-6756-471c-a7eb-f41927b5c214/manifest.json" />
               <button type="button" class="btn-add-catalog" onclick="browseAddonCatalogs()">Browse</button>
             </div>
             <div id="addon-import-results"></div>

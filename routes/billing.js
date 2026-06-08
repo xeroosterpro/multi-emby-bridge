@@ -65,7 +65,7 @@ function makeBillingRouter() {
   });
 
   // verify the approved PayPal subscription server-side, then record it
-  r.post('/activate', requireAuth, express.json(), async (req, res) => {
+  r.post('/activate', requireAuth, async (req, res) => {
     if (!paypal.isConfigured()) return res.status(503).json({ error: 'billing not configured' });
     const { subscriptionID } = req.body || {};
     if (!subscriptionID) return res.status(400).json({ error: 'subscriptionID required' });
@@ -87,7 +87,7 @@ function makeBillingRouter() {
     catch (e) { res.status(500).json({ error: 'cancel failed' }); }
   });
 
-  r.post('/redeem', requireAuth, express.json(), async (req, res) => {
+  r.post('/redeem', requireAuth, async (req, res) => {
     try {
       const out = await billing.redeemCode(req.user.id, (req.body || {}).code);
       res.status(out.applied ? 200 : 400).json(out);
@@ -95,7 +95,7 @@ function makeBillingRouter() {
   });
 
   // PayPal webhook (no session auth — verified via PayPal signature when configured).
-  r.post('/webhook', express.json({ type: '*/*' }), async (req, res) => {
+  r.post('/webhook', async (req, res) => {
     try {
       const ev = req.body || {};
       const webhookId = process.env.PAYPAL_WEBHOOK_ID;

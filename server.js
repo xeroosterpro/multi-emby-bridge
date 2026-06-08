@@ -164,6 +164,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Single JSON parser for all API routes — avoids per-route double-read ("stream is not readable").
+app.use(express.json({ limit: '1mb' }));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const { makeRequestLog } = require('./lib/requestLog');
@@ -266,7 +269,7 @@ app.get('/:config/servers', (req, res) => {
 });
 
 // Register servers for 24/7 health monitoring
-app.post('/api/health/register', apiLimiter, express.json(), async (req, res) => {
+app.post('/api/health/register', apiLimiter, async (req, res) => {
   const { servers } = req.body || {};
   if (!Array.isArray(servers)) return res.status(400).json({ error: 'servers must be array' });
   try {
@@ -281,7 +284,7 @@ app.post('/api/health/register', apiLimiter, express.json(), async (req, res) =>
 });
 
 // Unregister a server from health monitoring
-app.post('/api/health/unregister', apiLimiter, express.json(), (req, res) => {
+app.post('/api/health/unregister', apiLimiter, (req, res) => {
   const { url } = req.body || {};
   if (!url) return res.status(400).json({ error: 'url is required' });
   const removed = unregisterHealthServer(url);
@@ -289,7 +292,7 @@ app.post('/api/health/unregister', apiLimiter, express.json(), (req, res) => {
 });
 
 // Cleanup stale servers not in the active list
-app.post('/api/health/cleanup', apiLimiter, express.json(), (req, res) => {
+app.post('/api/health/cleanup', apiLimiter, (req, res) => {
   const { activeUrls } = req.body || {};
   if (!Array.isArray(activeUrls)) return res.status(400).json({ error: 'activeUrls must be array' });
   const removed = cleanupStaleServers(activeUrls);
@@ -379,7 +382,7 @@ app.get('/api/site-config', async (req, res) => {
 
 
 // ─── Catalog browse proxies (avoids browser CORS) ─────────────────────────────
-app.post('/api/catalogs/browse-mdblist', apiLimiter, express.json(), async (req, res) => {
+app.post('/api/catalogs/browse-mdblist', apiLimiter, async (req, res) => {
   const { username, apiKey } = req.body || {};
   if (!username || !apiKey) return res.status(400).json({ error: 'username and apiKey required' });
   try {
@@ -393,7 +396,7 @@ app.post('/api/catalogs/browse-mdblist', apiLimiter, express.json(), async (req,
   }
 });
 
-app.post('/api/catalogs/browse-trakt', apiLimiter, express.json(), async (req, res) => {
+app.post('/api/catalogs/browse-trakt', apiLimiter, async (req, res) => {
   const { username, traktClientId } = req.body || {};
   const clientId = traktClientId || process.env.TRAKT_CLIENT_ID;
   if (!username || !clientId) return res.status(400).json({ error: 'username and traktClientId required' });
@@ -416,7 +419,7 @@ app.post('/api/catalogs/browse-trakt', apiLimiter, express.json(), async (req, r
 });
 
 // ─── Catalog validation ───────────────────────────────────────────────────────
-app.post('/api/catalog/validate', apiLimiter, express.json(), async (req, res) => {
+app.post('/api/catalog/validate', apiLimiter, async (req, res) => {
   const { entry, rpdbKey, traktClientId, catalogLang, tmdbApiKey } = req.body || {};
   if (!entry) return res.status(400).json({ error: 'entry is required' });
   
@@ -437,19 +440,22 @@ app.post('/api/catalog/validate', apiLimiter, express.json(), async (req, res) =
       message: metas.length > 0 ? `Loaded ${metas.length} items (${movies} movies, ${shows} shows)` : 'No items found in catalog'
     });
   } catch (err) {
-    console.error('Catalog validation error:', err.message);
+    const msg = err.message || String(err);
+    const expected = /returned 40[0-9]|is required|No items found/i.test(msg);
+    if (expected) console.warn('[catalog/validate]', msg);
+    else console.error('[catalog/validate]', msg);
     res.json({
       valid: false,
       count: 0,
       duration: 0,
-      error: err.message,
-      message: `Failed to load catalog: ${err.message}`
+      error: msg,
+      message: `Failed to load catalog: ${msg}`
     });
   }
 });
 
 // ─── Profile: save ────────────────────────────────────────────────────────────
-app.post('/api/profile/save', authLimiter, express.json(), (req, res) => {
+app.post('/api/profile/save', authLimiter, (req, res) => {
   const { username, password, config } = req.body || {};
   if (!username || !password || !config) {
     return res.status(400).json({ error: 'username, password and config are required.' });
@@ -489,7 +495,7 @@ app.post('/api/profile/save', authLimiter, express.json(), (req, res) => {
 });
 
 // ─── Profile: load ────────────────────────────────────────────────────────────
-app.post('/api/profile/load', authLimiter, express.json(), (req, res) => {
+app.post('/api/profile/load', authLimiter, (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) {
     return res.status(400).json({ error: 'username and password are required.' });
@@ -510,7 +516,7 @@ app.post('/api/profile/load', authLimiter, express.json(), (req, res) => {
 });
 
 // ─── Credential helper ────────────────────────────────────────────────────────
-app.post('/api/fetch-credentials', authLimiter, requireAuthInProduction, express.json(), async (req, res) => {
+app.post('/api/fetch-credentials', authLimiter, requireAuthInProduction, async (req, res) => {
   const { url, username, password } = req.body || {};
   if (!url || !username || !password) {
     return res.status(400).json({ error: 'url, username and password are required.' });
@@ -590,7 +596,7 @@ app.post('/api/fetch-credentials', authLimiter, requireAuthInProduction, express
 });
 
 // ─── Test connection ──────────────────────────────────────────────────────────
-app.post('/api/test-connection', apiLimiter, requireAuthInProduction, express.json(), async (req, res) => {
+app.post('/api/test-connection', apiLimiter, requireAuthInProduction, async (req, res) => {
   const { url, type, apiKey, userId, username, password } = req.body || {};
   if (!url || !apiKey || !userId) {
     return res.status(400).json({ error: 'url, apiKey and userId are required.' });
@@ -627,7 +633,7 @@ app.post('/api/test-connection', apiLimiter, requireAuthInProduction, express.js
 });
 
 // ─── Ping servers ─────────────────────────────────────────────────────────────
-app.post('/api/ping-servers', apiLimiter, express.json(), async (req, res) => {
+app.post('/api/ping-servers', apiLimiter, async (req, res) => {
   const { servers } = req.body || {};
   if (!Array.isArray(servers)) return res.status(400).json({ error: 'servers array required' });
   const results = await Promise.all(servers.map(async s => {
@@ -649,7 +655,7 @@ app.post('/api/ping-servers', apiLimiter, express.json(), async (req, res) => {
 });
 
 // ─── Live sessions (now playing) for one server ─────────────────────────────
-app.post('/api/server-sessions', apiLimiter, express.json(), async (req, res) => {
+app.post('/api/server-sessions', apiLimiter, async (req, res) => {
   const { url, type, apiKey, userId, label, username, password } = req.body || {};
   if (!url || !apiKey) return res.status(400).json({ error: 'url and apiKey required' });
   let safeUrl;
@@ -693,7 +699,7 @@ app.post('/api/server-sessions', apiLimiter, express.json(), async (req, res) =>
 });
 
 // ─── Library stats ────────────────────────────────────────────────────────────
-app.post('/api/library-stats', apiLimiter, express.json(), async (req, res) => {
+app.post('/api/library-stats', apiLimiter, async (req, res) => {
   const { url, type, apiKey, userId, username, password } = req.body || {};
   if (!url || !apiKey || !userId) {
     return res.status(400).json({ error: 'url, apiKey, userId required' });
@@ -735,7 +741,7 @@ app.post('/api/library-stats', apiLimiter, express.json(), async (req, res) => {
   }
 });
 
-app.post('/api/addon-catalogs', apiLimiter, express.json(), async (req, res) => {
+app.post('/api/addon-catalogs', apiLimiter, async (req, res) => {
   let manifestUrl = (req.body && req.body.manifestUrl || '').trim();
   if (!manifestUrl) return res.status(400).json({ error: 'manifestUrl required' });
   if (!/^https?:\/\//i.test(manifestUrl)) manifestUrl = 'https://' + manifestUrl;
@@ -1070,6 +1076,10 @@ app.get('/:config/stream/:type/:id.json', streamLimiter, async (req, res) => {
 app.use((err, req, res, _next) => {
   if (err.type === 'entity.parse.failed') {
     return res.status(400).json({ error: 'Invalid JSON in request body.' });
+  }
+  if (err.message === 'stream is not readable') {
+    console.warn('[body] unreadable stream:', req.method, req.path);
+    return res.status(400).json({ error: 'Request body could not be read.' });
   }
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error.' });

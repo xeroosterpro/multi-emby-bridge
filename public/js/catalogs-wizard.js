@@ -8,21 +8,10 @@
   const escHtml = (typeof window !== 'undefined' && window.escHtml) ? window.escHtml : esc;
 
   const WIZARD_STEPS = ['connect', 'library', 'discover', 'review'];
-  const PRESET_CATS = {
-    netflix: 'streaming', prime: 'streaming', disney: 'streaming', hulu: 'streaming',
-    max: 'streaming', apple: 'streaming', kids: 'family', popular: 'charts',
-    genres: 'genres', discovery: 'charts', trakt: 'charts', tmdb: 'charts',
-  };
-  const GALLERY_KEYS = ['netflix','prime','disney','hulu','max','apple','kids','popular','genres','discovery','trakt','tmdb'];
-  const QUICK_STARTS = {
-    'movie-night': { presets: ['netflix', 'popular'], maxEach: 6 },
-    family: { presets: ['kids'], maxEach: 99 },
-    trending: { presets: ['discovery', 'trakt'], maxEach: 5 },
-  };
   const NAV_HINTS = {
-    connect: 'Keys optional — skip if you only need public lists',
+    connect: 'Keys optional — TOP Streaming works without any keys',
     library: 'Toggle rows your family actually watches',
-    discover: 'Try a quick-start layout or pick services',
+    discover: 'Pick platforms from TOP Streaming — real Top 10 charts',
     review: 'Test rows, then save to push to Stremio',
   };
   const PROGRESS_RING = 113;
@@ -38,199 +27,79 @@ const TRAKT_LIST_NAMES = {
   'watched/weekly': 'Most Watched', 'anticipated': 'Anticipated',
 };
 
-// -- Streaming Presets --
-const STREAMING_PRESETS = {
-  netflix: { label: "Netflix", color: "#E50914", letter: "N", catalogs: [
-    { name: "Netflix Movies",  provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "8",    tmdbSortBy: "popularity.desc", mediaType: "movie"  },
-    { name: "Netflix Shows",   provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "8",    tmdbSortBy: "popularity.desc", mediaType: "series" },
-    { name: "Action Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action",                  mediaType: "movie"  },
-    { name: "Crime Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime",                   mediaType: "movie"  },
-    { name: "Thriller Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",                mediaType: "movie"  },
-    { name: "Drama Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama",                   mediaType: "movie"  },
-    { name: "Horror Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror",                  mediaType: "movie"  },
-    { name: "Comedy Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",                  mediaType: "movie"  },
-    { name: "Sci-Fi Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi",                  mediaType: "movie"  },
-    { name: "Drama Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows",             mediaType: "series" },
-    { name: "Crime Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows",             mediaType: "series" },
-    { name: "Comedy Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows",            mediaType: "series" },
-  ] },
-  prime: { label: "Prime Video", color: "#00A8E1", letter: "P", catalogs: [
-    { name: "Prime Movies",    provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "119",  tmdbSortBy: "popularity.desc", mediaType: "movie"  },
-    { name: "Prime Shows",     provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "119",  tmdbSortBy: "popularity.desc", mediaType: "series" },
-    { name: "Action Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action",                  mediaType: "movie"  },
-    { name: "Thriller Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",                mediaType: "movie"  },
-    { name: "Comedy Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",                  mediaType: "movie"  },
-    { name: "Sci-Fi Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi",                  mediaType: "movie"  },
-    { name: "Drama Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama",                   mediaType: "movie"  },
-    { name: "Drama Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows",             mediaType: "series" },
-    { name: "Crime Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows",             mediaType: "series" },
-    { name: "Comedy Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows",            mediaType: "series" },
-    { name: "Sci-Fi Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows",            mediaType: "series" },
-  ] },
-  disney: { label: "Disney+", color: "#0063E5", letter: "D+", catalogs: [
-    { name: "Disney+ Movies",  provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "337",  tmdbSortBy: "popularity.desc", mediaType: "movie"  },
-    { name: "Disney+ Shows",   provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "337",  tmdbSortBy: "popularity.desc", mediaType: "series" },
-    { name: "Marvel Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/marvel-cinematic-universe", mediaType: "movie"  },
-    { name: "Star Wars Movies",        provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/star-wars",                 mediaType: "movie"  },
-    { name: "Pixar Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/pixar-movies",              mediaType: "movie"  },
-    { name: "Family Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/family",                      mediaType: "movie"  },
-    { name: "Action Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action",                  mediaType: "movie"  },
-    { name: "Sci-Fi Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi",                  mediaType: "movie"  },
-    { name: "Comedy Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",                  mediaType: "movie"  },
-  ] },
-  hulu: { label: "Hulu", color: "#1CE783", letter: "H", catalogs: [
-    { name: "Hulu Movies",     provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "15",   tmdbSortBy: "popularity.desc", mediaType: "movie"  },
-    { name: "Hulu Shows",      provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "15",   tmdbSortBy: "popularity.desc", mediaType: "series" },
-    { name: "Trending Movies",         provider: "trakt",   listType: "trending",                                                        mediaType: "movie"  },
-    { name: "Trending Shows",          provider: "trakt",   listType: "trending",                                                        mediaType: "series" },
-    { name: "Comedy Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",                  mediaType: "movie"  },
-    { name: "Drama Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama",                   mediaType: "movie"  },
-    { name: "Horror Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror",                  mediaType: "movie"  },
-    { name: "Thriller Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",                mediaType: "movie"  },
-    { name: "Drama Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows",             mediaType: "series" },
-    { name: "Comedy Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows",            mediaType: "series" },
-    { name: "Sci-Fi Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows",            mediaType: "series" },
-  ] },
-  max: { label: "Max", color: "#002BE7", letter: "M", catalogs: [
-    { name: "Max Movies",      provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "1899", tmdbSortBy: "popularity.desc", mediaType: "movie"  },
-    { name: "Max Shows",       provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "1899", tmdbSortBy: "popularity.desc", mediaType: "series" },
-    { name: "Trending Movies",         provider: "trakt",   listType: "trending",                                                        mediaType: "movie"  },
-    { name: "Popular Movies",          provider: "trakt",   listType: "popular",                                                         mediaType: "movie"  },
-    { name: "Drama Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama",                   mediaType: "movie"  },
-    { name: "Crime Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime",                   mediaType: "movie"  },
-    { name: "Thriller Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",                mediaType: "movie"  },
-    { name: "Horror Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror",                  mediaType: "movie"  },
-    { name: "Sci-Fi Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi",                  mediaType: "movie"  },
-    { name: "Drama Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows",             mediaType: "series" },
-    { name: "Crime Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows",             mediaType: "series" },
-    { name: "Sci-Fi Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows",            mediaType: "series" },
-  ] },
-  apple: { label: "Apple TV+", color: "#444444", letter: "\u25cf", catalogs: [
-    { name: "Apple TV+ Movies", provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "350", tmdbSortBy: "popularity.desc", mediaType: "movie"  },
-    { name: "Apple TV+ Shows",  provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "350",  tmdbSortBy: "popularity.desc", mediaType: "series" },
-    { name: "Trending Movies",         provider: "trakt",   listType: "trending",                                                        mediaType: "movie"  },
-    { name: "Trending Shows",          provider: "trakt",   listType: "trending",                                                        mediaType: "series" },
-    { name: "Most Anticipated Movies", provider: "trakt",   listType: "anticipated",                                                     mediaType: "movie"  },
-    { name: "Most Anticipated Shows",  provider: "trakt",   listType: "anticipated",                                                     mediaType: "series" },
-    { name: "Recommended Movies",      provider: "trakt",   listType: "recommended/weekly",                                             mediaType: "movie"  },
-    { name: "Recommended Shows",       provider: "trakt",   listType: "recommended/weekly",                                             mediaType: "series" },
-    { name: "Drama Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama",                   mediaType: "movie"  },
-    { name: "Thriller Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",                mediaType: "movie"  },
-    { name: "Drama Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows",             mediaType: "series" },
-  ] },
-  trakt: { label: "Trakt Charts", color: "#ED2224", letter: "T", catalogs: [
-    { name: "Trending Movies",         provider: "trakt", listType: "trending",           mediaType: "movie"  },
-    { name: "Trending Shows",          provider: "trakt", listType: "trending",           mediaType: "series" },
-    { name: "Popular Movies",          provider: "trakt", listType: "popular",            mediaType: "movie"  },
-    { name: "Popular Shows",           provider: "trakt", listType: "popular",            mediaType: "series" },
-    { name: "Box Office",              provider: "trakt", listType: "box-office",         mediaType: "movie"  },
-    { name: "Most Watched Movies",     provider: "trakt", listType: "watched/weekly",     mediaType: "movie"  },
-    { name: "Most Watched Shows",      provider: "trakt", listType: "watched/weekly",     mediaType: "series" },
-    { name: "Most Anticipated Movies", provider: "trakt", listType: "anticipated",        mediaType: "movie"  },
-    { name: "Most Anticipated Shows",  provider: "trakt", listType: "anticipated",        mediaType: "series" },
-    { name: "Recommended Movies",      provider: "trakt", listType: "recommended/weekly", mediaType: "movie"  },
-    { name: "Recommended Shows",       provider: "trakt", listType: "recommended/weekly", mediaType: "series" },
-    { name: "Most Collected Movies",   provider: "trakt", listType: "collected/weekly",   mediaType: "movie"  },
-    { name: "Most Collected Shows",    provider: "trakt", listType: "collected/weekly",   mediaType: "series" },
-    { name: "Most Played Movies",      provider: "trakt", listType: "played/weekly",      mediaType: "movie"  },
-    { name: "Most Played Shows",       provider: "trakt", listType: "played/weekly",      mediaType: "series" },
-  ] },
-  kids: { label: "Kids \u0026 Family", color: "#FF6B9D", letter: "\u2764", catalogs: [
-    { name: "Family Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/family",                                     mediaType: "movie"  },
-    { name: "Kids TV Shows",           provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/kids-tv-shows",                              mediaType: "series" },
-    { name: "Disney+ Movies",          provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/disney-movies",                         mediaType: "movie"  },
-    { name: "Disney+ Shows",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/disney-shows",                          mediaType: "series" },
-    { name: "Pixar Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/pixar-movies",                            mediaType: "movie"  },
-    { name: "Top Kids Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/top-watched-movies-of-the-week-for-kids", mediaType: "movie"  },
-    { name: "Comedy Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",                                mediaType: "movie"  },
-    { name: "Comedy Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows",                          mediaType: "series" },
-  ] },
-  genres: { label: "Genres", color: "#8B5CF6", letter: "\u266c", catalogs: [
-    { name: "Action Movies",    provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action",         mediaType: "movie"  },
-    { name: "Comedy Movies",    provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",         mediaType: "movie"  },
-    { name: "Drama Movies",     provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama",          mediaType: "movie"  },
-    { name: "Horror Movies",    provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror",         mediaType: "movie"  },
-    { name: "Thriller Movies",  provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",       mediaType: "movie"  },
-    { name: "Sci-Fi Movies",    provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi",         mediaType: "movie"  },
-    { name: "Crime Movies",     provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime",          mediaType: "movie"  },
-    { name: "War Movies",       provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/war",            mediaType: "movie"  },
-    { name: "History Movies",   provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/history",        mediaType: "movie"  },
-    { name: "Romance Movies",   provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/romance",        mediaType: "movie"  },
-    { name: "Western Movies",   provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/western",        mediaType: "movie"  },
-    { name: "Drama Shows",      provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows",    mediaType: "series" },
-    { name: "Comedy Shows",     provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows",   mediaType: "series" },
-    { name: "Horror Shows",     provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror-shows",   mediaType: "series" },
-    { name: "Sci-Fi Shows",     provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows",   mediaType: "series" },
-    { name: "Crime Shows",      provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows",    mediaType: "series" },
-    { name: "Thriller Shows",   provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller-shows", mediaType: "series" },
-  ] },
-  discovery: { label: "Surprise Me", color: "#EC4899", letter: "\u2728", catalogs: [
-    { name: "Trending Movies",         provider: "trakt",   listType: "trending",           mediaType: "movie"  },
-    { name: "Trending Shows",          provider: "trakt",   listType: "trending",           mediaType: "series" },
-    { name: "Most Anticipated Movies", provider: "trakt",   listType: "anticipated",        mediaType: "movie"  },
-    { name: "Most Anticipated Shows",  provider: "trakt",   listType: "anticipated",        mediaType: "series" },
-    { name: "Recommended Movies",      provider: "trakt",   listType: "recommended/weekly", mediaType: "movie"  },
-    { name: "Recommended Shows",       provider: "trakt",   listType: "recommended/weekly", mediaType: "series" },
-    { name: "Best New Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/new-movies",                   mediaType: "movie"  },
-    { name: "Best New Shows",          provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/best-new-shows",               mediaType: "series" },
-    { name: "Latest Blu-Ray",          provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/latest-blu-ray-releases",    mediaType: "movie"  },
-    { name: "Certified Fresh",         provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/certified-fresh",              mediaType: "movie"  },
-    { name: "TMDb Trending",           provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/tmdb-trending-top-250",           mediaType: "movie"  },
-    { name: "IMDb Top 250",            provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/imdb-toprated-250",               mediaType: "movie"  },
-    { name: "Most Watched Movies",     provider: "trakt",   listType: "watched/weekly",     mediaType: "movie"  },
-    { name: "Most Watched Shows",      provider: "trakt",   listType: "watched/weekly",     mediaType: "series" },
-  ] },
-  popular: { label: "Popular \u0026 Trending", color: "#F59E0B", letter: "\u2605", catalogs: [
-    { name: "Trending Movies",     provider: "trakt",   listType: "trending",       mediaType: "movie"  },
-    { name: "Trending Shows",      provider: "trakt",   listType: "trending",       mediaType: "series" },
-    { name: "Popular Movies",      provider: "trakt",   listType: "popular",        mediaType: "movie"  },
-    { name: "Popular Shows",       provider: "trakt",   listType: "popular",        mediaType: "series" },
-    { name: "Box Office",          provider: "trakt",   listType: "box-office",     mediaType: "movie"  },
-    { name: "Most Watched Movies", provider: "trakt",   listType: "watched/weekly", mediaType: "movie"  },
-    { name: "Most Watched Shows",  provider: "trakt",   listType: "watched/weekly", mediaType: "series" },
-    { name: "IMDb Top 250",        provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/imdb-toprated-250",     mediaType: "movie"  },
-    { name: "Best New Movies",     provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/new-movies",          mediaType: "movie"  },
-    { name: "Best New Shows",      provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/best-new-shows",      mediaType: "series" },
-    { name: "Top Movies",          provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/top-movies",        mediaType: "movie"  },
-    { name: "Latest TV Shows",     provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/latest-tv-shows",   mediaType: "series" },
-  ] },
-  streamingcatalogs: { label: "Streaming Catalogs", color: "#111111", letter: "S", catalogs: [
-    { name: "Netflix",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "nfx", catalogType: "movie",  mediaType: "movie"  },
-    { name: "Netflix",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "nfx", catalogType: "series", mediaType: "series" },
-    { name: "HBO Max",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "hbm", catalogType: "movie",  mediaType: "movie"  },
-    { name: "HBO Max",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "hbm", catalogType: "series", mediaType: "series" },
-    { name: "Disney+",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "dnp", catalogType: "movie",  mediaType: "movie"  },
-    { name: "Disney+",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "dnp", catalogType: "series", mediaType: "series" },
-    { name: "Prime Video", provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "amp", catalogType: "movie",  mediaType: "movie"  },
-    { name: "Prime Video", provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "amp", catalogType: "series", mediaType: "series" },
-    { name: "Apple TV+",   provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "atp", catalogType: "movie",  mediaType: "movie"  },
-    { name: "Apple TV+",   provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "atp", catalogType: "series", mediaType: "series" },
-  ] },
-  topstreaming: { label: "TOP Streaming", color: "#c0392b", letter: "T", importHint: true, catalogs: [] },
-  tmdb: { label: "TMDB", color: "#01B4E4", letter: "T", catalogs: [
-    { name: "Trending Movies",  provider: "tmdb", tmdbMode: "charts", tmdbChart: "trending-week", mediaType: "movie"  },
-    { name: "Trending Shows",   provider: "tmdb", tmdbMode: "charts", tmdbChart: "trending-week", mediaType: "series" },
-    { name: "Popular Movies",   provider: "tmdb", tmdbMode: "charts", tmdbChart: "popular",       mediaType: "movie"  },
-    { name: "Popular Shows",    provider: "tmdb", tmdbMode: "charts", tmdbChart: "popular",       mediaType: "series" },
-    { name: "Top Rated Movies", provider: "tmdb", tmdbMode: "charts", tmdbChart: "top-rated",     mediaType: "movie"  },
-    { name: "Top Rated Shows",  provider: "tmdb", tmdbMode: "charts", tmdbChart: "top-rated",     mediaType: "series" },
-    { name: "Now Playing",      provider: "tmdb", tmdbMode: "charts", tmdbChart: "now-playing",   mediaType: "movie"  },
-    { name: "Upcoming Movies",  provider: "tmdb", tmdbMode: "charts", tmdbChart: "upcoming",      mediaType: "movie"  },
-  ] },
+// -- TOP Streaming addon (1:1 Stremio catalog source) --
+const TOP_STREAMING = {
+  baseUrl: 'https://top-streaming.stream/471c23c0-6756-471c-a7eb-f41927b5c214',
+  manifestUrl: 'https://top-streaming.stream/471c23c0-6756-471c-a7eb-f41927b5c214/manifest.json',
+  version: '4.2.1',
+  name: 'TOP Streaming',
+  description: 'Top 10 Catalog Lists from the main Streaming Platforms',
+  lang: 'en-US',
+  mainPlatforms: ['netflix', 'prime', 'disney', 'hulu', 'max', 'apple'],
 };
+
+const TOP_STREAMING_MANIFEST_CATALOGS = [
+  { id: 'netflix-movies-united-states', type: 'movie', name: 'Netflix - Top 10 United States', group: 'netflix' },
+  { id: 'netflix-series-united-states', type: 'series', name: 'Netflix - Top 10 United States', group: 'netflix' },
+  { id: 'amazon-prime-movies-united-states', type: 'movie', name: 'Amazon Prime Video - Top 10 United States', group: 'prime' },
+  { id: 'amazon-prime-series-united-states', type: 'series', name: 'Amazon Prime Video - Top 10 United States', group: 'prime' },
+  { id: 'disney-movies-united-states', type: 'movie', name: 'Disney+ - Top 10 United States', group: 'disney' },
+  { id: 'disney-series-united-states', type: 'series', name: 'Disney+ - Top 10 United States', group: 'disney' },
+  { id: 'apple-tv-movies-united-states', type: 'movie', name: 'Apple TV - Top 10 United States', group: 'apple' },
+  { id: 'apple-tv-series-united-states', type: 'series', name: 'Apple TV - Top 10 United States', group: 'apple' },
+  { id: 'hbo-max-movies-united-states', type: 'movie', name: 'HBO Max - Top 10 United States', group: 'max' },
+  { id: 'hbo-max-series-united-states', type: 'series', name: 'HBO Max - Top 10 United States', group: 'max' },
+  { id: 'hulu-movie-united-states', type: 'movie', name: 'Hulu - Top 10 United States', group: 'hulu' },
+  { id: 'hulu-series-united-states', type: 'series', name: 'Hulu - Top 10 United States', group: 'hulu' },
+  { id: 'paramount-plus-movies-united-states', type: 'movie', name: 'Paramount+ - Top 10 United States', group: 'paramount' },
+  { id: 'paramount-plus-series-united-states', type: 'series', name: 'Paramount+ - Top 10 United States', group: 'paramount' },
+  { id: 'peacock-movies-united-states', type: 'movie', name: 'Peacock - Top 10 United States', group: 'peacock' },
+  { id: 'peacock-series-united-states', type: 'series', name: 'Peacock - Top 10 United States', group: 'peacock' },
+  { id: 'discovery-plus-overall-amazon-channels-united-states', type: 'series', name: 'Discovery+ - Overall United States', group: 'discovery' },
+  { id: 'vudu-movies-united-states', type: 'movie', name: 'Vudu - Top 10 United States', group: 'vudu' },
+  { id: 'vudu-series-united-states', type: 'series', name: 'Vudu - Top 10 United States', group: 'vudu' },
+  { id: 'starz-movies-united-states', type: 'movie', name: 'STARZ - Top 10 United States', group: 'starz' },
+  { id: 'starz-series-united-states', type: 'series', name: 'STARZ - Top 10 United States', group: 'starz' },
+  { id: 'viki-overall-united-states', type: 'series', name: 'Viki - Top 10 United States', group: 'viki' },
+  { id: 'crunchyroll-overall-amazon-channels-united-states', type: 'series', name: 'Crunchyroll - Overall United States', group: 'crunchyroll' },
+];
+
+function topStreamingEntry(c) {
+  return {
+    provider: 'addon',
+    sourceUrl: TOP_STREAMING.baseUrl,
+    catalogId: c.id,
+    catalogType: c.type,
+    mediaType: c.type,
+    name: c.name,
+  };
+}
+
+function catalogsForGroup(group) {
+  return TOP_STREAMING_MANIFEST_CATALOGS.filter(c => c.group === group).map(topStreamingEntry);
+}
+
+const STREAMING_PRESETS = {
+  netflix:   { label: 'Netflix',   color: '#E50914', letter: 'N',  category: 'streaming', catalogs: catalogsForGroup('netflix') },
+  prime:     { label: 'Prime',     color: '#00A8E1', letter: 'P',  category: 'streaming', catalogs: catalogsForGroup('prime') },
+  disney:    { label: 'Disney+',   color: '#0063E5', letter: 'D+', category: 'streaming', catalogs: catalogsForGroup('disney') },
+  hulu:      { label: 'Hulu',      color: '#1CE783', letter: 'H',  category: 'streaming', catalogs: catalogsForGroup('hulu') },
+  max:       { label: 'Max',       color: '#002BE7', letter: 'M',  category: 'streaming', catalogs: catalogsForGroup('max') },
+  apple:     { label: 'Apple TV+', color: '#444444', letter: '\u25cf', category: 'streaming', catalogs: catalogsForGroup('apple') },
+  paramount: { label: 'Paramount+', color: '#0064FF', letter: 'P+', category: 'more', catalogs: catalogsForGroup('paramount') },
+  peacock:   { label: 'Peacock',   color: '#000000', letter: 'Pc', category: 'more', catalogs: catalogsForGroup('peacock') },
+  discovery: { label: 'Discovery+', color: '#1A98FF', letter: 'D+', category: 'more', catalogs: catalogsForGroup('discovery') },
+  vudu:      { label: 'Vudu',      color: '#3399FF', letter: 'V',  category: 'more', catalogs: catalogsForGroup('vudu') },
+  starz:     { label: 'STARZ',     color: '#000000', letter: 'S',  category: 'more', catalogs: catalogsForGroup('starz') },
+  viki:      { label: 'Viki',      color: '#00B4D8', letter: 'Vk', category: 'more', catalogs: catalogsForGroup('viki') },
+  crunchyroll: { label: 'Crunchyroll', color: '#F47521', letter: 'Cr', category: 'more', catalogs: catalogsForGroup('crunchyroll') },
+};
+
+const GALLERY_KEYS = Object.keys(STREAMING_PRESETS);
+const PRESET_CATS = Object.fromEntries(GALLERY_KEYS.map(k => [k, STREAMING_PRESETS[k].category || 'all']));
 
 function initPresets() { /* gallery built by renderGallery() */ }
 function selectPreset(key) {
-  if (STREAMING_PRESETS[key] && STREAMING_PRESETS[key].importHint) {
-    _selectedPreset = null;
-    const ex = document.getElementById('cw-expert');
-    const btn = document.getElementById('cw-expert-toggle');
-    if (ex) ex.classList.add('on');
-    if (btn) btn.classList.add('on');
-    const el = document.getElementById('addon-import-url');
-    if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-    return;
-  }
   _selectedPreset = key;
   var p = STREAMING_PRESETS[key];
   document.querySelectorAll('.cw-svc-card').forEach(function(b) { b.classList.toggle('active', b.dataset.key === key); });
@@ -247,7 +116,7 @@ function selectPreset(key) {
     cb.className = 'preset-cb'; cb.dataset.idx = idx;
     cb.addEventListener('change', function() { updatePresetCount(); });
     var badge = document.createElement('span'); badge.className = 'preset-preview-badge preset-badge-' + cat.provider;
-    badge.textContent = cat.provider === 'mdblist' ? 'MDB' : cat.provider.toUpperCase();
+    badge.textContent = cat.provider === 'mdblist' ? 'MDB' : cat.provider === 'addon' ? 'TOP' : cat.provider.toUpperCase();
     var nm = document.createElement('span'); nm.className = 'preset-preview-name'; nm.textContent = cat.name;
     var tp = document.createElement('span'); tp.className = 'preset-preview-type'; tp.textContent = cat.mediaType === 'series' ? 'Shows' : 'Movies';
     row.appendChild(cb); row.appendChild(badge); row.appendChild(nm); row.appendChild(tp); list.appendChild(row);
@@ -329,37 +198,33 @@ function applyPreset() {
   if (window.CatalogsWizard) window.CatalogsWizard.updateReviewUI();
 }
 
-function applyQuickStart(key) {
-  var qs = QUICK_STARTS[key];
-  if (!qs) return;
-  var mdbKey = (document.getElementById('mdblist-api-key') || {}).value || '';
-  var added = 0;
-  qs.presets.forEach(function(presetKey) {
-    var p = STREAMING_PRESETS[presetKey];
-    if (!p || !p.catalogs) return;
-    var limit = qs.maxEach || p.catalogs.length;
-    for (var i = 0; i < p.catalogs.length && i < limit; i++) {
-      var cat = p.catalogs[i];
-      var catObj = { provider: cat.provider, listType: cat.listType || '', listUrl: cat.listUrl || '',
-        mediaType: cat.mediaType || 'movie', name: cat.name, apiKey: cat.provider === 'mdblist' ? mdbKey : '', enabled: true };
-      if (cat.provider === 'tmdb') {
-        catObj.tmdbMode = cat.tmdbMode || 'charts';
-        catObj.tmdbChart = cat.tmdbChart || '';
-        catObj.tmdbWatchProvider = cat.tmdbWatchProvider || '';
-        catObj.tmdbSortBy = cat.tmdbSortBy || 'popularity.desc';
-      }
-      if (catalogRowExists(catObj)) continue;
-      addExternalCatalog(catObj);
-      added++;
-    }
+function addCatalogEntries(catalogs, opts) {
+  var added = 0, skipped = 0;
+  (catalogs || []).forEach(function(cat) {
+    var catObj = Object.assign({ enabled: true }, cat);
+    if (catalogRowExists(catObj)) { skipped++; return; }
+    addExternalCatalog(catObj);
+    added++;
   });
-  if (added) {
+  if (added || skipped) {
+    var msg = added ? 'Added ' + added + ' row' + (added === 1 ? '' : 's') : '';
+    if (skipped) msg += (msg ? ', ' : '') + skipped + ' duplicate(s) skipped';
     var ind = document.getElementById('autosave-indicator');
-    if (ind) { ind.textContent = 'Added ' + added + ' row' + (added === 1 ? '' : 's'); ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove('visible'); ind.textContent = 'Settings saved'; }, 2500); }
+    if (ind) { ind.textContent = msg || 'No new rows'; ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove('visible'); ind.textContent = 'Settings saved'; }, 2500); }
     if (window.autoSave) window.autoSave();
     if (window.CatalogsWizard) window.CatalogsWizard.updateReviewUI();
-    goToStep('review');
+    if (opts && opts.goReview && added) goToStep('review');
   }
+  return added;
+}
+
+function installTopStreamingAll() {
+  return addCatalogEntries(TOP_STREAMING_MANIFEST_CATALOGS.map(topStreamingEntry), { goReview: true });
+}
+
+function installTopStreamingMain() {
+  var cats = TOP_STREAMING.mainPlatforms.flatMap(function(g) { return catalogsForGroup(g); });
+  return addCatalogEntries(cats, { goReview: true });
 }
 
 function onCatalogProviderChange() {
@@ -444,7 +309,7 @@ function updateTmdbAutoName() {
 }
 
 function renderCatalogRow(cat, id) {
-  const badges = { trakt: 'Trakt', mdblist: 'MDbList', imdb: 'IMDb', letterboxd: 'Letterboxd', tmdb: 'TMDB' };
+  const badges = { trakt: 'Trakt', mdblist: 'MDbList', imdb: 'IMDb', letterboxd: 'Letterboxd', tmdb: 'TMDB', addon: 'TOP' };
   const typeBadge = cat.mediaType === 'both' ? 'Movies + Shows' : cat.mediaType === 'series' ? 'Shows' : 'Movies';
   const badge  = badges[cat.provider] || cat.provider;
   var detail;
@@ -467,6 +332,8 @@ function renderCatalogRow(cat, id) {
     } else {
       detail = chartNames[cat.tmdbChart] || cat.tmdbChart || 'Charts';
     }
+  } else if (cat.provider === 'addon') {
+    detail = 'TOP Streaming · Top 10';
   } else {
     detail = cat.listType
       ? (TRAKT_LIST_NAMES[cat.listType] || cat.listType)
@@ -562,6 +429,11 @@ async function testCatalog(id) {
     if (row.dataset.tmdbYearTo)    entry.tmdbYearTo    = Number(row.dataset.tmdbYearTo);
     entry.tmdbSortBy = row.dataset.tmdbSortBy || 'popularity.desc';
   }
+  if (entry.provider === 'addon') {
+    entry.sourceUrl   = row.dataset.sourceUrl   || '';
+    entry.catalogId   = row.dataset.catalogId   || '';
+    entry.catalogType = row.dataset.catalogType || entry.mediaType || 'movie';
+  }
   
   const rpdbKey = document.getElementById('rpdb-key')?.value?.trim() || null;
   const traktClientId = document.getElementById('trakt-client-id')?.value?.trim() || null;
@@ -609,34 +481,16 @@ async function testCatalog(id) {
 
 
 function applyAllNetworks() {
-  var NETWORK_KEYS = ["netflix", "prime", "disney", "hulu", "max", "apple"];
-  var seen = new Set();
-  var catList = document.getElementById("catalog-list");
-  if (catList) {
-    catList.querySelectorAll("[data-list-url]").forEach(function(row) {
-      seen.add(row.dataset.listUrl || "");
-    });
-  }
-  NETWORK_KEYS.forEach(function(key) {
-    var p = STREAMING_PRESETS[key]; if (!p) return;
-    var added = 0;
-    for (var ci = 0; ci < p.catalogs.length && added < 2; ci++) {
-      var cat = p.catalogs[ci];
-      var uid;
-      if (cat.provider === 'tmdb') {
-        uid = 'tmdb:' + (cat.tmdbMode || '') + ':' + (cat.tmdbWatchProvider || '') + ':' + (cat.tmdbChart || '') + ':' + (cat.mediaType || '');
-      } else {
-        uid = cat.listUrl || ("trakt:" + (cat.listType || ""));
-      }
-      if (seen.has(uid)) continue;
-      seen.add(uid);
-      addExternalCatalog(cat);
-      added++;
-    }
-  });
+  var cats = TOP_STREAMING.mainPlatforms.map(function(key) {
+    var p = STREAMING_PRESETS[key];
+    if (!p || !p.catalogs || !p.catalogs.length) return null;
+    return p.catalogs.find(function(c) { return c.mediaType === 'movie'; }) || p.catalogs[0];
+  }).filter(Boolean);
+  addCatalogEntries(cats);
 }
 
-function addExternalCatalog(cat) {
+function addExternalCatalog(cat, opts) {
+  opts = opts || {};
   if (!cat) {
     const provider  = document.getElementById('cat-provider').value;
     if (!provider) { alert('Select a provider first.'); return; }
@@ -689,7 +543,7 @@ function addExternalCatalog(cat) {
   initDragRow(row);
   if (window.autoSave) window.autoSave();
   if (window.CatalogsWizard) window.CatalogsWizard.updateReviewUI();
-  if (!cat.count && cat.enabled !== false && cat.provider !== 'addon') testCatalog(id);
+  if (opts.autoTest !== false && !cat.count && cat.enabled !== false) testCatalog(id);
 }
 
 function removeCatalog(id) {
@@ -961,7 +815,7 @@ function addTraktBrowseSelection() {
       const cat = PRESET_CATS[k] || 'all';
       if (_galleryCat !== 'all' && cat !== _galleryCat) return;
       const p = STREAMING_PRESETS[k];
-      if (!p || p.importHint) return;
+      if (!p || !p.catalogs || !p.catalogs.length) return;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'cw-svc-card';
@@ -985,10 +839,9 @@ function addTraktBrowseSelection() {
     });
   }
 
-  function bindQuickStart() {
-    document.querySelectorAll('.cw-qs-card').forEach(card => {
-      card.addEventListener('click', () => applyQuickStart(card.dataset.qs));
-    });
+  function updateAddonCardMeta() {
+    const countEl = document.getElementById('cw-addon-catalog-count');
+    if (countEl) countEl.textContent = String(TOP_STREAMING_MANIFEST_CATALOGS.length);
   }
 
   function bindKeyCards() {
@@ -1224,7 +1077,7 @@ function addTraktBrowseSelection() {
     bindKeyCards();
     bindWizardNav();
     bindCategoryTabs();
-    bindQuickStart();
+    updateAddonCardMeta();
     renderGallery();
     goToStep(parseStepFromHash());
     toggleCatalogOptions();
@@ -1270,7 +1123,9 @@ function addTraktBrowseSelection() {
   window.updateTmdbAutoName = updateTmdbAutoName;
   window.selectPreset = selectPreset;
   window.closePresetSheet = closePresetSheet;
-  window.applyQuickStart = applyQuickStart;
+  window.installTopStreamingAll = installTopStreamingAll;
+  window.installTopStreamingMain = installTopStreamingMain;
+  window.TOP_STREAMING = TOP_STREAMING;
   window.STREAMING_PRESETS = STREAMING_PRESETS;
   window.CatalogsWizard = { init, onPageShow, goToStep, renderGallery, updateReviewUI, updateTvPreview, syncLibChips, toggleCatalogOptions, updateProgress };
 
