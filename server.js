@@ -599,11 +599,13 @@ app.post('/api/ping-servers', apiLimiter, express.json(), async (req, res) => {
       const parsed = await assertSafeFetchUrl(s.url, 'server url');
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 5000);
-      try { await fetch(`${parsed.origin}/System/Ping`, { headers: { 'User-Agent': BROWSER_UA }, signal: controller.signal }); }
-      finally { clearTimeout(timer); }
-      return { label: s.label, ms: Date.now() - t0 };
+      try {
+        const resp = await fetch(`${parsed.origin}/System/Ping`, { headers: { 'User-Agent': BROWSER_UA }, signal: controller.signal });
+        if (!resp.ok) return { label: s.label, ms: null, up: false };
+      } finally { clearTimeout(timer); }
+      return { label: s.label, ms: Date.now() - t0, up: true };
     } catch {
-      return { label: s.label, ms: null };
+      return { label: s.label, ms: null, up: false };
     }
   }));
   res.json({ results });

@@ -172,10 +172,14 @@ function makeUserRouter() {
       const cfg = await uc.getForServe(req.user.id);
       const servers = filterLiveServers(cfg);
       if (!servers.length) return res.json({ down: [] });
-      const raw = detectDownServers(healthHistory, servers, { consecutive: 3 });
+      const { HEALTH_CONSECUTIVE_DOWN, detectionWindowMinutes } = require('../lib/health');
+      const raw = detectDownServers(healthHistory, servers, { consecutive: HEALTH_CONSECUTIVE_DOWN });
       const snoozed = (cfg && cfg.alertPrefs && cfg.alertPrefs.snoozed) || {};
       const down = filterSnoozed(raw, snoozed);
-      res.json({ down });
+      res.json({
+        down,
+        detectionMinutes: detectionWindowMinutes(HEALTH_CONSECUTIVE_DOWN),
+      });
     } catch (e) {
       console.error('[user/server-alerts]', e.message);
       res.status(500).json({ error: 'alerts failed' });

@@ -1,13 +1,13 @@
 // In-app banner when user servers are down for 3+ consecutive health checks.
 (function () {
-  const POLL_MS = 60000;
+  const POLL_MS = 30000;
   let timer = null;
 
   function esc(t) {
     return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
   }
 
-  function renderBanner(down) {
+  function renderBanner(down, detectionMinutes) {
     let el = document.getElementById('server-down-banner');
     if (!down || !down.length) {
       if (el) el.remove();
@@ -15,9 +15,10 @@
       return;
     }
     const names = down.map(d => d.label || d.url).filter(Boolean);
+    const mins = detectionMinutes || 3;
     const summary = names.length === 1
-      ? `<strong>${esc(names[0])}</strong> has been offline for 15+ minutes`
-      : `<strong>${names.length} servers</strong> offline — ${esc(names.slice(0, 2).join(', '))}${names.length > 2 ? '…' : ''}`;
+      ? `<strong>${esc(names[0])}</strong> has been offline for ${mins}+ minutes`
+      : `<strong>${names.length} servers</strong> offline for ${mins}+ minutes — ${esc(names.slice(0, 2).join(', '))}${names.length > 2 ? '…' : ''}`;
     if (!el) {
       el = document.createElement('div');
       el.id = 'server-down-banner';
@@ -60,7 +61,7 @@
       const me = await fetch('/api/auth/me', { credentials: 'same-origin' }).then(r => r.json()).catch(() => null);
       if (!me || !me.user) { renderBanner([]); return; }
       const data = await fetch('/api/user/server-alerts', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null);
-      renderBanner(data && data.down);
+      renderBanner(data && data.down, data && data.detectionMinutes);
     } catch {
       renderBanner([]);
     }
