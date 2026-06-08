@@ -378,6 +378,43 @@ app.get('/api/site-config', async (req, res) => {
 });
 
 
+// ─── Catalog browse proxies (avoids browser CORS) ─────────────────────────────
+app.post('/api/catalogs/browse-mdblist', apiLimiter, express.json(), async (req, res) => {
+  const { username, apiKey } = req.body || {};
+  if (!username || !apiKey) return res.status(400).json({ error: 'username and apiKey required' });
+  try {
+    const url = `https://api.mdblist.com/lists/user/${encodeURIComponent(username)}/?apikey=${encodeURIComponent(apiKey)}`;
+    const r = await fetchWithTimeout(url, 10000, { headers: { 'User-Agent': BROWSER_UA } });
+    if (!r.ok) return res.status(502).json({ error: `MDbList API returned ${r.status}` });
+    const lists = await r.json();
+    res.json({ lists: Array.isArray(lists) ? lists : [] });
+  } catch (err) {
+    res.status(502).json({ error: err.message || 'browse failed' });
+  }
+});
+
+app.post('/api/catalogs/browse-trakt', apiLimiter, express.json(), async (req, res) => {
+  const { username, traktClientId } = req.body || {};
+  const clientId = traktClientId || process.env.TRAKT_CLIENT_ID;
+  if (!username || !clientId) return res.status(400).json({ error: 'username and traktClientId required' });
+  try {
+    const url = `https://api.trakt.tv/users/${encodeURIComponent(username)}/lists`;
+    const r = await fetchWithTimeout(url, 10000, {
+      headers: {
+        'Content-Type': 'application/json',
+        'trakt-api-version': '2',
+        'trakt-api-key': clientId,
+        'User-Agent': BROWSER_UA,
+      },
+    });
+    if (!r.ok) return res.status(502).json({ error: `Trakt API returned ${r.status}` });
+    const lists = await r.json();
+    res.json({ lists: Array.isArray(lists) ? lists : [] });
+  } catch (err) {
+    res.status(502).json({ error: err.message || 'browse failed' });
+  }
+});
+
 // ─── Catalog validation ───────────────────────────────────────────────────────
 app.post('/api/catalog/validate', apiLimiter, express.json(), async (req, res) => {
   const { entry, rpdbKey, traktClientId, catalogLang, tmdbApiKey } = req.body || {};

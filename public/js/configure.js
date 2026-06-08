@@ -1,7 +1,7 @@
 // ── State ─────────────────────────────────────────────────────────────────
 const LS_KEY = 'meb_config_v1';
 let nextId = 0;
-let nextCatId = 0;
+// nextCatId owned by catalogs-wizard.js
 
 // Library-stats cache: key = url|apiKey|userId -> {movies,shows,episodes,ms,ts}
 let _libStatsCache = {};
@@ -162,18 +162,19 @@ function applyManifestSettings(cfg) {
   if (c.flagEmoji != null) setVal('flag-emoji', c.flagEmoji);
   if (c.bitrateBar != null) setVal('bitrate-bar', c.bitrateBar);
   if (c.subsStyle) setVal('subs-style', c.subsStyle);
-  if (c.showCatalog === false) { setChk('show-catalog', false); toggleCatalogOptions(); }
+  if (c.showCatalog === false) { setChk('show-catalog', false); if (window.toggleCatalogOptions) window.toggleCatalogOptions(); }
   if (c.catalogContent) setVal('catalog-content', c.catalogContent);
   if (Array.isArray(c.libraryRows)) {
     ['recent', 'resume', 'nextup', 'favorites'].forEach(k => {
       const el = document.getElementById('libchk-' + k);
       if (el) el.checked = c.libraryRows.indexOf(k) !== -1;
     });
+    if (window.CatalogsWizard && window.CatalogsWizard.syncLibChips) window.CatalogsWizard.syncLibChips();
   }
   if (c.rpdbKey) setVal('rpdb-key', c.rpdbKey);
   if (Array.isArray(c.externalCatalogs) && c.externalCatalogs.length) {
     const catList = document.getElementById('catalog-list');
-    if (catList) { catList.innerHTML = ''; nextCatId = 0; c.externalCatalogs.forEach(cat => addExternalCatalog(cat)); }
+    if (catList && window.addExternalCatalog) { catList.innerHTML = ''; window.nextCatId = 0; c.externalCatalogs.forEach(cat => window.addExternalCatalog(cat)); }
   }
   toggleCustomPreset();
   if (typeof updateLabelPreview === 'function') updateLabelPreview();
@@ -959,822 +960,7 @@ function updateSteps() {
   s2.className = hasServers ? 'step active' : 'step';
 }
 
-// -- External Catalogs --------------------------------------------------------
-const TRAKT_LIST_NAMES = {
-  'trending': 'Trending', 'popular': 'Popular',
-  'watched/weekly': 'Most Watched', 'anticipated': 'Anticipated',
-};
-
-// -- Streaming Presets --
-const STREAMING_PRESETS = {
-  netflix: { label: "Netflix", color: "#E50914", letter: "N", catalogs: [
-    { name: "Netflix Movies",  provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "8",    tmdbSortBy: "popularity.desc", mediaType: "movie"  },
-    { name: "Netflix Shows",   provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "8",    tmdbSortBy: "popularity.desc", mediaType: "series" },
-    { name: "Action Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action",                  mediaType: "movie"  },
-    { name: "Crime Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime",                   mediaType: "movie"  },
-    { name: "Thriller Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",                mediaType: "movie"  },
-    { name: "Drama Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama",                   mediaType: "movie"  },
-    { name: "Horror Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror",                  mediaType: "movie"  },
-    { name: "Comedy Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",                  mediaType: "movie"  },
-    { name: "Sci-Fi Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi",                  mediaType: "movie"  },
-    { name: "Drama Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows",             mediaType: "series" },
-    { name: "Crime Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows",             mediaType: "series" },
-    { name: "Comedy Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows",            mediaType: "series" },
-  ] },
-  prime: { label: "Prime Video", color: "#00A8E1", letter: "P", catalogs: [
-    { name: "Prime Movies",    provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "119",  tmdbSortBy: "popularity.desc", mediaType: "movie"  },
-    { name: "Prime Shows",     provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "119",  tmdbSortBy: "popularity.desc", mediaType: "series" },
-    { name: "Action Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action",                  mediaType: "movie"  },
-    { name: "Thriller Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",                mediaType: "movie"  },
-    { name: "Comedy Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",                  mediaType: "movie"  },
-    { name: "Sci-Fi Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi",                  mediaType: "movie"  },
-    { name: "Drama Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama",                   mediaType: "movie"  },
-    { name: "Drama Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows",             mediaType: "series" },
-    { name: "Crime Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows",             mediaType: "series" },
-    { name: "Comedy Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows",            mediaType: "series" },
-    { name: "Sci-Fi Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows",            mediaType: "series" },
-  ] },
-  disney: { label: "Disney+", color: "#0063E5", letter: "D+", catalogs: [
-    { name: "Disney+ Movies",  provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "337",  tmdbSortBy: "popularity.desc", mediaType: "movie"  },
-    { name: "Disney+ Shows",   provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "337",  tmdbSortBy: "popularity.desc", mediaType: "series" },
-    { name: "Marvel Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/marvel-cinematic-universe", mediaType: "movie"  },
-    { name: "Star Wars Movies",        provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/star-wars",                 mediaType: "movie"  },
-    { name: "Pixar Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/pixar-movies",              mediaType: "movie"  },
-    { name: "Family Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/family",                      mediaType: "movie"  },
-    { name: "Action Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action",                  mediaType: "movie"  },
-    { name: "Sci-Fi Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi",                  mediaType: "movie"  },
-    { name: "Comedy Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",                  mediaType: "movie"  },
-  ] },
-  hulu: { label: "Hulu", color: "#1CE783", letter: "H", catalogs: [
-    { name: "Hulu Movies",     provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "15",   tmdbSortBy: "popularity.desc", mediaType: "movie"  },
-    { name: "Hulu Shows",      provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "15",   tmdbSortBy: "popularity.desc", mediaType: "series" },
-    { name: "Trending Movies",         provider: "trakt",   listType: "trending",                                                        mediaType: "movie"  },
-    { name: "Trending Shows",          provider: "trakt",   listType: "trending",                                                        mediaType: "series" },
-    { name: "Comedy Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",                  mediaType: "movie"  },
-    { name: "Drama Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama",                   mediaType: "movie"  },
-    { name: "Horror Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror",                  mediaType: "movie"  },
-    { name: "Thriller Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",                mediaType: "movie"  },
-    { name: "Drama Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows",             mediaType: "series" },
-    { name: "Comedy Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows",            mediaType: "series" },
-    { name: "Sci-Fi Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows",            mediaType: "series" },
-  ] },
-  max: { label: "Max", color: "#002BE7", letter: "M", catalogs: [
-    { name: "Max Movies",      provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "1899", tmdbSortBy: "popularity.desc", mediaType: "movie"  },
-    { name: "Max Shows",       provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "1899", tmdbSortBy: "popularity.desc", mediaType: "series" },
-    { name: "Trending Movies",         provider: "trakt",   listType: "trending",                                                        mediaType: "movie"  },
-    { name: "Popular Movies",          provider: "trakt",   listType: "popular",                                                         mediaType: "movie"  },
-    { name: "Drama Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama",                   mediaType: "movie"  },
-    { name: "Crime Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime",                   mediaType: "movie"  },
-    { name: "Thriller Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",                mediaType: "movie"  },
-    { name: "Horror Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror",                  mediaType: "movie"  },
-    { name: "Sci-Fi Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi",                  mediaType: "movie"  },
-    { name: "Drama Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows",             mediaType: "series" },
-    { name: "Crime Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows",             mediaType: "series" },
-    { name: "Sci-Fi Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows",            mediaType: "series" },
-  ] },
-  apple: { label: "Apple TV+", color: "#444444", letter: "\u25cf", catalogs: [
-    { name: "Apple TV+ Movies", provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "350", tmdbSortBy: "popularity.desc", mediaType: "movie"  },
-    { name: "Apple TV+ Shows",  provider: "tmdb", tmdbMode: "discover", tmdbWatchProvider: "350",  tmdbSortBy: "popularity.desc", mediaType: "series" },
-    { name: "Trending Movies",         provider: "trakt",   listType: "trending",                                                        mediaType: "movie"  },
-    { name: "Trending Shows",          provider: "trakt",   listType: "trending",                                                        mediaType: "series" },
-    { name: "Most Anticipated Movies", provider: "trakt",   listType: "anticipated",                                                     mediaType: "movie"  },
-    { name: "Most Anticipated Shows",  provider: "trakt",   listType: "anticipated",                                                     mediaType: "series" },
-    { name: "Recommended Movies",      provider: "trakt",   listType: "recommended/weekly",                                             mediaType: "movie"  },
-    { name: "Recommended Shows",       provider: "trakt",   listType: "recommended/weekly",                                             mediaType: "series" },
-    { name: "Drama Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama",                   mediaType: "movie"  },
-    { name: "Thriller Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",                mediaType: "movie"  },
-    { name: "Drama Shows",             provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows",             mediaType: "series" },
-  ] },
-  trakt: { label: "Trakt Charts", color: "#ED2224", letter: "T", catalogs: [
-    { name: "Trending Movies",         provider: "trakt", listType: "trending",           mediaType: "movie"  },
-    { name: "Trending Shows",          provider: "trakt", listType: "trending",           mediaType: "series" },
-    { name: "Popular Movies",          provider: "trakt", listType: "popular",            mediaType: "movie"  },
-    { name: "Popular Shows",           provider: "trakt", listType: "popular",            mediaType: "series" },
-    { name: "Box Office",              provider: "trakt", listType: "box-office",         mediaType: "movie"  },
-    { name: "Most Watched Movies",     provider: "trakt", listType: "watched/weekly",     mediaType: "movie"  },
-    { name: "Most Watched Shows",      provider: "trakt", listType: "watched/weekly",     mediaType: "series" },
-    { name: "Most Anticipated Movies", provider: "trakt", listType: "anticipated",        mediaType: "movie"  },
-    { name: "Most Anticipated Shows",  provider: "trakt", listType: "anticipated",        mediaType: "series" },
-    { name: "Recommended Movies",      provider: "trakt", listType: "recommended/weekly", mediaType: "movie"  },
-    { name: "Recommended Shows",       provider: "trakt", listType: "recommended/weekly", mediaType: "series" },
-    { name: "Most Collected Movies",   provider: "trakt", listType: "collected/weekly",   mediaType: "movie"  },
-    { name: "Most Collected Shows",    provider: "trakt", listType: "collected/weekly",   mediaType: "series" },
-    { name: "Most Played Movies",      provider: "trakt", listType: "played/weekly",      mediaType: "movie"  },
-    { name: "Most Played Shows",       provider: "trakt", listType: "played/weekly",      mediaType: "series" },
-  ] },
-  kids: { label: "Kids \u0026 Family", color: "#FF6B9D", letter: "\u2764", catalogs: [
-    { name: "Family Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/family",                                     mediaType: "movie"  },
-    { name: "Kids TV Shows",           provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/kids-tv-shows",                              mediaType: "series" },
-    { name: "Disney+ Movies",          provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/disney-movies",                         mediaType: "movie"  },
-    { name: "Disney+ Shows",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/disney-shows",                          mediaType: "series" },
-    { name: "Pixar Movies",            provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/pixar-movies",                            mediaType: "movie"  },
-    { name: "Top Kids Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/top-watched-movies-of-the-week-for-kids", mediaType: "movie"  },
-    { name: "Comedy Movies",           provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",                                mediaType: "movie"  },
-    { name: "Comedy Shows",            provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows",                          mediaType: "series" },
-  ] },
-  genres: { label: "Genres", color: "#8B5CF6", letter: "\u266c", catalogs: [
-    { name: "Action Movies",    provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/action",         mediaType: "movie"  },
-    { name: "Comedy Movies",    provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy",         mediaType: "movie"  },
-    { name: "Drama Movies",     provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama",          mediaType: "movie"  },
-    { name: "Horror Movies",    provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror",         mediaType: "movie"  },
-    { name: "Thriller Movies",  provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller",       mediaType: "movie"  },
-    { name: "Sci-Fi Movies",    provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi",         mediaType: "movie"  },
-    { name: "Crime Movies",     provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime",          mediaType: "movie"  },
-    { name: "War Movies",       provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/war",            mediaType: "movie"  },
-    { name: "History Movies",   provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/history",        mediaType: "movie"  },
-    { name: "Romance Movies",   provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/romance",        mediaType: "movie"  },
-    { name: "Western Movies",   provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/western",        mediaType: "movie"  },
-    { name: "Drama Shows",      provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/drama-shows",    mediaType: "series" },
-    { name: "Comedy Shows",     provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/comedy-shows",   mediaType: "series" },
-    { name: "Horror Shows",     provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/horror-shows",   mediaType: "series" },
-    { name: "Sci-Fi Shows",     provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/sci-fi-shows",   mediaType: "series" },
-    { name: "Crime Shows",      provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/crime-shows",    mediaType: "series" },
-    { name: "Thriller Shows",   provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/thriller-shows", mediaType: "series" },
-  ] },
-  discovery: { label: "Surprise Me", color: "#EC4899", letter: "\u2728", catalogs: [
-    { name: "Trending Movies",         provider: "trakt",   listType: "trending",           mediaType: "movie"  },
-    { name: "Trending Shows",          provider: "trakt",   listType: "trending",           mediaType: "series" },
-    { name: "Most Anticipated Movies", provider: "trakt",   listType: "anticipated",        mediaType: "movie"  },
-    { name: "Most Anticipated Shows",  provider: "trakt",   listType: "anticipated",        mediaType: "series" },
-    { name: "Recommended Movies",      provider: "trakt",   listType: "recommended/weekly", mediaType: "movie"  },
-    { name: "Recommended Shows",       provider: "trakt",   listType: "recommended/weekly", mediaType: "series" },
-    { name: "Best New Movies",         provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/new-movies",                   mediaType: "movie"  },
-    { name: "Best New Shows",          provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/best-new-shows",               mediaType: "series" },
-    { name: "Latest Blu-Ray",          provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/latest-blu-ray-releases",    mediaType: "movie"  },
-    { name: "Certified Fresh",         provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/certified-fresh",              mediaType: "movie"  },
-    { name: "TMDb Trending",           provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/tmdb-trending-top-250",           mediaType: "movie"  },
-    { name: "IMDb Top 250",            provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/imdb-toprated-250",               mediaType: "movie"  },
-    { name: "Most Watched Movies",     provider: "trakt",   listType: "watched/weekly",     mediaType: "movie"  },
-    { name: "Most Watched Shows",      provider: "trakt",   listType: "watched/weekly",     mediaType: "series" },
-  ] },
-  popular: { label: "Popular \u0026 Trending", color: "#F59E0B", letter: "\u2605", catalogs: [
-    { name: "Trending Movies",     provider: "trakt",   listType: "trending",       mediaType: "movie"  },
-    { name: "Trending Shows",      provider: "trakt",   listType: "trending",       mediaType: "series" },
-    { name: "Popular Movies",      provider: "trakt",   listType: "popular",        mediaType: "movie"  },
-    { name: "Popular Shows",       provider: "trakt",   listType: "popular",        mediaType: "series" },
-    { name: "Box Office",          provider: "trakt",   listType: "box-office",     mediaType: "movie"  },
-    { name: "Most Watched Movies", provider: "trakt",   listType: "watched/weekly", mediaType: "movie"  },
-    { name: "Most Watched Shows",  provider: "trakt",   listType: "watched/weekly", mediaType: "series" },
-    { name: "IMDb Top 250",        provider: "mdblist", listUrl: "https://mdblist.com/lists/noveggies/imdb-toprated-250",     mediaType: "movie"  },
-    { name: "Best New Movies",     provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/new-movies",          mediaType: "movie"  },
-    { name: "Best New Shows",      provider: "mdblist", listUrl: "https://mdblist.com/lists/linaspurinis/best-new-shows",      mediaType: "series" },
-    { name: "Top Movies",          provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/top-movies",        mediaType: "movie"  },
-    { name: "Latest TV Shows",     provider: "mdblist", listUrl: "https://mdblist.com/lists/garycrawfordgc/latest-tv-shows",   mediaType: "series" },
-  ] },
-  streamingcatalogs: { label: "Streaming Catalogs", color: "#111111", letter: "S", catalogs: [
-    { name: "Netflix",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "nfx", catalogType: "movie",  mediaType: "movie"  },
-    { name: "Netflix",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "nfx", catalogType: "series", mediaType: "series" },
-    { name: "HBO Max",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "hbm", catalogType: "movie",  mediaType: "movie"  },
-    { name: "HBO Max",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "hbm", catalogType: "series", mediaType: "series" },
-    { name: "Disney+",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "dnp", catalogType: "movie",  mediaType: "movie"  },
-    { name: "Disney+",     provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "dnp", catalogType: "series", mediaType: "series" },
-    { name: "Prime Video", provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "amp", catalogType: "movie",  mediaType: "movie"  },
-    { name: "Prime Video", provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "amp", catalogType: "series", mediaType: "series" },
-    { name: "Apple TV+",   provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "atp", catalogType: "movie",  mediaType: "movie"  },
-    { name: "Apple TV+",   provider: "addon", sourceUrl: "https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club", catalogId: "atp", catalogType: "series", mediaType: "series" },
-  ] },
-  topstreaming: { label: "TOP Streaming", color: "#c0392b", letter: "T", importHint: true, catalogs: [] },
-  tmdb: { label: "TMDB", color: "#01B4E4", letter: "T", catalogs: [
-    { name: "Trending Movies",  provider: "tmdb", tmdbMode: "charts", tmdbChart: "trending-week", mediaType: "movie"  },
-    { name: "Trending Shows",   provider: "tmdb", tmdbMode: "charts", tmdbChart: "trending-week", mediaType: "series" },
-    { name: "Popular Movies",   provider: "tmdb", tmdbMode: "charts", tmdbChart: "popular",       mediaType: "movie"  },
-    { name: "Popular Shows",    provider: "tmdb", tmdbMode: "charts", tmdbChart: "popular",       mediaType: "series" },
-    { name: "Top Rated Movies", provider: "tmdb", tmdbMode: "charts", tmdbChart: "top-rated",     mediaType: "movie"  },
-    { name: "Top Rated Shows",  provider: "tmdb", tmdbMode: "charts", tmdbChart: "top-rated",     mediaType: "series" },
-    { name: "Now Playing",      provider: "tmdb", tmdbMode: "charts", tmdbChart: "now-playing",   mediaType: "movie"  },
-    { name: "Upcoming Movies",  provider: "tmdb", tmdbMode: "charts", tmdbChart: "upcoming",      mediaType: "movie"  },
-  ] },
-};
-
-let _selectedPreset = null;
-function initPresets() {
-  var c2 = document.getElementById("preset-services"); if (!c2) return;
-  Object.keys(STREAMING_PRESETS).forEach(function(k) {
-    var p = STREAMING_PRESETS[k]; var btn = document.createElement("button");
-    btn.className = "preset-service-btn"; btn.dataset.key = k; btn.style.background = p.color;
-    var ls = document.createElement("span"); ls.className = "preset-btn-letter"; ls.textContent = p.letter;
-    var lb = document.createElement("span"); lb.className = "preset-btn-label"; lb.textContent = p.label;
-    btn.appendChild(ls); btn.appendChild(lb);
-    btn.addEventListener("click", function() { selectPreset(k); });
-    c2.appendChild(btn);
-  });
-  document.getElementById("preset-preview").style.display = "none";
-}
-function selectPreset(key) {
-  if (STREAMING_PRESETS[key] && STREAMING_PRESETS[key].importHint) {
-    _selectedPreset = null;   // don't leave a stale selection that Apply would re-add
-    const el = document.getElementById('addon-import-url');
-    if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-    return;
-  }
-  _selectedPreset = key;
-  var p = STREAMING_PRESETS[key];
-  document.querySelectorAll(".preset-service-btn").forEach(function(b) { b.classList.toggle("active", b.dataset.key === key); });
-  var list = document.getElementById("preset-preview-list"); list.innerHTML = "";
-  p.catalogs.forEach(function(cat, idx) {
-    var row = document.createElement("label"); row.className = "preset-preview-item";
-    var cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = true;
-    cb.className = "preset-cb"; cb.dataset.idx = idx;
-    cb.addEventListener("change", function() { updatePresetCount(); });
-    var badge = document.createElement("span"); badge.className = "preset-preview-badge preset-badge-" + cat.provider;
-    badge.textContent = cat.provider === "mdblist" ? "MDB" : cat.provider.toUpperCase();
-    var nm = document.createElement("span"); nm.className = "preset-preview-name"; nm.textContent = cat.name;
-    var tp = document.createElement("span"); tp.className = "preset-preview-type"; tp.textContent = cat.mediaType === "series" ? "Shows" : "Movies";
-    row.appendChild(cb); row.appendChild(badge); row.appendChild(nm); row.appendChild(tp); list.appendChild(row);
-  });
-  updatePresetCount();
-  document.getElementById("preset-preview").style.display = "block";
-}
-function updatePresetCount() {
-  if (!_selectedPreset) return;
-  var p = STREAMING_PRESETS[_selectedPreset];
-  var checked = document.querySelectorAll(".preset-cb:checked").length;
-  var ab = document.getElementById("btn-apply-preset");
-  ab.textContent = "+ Apply " + p.label + " (" + checked + "/" + p.catalogs.length + " rows)";
-  ab.style.background = p.color;
-  ab.disabled = checked === 0;
-}
-function catalogRowExists(cat) {
-  var dominated = false;
-  document.querySelectorAll('.catalog-row').forEach(function(row) {
-    if (cat.provider === 'addon') {
-      if (row.dataset.provider === 'addon'
-        && row.dataset.sourceUrl === (cat.sourceUrl || '')
-        && row.dataset.catalogId === (cat.catalogId || '')
-        && row.dataset.catalogType === (cat.catalogType || cat.mediaType || 'movie')) dominated = true;
-      return;  // addon rows are identified by source+id+type, not display name
-    }
-    if (row.dataset.provider === cat.provider && row.dataset.name === cat.name && row.dataset.mediaType === (cat.mediaType || 'movie')) dominated = true;
-    if (row.dataset.provider === cat.provider && row.dataset.listUrl && row.dataset.listUrl === (cat.listUrl || '') && row.dataset.mediaType === (cat.mediaType || 'movie')) dominated = true;
-    if (row.dataset.provider === cat.provider && row.dataset.listType && row.dataset.listType === (cat.listType || '') && row.dataset.mediaType === (cat.mediaType || 'movie')) dominated = true;
-  });
-  return dominated;
-}
-
-function applyPreset() {
-  if (!_selectedPreset) return;
-  var p = STREAMING_PRESETS[_selectedPreset];
-  var mdbKey = (document.getElementById("mdblist-api-key") || {}).value || "";
-  var cbs = document.querySelectorAll(".preset-cb");
-  var skipped = 0;
-  cbs.forEach(function(cb) {
-    if (!cb.checked) return;
-    var cat = p.catalogs[parseInt(cb.dataset.idx, 10)];
-    if (!cat) return;
-    var catObj = { provider: cat.provider, listType: cat.listType || "", listUrl: cat.listUrl || "",
-      mediaType: cat.mediaType || "movie", name: cat.name, apiKey: cat.provider === "mdblist" ? mdbKey : "", enabled: true };
-    if (cat.provider === 'tmdb') {
-      catObj.tmdbMode          = cat.tmdbMode          || 'charts';
-      catObj.tmdbChart         = cat.tmdbChart         || '';
-      catObj.tmdbGenre         = cat.tmdbGenre         || '';
-      catObj.tmdbWatchProvider = cat.tmdbWatchProvider || '';
-      catObj.tmdbSortBy        = cat.tmdbSortBy        || 'popularity.desc';
-      if (cat.tmdbMinRating != null) catObj.tmdbMinRating = cat.tmdbMinRating;
-      if (cat.tmdbYearFrom  != null) catObj.tmdbYearFrom  = cat.tmdbYearFrom;
-      if (cat.tmdbYearTo    != null) catObj.tmdbYearTo    = cat.tmdbYearTo;
-    }
-    if (cat.provider === 'addon') {
-      catObj.sourceUrl   = cat.sourceUrl   || '';
-      catObj.catalogId   = cat.catalogId   || '';
-      catObj.catalogType = cat.catalogType || cat.mediaType || 'movie';
-    }
-    if (catalogRowExists(catObj)) { skipped++; return; }
-    addExternalCatalog(catObj);
-  });
-  if (skipped > 0) { var ind = document.getElementById('autosave-indicator'); if (ind) { ind.textContent = skipped + ' duplicate(s) skipped'; ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove('visible'); ind.textContent = 'Settings saved'; }, 2500); } }
-  document.querySelectorAll(".preset-service-btn").forEach(function(b) { b.classList.remove("active"); });
-  document.getElementById("preset-preview").style.display = "none";
-  _selectedPreset = null; autoSave();
-}
-
-function onCatalogProviderChange() {
-  const provider = document.getElementById('cat-provider').value;
-  const traktFld = document.getElementById('cat-trakt-list');
-  const urlFld   = document.getElementById('cat-list-url');
-  const nameFld  = document.getElementById('cat-name');
-  traktFld.style.display = provider === 'trakt' ? '' : 'none';
-  urlFld.style.display   = (provider === 'mdblist' || provider === 'imdb' || provider === 'letterboxd') ? '' : 'none';
-  var tmdbFld = document.getElementById('cat-tmdb-fields');
-  if (tmdbFld) tmdbFld.style.display = provider === 'tmdb' ? 'flex' : 'none';
-  if (provider !== 'tmdb') { var mtEl = document.getElementById('cat-media-type'); if (mtEl) mtEl.disabled = false; }
-  const mt = document.getElementById('cat-media-type').value;
-  const typeName = mt === 'series' ? 'Shows' : mt === 'both' ? 'Movies & Shows' : 'Movies';
-  if (provider === 'trakt') { const lt = document.getElementById('cat-trakt-list').value; nameFld.value = 'Trakt ' + (TRAKT_LIST_NAMES[lt] || 'Trending') + ' ' + typeName; }
-  else if (provider === 'mdblist')    { nameFld.value = 'MDbList ' + typeName; }
-  else if (provider === 'imdb')       { nameFld.value = 'IMDb List'; }
-  else if (provider === 'letterboxd') { nameFld.value = 'Letterboxd List'; }
-  else if (provider === 'tmdb') { updateTmdbAutoName(); return; }
-  else { nameFld.value = ''; }
-}
-
-function onCatalogUrlInput() {
-  const url = (document.getElementById('cat-list-url').value || '').trim();
-  const nameFld = document.getElementById('cat-name');
-  const autos = ['Trakt', 'MDbList', 'IMDb', 'Letterboxd'];
-  if (!nameFld.value || autos.some(function(a){ return nameFld.value.startsWith(a); })) {
-    const m = url.match(/\/([^/?#]+)\/?(?:[?#].*)?$/);
-    if (m) nameFld.value = decodeURIComponent(m[1]).replace(/-/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
-  }
-}
-
-function setTmdbMode(mode) {
-  document.querySelectorAll('.tmdb-mode-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.mode === mode); });
-  var chartsEl = document.getElementById('cat-tmdb-charts-fields');
-  var discEl   = document.getElementById('cat-tmdb-discover-fields');
-  if (chartsEl) chartsEl.style.display = mode === 'charts' ? '' : 'none';
-  if (discEl)   discEl.style.display   = mode === 'discover' ? 'flex' : 'none';
-  updateTmdbAutoName();
-}
-
-function onTmdbChartChange() {
-  var chart = (document.getElementById('cat-tmdb-chart')||{}).value || '';
-  var mtSel = document.getElementById('cat-media-type');
-  if (chart === 'now-playing' || chart === 'upcoming') {
-    if (mtSel) { mtSel.value = 'movie'; mtSel.disabled = true; }
-  } else {
-    if (mtSel) mtSel.disabled = false;
-  }
-  updateTmdbAutoName();
-}
-
-function updateTmdbAutoName() {
-  var nameFld = document.getElementById('cat-name');
-  if (!nameFld) return;
-  var autoStarts = ['TMDB ', 'Trakt ', 'MDbList ', 'IMDb ', 'Letterboxd '];
-  var isAuto = !nameFld.value || autoStarts.some(function(p){ return nameFld.value.startsWith(p); });
-  if (!isAuto) return;
-  var activeBtn = document.querySelector('.tmdb-mode-btn.active');
-  var mode = activeBtn ? activeBtn.dataset.mode : 'charts';
-  var mt = (document.getElementById('cat-media-type')||{}).value || 'movie';
-  var typeName = mt === 'series' ? 'Shows' : 'Movies';
-  if (mode === 'charts') {
-    var chart = (document.getElementById('cat-tmdb-chart')||{}).value || 'trending-week';
-    var chartLabels = {'trending-week':'Trending Weekly','trending-day':'Trending Daily',
-      'popular':'Popular','top-rated':'Top Rated','now-playing':'Now Playing','upcoming':'Upcoming'};
-    nameFld.value = 'TMDB '+(chartLabels[chart]||chart)+' '+typeName;
-  } else {
-    var provSel = document.getElementById('cat-tmdb-watch-provider');
-    var provText = provSel ? (provSel.options[provSel.selectedIndex]||{}).text||'' : '';
-    var genreSel = document.getElementById('cat-tmdb-genre');
-    var genreText = genreSel ? (genreSel.options[genreSel.selectedIndex]||{}).text||'' : '';
-    var rating = (document.getElementById('cat-tmdb-min-rating')||{}).value || '';
-    var parts = ['TMDB'];
-    if (provText && provText !== 'Any Service') parts.push(provText);
-    if (genreText && genreText !== 'Any Genre') parts.push(genreText);
-    parts.push(typeName);
-    var label = parts.join(' ');
-    if (rating) label += ' '+rating+'+';
-    nameFld.value = label;
-  }
-}
-
-function renderCatalogRow(cat, id) {
-  const badges = { trakt: 'Trakt', mdblist: 'MDbList', imdb: 'IMDb', letterboxd: 'Letterboxd', tmdb: 'TMDB' };
-  const typeBadge = cat.mediaType === 'both' ? 'Movies + Shows' : cat.mediaType === 'series' ? 'Shows' : 'Movies';
-  const badge  = badges[cat.provider] || cat.provider;
-  var detail;
-  if (cat.provider === 'tmdb') {
-    var chartNames = {'trending-week':'Trending Weekly','trending-day':'Trending Daily',
-      'popular':'Popular','top-rated':'Top Rated','now-playing':'Now Playing','upcoming':'Upcoming'};
-    if (cat.tmdbMode === 'trending-provider') {
-      var provNamesT = {'8':'Netflix','119':'Prime','337':'Disney+','15':'Hulu','1899':'Max','350':'Apple TV+'};
-      detail = (provNamesT[cat.tmdbWatchProvider] || 'Provider '+cat.tmdbWatchProvider) + ' Trending';
-    } else if (cat.tmdbMode === 'discover') {
-      var dparts = [];
-      if (cat.tmdbWatchProvider) {
-        var provNames = {'8':'Netflix','119':'Prime','337':'Disney+','15':'Hulu','1899':'Max','350':'Apple TV+'};
-        dparts.push(provNames[cat.tmdbWatchProvider] || 'Provider:'+cat.tmdbWatchProvider);
-      }
-      if (cat.tmdbGenre) dparts.push('Genre:'+cat.tmdbGenre);
-      if (cat.tmdbMinRating) dparts.push(cat.tmdbMinRating+'+');
-      if (cat.tmdbYearFrom || cat.tmdbYearTo) dparts.push((cat.tmdbYearFrom||'?')+'-'+(cat.tmdbYearTo||'?'));
-      detail = dparts.join(' / ') || 'Discover';
-    } else {
-      detail = chartNames[cat.tmdbChart] || cat.tmdbChart || 'Charts';
-    }
-  } else {
-    detail = cat.listType
-      ? (TRAKT_LIST_NAMES[cat.listType] || cat.listType)
-      : (cat.listUrl ? cat.listUrl.replace(/^https?:\/\//, '').substring(0, 38) + (cat.listUrl.length > 42 ? '...' : '') : '');
-  }
-  const div = document.createElement('div');
-  div.className = 'catalog-row';
-  div.id = 'cat-row-' + id;
-  div.draggable = true;
-  div.dataset.provider  = cat.provider  || '';
-  div.dataset.listType  = cat.listType  || '';
-  div.dataset.listUrl   = cat.listUrl   || '';
-  div.dataset.mediaType = cat.mediaType || 'movie';
-  div.dataset.name      = cat.name      || '';
-  div.dataset.apiKey    = cat.apiKey    || '';
-  div.dataset.count     = cat.count || '';
-  div.dataset.valid     = cat.valid !== undefined ? cat.valid : '';
-  div.dataset.shuffle   = cat.shuffle ? 'true' : '';
-  div.dataset.tmdbMode         = cat.tmdbMode         || '';
-  div.dataset.tmdbChart        = cat.tmdbChart        || '';
-  div.dataset.tmdbGenre        = cat.tmdbGenre        || '';
-  div.dataset.tmdbWatchProvider= cat.tmdbWatchProvider|| '';
-  div.dataset.tmdbMinRating    = cat.tmdbMinRating != null ? String(cat.tmdbMinRating) : '';
-  div.dataset.tmdbYearFrom     = cat.tmdbYearFrom  != null ? String(cat.tmdbYearFrom)  : '';
-  div.dataset.tmdbYearTo       = cat.tmdbYearTo    != null ? String(cat.tmdbYearTo)    : '';
-  div.dataset.tmdbSortBy       = cat.tmdbSortBy       || '';
-  if (cat.provider === 'addon') {
-    div.dataset.sourceUrl   = cat.sourceUrl   || '';
-    div.dataset.catalogId   = cat.catalogId   || '';
-    div.dataset.catalogType = cat.catalogType || cat.mediaType || 'movie';
-  }
-  function mk(tag, cls, text) { const el = document.createElement(tag); el.className = cls; if (text) el.textContent = text; return el; }
-  const handle = mk('span', 'cat-drag-handle'); handle.title = 'Drag to reorder'; handle.textContent = '\u2803';
-  const provBadge = mk('span', 'cat-provider-badge cat-prov-' + (cat.provider || ''), badge);
-  const nameEl  = mk('span', 'cat-name-text',   cat.name || badge);
-  const detailEl = mk('span', 'cat-detail-text', detail);
-  const typeEl  = mk('span', 'cat-type-badge',  typeBadge);
-  
-  // Item count badge
-  const countEl = mk('span', 'cat-count-badge', cat.count ? cat.count + ' items' : '');
-  countEl.id = 'cat-count-' + id;
-  if (cat.valid === false) countEl.classList.add('cat-count-error');
-  else if (cat.valid === true) countEl.classList.add('cat-count-ok');
-  
-  // Test button
-  const testBtn = mk('button', 'cat-test-btn', 'Test');
-  testBtn.title = 'Test catalog connectivity';
-  testBtn.id = 'cat-test-' + id;
-  testBtn.addEventListener('click', function() { testCatalog(id); });
-  
-  const toggle = document.createElement('label'); toggle.className = 'toggle-switch cat-toggle'; toggle.title = 'Enable / disable';
-  const togInput = document.createElement('input'); togInput.type = 'checkbox'; togInput.className = 'cat-enabled-cb'; togInput.checked = cat.enabled !== false;
-  const togSlider = document.createElement('span'); togSlider.className = 'toggle-slider';
-  toggle.appendChild(togInput); toggle.appendChild(togSlider);
-  togInput.addEventListener('change', function() { div.classList.toggle('cat-disabled', !togInput.checked); autoSave(); });
-  if (cat.enabled === false) div.classList.add('cat-disabled');
-  const btn = mk('button', 'cat-remove-btn'); btn.title = 'Remove'; btn.textContent = '\u2715';
-  btn.addEventListener('click', function() { removeCatalog(id); });
-  const shuffleBtn = mk('button', 'cat-shuffle-btn' + (cat.shuffle ? ' cat-shuffle-on' : ''), '🔀');
-  shuffleBtn.title = 'Shuffle order each refresh';
-  shuffleBtn.addEventListener('click', function() { var on = div.dataset.shuffle === 'true'; div.dataset.shuffle = on ? '' : 'true'; shuffleBtn.classList.toggle('cat-shuffle-on', !on); autoSave(); });
-  [handle, provBadge, nameEl, detailEl, typeEl, countEl, testBtn, shuffleBtn, toggle, btn].forEach(function(el){ div.appendChild(el); });
-  return div;
-}
-
-// Test a catalog and update its count/status
-async function testCatalog(id) {
-  const row = document.getElementById('cat-row-' + id);
-  const countEl = document.getElementById('cat-count-' + id);
-  const testBtn = document.getElementById('cat-test-' + id);
-  if (!row || !countEl || !testBtn) return;
-  
-  testBtn.disabled = true;
-  testBtn.textContent = 'Testing...';
-  countEl.textContent = '';
-  countEl.className = 'cat-count-badge';
-  
-  const entry = {
-    provider: row.dataset.provider,
-    listType: row.dataset.listType,
-    listUrl: row.dataset.listUrl,
-    mediaType: row.dataset.mediaType,
-    name: row.dataset.name,
-    apiKey: row.dataset.apiKey
-  };
-  if (entry.provider === 'tmdb') {
-    entry.tmdbMode          = row.dataset.tmdbMode          || 'charts';
-    entry.tmdbChart         = row.dataset.tmdbChart         || '';
-    entry.tmdbGenre         = row.dataset.tmdbGenre         || '';
-    entry.tmdbWatchProvider = row.dataset.tmdbWatchProvider || '';
-    if (row.dataset.tmdbMinRating) entry.tmdbMinRating = Number(row.dataset.tmdbMinRating);
-    if (row.dataset.tmdbYearFrom)  entry.tmdbYearFrom  = Number(row.dataset.tmdbYearFrom);
-    if (row.dataset.tmdbYearTo)    entry.tmdbYearTo    = Number(row.dataset.tmdbYearTo);
-    entry.tmdbSortBy = row.dataset.tmdbSortBy || 'popularity.desc';
-  }
-  
-  const rpdbKey = document.getElementById('rpdb-key')?.value?.trim() || null;
-  const traktClientId = document.getElementById('trakt-client-id')?.value?.trim() || null;
-  const catalogLang = document.getElementById('catalog-lang')?.value || null;
-  const tmdbApiKey = document.getElementById('tmdb-api-key')?.value?.trim() || null;
-  
-  try {
-    const resp = await fetch('/api/catalog/validate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entry, rpdbKey, traktClientId, catalogLang, tmdbApiKey })
-    });
-    const result = await resp.json();
-    
-    row.dataset.count = result.count || 0;
-    row.dataset.valid = result.valid;
-    
-    if (result.valid) {
-      const m = result.movies || 0, s = result.shows || 0;
-      let label;
-      if (m > 0 && s > 0) label = m + ' movies · ' + s + ' shows';
-      else if (m > 0) label = m + ' movies';
-      else if (s > 0) label = s + ' shows';
-      else label = (result.count || 0) + ' items';
-      countEl.textContent = label;
-      row.dataset.count = result.count;
-      countEl.className = 'cat-count-badge cat-count-ok';
-      testBtn.textContent = '✓ OK';
-      testBtn.classList.add('cat-test-ok');
-      setTimeout(function() { testBtn.textContent = 'Test'; testBtn.disabled = false; testBtn.classList.remove('cat-test-ok'); }, 3000);
-    } else {
-      countEl.textContent = result.message || 'Failed';
-      countEl.className = 'cat-count-badge cat-count-error';
-      testBtn.textContent = 'Test';
-      testBtn.disabled = false;
-    }
-  } catch (err) {
-    countEl.textContent = 'Error';
-    countEl.className = 'cat-count-badge cat-count-error';
-    testBtn.textContent = 'Test';
-    testBtn.disabled = false;
-    console.error('Catalog test error:', err);
-  }
-}
-
-
-function applyAllNetworks() {
-  var NETWORK_KEYS = ["netflix", "prime", "disney", "hulu", "max", "apple"];
-  var seen = new Set();
-  var catList = document.getElementById("catalog-list");
-  if (catList) {
-    catList.querySelectorAll("[data-list-url]").forEach(function(row) {
-      seen.add(row.dataset.listUrl || "");
-    });
-  }
-  NETWORK_KEYS.forEach(function(key) {
-    var p = STREAMING_PRESETS[key]; if (!p) return;
-    var added = 0;
-    for (var ci = 0; ci < p.catalogs.length && added < 2; ci++) {
-      var cat = p.catalogs[ci];
-      var uid;
-      if (cat.provider === 'tmdb') {
-        uid = 'tmdb:' + (cat.tmdbMode || '') + ':' + (cat.tmdbWatchProvider || '') + ':' + (cat.tmdbChart || '') + ':' + (cat.mediaType || '');
-      } else {
-        uid = cat.listUrl || ("trakt:" + (cat.listType || ""));
-      }
-      if (seen.has(uid)) continue;
-      seen.add(uid);
-      addExternalCatalog(cat);
-      added++;
-    }
-  });
-}
-
-function addExternalCatalog(cat) {
-  if (!cat) {
-    const provider  = document.getElementById('cat-provider').value;
-    if (!provider) { alert('Select a provider first.'); return; }
-    const listType  = provider === 'trakt' ? document.getElementById('cat-trakt-list').value : '';
-    const listUrl = (provider === 'mdblist' || provider === 'imdb' || provider === 'letterboxd')
-      ? (document.getElementById('cat-list-url').value || '').trim() : '';
-    const mediaType = document.getElementById('cat-media-type').value;
-    const name      = (document.getElementById('cat-name').value || '').trim() || (provider + ' catalog');
-    if ((provider === 'mdblist' || provider === 'imdb' || provider === 'letterboxd') && !listUrl) {
-      alert('Paste the list URL first.'); return;
-    }
-    const apiKey = provider === 'mdblist' ? (document.getElementById('mdblist-api-key') ? document.getElementById('mdblist-api-key').value.trim() : '') : '';
-    if (provider === 'tmdb') {
-      const tmdbMode          = (document.querySelector('.tmdb-mode-btn.active')||{}).dataset.mode || 'charts';
-      const tmdbChart         = (document.getElementById('cat-tmdb-chart')||{}).value || 'trending-week';
-      const tmdbGenre         = (document.getElementById('cat-tmdb-genre')||{}).value || '';
-      const tmdbWatchProvider = (document.getElementById('cat-tmdb-watch-provider')||{}).value || '';
-      const rawRating         = (document.getElementById('cat-tmdb-min-rating')||{}).value || '';
-      const rawYearF          = (document.getElementById('cat-tmdb-year-from')||{}).value || '';
-      const rawYearT          = (document.getElementById('cat-tmdb-year-to')||{}).value || '';
-      const tmdbSortBy        = (document.getElementById('cat-tmdb-sort-by')||{}).value || 'popularity.desc';
-      cat = { provider, mediaType, name, tmdbMode, tmdbChart, tmdbGenre, tmdbWatchProvider, tmdbSortBy,
-        tmdbMinRating: rawRating ? Number(rawRating) : null,
-        tmdbYearFrom:  rawYearF  ? Number(rawYearF)  : null,
-        tmdbYearTo:    rawYearT  ? Number(rawYearT)  : null };
-      // Reset discover inputs
-      var dFlds = document.getElementById('cat-tmdb-discover-fields');
-      if (dFlds) dFlds.querySelectorAll('input').forEach(function(i){ i.value=''; });
-    } else {
-      cat = { provider, listType, listUrl, mediaType, name, apiKey };
-    }
-    document.getElementById('cat-provider').value  = '';
-    document.getElementById('cat-list-url').value  = '';
-    document.getElementById('cat-name').value      = '';
-    document.getElementById('cat-trakt-list').style.display = 'none';
-    document.getElementById('cat-list-url').style.display   = 'none';
-    var tmdbFldR = document.getElementById('cat-tmdb-fields');
-    if (tmdbFldR) tmdbFldR.style.display = 'none';
-    var mtR = document.getElementById('cat-media-type');
-    if (mtR) mtR.disabled = false;
-    if (window.Controls) Controls.syncAll();  // clear stale provider-tile/segment highlight after reset
-  }
-  if (cat.provider === 'mdblist' && !cat.apiKey) {
-    const keyEl = document.getElementById('mdblist-api-key');
-    cat.apiKey = keyEl ? keyEl.value.trim() : '';
-  }
-  const id  = nextCatId++;
-  const row = renderCatalogRow(cat, id);
-  document.getElementById('catalog-list').appendChild(row);
-  initDragRow(row);
-  autoSave();
-  // Auto-test when manually added (not preset-loaded rows with already-known count)
-  if (!cat.count && cat.enabled !== false && cat.provider !== 'addon') testCatalog(id);
-}
-
-function removeCatalog(id) {
-  const el = document.getElementById('cat-row-' + id);
-  if (el) el.remove();
-  autoSave();
-}
-
-function clearAllCatalogs() {
-  var list = document.getElementById('catalog-list');
-  if (!list || !list.children.length) return;
-  if (!confirm('Remove all ' + list.children.length + ' catalog rows?')) return;
-  list.innerHTML = '';
-  autoSave();
-}
-
-function collectExternalCatalogs() {
-  const cats = [];
-  document.querySelectorAll('.catalog-row').forEach(function(row) {
-    var cb = row.querySelector('.cat-enabled-cb');
-    var catEntry = { provider: row.dataset.provider||'', listType: row.dataset.listType||'',
-      listUrl: row.dataset.listUrl||'', mediaType: row.dataset.mediaType||'movie',
-      name: row.dataset.name||'', apiKey: row.dataset.apiKey||'',
-      enabled: cb ? cb.checked : true, shuffle: row.dataset.shuffle === 'true' };
-    if (catEntry.provider === 'tmdb') {
-      catEntry.tmdbMode          = row.dataset.tmdbMode          || 'charts';
-      catEntry.tmdbChart         = row.dataset.tmdbChart         || '';
-      catEntry.tmdbGenre         = row.dataset.tmdbGenre         || '';
-      catEntry.tmdbWatchProvider = row.dataset.tmdbWatchProvider || '';
-      if (row.dataset.tmdbMinRating) catEntry.tmdbMinRating = Number(row.dataset.tmdbMinRating);
-      if (row.dataset.tmdbYearFrom)  catEntry.tmdbYearFrom  = Number(row.dataset.tmdbYearFrom);
-      if (row.dataset.tmdbYearTo)    catEntry.tmdbYearTo    = Number(row.dataset.tmdbYearTo);
-      catEntry.tmdbSortBy = row.dataset.tmdbSortBy || 'popularity.desc';
-    }
-    if (catEntry.provider === 'addon') {
-      catEntry.sourceUrl   = row.dataset.sourceUrl   || '';
-      catEntry.catalogId   = row.dataset.catalogId   || '';
-      catEntry.catalogType = row.dataset.catalogType || catEntry.mediaType;
-    }
-    cats.push(catEntry);
-  });
-  return cats;
-}
-
-let _dragSrc = null;
-function initDragRow(row) {
-  row.addEventListener('dragstart', function(e) { _dragSrc = row; e.dataTransfer.effectAllowed = 'move'; row.classList.add('dragging'); });
-  row.addEventListener('dragend', function() { row.classList.remove('dragging'); document.querySelectorAll('.catalog-row').forEach(function(r){ r.classList.remove('drag-over'); }); autoSave(); });
-  row.addEventListener('dragover', function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (_dragSrc && _dragSrc !== row) { document.querySelectorAll('.catalog-row').forEach(function(r){ r.classList.remove('drag-over'); }); row.classList.add('drag-over'); } });
-  row.addEventListener('drop', function(e) { e.preventDefault(); if (_dragSrc && _dragSrc !== row) { const list = document.getElementById('catalog-list'); const all = Array.from(list.querySelectorAll('.catalog-row')); if (all.indexOf(_dragSrc) < all.indexOf(row)) list.insertBefore(_dragSrc, row.nextSibling); else list.insertBefore(_dragSrc, row); } row.classList.remove('drag-over'); });
-}
-
-
-
-// == Addon Catalog Importer ==
-async function browseAddonCatalogs() {
-  const url = (document.getElementById('addon-import-url').value || '').trim();
-  const box = document.getElementById('addon-import-results');
-  if (!url) { box.innerHTML = '<div class="profile-status error">Paste a manifest URL first.</div>'; return; }
-  box.innerHTML = '<div class="profile-status info">Loading…</div>';
-  try {
-    const r = await fetch('/api/addon-catalogs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ manifestUrl: url }) });
-    const data = await r.json();
-    if (!r.ok || data.error) { box.innerHTML = '<div class="profile-status error">' + escHtml(data.error || 'Failed') + '</div>'; return; }
-    window._addonImport = { baseUrl: data.baseUrl, catalogs: data.catalogs };
-    let html = '<div class="profile-status info">' + escHtml(data.name) + ' ' + escHtml(data.version) + ' — ' + data.catalogs.length + ' catalogs</div>';
-    html += '<label style="display:block;margin:6px 0;font-size:.78rem"><input type="checkbox" id="addon-sel-all" onchange="document.querySelectorAll(&quot;.addon-imp-cb&quot;).forEach(function(c){c.checked=document.getElementById(&quot;addon-sel-all&quot;).checked;})"> Select all</label>';
-    data.catalogs.forEach(function(c, i) {
-      html += '<label class="preset-preview-item"><input type="checkbox" class="addon-imp-cb" data-idx="' + i + '" checked> '
-            + escHtml(c.name) + ' <span class="cat-provider-badge">' + (c.type === 'series' ? 'Shows' : 'Movies') + '</span></label>';
-    });
-    html += '<button class="btn-add-catalog" style="margin-top:8px" onclick="addImportedAddonCatalogs()">+ Add selected</button>';
-    box.innerHTML = html;
-  } catch (e) { box.innerHTML = '<div class="profile-status error">' + escHtml(e.message) + '</div>'; }
-}
-
-function addImportedAddonCatalogs() {
-  const imp = window._addonImport; if (!imp) return;
-  let added = 0;
-  document.querySelectorAll('.addon-imp-cb:checked').forEach(function(cb) {
-    const c = imp.catalogs[Number(cb.dataset.idx)];
-    if (!c) return;
-    const entry = { provider: 'addon', sourceUrl: imp.baseUrl, catalogId: c.id, catalogType: c.type, mediaType: c.type, name: c.name };
-    if (catalogRowExists(entry)) return;   // skip already-added catalogs
-    addExternalCatalog(entry);
-    added++;
-  });
-  const box = document.getElementById('addon-import-results');
-  if (box) box.innerHTML = '<div class="profile-status success">Added ' + added + ' catalog row(s).</div>';
-}
-
-// == MDbList User Browser ==
-async function browseMdblistUser() {
-  var username = (document.getElementById('mdblist-browse-user') || {}).value.trim();
-  var apiKey = (document.getElementById('mdblist-api-key') || {}).value.trim();
-  var resultsEl = document.getElementById('mdblist-browse-results');
-  if (!username) { resultsEl.innerHTML = '<div style="color:var(--error);font-size:0.78rem">Enter a username.</div>'; return; }
-  if (!apiKey) { resultsEl.innerHTML = '<div style="color:var(--error);font-size:0.78rem">Enter your MDbList API key above first.</div>'; return; }
-  resultsEl.innerHTML = '<div style="color:var(--text-muted);font-size:0.78rem">Loading lists...</div>';
-  try {
-    var resp = await fetch('https://api.mdblist.com/lists/user/' + encodeURIComponent(username) + '/?apikey=' + encodeURIComponent(apiKey));
-    if (!resp.ok) throw new Error('API returned ' + resp.status);
-    var lists = await resp.json();
-    if (!Array.isArray(lists) || !lists.length) { resultsEl.innerHTML = '<div style="color:var(--text-muted);font-size:0.78rem">No public lists found for this user.</div>'; return; }
-    var h = '<div class="mdblist-browse-grid">';
-    lists.forEach(function(l, i) {
-      h += '<label class="mdblist-browse-item"><input type="checkbox" class="mdblist-browse-cb" data-idx="' + i + '" />'
-        + '<span class="mdblist-browse-name">' + escHtml(l.name) + '</span>'
-        + '<span class="mdblist-browse-count">' + (l.items || 0) + ' items</span></label>';
-    });
-    h += '</div><div class="mdblist-browse-actions">'
-      + '<select id="mdblist-browse-media"><option value="movie">Movies</option><option value="series">Shows</option><option value="both">Both</option></select>'
-      + '<button class="btn-add-catalog" onclick="addMdblistBrowseSelection()">+ Add Selected</button></div>';
-    resultsEl.innerHTML = h;
-    resultsEl._lists = lists;
-    resultsEl._username = username;
-  } catch (err) {
-    resultsEl.innerHTML = '<div style="color:var(--error);font-size:0.78rem">' + escHtml(err.message) + '</div>';
-  }
-}
-
-function addMdblistBrowseSelection() {
-  var resultsEl = document.getElementById('mdblist-browse-results');
-  var lists = resultsEl._lists || [];
-  var username = resultsEl._username || '';
-  var mediaType = (document.getElementById('mdblist-browse-media') || {}).value || 'movie';
-  var mdbKey = (document.getElementById('mdblist-api-key') || {}).value.trim();
-  var cbs = document.querySelectorAll('.mdblist-browse-cb:checked');
-  var added = 0, skipped = 0;
-  cbs.forEach(function(cb) {
-    var l = lists[parseInt(cb.dataset.idx, 10)];
-    if (!l) return;
-    var listUrl = 'https://mdblist.com/lists/' + encodeURIComponent(username) + '/' + encodeURIComponent(l.slug);
-    var catObj = { provider: 'mdblist', listType: '', listUrl: listUrl, mediaType: mediaType, name: l.name, apiKey: mdbKey, enabled: true };
-    if (catalogRowExists(catObj)) { skipped++; return; }
-    addExternalCatalog(catObj);
-    added++;
-  });
-  if (added || skipped) {
-    var msg = added + ' added'; if (skipped) msg += ', ' + skipped + ' duplicate(s) skipped';
-    var ind = document.getElementById('autosave-indicator'); if (ind) { ind.textContent = msg; ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove('visible'); ind.textContent = 'Settings saved'; }, 2500); }
-  }
-  autoSave();
-}
-
-// == Trakt User Lists ==
-async function browseTraktUser() {
-  var input = (document.getElementById('trakt-browse-user') || {}).value.trim();
-  var clientId = (document.getElementById('trakt-client-id') || {}).value.trim();
-  var resultsEl = document.getElementById('trakt-browse-results');
-  if (!clientId) { resultsEl.innerHTML = '<div style="color:var(--error);font-size:0.78rem">Enter your Trakt Client ID above first.</div>'; return; }
-  var username = input.replace(/^https?:\/\/trakt\.tv\/users\//, '').replace(/\/.*$/, '').trim();
-  if (!username) { resultsEl.innerHTML = '<div style="color:var(--error);font-size:0.78rem">Enter a Trakt username or profile URL.</div>'; return; }
-  resultsEl.innerHTML = '<div style="color:var(--text-muted);font-size:0.78rem">Loading lists...</div>';
-  try {
-    var resp = await fetch('https://api.trakt.tv/users/' + encodeURIComponent(username) + '/lists', {
-      headers: { 'Content-Type': 'application/json', 'trakt-api-version': '2', 'trakt-api-key': clientId }
-    });
-    if (!resp.ok) throw new Error('Trakt API returned ' + resp.status);
-    var lists = await resp.json();
-    var allLists = [{ name: 'Watchlist', slug: 'watchlist', item_count: '?', _isWatchlist: true }].concat(lists);
-    var h = '<div class="mdblist-browse-grid">';
-    allLists.forEach(function(l, i) {
-      h += '<label class="mdblist-browse-item"><input type="checkbox" class="trakt-browse-cb" data-idx="' + i + '" />'
-        + '<span class="mdblist-browse-name">' + escHtml(l.name) + '</span>'
-        + '<span class="mdblist-browse-count">' + (l.item_count || '?') + ' items</span></label>';
-    });
-    h += '</div><div class="mdblist-browse-actions">'
-      + '<select id="trakt-browse-media"><option value="movie">Movies</option><option value="series">Shows</option><option value="both">Both</option></select>'
-      + '<button class="btn-add-catalog" onclick="addTraktBrowseSelection()">+ Add Selected</button></div>';
-    resultsEl.innerHTML = h;
-    resultsEl._lists = allLists;
-    resultsEl._username = username;
-  } catch (err) {
-    resultsEl.innerHTML = '<div style="color:var(--error);font-size:0.78rem">' + escHtml(err.message) + '</div>';
-  }
-}
-
-function addTraktBrowseSelection() {
-  var resultsEl = document.getElementById('trakt-browse-results');
-  var lists = resultsEl._lists || [];
-  var username = resultsEl._username || '';
-  var mediaType = (document.getElementById('trakt-browse-media') || {}).value || 'movie';
-  var cbs = document.querySelectorAll('.trakt-browse-cb:checked');
-  var added = 0, skipped = 0;
-  cbs.forEach(function(cb) {
-    var l = lists[parseInt(cb.dataset.idx, 10)];
-    if (!l) return;
-    var catObj = { provider: 'trakt', listType: 'user:' + username + ':' + l.slug, listUrl: '',
-      mediaType: mediaType, name: l.name + ' (' + username + ')', apiKey: '', enabled: true };
-    if (catalogRowExists(catObj)) { skipped++; return; }
-    addExternalCatalog(catObj);
-    added++;
-  });
-  if (added || skipped) {
-    var msg = added + ' added'; if (skipped) msg += ', ' + skipped + ' duplicate(s) skipped';
-    var ind = document.getElementById('autosave-indicator'); if (ind) { ind.textContent = msg; ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove('visible'); ind.textContent = 'Settings saved'; }, 2500); }
-  }
-  autoSave();
-}
+// -- External Catalogs: see catalogs-wizard.js --
 
 
 function fmtBytes(b) {
@@ -2675,7 +1861,7 @@ window.onPageShow = function(name) {
   }
   if (name === 'health' && typeof window.startHealth === 'function') window.startHealth();
   if (name === 'log' && typeof refreshLog === 'function') refreshLog();
-  if (name === 'catalogs' && typeof refreshKeyPills === 'function') refreshKeyPills();
+  if (name === 'catalogs' && window.CatalogsWizard) window.CatalogsWizard.onPageShow(name);
   if (window.Controls) Controls.syncAll();
 };
 
@@ -2887,7 +2073,7 @@ async function renderDashboard(force = false) {
     const servers = cfg.servers || [];
     _registerHealthServers(servers);
     const healthByUrl = await _fetchHealthByUrl();
-    const catCount = (typeof collectExternalCatalogs === 'function' ? collectExternalCatalogs() : []).length;
+    const catCount = (window.collectExternalCatalogs ? window.collectExternalCatalogs() : []).length;
     const catEl = document.getElementById('tile-catalogs');
     if (catEl) catEl.textContent = catCount;
     if (!wrap) return;
@@ -3444,23 +2630,7 @@ function toggleSummaryStyle() {
   autoSave();
 }
 
-function toggleCatalogOptions() {
-  const show = document.getElementById('show-catalog')?.checked ?? true;
-  const opts = document.getElementById('catalog-options');
-  if (opts) opts.style.display = show ? '' : 'none';
-}
-
-function toggleKeyTile(id) {
-  const w = document.getElementById('keywrap-' + id);
-  if (w) w.style.display = w.style.display === 'none' ? 'block' : 'none';
-}
-function refreshKeyPills() {
-  [['trakt-client-id','pill-trakt'],['mdblist-api-key','pill-mdblist'],['tmdb-api-key','pill-tmdb'],['rpdb-key','pill-rpdb']]
-    .forEach(([inp, pill]) => {
-      const i = document.getElementById(inp), p = document.getElementById(pill);
-      if (i && p) { const set = !!i.value.trim(); p.textContent = set ? 'SET' : 'ADD KEY'; p.className = 'st ' + (set ? 'set' : 'unset'); }
-    });
-}
+// toggleCatalogOptions, refreshKeyPills — catalogs-wizard.js
 
 const PREVIEW_SERVERS = [
   { label: 'Cloud Emby', emoji: '', type: 'emby', status: 'found', count: 5, resLabels: ['4K','1080p'], resCounts: {'4K':2,'1080p':3}, pingMs: 12 },
@@ -4028,7 +3198,7 @@ Continue anyway?`;
   const traktClientId   = document.getElementById('trakt-client-id')?.value.trim() || '';
   const mdblistApiKey   = document.getElementById('mdblist-api-key')?.value.trim() || '';
   const tmdbApiKey      = document.getElementById('tmdb-api-key')?.value.trim() || '';
-  const externalCatalogs = collectExternalCatalogs();
+  const externalCatalogs = window.collectExternalCatalogs ? window.collectExternalCatalogs() : [];
   const { protocol, host } = window.location;
   const section = document.getElementById('result-section');
 
@@ -4258,7 +3428,7 @@ function collectFormState() {
     traktClientId:    document.getElementById('trakt-client-id')?.value.trim() || '',
     mdblistApiKey:    document.getElementById('mdblist-api-key')?.value.trim() || '',
     tmdbApiKey:       document.getElementById('tmdb-api-key')?.value.trim() || '',
-    externalCatalogs: collectExternalCatalogs(),
+    externalCatalogs: window.collectExternalCatalogs ? window.collectExternalCatalogs() : [],
     catalogLang: document.getElementById("catalog-lang") ? document.getElementById("catalog-lang").value : "",
     noDupes: document.getElementById("no-dupes")?.checked ?? false,
     failoverHideDown: document.getElementById('failover-hide-down')?.checked ?? false,
@@ -4395,7 +3565,7 @@ function restoreFromLocalStorage() {
     setVal('subs-style', state.subsStyle);
     if (state.showCatalog === false) {
       setChk('show-catalog', false);
-      toggleCatalogOptions();
+      if (window.toggleCatalogOptions) window.toggleCatalogOptions();
     }
     setVal('catalog-content', state.catalogContent);
     var savedRows = Array.isArray(state.libraryRows) ? state.libraryRows
@@ -4403,14 +3573,16 @@ function restoreFromLocalStorage() {
     ['recent','resume','nextup','favorites'].forEach(function(k){
       var el = document.getElementById('libchk-' + k); if (el) el.checked = savedRows.indexOf(k) !== -1;
     });
+    if (window.CatalogsWizard && window.CatalogsWizard.syncLibChips) window.CatalogsWizard.syncLibChips();
     if (window.Controls) Controls.syncAll();
     setVal('rpdb-key', state.rpdbKey);
     if (state.traktClientId) setVal('trakt-client-id', state.traktClientId);
     if (state.mdblistApiKey) setVal('mdblist-api-key', state.mdblistApiKey);
     if (state.tmdbApiKey) setVal('tmdb-api-key', state.tmdbApiKey);
+    if (window.refreshKeyPills) window.refreshKeyPills();
     if (Array.isArray(state.externalCatalogs) && state.externalCatalogs.length) {
       const catList = document.getElementById('catalog-list');
-      if (catList) { catList.innerHTML = ''; nextCatId = 0; state.externalCatalogs.forEach(function(cat){ addExternalCatalog(cat); }); }
+      if (catList && window.addExternalCatalog) { catList.innerHTML = ''; window.nextCatId = 0; state.externalCatalogs.forEach(function(cat){ window.addExternalCatalog(cat); }); }
     }
 
     if (state.catalogLang) setVal("catalog-lang", state.catalogLang);
@@ -4453,8 +3625,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // TEMP scaffold: these page-init calls belong to Catalogs/Appearance/Streaming
   // pages not yet migrated; their target DOM is absent now, so guard each call.
   // Later tasks move them to fire on their page's onPageShow.
-  [initPresets, updateLabelPreview, toggleCustomPreset, toggleCatalogOptions, onShowPingChange]
+  [updateLabelPreview, toggleCustomPreset, onShowPingChange]
     .forEach(fn => { try { fn(); } catch (_) {} });
+  if (window.toggleCatalogOptions) try { window.toggleCatalogOptions(); } catch {}
   document.addEventListener('input', autoSave);
   document.addEventListener('change', autoSave);
   const qi = document.getElementById('quick-install');

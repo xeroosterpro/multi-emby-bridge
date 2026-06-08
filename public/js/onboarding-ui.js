@@ -2,6 +2,7 @@
 (function () {
   const STEPS = [
     { id: 'server', label: 'Add your first server', page: 'servers' },
+    { id: 'catalogs', label: 'Set up catalogs', page: 'catalogs' },
     { id: 'streaming', label: 'Set streaming preferences', page: 'streaming' },
     { id: 'install', label: 'Install addon to Stremio', page: 'install' },
     { id: 'test', label: 'Test a stream in Stremio', page: 'dashboard' },
@@ -21,11 +22,21 @@
     );
   }
 
+  function hasCatalogSetup(cfg) {
+    if (!cfg) return false;
+    if (cfg.onboarding && cfg.onboarding.visitedCatalogs) return true;
+    const rows = cfg.externalCatalogs || [];
+    const hasRows = rows.some(r => r && r.enabled !== false);
+    const libOn = cfg.showCatalog !== false;
+    return hasRows || (libOn && Array.isArray(cfg.libraryRows) && cfg.libraryRows.length > 0);
+  }
+
   function deriveSteps(cfg, manifestUrl, hasStreamLog) {
     const servers = (cfg && cfg.servers) || [];
     const hasServer = servers.some(s => s.url && s.apiKey && s.userId);
     return {
       server: hasServer,
+      catalogs: hasCatalogSetup(cfg),
       streaming: hasStreamingPrefs(cfg),
       install: !!manifestUrl,
       test: !!(cfg && cfg.onboarding && cfg.onboarding.testedStream) || hasStreamLog,
@@ -126,6 +137,14 @@
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ onboarding: { visitedStreaming: true } }),
+      }).catch(() => {});
+    }
+    if (page === 'catalogs') {
+      fetch('/api/user/config-patch', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ onboarding: { visitedCatalogs: true } }),
       }).catch(() => {});
     }
     if (page === 'home') refresh();

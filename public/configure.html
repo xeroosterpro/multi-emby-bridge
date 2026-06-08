@@ -18,6 +18,7 @@
   <title>Stream Hub — Configure</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/css/configure.css?v=3" />
+  <link rel="stylesheet" href="/css/catalogs-wizard.css" />
   <link rel="stylesheet" href="/css/themes.css" />
 </head>
 <body class="sb-locked">
@@ -106,7 +107,7 @@
             <svg class="nav-chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
           </button>
           <div class="nav-group-items">
-            <a class="nav-item" data-page="catalogs"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h3v18H6a2 2 0 0 1-2-2V5Z"/><path d="M9 3h4l5 1.5-3.5 16L9 19"/></svg><span class="nav-label">Library Setup</span></a>
+            <a class="nav-item" data-page="catalogs"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h3v18H6a2 2 0 0 1-2-2V5Z"/><path d="M9 3h4l5 1.5-3.5 16L9 19"/></svg><span class="nav-label">Catalogs</span></a>
             <a class="nav-item" data-page="streaming"><svg class="nav-ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m10 9 5 3-5 3V9Z"/></svg><span class="nav-label">Media Sources</span></a>
             <a class="nav-item" data-page="install"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg><span class="nav-label">Install</span></a>
             <a class="nav-item" data-page="apikeys"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 1-7.1 7.1 5 5 0 0 1 7.1-7.1Zm0 0L15 8m0 0 3 3 3-3-3-3"/></svg><span class="nav-label">API Keys</span></a>
@@ -322,131 +323,187 @@
         </div>
       </section>
       <section class="page" id="page-catalogs">
-  <h2 class="page-title">Catalogs</h2>
-  <p class="page-sub">Add external rows to your Stremio home screen.</p>
+        <div class="cw-head">
+          <div class="cw-head-main">
+            <h2 class="page-title">Catalogs</h2>
+            <p class="page-sub">Build your Stremio home screen in 4 easy steps.</p>
+          </div>
+          <button type="button" class="cw-expert-toggle" id="cw-expert-toggle" title="Show advanced tools">Expert mode</button>
+        </div>
 
-          <!-- ===== Quick add: My Library home catalog ===== -->
-          <h3 class="block-title">Quick add</h3>
-          <div class="field">
+        <nav class="cw-stepper" aria-label="Catalog setup steps">
+          <button type="button" class="cw-step-btn" data-step="connect"><span class="cw-step-n">1</span><span>Connect</span></button>
+          <button type="button" class="cw-step-btn" data-step="library"><span class="cw-step-n">2</span><span>Your library</span></button>
+          <button type="button" class="cw-step-btn" data-step="discover"><span class="cw-step-n">3</span><span>Pick rows</span></button>
+          <button type="button" class="cw-step-btn" data-step="review"><span class="cw-step-n">4</span><span>Review</span></button>
+        </nav>
+
+        <!-- Step 1: API keys -->
+        <div class="cw-panel on" data-step="connect">
+          <p class="cw-lead">Connect your list sources</p>
+          <p class="cw-hint">Keys stay encrypted on our servers. Expand a card to paste yours, then test the connection. You only need keys for the sources you plan to use.</p>
+          <div class="cw-key-grid">
+            <div class="cw-key-card" data-provider="trakt">
+              <div class="cw-key-card-h">
+                <span class="cw-key-icon" style="background:#ED2224">T</span>
+                <div class="cw-key-meta"><div class="cw-key-name">Trakt</div><div class="cw-key-desc">Trending charts &amp; user lists</div></div>
+                <span class="cw-key-pill unset" id="cw-pill-trakt">Not set</span>
+                <span class="cw-key-chev">▾</span>
+              </div>
+              <div class="cw-key-body">
+                <input type="text" id="trakt-client-id" placeholder="Trakt Client ID" autocomplete="off" spellcheck="false" />
+                <div class="cw-key-actions">
+                  <button type="button" class="cw-btn-soft" data-test-key="trakt">Test connection</button>
+                  <a href="https://trakt.tv/oauth/applications" target="_blank" rel="noopener">Get a Client ID →</a>
+                </div>
+              </div>
+            </div>
+            <div class="cw-key-card" data-provider="tmdb">
+              <div class="cw-key-card-h">
+                <span class="cw-key-icon" style="background:#01B4E4">T</span>
+                <div class="cw-key-meta"><div class="cw-key-name">TMDB</div><div class="cw-key-desc">Netflix-style service rows &amp; charts</div></div>
+                <span class="cw-key-pill unset" id="cw-pill-tmdb">Not set</span>
+                <span class="cw-key-chev">▾</span>
+              </div>
+              <div class="cw-key-body">
+                <input type="text" id="tmdb-api-key" placeholder="API Read Access Token (eyJ…)" autocomplete="off" spellcheck="false" />
+                <div class="cw-key-actions">
+                  <button type="button" class="cw-btn-soft" data-test-key="tmdb">Test connection</button>
+                  <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">Get API key →</a>
+                </div>
+              </div>
+            </div>
+            <div class="cw-key-card" data-provider="mdblist">
+              <div class="cw-key-card-h">
+                <span class="cw-key-icon" style="background:#6366f1">M</span>
+                <div class="cw-key-meta"><div class="cw-key-name">MDbList</div><div class="cw-key-desc">Curated genre &amp; theme lists</div></div>
+                <span class="cw-key-pill unset" id="cw-pill-mdblist">Not set</span>
+                <span class="cw-key-chev">▾</span>
+              </div>
+              <div class="cw-key-body">
+                <input type="text" id="mdblist-api-key" placeholder="MDbList API key" autocomplete="off" spellcheck="false" />
+                <div class="cw-key-actions">
+                  <button type="button" class="cw-btn-soft" data-test-key="mdblist">Test connection</button>
+                  <a href="https://mdblist.com/preferences" target="_blank" rel="noopener">Get API key →</a>
+                </div>
+              </div>
+            </div>
+            <div class="cw-key-card" data-provider="rpdb">
+              <div class="cw-key-card-h">
+                <span class="cw-key-icon" style="background:#444">P</span>
+                <div class="cw-key-meta"><div class="cw-key-name">RPDB</div><div class="cw-key-desc">Optional · nicer poster art</div></div>
+                <span class="cw-key-pill unset" id="cw-pill-rpdb">Not set</span>
+                <span class="cw-key-chev">▾</span>
+              </div>
+              <div class="cw-key-body">
+                <input type="text" id="rpdb-key" placeholder="RatingPosterDB key (optional)" autocomplete="off" spellcheck="false" />
+                <div class="cw-key-actions">
+                  <button type="button" class="cw-btn-soft" data-test-key="rpdb">Mark added</button>
+                  <a href="https://ratingposterdb.com/" target="_blank" rel="noopener">Get key →</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Library rows -->
+        <div class="cw-panel" data-step="library">
+          <p class="cw-lead">Show your own media on Stremio home</p>
+          <p class="cw-hint">These rows come from your Emby/Jellyfin servers. Search always works even if you turn the home catalog off.</p>
+          <div class="cw-lib-card">
             <div class="sw" data-target="#show-catalog">
               <span class="knob"></span>
-              <span><span class="sw-lbl">Home page catalog</span><br><span class="sw-sub">Show a My Media row on Stremio home. Search always works regardless.</span></span>
+              <span><span class="sw-lbl">Home page catalog</span><br><span class="sw-sub">Show My Media and library rows on Stremio home</span></span>
             </div>
-            <!-- canonical checkbox keeps its onchange handler -->
-            <input type="checkbox" id="show-catalog" class="hidden-canonical" checked onchange="toggleCatalogOptions();autoSave()" />
-
-            <div id="catalog-options" style="margin-top:10px">
-              <div class="field-label">Home rows</div>
-              <div class="switches">
-                <div class="sw" data-target="#libchk-recent"><span class="knob"></span><span class="sw-lbl">🆕 Recently Added</span></div>
-                <div class="sw" data-target="#libchk-resume"><span class="knob"></span><span class="sw-lbl">▶️ Continue Watching</span></div>
-                <div class="sw" data-target="#libchk-nextup"><span class="knob"></span><span class="sw-lbl">⏭️ Next Up</span></div>
-                <div class="sw" data-target="#libchk-favorites"><span class="knob"></span><span class="sw-lbl">⭐ Favorites</span></div>
+            <input type="checkbox" id="show-catalog" class="hidden-canonical" checked />
+            <div id="catalog-options" style="margin-top:12px">
+              <div class="field-label">Which rows to show</div>
+              <div class="cw-lib-rows">
+                <label class="cw-lib-chip on"><input type="checkbox" id="libchk-recent" checked /> 🆕 Recently Added</label>
+                <label class="cw-lib-chip"><input type="checkbox" id="libchk-resume" /> ▶️ Continue Watching</label>
+                <label class="cw-lib-chip"><input type="checkbox" id="libchk-nextup" /> ⏭️ Next Up</label>
+                <label class="cw-lib-chip"><input type="checkbox" id="libchk-favorites" /> ⭐ Favorites</label>
               </div>
               <div class="hidden-canonical">
-                <input type="checkbox" id="libchk-recent" checked onchange="autoSave()" />
-                <input type="checkbox" id="libchk-resume" onchange="autoSave()" />
-                <input type="checkbox" id="libchk-nextup" onchange="autoSave()" />
-                <input type="checkbox" id="libchk-favorites" onchange="autoSave()" />
                 <select id="catalog-content"><option value="recent">recent</option><option value="resume">resume</option><option value="favorites">favorites</option></select>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- ===== Connections moved to the API Keys page ===== -->
-
-          <!-- ===== Filters ===== -->
-          <h3 class="block-title">Filters</h3>
-          <div class="field">
-            <div class="field-label">Language filter</div>
-            <select id="catalog-lang" class="pick" onchange="autoSave()">
-              <option value="">Off - show everything</option>
-              <option value="en">English only</option>
-              <option value="es">Spanish only</option>
-              <option value="fr">French only</option>
-              <option value="de">German only</option>
-              <option value="ja">Japanese only</option>
-              <option value="ko">Korean only</option>
-              <option value="pt">Portuguese only</option>
-            </select>
+        <!-- Step 3: Discover presets -->
+        <div class="cw-panel" data-step="discover">
+          <p class="cw-lead">Pick streaming layouts</p>
+          <p class="cw-hint">Tap a service to preview its rows, then add the ones you want. Kids &amp; Family is great for shared TVs.</p>
+          <div class="cw-gallery-wrap">
+            <div class="cw-gallery" id="cw-gallery"></div>
           </div>
-          <div class="field">
-            <div class="sw" data-target="#no-dupes">
-              <span class="knob"></span>
-              <span><span class="sw-lbl">No duplicate rows</span><br><span class="sw-sub">Each title appears in only the first catalog row it shows up in</span></span>
-            </div>
-            <input type="checkbox" id="no-dupes" class="hidden-canonical" onchange="autoSave()" />
+          <div class="cw-preset-sheet" id="cw-preset-sheet">
+            <strong id="cw-preset-title">Layout preview</strong>
+            <div class="cw-preset-list" id="cw-preset-list"></div>
+            <button type="button" class="cw-btn-primary" id="btn-apply-preset" onclick="applyPreset()">+ Add rows</button>
           </div>
+          <button type="button" class="cw-all-networks" onclick="applyAllNetworks()">+ Quick add: one row each from Netflix, Prime, Disney+, Hulu, Max &amp; Apple</button>
+        </div>
 
-          <div class="options-divider"></div>
-
-
-          <!-- Streaming Presets -->
-          <div class="preset-section">
-            <div class="preset-header">
-              <strong>&#x26A1; Streaming Presets</strong>
-              <span class="preset-hint">One click to replicate a service home screen layout</span>
+        <!-- Step 4: Review -->
+        <div class="cw-panel" data-step="review">
+          <p class="cw-lead">Review your Stremio home</p>
+          <p class="cw-hint">Drag to reorder. Test each row to confirm it loads. When you're happy, save to push changes to Stremio.</p>
+          <div class="cw-preview-strip" id="cw-preview-strip" aria-label="Home screen preview"></div>
+          <div class="cw-review-stats">
+            <span id="cw-row-count">0 rows</span>
+            <span>Drag rows to change order on Stremio home</span>
+          </div>
+          <div class="cw-filters">
+            <div class="field">
+              <div class="field-label">Language filter</div>
+              <select id="catalog-lang" class="pick">
+                <option value="">Off — show everything</option>
+                <option value="en">English only</option>
+                <option value="es">Spanish only</option>
+                <option value="fr">French only</option>
+                <option value="de">German only</option>
+                <option value="ja">Japanese only</option>
+                <option value="ko">Korean only</option>
+                <option value="pt">Portuguese only</option>
+              </select>
             </div>
-            <div class="preset-services" id="preset-services"></div>
-            <button class="btn-all-networks" onclick="applyAllNetworks()" title="Add Netflix, Prime, Disney+, Hulu, Max and Apple TV+ catalog rows at once">+ All Major Networks</button>
-            <div class="preset-preview" id="preset-preview">
-              <div class="preset-preview-list" id="preset-preview-list"></div>
-              <button class="btn-apply-preset" id="btn-apply-preset" onclick="applyPreset()">+ Apply Preset</button>
+            <div class="field">
+              <div class="sw" data-target="#no-dupes">
+                <span class="knob"></span>
+                <span><span class="sw-lbl">No duplicate titles</span><br><span class="sw-sub">Each title appears only in the first row it matches</span></span>
+              </div>
+              <input type="checkbox" id="no-dupes" class="hidden-canonical" />
             </div>
           </div>
-
-          <!-- MDbList User Browser -->
-          <div class="browse-section">
-            <div class="browse-header">
-              <strong>&#x1F50D; Browse MDbList User</strong>
-              <span class="preset-hint">Enter a username to browse their public lists</span>
-            </div>
-            <div class="browse-input-row">
-              <input type="text" id="mdblist-browse-user" placeholder="e.g. garycrawfordgc" style="flex:1;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" />
-              <button class="btn-add-catalog" onclick="browseMdblistUser()">Browse</button>
-            </div>
-            <div id="mdblist-browse-results"></div>
+          <div class="catalog-list-header">
+            <span class="catalog-list-count" id="catalog-count"></span>
+            <button type="button" class="btn-clear-all" id="btn-clear-all" onclick="clearAllCatalogs()">Clear all</button>
           </div>
+          <div id="catalog-list" class="catalog-list"></div>
+        </div>
 
-          <!-- Trakt User Lists -->
-          <div class="browse-section">
-            <div class="browse-header">
-              <strong>&#x1F3AC; Import Trakt Lists</strong>
-              <span class="preset-hint">Enter username or profile URL to import lists</span>
-            </div>
-            <div class="browse-input-row">
-              <input type="text" id="trakt-browse-user" placeholder="username or https://trakt.tv/users/..." style="flex:1;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" />
-              <button class="btn-add-catalog" onclick="browseTraktUser()">Browse</button>
-            </div>
-            <div id="trakt-browse-results"></div>
-          </div>
+        <div class="cw-nav">
+          <button type="button" class="cw-btn-soft cw-nav-back" id="cw-nav-back" style="visibility:hidden">← Back</button>
+          <button type="button" class="cw-btn-primary" id="cw-nav-next">Continue</button>
+        </div>
 
-          <!-- Stremio Addon Importer -->
-          <div class="browse-section">
-            <div class="browse-header"><strong>&#x1F4E5; Import from a Stremio addon</strong>
-              <span class="preset-hint">Paste an addon's manifest URL to add its catalogs (e.g. TOP Streaming)</span></div>
-            <div class="browse-input-row">
-              <input type="text" id="addon-import-url" placeholder="https://…/manifest.json" style="flex:1;padding:0.35rem 0.6rem;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-size:0.8rem" />
-              <button class="btn-add-catalog" onclick="browseAddonCatalogs()">Browse</button>
-            </div>
-            <div id="addon-import-results"></div>
-          </div>
-
-          <div class="options-divider"></div>
-
-          <!-- ===== Add a row ===== -->
-          <h3 class="block-title">Add a row</h3>
+        <!-- Expert mode -->
+        <div class="cw-expert" id="cw-expert">
+          <div class="cw-expert-title">Expert tools — custom rows, browse &amp; import</div>
+          <h3 class="block-title">Add a custom row</h3>
           <div class="catalog-add-form">
             <div class="field-label">Provider</div>
             <div class="tilegroup cat-provider-tiles" data-target="#cat-provider">
-              <div class="tile" data-val="trakt"><span class="tic">&#x1F3AC;</span>Trakt</div>
-              <div class="tile" data-val="mdblist"><span class="tic">&#x1F4DD;</span>MDbList</div>
-              <div class="tile" data-val="imdb"><span class="tic">&#x2B50;</span>IMDb</div>
-              <div class="tile" data-val="letterboxd"><span class="tic">&#x1F4D7;</span>Letterboxd</div>
-              <div class="tile" data-val="tmdb"><span class="tic">&#x1F3A5;</span>TMDB</div>
+              <div class="tile" data-val="trakt"><span class="tic">🎬</span>Trakt</div>
+              <div class="tile" data-val="mdblist"><span class="tic">📝</span>MDbList</div>
+              <div class="tile" data-val="imdb"><span class="tic">⭐</span>IMDb</div>
+              <div class="tile" data-val="letterboxd"><span class="tic">📗</span>Letterboxd</div>
+              <div class="tile" data-val="tmdb"><span class="tic">🎥</span>TMDB</div>
             </div>
             <select id="cat-provider" class="hidden-canonical" onchange="onCatalogProviderChange()">
-              <option value="">&#x2014; Provider &#x2014;</option>
+              <option value="">— Provider —</option>
               <option value="trakt">Trakt</option>
               <option value="mdblist">MDbList</option>
               <option value="imdb">IMDb List</option>
@@ -460,7 +517,7 @@
                 <option value="watched/weekly">Most Watched</option>
                 <option value="anticipated">Anticipated</option>
               </select>
-              <input type="text" id="cat-list-url" class="cat-url-field" placeholder="Paste list URL..." style="display:none;flex:1;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" oninput="onCatalogUrlInput()" />
+              <input type="text" id="cat-list-url" class="cat-url-field" placeholder="Paste list URL…" style="display:none" oninput="onCatalogUrlInput()" />
             </div>
             <div class="field-label" style="margin-top:8px">Media type</div>
             <div class="seg" data-target="#cat-media-type">
@@ -473,7 +530,6 @@
               <option value="series">Shows</option>
               <option value="both">Both</option>
             </select>
-            <!-- TMDB fields -->
             <div id="cat-tmdb-fields" class="catalog-add-row" style="display:none;flex-direction:column;gap:0.4rem;margin-top:0.4rem">
               <div style="display:flex;gap:0.4rem;align-items:center">
                 <span style="font-size:0.75rem;color:var(--text-muted)">Mode:</span>
@@ -481,37 +537,25 @@
                 <button type="button" class="tmdb-mode-btn" data-mode="discover" onclick="setTmdbMode('discover')">Discover</button>
               </div>
               <div id="cat-tmdb-charts-fields">
-                <select id="cat-tmdb-chart" onchange="onTmdbChartChange()" style="padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem">
+                <select id="cat-tmdb-chart" onchange="onTmdbChartChange()">
                   <option value="trending-week">Trending (Weekly)</option>
                   <option value="trending-day">Trending (Daily)</option>
                   <option value="popular">Popular</option>
                   <option value="top-rated">Top Rated</option>
-                  <option value="now-playing">Now Playing (movies only)</option>
-                  <option value="upcoming">Upcoming (movies only)</option>
+                  <option value="now-playing">Now Playing</option>
+                  <option value="upcoming">Upcoming</option>
                 </select>
               </div>
               <div id="cat-tmdb-discover-fields" style="display:none;flex-wrap:wrap;gap:0.4rem">
-                <select id="cat-tmdb-genre" style="padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem">
+                <select id="cat-tmdb-genre">
                   <option value="">Any Genre</option>
                   <option value="28">Action</option>
-                  <option value="12">Adventure</option>
-                  <option value="16">Animation</option>
                   <option value="35">Comedy</option>
-                  <option value="80">Crime</option>
-                  <option value="99">Documentary</option>
                   <option value="18">Drama</option>
-                  <option value="14">Fantasy</option>
-                  <option value="36">History</option>
                   <option value="27">Horror</option>
-                  <option value="10402">Music</option>
-                  <option value="9648">Mystery</option>
-                  <option value="10749">Romance</option>
-                  <option value="878">Science Fiction</option>
-                  <option value="53">Thriller</option>
-                  <option value="10752">War</option>
-                  <option value="37">Western</option>
+                  <option value="878">Sci-Fi</option>
                 </select>
-                <select id="cat-tmdb-watch-provider" style="padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem">
+                <select id="cat-tmdb-watch-provider">
                   <option value="">Any Service</option>
                   <option value="8">Netflix</option>
                   <option value="119">Prime Video</option>
@@ -520,33 +564,44 @@
                   <option value="1899">Max</option>
                   <option value="350">Apple TV+</option>
                 </select>
-                <input type="number" id="cat-tmdb-min-rating" placeholder="Min Rating (e.g. 7)" min="0" max="10" step="0.5" style="width:155px;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" />
-                <input type="number" id="cat-tmdb-year-from" placeholder="Year From" min="1900" max="2099" style="width:105px;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" />
-                <input type="number" id="cat-tmdb-year-to" placeholder="Year To" min="1900" max="2099" style="width:105px;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" />
-                <select id="cat-tmdb-sort-by" style="padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem">
+                <input type="number" id="cat-tmdb-min-rating" placeholder="Min rating" min="0" max="10" step="0.5" />
+                <select id="cat-tmdb-sort-by">
                   <option value="popularity.desc">Popularity</option>
                   <option value="vote_average.desc">Rating</option>
-                  <option value="primary_release_date.desc">Release Date</option>
-                  <option value="revenue.desc">Revenue</option>
-                  <option value="vote_count.desc">Vote Count</option>
                 </select>
               </div>
             </div>
             <div class="catalog-add-row" style="margin-top:0.4rem">
-              <input type="text" id="cat-name" placeholder="Display name (auto-filled)" style="flex:1;padding:0.35rem 0.6rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem" />
-              <button class="btn-add-catalog" onclick="addExternalCatalog()">+ Add</button>
+              <input type="text" id="cat-name" placeholder="Display name (auto-filled)" />
+              <button type="button" class="btn-add-catalog" onclick="addExternalCatalog()">+ Add</button>
             </div>
           </div>
-
-          <div class="options-divider"></div>
-
-          <!-- ===== Your rows ===== -->
-          <h3 class="block-title">Your rows</h3>
-          <div class="catalog-list-header">
-            <span class="catalog-list-count" id="catalog-count"></span>
-            <button class="btn-clear-all" id="btn-clear-all" onclick="clearAllCatalogs()">Clear All</button>
+          <div class="browse-section">
+            <div class="browse-header"><strong>🔍 Browse MDbList user</strong></div>
+            <div class="browse-input-row">
+              <input type="text" id="mdblist-browse-user" placeholder="e.g. garycrawfordgc" />
+              <button type="button" class="btn-add-catalog" onclick="browseMdblistUser()">Browse</button>
+            </div>
+            <div id="mdblist-browse-results"></div>
           </div>
-          <div id="catalog-list" class="catalog-list"></div>
+          <div class="browse-section">
+            <div class="browse-header"><strong>🎬 Import Trakt lists</strong></div>
+            <div class="browse-input-row">
+              <input type="text" id="trakt-browse-user" placeholder="username or trakt.tv/users/…" />
+              <button type="button" class="btn-add-catalog" onclick="browseTraktUser()">Browse</button>
+            </div>
+            <div id="trakt-browse-results"></div>
+          </div>
+          <div class="browse-section">
+            <div class="browse-header"><strong>📥 Import Stremio addon</strong></div>
+            <div class="browse-input-row">
+              <input type="text" id="addon-import-url" placeholder="https://…/manifest.json" />
+              <button type="button" class="btn-add-catalog" onclick="browseAddonCatalogs()">Browse</button>
+            </div>
+            <div id="addon-import-results"></div>
+          </div>
+        </div>
+      </section>
 </section>
       <section class="page" id="page-streaming">
         <div class="ms-head">
@@ -1010,23 +1065,10 @@
         <div id="result-section" class="inst-result"></div>
       </section>
       <section class="page" id="page-apikeys">
-        <h2 class="page-title">API Keys</h2>
-        <p class="page-sub">Catalog source keys · stored encrypted</p>
-        <div class="ak-grid">
-          <div class="card">
-            <div class="label">Your keys</div>
-            <div class="field"><div class="field-label">Trakt Client ID</div>
-              <input class="input ak-key" id="trakt-client-id" placeholder="Paste Trakt client id" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
-            <div class="field"><div class="field-label">TMDB API key</div>
-              <input class="input ak-key" id="tmdb-api-key" placeholder="Paste API Read Access Token (eyJ...)" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
-            <div class="field"><div class="field-label">MDBList API key</div>
-              <input class="input ak-key" id="mdblist-api-key" placeholder="Paste MDBList key" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
-            <div class="field"><div class="field-label">RPDB key <span class="field-opt">(optional · poster art)</span></div>
-              <input class="input ak-key" id="rpdb-key" placeholder="Paste RatingPosterDB key" autocomplete="off" spellcheck="false" oninput="autoSave();refreshKeyPills()" /></div>
-            <div class="field-hint">Keys are AES-encrypted before they touch the database. Decrypted only when serving your manifest.</div>
-            <button class="btn-generate" id="ak-save" type="button">Save keys</button>
-            <div class="auth-err" id="acct-msg"></div>
-          </div>
+        <div class="ak-redirect">
+          <h2 class="page-title">API Keys</h2>
+          <p>Keys are now managed inside <strong>Catalogs → Step 1: Connect</strong>. They stay AES-encrypted on the server.</p>
+          <button type="button" class="cw-btn-primary" onclick="location.hash='#/catalogs?step=connect'">Open Catalogs setup</button>
         </div>
       </section>
       <section class="page" id="page-ping">
@@ -1630,6 +1672,7 @@
   <script src="/js/theme.js"></script>
   <script src="/js/mobile-shell.js"></script>
   <script src="/js/ui.js"></script>
+  <script src="/js/catalogs-wizard.js"></script>
   <script src="/js/configure.js"></script>
   <script src="/js/controls.js"></script>
   <script src="/js/shell.js"></script>

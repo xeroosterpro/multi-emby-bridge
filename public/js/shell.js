@@ -58,8 +58,13 @@ function showPage(name) {
 }
 
 function routeFromHash() {
-  let name = (location.hash || '#/home').replace(/^#\//, '');
+  let raw = (location.hash || '#/home').replace(/^#\//, '');
+  let name = raw.split('?')[0];
   if (name === 'appearance') name = 'streaming';
+  if (name === 'apikeys') {
+    location.hash = '#/catalogs?step=connect';
+    name = 'catalogs';
+  }
   showPage(name);
 }
 
