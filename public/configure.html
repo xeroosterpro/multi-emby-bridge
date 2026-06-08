@@ -381,7 +381,7 @@
             <h3 class="cw-lead">Connect your sources</h3>
             <p class="cw-hint">Keys are AES-encrypted on our servers. Add only what you need — you can skip and come back later.</p>
           </div>
-          <div class="cw-skip-hint" id="cw-connect-skip">No keys yet? Continue — TOP Streaming Top 10 rows work without any API keys.</div>
+          <div class="cw-skip-hint" id="cw-connect-skip">No keys yet? Continue — Streaming Top 10 rows work without any API keys.</div>
           <div class="cw-key-list">
             <div class="cw-key-card" data-provider="trakt">
               <div class="cw-key-card-h">
@@ -510,30 +510,21 @@
           </div>
         </div>
 
-        <!-- Step 3: Discover — TOP Streaming -->
+        <!-- Step 3: Discover — streaming charts -->
         <div class="cw-panel" data-step="discover">
           <div class="cw-panel-head">
             <h3 class="cw-lead">Add streaming rows</h3>
-            <p class="cw-hint">Real Top 10 charts from the TOP Streaming addon — pick platforms or install the full set.</p>
+            <p class="cw-hint">Live Top 10 charts from major platforms — pick services or add them all at once.</p>
           </div>
-          <div class="cw-addon-card" id="cw-addon-card">
-            <div class="cw-addon-logo" aria-hidden="true">
-              <span class="cw-addon-logo-top">TOP</span>
-              <span class="cw-addon-logo-play">▶</span>
-              <span class="cw-addon-logo-stream">STREAMING</span>
-            </div>
-            <div class="cw-addon-body">
-              <div class="cw-addon-title-row">
-                <span class="cw-addon-crowns">👑</span>
-                <h4 class="cw-addon-title">TOP Streaming</h4>
-                <span class="cw-addon-globe">🌍</span>
-                <span class="cw-addon-ver">v4.2.1</span>
-              </div>
-              <p class="cw-addon-sub">Movie &amp; Series</p>
-              <p class="cw-addon-desc">Top 10 Catalog Lists from the main Streaming Platforms — Catalogs: <span id="cw-addon-catalog-count">23</span> — Content language: en-US</p>
-              <div class="cw-addon-actions">
-                <button type="button" class="cw-addon-btn-install" onclick="installTopStreamingAll()">+ Install all catalogs</button>
-                <button type="button" class="cw-addon-btn-main" onclick="installTopStreamingMain()">Main 6 platforms</button>
+          <div class="cw-charts-hero" id="cw-charts-hero">
+            <div class="cw-charts-hero-icon" aria-hidden="true">📊</div>
+            <div class="cw-charts-hero-body">
+              <h4 class="cw-charts-hero-title">Streaming Top 10</h4>
+              <p class="cw-charts-hero-sub">Movies &amp; Series · United States</p>
+              <p class="cw-charts-hero-desc"><span id="cw-charts-platform-count">13</span> platforms with daily-updated Top 10 rows</p>
+              <div class="cw-charts-hero-actions">
+                <button type="button" class="cw-charts-btn-primary" onclick="installTopStreamingAll()">+ Add all platforms</button>
+                <button type="button" class="cw-charts-btn-soft" onclick="installTopStreamingMain()">Main 6 services</button>
               </div>
             </div>
           </div>
@@ -543,21 +534,6 @@
             <button type="button" class="cw-cat-tab" data-cat="more" role="tab">More</button>
           </div>
           <div class="cw-gallery" id="cw-gallery"></div>
-          <div class="cw-preset-backdrop" id="cw-preset-backdrop" hidden></div>
-          <div class="cw-preset-sheet" id="cw-preset-sheet" role="dialog" aria-labelledby="cw-preset-title">
-            <div class="cw-preset-grab" aria-hidden="true"></div>
-            <div class="cw-preset-sheet-head">
-              <div>
-                <strong id="cw-preset-title">Layout preview</strong>
-                <span class="cw-preset-sub" id="cw-preset-sub"></span>
-              </div>
-              <button type="button" class="cw-preset-close" id="cw-preset-close" aria-label="Close preview">✕</button>
-            </div>
-            <div class="cw-preset-list" id="cw-preset-list"></div>
-            <div class="cw-preset-foot">
-              <button type="button" class="cw-btn-primary" id="btn-apply-preset" onclick="applyPreset()">+ Add selected rows</button>
-            </div>
-          </div>
           <button type="button" class="cw-all-networks" onclick="applyAllNetworks()">
             <span class="cw-all-networks-ic">⚡</span>
             Quick mix — one row each from Netflix, Prime, Disney+, Hulu, Max &amp; Apple
@@ -719,10 +695,28 @@
           <div class="browse-section">
             <div class="browse-header"><strong>📥 Import Stremio addon</strong></div>
             <div class="browse-input-row">
-              <input type="text" id="addon-import-url" placeholder="https://…/manifest.json" value="https://top-streaming.stream/471c23c0-6756-471c-a7eb-f41927b5c214/manifest.json" />
+              <input type="text" id="addon-import-url" placeholder="https://…/manifest.json" />
               <button type="button" class="btn-add-catalog" onclick="browseAddonCatalogs()">Browse</button>
             </div>
             <div id="addon-import-results"></div>
+          </div>
+        </div>
+
+        <div class="cw-sheet-layer" id="cw-sheet-layer" hidden>
+          <div class="cw-preset-backdrop" id="cw-preset-backdrop"></div>
+          <div class="cw-preset-sheet" id="cw-preset-sheet" role="dialog" aria-labelledby="cw-preset-title">
+            <div class="cw-preset-grab" aria-hidden="true"></div>
+            <div class="cw-preset-sheet-head">
+              <div>
+                <strong id="cw-preset-title">Platform rows</strong>
+                <span class="cw-preset-sub" id="cw-preset-sub"></span>
+              </div>
+              <button type="button" class="cw-preset-close" id="cw-preset-close" aria-label="Close preview">✕</button>
+            </div>
+            <div class="cw-preset-list" id="cw-preset-list"></div>
+            <div class="cw-preset-foot">
+              <button type="button" class="cw-btn-primary" id="btn-apply-preset" onclick="applyPreset()">+ Add selected rows</button>
+            </div>
           </div>
         </div>
         </div><!-- /.cw-main -->

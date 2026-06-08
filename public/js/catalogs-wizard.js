@@ -9,9 +9,9 @@
 
   const WIZARD_STEPS = ['connect', 'library', 'discover', 'review'];
   const NAV_HINTS = {
-    connect: 'Keys optional — TOP Streaming works without any keys',
+    connect: 'Keys optional — Streaming Top 10 works without any keys',
     library: 'Toggle rows your family actually watches',
-    discover: 'Pick platforms from TOP Streaming — real Top 10 charts',
+    discover: 'Pick platforms — live Top 10 charts, refreshed automatically',
     review: 'Test rows, then save to push to Stremio',
   };
   const PROGRESS_RING = 113;
@@ -27,16 +27,23 @@ const TRAKT_LIST_NAMES = {
   'watched/weekly': 'Most Watched', 'anticipated': 'Anticipated',
 };
 
-// -- TOP Streaming addon (1:1 Stremio catalog source) --
+// -- Streaming charts source (proxied addon; display names are white-labeled in UI) --
 const TOP_STREAMING = {
   baseUrl: 'https://top-streaming.stream/471c23c0-6756-471c-a7eb-f41927b5c214',
-  manifestUrl: 'https://top-streaming.stream/471c23c0-6756-471c-a7eb-f41927b5c214/manifest.json',
-  version: '4.2.1',
-  name: 'TOP Streaming',
-  description: 'Top 10 Catalog Lists from the main Streaming Platforms',
-  lang: 'en-US',
   mainPlatforms: ['netflix', 'prime', 'disney', 'hulu', 'max', 'apple'],
 };
+
+const PLATFORM_LABELS = {
+  netflix: 'Netflix', prime: 'Prime Video', disney: 'Disney+', hulu: 'Hulu',
+  max: 'Max', apple: 'Apple TV+', paramount: 'Paramount+', peacock: 'Peacock',
+  discovery: 'Discovery+', vudu: 'Vudu', starz: 'STARZ', viki: 'Viki', crunchyroll: 'Crunchyroll',
+};
+
+function friendlyCatalogName(c) {
+  const plat = PLATFORM_LABELS[c.group] || c.group;
+  if (c.id && c.id.indexOf('overall') >= 0) return plat + ' Trending';
+  return plat + ' Top 10 — ' + (c.type === 'series' ? 'Shows' : 'Movies');
+}
 
 const TOP_STREAMING_MANIFEST_CATALOGS = [
   { id: 'netflix-movies-united-states', type: 'movie', name: 'Netflix - Top 10 United States', group: 'netflix' },
@@ -71,8 +78,18 @@ function topStreamingEntry(c) {
     catalogId: c.id,
     catalogType: c.type,
     mediaType: c.type,
-    name: c.name,
+    name: friendlyCatalogName(c),
   };
+}
+
+function setSheetOpen(open) {
+  var layer = document.getElementById('cw-sheet-layer');
+  var page = document.getElementById('page-catalogs');
+  if (layer) {
+    if (open) layer.removeAttribute('hidden');
+    else layer.setAttribute('hidden', '');
+  }
+  if (page) page.classList.toggle('cw-sheet-open', !!open);
 }
 
 function catalogsForGroup(group) {
@@ -105,7 +122,6 @@ function selectPreset(key) {
   document.querySelectorAll('.cw-svc-card').forEach(function(b) { b.classList.toggle('active', b.dataset.key === key); });
   var list = document.getElementById('cw-preset-list');
   var sheet = document.getElementById('cw-preset-sheet');
-  var backdrop = document.getElementById('cw-preset-backdrop');
   var sub = document.getElementById('cw-preset-sub');
   if (!list || !sheet) return;
   if (sub) sub.textContent = p.catalogs.length + ' rows · uncheck any you don\'t want';
@@ -115,23 +131,28 @@ function selectPreset(key) {
     var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true;
     cb.className = 'preset-cb'; cb.dataset.idx = idx;
     cb.addEventListener('change', function() { updatePresetCount(); });
-    var badge = document.createElement('span'); badge.className = 'preset-preview-badge preset-badge-' + cat.provider;
-    badge.textContent = cat.provider === 'mdblist' ? 'MDB' : cat.provider === 'addon' ? 'TOP' : cat.provider.toUpperCase();
+    var badge = document.createElement('span');
+    if (cat.provider === 'addon') {
+      badge.className = 'preset-preview-badge preset-badge-charts';
+      badge.textContent = cat.mediaType === 'series' ? 'Shows' : 'Movies';
+    } else {
+      badge.className = 'preset-preview-badge preset-badge-' + cat.provider;
+      badge.textContent = cat.provider === 'mdblist' ? 'MDB' : cat.provider.toUpperCase();
+    }
     var nm = document.createElement('span'); nm.className = 'preset-preview-name'; nm.textContent = cat.name;
     var tp = document.createElement('span'); tp.className = 'preset-preview-type'; tp.textContent = cat.mediaType === 'series' ? 'Shows' : 'Movies';
     row.appendChild(cb); row.appendChild(badge); row.appendChild(nm); row.appendChild(tp); list.appendChild(row);
   });
   updatePresetCount();
   sheet.classList.add('on');
-  if (backdrop) backdrop.hidden = false;
-  document.getElementById('cw-preset-title').textContent = p.label + ' layout';
+  setSheetOpen(true);
+  document.getElementById('cw-preset-title').textContent = p.label;
 }
 
 function closePresetSheet() {
   var sheet = document.getElementById('cw-preset-sheet');
-  var backdrop = document.getElementById('cw-preset-backdrop');
   if (sheet) sheet.classList.remove('on');
-  if (backdrop) backdrop.hidden = true;
+  setSheetOpen(false);
   document.querySelectorAll('.cw-svc-card').forEach(function(b) { b.classList.remove('active'); });
   _selectedPreset = null;
 }
@@ -309,7 +330,7 @@ function updateTmdbAutoName() {
 }
 
 function renderCatalogRow(cat, id) {
-  const badges = { trakt: 'Trakt', mdblist: 'MDbList', imdb: 'IMDb', letterboxd: 'Letterboxd', tmdb: 'TMDB', addon: 'TOP' };
+  const badges = { trakt: 'Trakt', mdblist: 'MDbList', imdb: 'IMDb', letterboxd: 'Letterboxd', tmdb: 'TMDB', addon: 'Charts' };
   const typeBadge = cat.mediaType === 'both' ? 'Movies + Shows' : cat.mediaType === 'series' ? 'Shows' : 'Movies';
   const badge  = badges[cat.provider] || cat.provider;
   var detail;
@@ -333,7 +354,7 @@ function renderCatalogRow(cat, id) {
       detail = chartNames[cat.tmdbChart] || cat.tmdbChart || 'Charts';
     }
   } else if (cat.provider === 'addon') {
-    detail = 'TOP Streaming · Top 10';
+    detail = 'Top 10 · United States';
   } else {
     detail = cat.listType
       ? (TRAKT_LIST_NAMES[cat.listType] || cat.listType)
@@ -839,9 +860,9 @@ function addTraktBrowseSelection() {
     });
   }
 
-  function updateAddonCardMeta() {
-    const countEl = document.getElementById('cw-addon-catalog-count');
-    if (countEl) countEl.textContent = String(TOP_STREAMING_MANIFEST_CATALOGS.length);
+  function updateChartsHeroMeta() {
+    const countEl = document.getElementById('cw-charts-platform-count');
+    if (countEl) countEl.textContent = String(GALLERY_KEYS.length);
   }
 
   function bindKeyCards() {
@@ -927,7 +948,7 @@ function addTraktBrowseSelection() {
 
   const LIB_NAMES = { recent: 'Recently Added', resume: 'Continue Watching', nextup: 'Next Up', favorites: 'Favorites' };
   const PROVIDER_HUES = { library: 215, trakt: 0, tmdb: 195, mdblist: 248, imdb: 45, letterboxd: 130, addon: 280 };
-  const PROVIDER_LABELS = { library: 'Library', trakt: 'Trakt', tmdb: 'TMDB', mdblist: 'MDB', imdb: 'IMDb', letterboxd: 'LB', addon: 'Addon' };
+  const PROVIDER_LABELS = { library: 'Library', trakt: 'Trakt', tmdb: 'TMDB', mdblist: 'MDB', imdb: 'IMDb', letterboxd: 'LB', addon: 'Charts' };
   let _lastRowTotal = -1;
 
   function pulseRowCount() {
@@ -1077,7 +1098,7 @@ function addTraktBrowseSelection() {
     bindKeyCards();
     bindWizardNav();
     bindCategoryTabs();
-    updateAddonCardMeta();
+    updateChartsHeroMeta();
     renderGallery();
     goToStep(parseStepFromHash());
     toggleCatalogOptions();
