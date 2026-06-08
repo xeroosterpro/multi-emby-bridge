@@ -323,29 +323,63 @@
         </div>
       </section>
       <section class="page" id="page-catalogs">
-        <div class="cw-head">
-          <div class="cw-head-main">
-            <h2 class="page-title">Catalogs</h2>
-            <p class="page-sub">Build your Stremio home screen in 4 easy steps.</p>
+        <header class="cw-hero">
+          <div class="cw-hero-copy">
+            <span class="cw-eyebrow">Stremio home designer</span>
+            <h2 class="cw-title">Build your home screen</h2>
+            <p class="cw-subtitle">Curate what appears when you open Stremio — your library, streaming rows, and trending charts. Changes sync on save.</p>
           </div>
-          <button type="button" class="cw-expert-toggle" id="cw-expert-toggle" title="Show advanced tools">Expert mode</button>
-        </div>
+          <div class="cw-hero-meta">
+            <div class="cw-progress-wrap" aria-label="Setup progress">
+              <svg class="cw-progress-ring" viewBox="0 0 44 44" aria-hidden="true">
+                <circle class="cw-progress-track" cx="22" cy="22" r="18"/>
+                <circle class="cw-progress-fill" id="cw-progress-fill" cx="22" cy="22" r="18"/>
+              </svg>
+              <span class="cw-progress-pct" id="cw-progress-pct">25%</span>
+            </div>
+            <button type="button" class="cw-expert-toggle" id="cw-expert-toggle" title="Show advanced tools">
+              <span class="cw-expert-ic">⚙</span> Expert mode
+            </button>
+          </div>
+        </header>
 
+        <div class="cw-shell">
+        <div class="cw-main">
         <nav class="cw-stepper" aria-label="Catalog setup steps">
-          <button type="button" class="cw-step-btn" data-step="connect"><span class="cw-step-n">1</span><span>Connect</span></button>
-          <button type="button" class="cw-step-btn" data-step="library"><span class="cw-step-n">2</span><span>Your library</span></button>
-          <button type="button" class="cw-step-btn" data-step="discover"><span class="cw-step-n">3</span><span>Pick rows</span></button>
-          <button type="button" class="cw-step-btn" data-step="review"><span class="cw-step-n">4</span><span>Review</span></button>
+          <div class="cw-step-rail" aria-hidden="true"><span class="cw-step-rail-fill" id="cw-step-rail-fill"></span></div>
+          <button type="button" class="cw-step-btn" data-step="connect">
+            <span class="cw-step-n">1</span>
+            <span class="cw-step-label">Connect</span>
+            <span class="cw-step-desc">API keys</span>
+          </button>
+          <button type="button" class="cw-step-btn" data-step="library">
+            <span class="cw-step-n">2</span>
+            <span class="cw-step-label">Library</span>
+            <span class="cw-step-desc">Your media</span>
+          </button>
+          <button type="button" class="cw-step-btn" data-step="discover">
+            <span class="cw-step-n">3</span>
+            <span class="cw-step-label">Discover</span>
+            <span class="cw-step-desc">Pick rows</span>
+          </button>
+          <button type="button" class="cw-step-btn" data-step="review">
+            <span class="cw-step-n">4</span>
+            <span class="cw-step-label">Review</span>
+            <span class="cw-step-desc">Save</span>
+          </button>
         </nav>
 
         <!-- Step 1: API keys -->
         <div class="cw-panel on" data-step="connect">
-          <p class="cw-lead">Connect your list sources</p>
-          <p class="cw-hint">Keys stay encrypted on our servers. Expand a card to paste yours, then test the connection. You only need keys for the sources you plan to use.</p>
-          <div class="cw-key-grid">
+          <div class="cw-panel-head">
+            <h3 class="cw-lead">Connect your sources</h3>
+            <p class="cw-hint">Keys are AES-encrypted on our servers. Add only what you need — you can skip and come back later.</p>
+          </div>
+          <div class="cw-skip-hint" id="cw-connect-skip">No keys yet? Continue to pick rows — MDbList presets work without a key for public lists.</div>
+          <div class="cw-key-list">
             <div class="cw-key-card" data-provider="trakt">
               <div class="cw-key-card-h">
-                <span class="cw-key-icon" style="background:#ED2224">T</span>
+                <span class="cw-key-icon" style="--kc:#ED2224">T</span>
                 <div class="cw-key-meta"><div class="cw-key-name">Trakt</div><div class="cw-key-desc">Trending charts &amp; user lists</div></div>
                 <span class="cw-key-pill unset" id="cw-pill-trakt">Not set</span>
                 <span class="cw-key-chev">▾</span>
@@ -360,8 +394,8 @@
             </div>
             <div class="cw-key-card" data-provider="tmdb">
               <div class="cw-key-card-h">
-                <span class="cw-key-icon" style="background:#01B4E4">T</span>
-                <div class="cw-key-meta"><div class="cw-key-name">TMDB</div><div class="cw-key-desc">Netflix-style service rows &amp; charts</div></div>
+                <span class="cw-key-icon" style="--kc:#01B4E4">T</span>
+                <div class="cw-key-meta"><div class="cw-key-name">TMDB</div><div class="cw-key-desc">Netflix-style service rows &amp; charts</div><span class="cw-key-rec">Recommended</span></div>
                 <span class="cw-key-pill unset" id="cw-pill-tmdb">Not set</span>
                 <span class="cw-key-chev">▾</span>
               </div>
@@ -375,7 +409,7 @@
             </div>
             <div class="cw-key-card" data-provider="mdblist">
               <div class="cw-key-card-h">
-                <span class="cw-key-icon" style="background:#6366f1">M</span>
+                <span class="cw-key-icon" style="--kc:#6366f1">M</span>
                 <div class="cw-key-meta"><div class="cw-key-name">MDbList</div><div class="cw-key-desc">Curated genre &amp; theme lists</div></div>
                 <span class="cw-key-pill unset" id="cw-pill-mdblist">Not set</span>
                 <span class="cw-key-chev">▾</span>
@@ -388,10 +422,10 @@
                 </div>
               </div>
             </div>
-            <div class="cw-key-card" data-provider="rpdb">
+            <div class="cw-key-card cw-key-optional" data-provider="rpdb">
               <div class="cw-key-card-h">
-                <span class="cw-key-icon" style="background:#444">P</span>
-                <div class="cw-key-meta"><div class="cw-key-name">RPDB</div><div class="cw-key-desc">Optional · nicer poster art</div></div>
+                <span class="cw-key-icon" style="--kc:#5a6270">P</span>
+                <div class="cw-key-meta"><div class="cw-key-name">RPDB</div><div class="cw-key-desc">Optional · richer poster artwork</div></div>
                 <span class="cw-key-pill unset" id="cw-pill-rpdb">Not set</span>
                 <span class="cw-key-chev">▾</span>
               </div>
@@ -408,21 +442,60 @@
 
         <!-- Step 2: Library rows -->
         <div class="cw-panel" data-step="library">
-          <p class="cw-lead">Show your own media on Stremio home</p>
-          <p class="cw-hint">These rows come from your Emby/Jellyfin servers. Search always works even if you turn the home catalog off.</p>
+          <div class="cw-panel-head">
+            <h3 class="cw-lead">Your library on Stremio home</h3>
+            <p class="cw-hint">Rows from your Emby/Jellyfin servers. Search always works — this only controls the home screen.</p>
+          </div>
           <div class="cw-lib-card">
-            <div class="sw" data-target="#show-catalog">
-              <span class="knob"></span>
-              <span><span class="sw-lbl">Home page catalog</span><br><span class="sw-sub">Show My Media and library rows on Stremio home</span></span>
+            <div class="cw-lib-master">
+              <div class="sw" data-target="#show-catalog">
+                <span class="knob"></span>
+                <span><span class="sw-lbl">Show home catalog</span><br><span class="sw-sub">Display My Media and library rows on Stremio home</span></span>
+              </div>
+              <input type="checkbox" id="show-catalog" class="hidden-canonical" checked />
             </div>
-            <input type="checkbox" id="show-catalog" class="hidden-canonical" checked />
-            <div id="catalog-options" style="margin-top:12px">
-              <div class="field-label">Which rows to show</div>
+            <div id="catalog-options">
               <div class="cw-lib-rows">
-                <label class="cw-lib-chip on"><input type="checkbox" id="libchk-recent" checked /> 🆕 Recently Added</label>
-                <label class="cw-lib-chip"><input type="checkbox" id="libchk-resume" /> ▶️ Continue Watching</label>
-                <label class="cw-lib-chip"><input type="checkbox" id="libchk-nextup" /> ⏭️ Next Up</label>
-                <label class="cw-lib-chip"><input type="checkbox" id="libchk-favorites" /> ⭐ Favorites</label>
+                <label class="cw-lib-tile on" data-row="recent">
+                  <input type="checkbox" id="libchk-recent" checked />
+                  <span class="cw-lib-tile-glow" aria-hidden="true"></span>
+                  <span class="cw-lib-tile-icon">🆕</span>
+                  <span class="cw-lib-tile-body">
+                    <span class="cw-lib-tile-title">Recently Added</span>
+                    <span class="cw-lib-tile-desc">Latest movies &amp; shows from your servers</span>
+                  </span>
+                  <span class="cw-lib-tile-check" aria-hidden="true">✓</span>
+                </label>
+                <label class="cw-lib-tile" data-row="resume">
+                  <input type="checkbox" id="libchk-resume" />
+                  <span class="cw-lib-tile-glow" aria-hidden="true"></span>
+                  <span class="cw-lib-tile-icon">▶️</span>
+                  <span class="cw-lib-tile-body">
+                    <span class="cw-lib-tile-title">Continue Watching</span>
+                    <span class="cw-lib-tile-desc">Pick up where you left off</span>
+                  </span>
+                  <span class="cw-lib-tile-check" aria-hidden="true">✓</span>
+                </label>
+                <label class="cw-lib-tile" data-row="nextup">
+                  <input type="checkbox" id="libchk-nextup" />
+                  <span class="cw-lib-tile-glow" aria-hidden="true"></span>
+                  <span class="cw-lib-tile-icon">⏭️</span>
+                  <span class="cw-lib-tile-body">
+                    <span class="cw-lib-tile-title">Next Up</span>
+                    <span class="cw-lib-tile-desc">Next episode in your series</span>
+                  </span>
+                  <span class="cw-lib-tile-check" aria-hidden="true">✓</span>
+                </label>
+                <label class="cw-lib-tile" data-row="favorites">
+                  <input type="checkbox" id="libchk-favorites" />
+                  <span class="cw-lib-tile-glow" aria-hidden="true"></span>
+                  <span class="cw-lib-tile-icon">⭐</span>
+                  <span class="cw-lib-tile-body">
+                    <span class="cw-lib-tile-title">Favorites</span>
+                    <span class="cw-lib-tile-desc">Your starred library items</span>
+                  </span>
+                  <span class="cw-lib-tile-check" aria-hidden="true">✓</span>
+                </label>
               </div>
               <div class="hidden-canonical">
                 <select id="catalog-content"><option value="recent">recent</option><option value="resume">resume</option><option value="favorites">favorites</option></select>
@@ -433,27 +506,65 @@
 
         <!-- Step 3: Discover presets -->
         <div class="cw-panel" data-step="discover">
-          <p class="cw-lead">Pick streaming layouts</p>
-          <p class="cw-hint">Tap a service to preview its rows, then add the ones you want. Kids &amp; Family is great for shared TVs.</p>
-          <div class="cw-gallery-wrap">
-            <div class="cw-gallery" id="cw-gallery"></div>
+          <div class="cw-panel-head">
+            <h3 class="cw-lead">Add streaming &amp; chart rows</h3>
+            <p class="cw-hint">Start with a one-click layout, or pick services individually. Preview updates live on the right.</p>
           </div>
-          <div class="cw-preset-sheet" id="cw-preset-sheet">
-            <strong id="cw-preset-title">Layout preview</strong>
+          <div class="cw-quickstart" id="cw-quickstart" role="group" aria-label="Quick start layouts">
+            <button type="button" class="cw-qs-card" data-qs="movie-night">
+              <span class="cw-qs-icon">🍿</span>
+              <span class="cw-qs-body"><span class="cw-qs-title">Movie Night</span><span class="cw-qs-desc">Netflix + trending charts</span></span>
+            </button>
+            <button type="button" class="cw-qs-card" data-qs="family">
+              <span class="cw-qs-icon">👨‍👩‍👧</span>
+              <span class="cw-qs-body"><span class="cw-qs-title">Family TV</span><span class="cw-qs-desc">Kids-safe curated rows</span></span>
+            </button>
+            <button type="button" class="cw-qs-card" data-qs="trending">
+              <span class="cw-qs-icon">📈</span>
+              <span class="cw-qs-body"><span class="cw-qs-title">Trending</span><span class="cw-qs-desc">Charts &amp; discovery picks</span></span>
+            </button>
+          </div>
+          <div class="cw-cat-tabs" id="cw-cat-tabs" role="tablist" aria-label="Row categories">
+            <button type="button" class="cw-cat-tab active" data-cat="all" role="tab">All</button>
+            <button type="button" class="cw-cat-tab" data-cat="streaming" role="tab">Streaming</button>
+            <button type="button" class="cw-cat-tab" data-cat="charts" role="tab">Charts</button>
+            <button type="button" class="cw-cat-tab" data-cat="genres" role="tab">Genres</button>
+            <button type="button" class="cw-cat-tab" data-cat="family" role="tab">Family</button>
+          </div>
+          <div class="cw-gallery" id="cw-gallery"></div>
+          <div class="cw-preset-backdrop" id="cw-preset-backdrop" hidden></div>
+          <div class="cw-preset-sheet" id="cw-preset-sheet" role="dialog" aria-labelledby="cw-preset-title">
+            <div class="cw-preset-sheet-head">
+              <div>
+                <strong id="cw-preset-title">Layout preview</strong>
+                <span class="cw-preset-sub" id="cw-preset-sub"></span>
+              </div>
+              <button type="button" class="cw-preset-close" id="cw-preset-close" aria-label="Close preview">✕</button>
+            </div>
             <div class="cw-preset-list" id="cw-preset-list"></div>
-            <button type="button" class="cw-btn-primary" id="btn-apply-preset" onclick="applyPreset()">+ Add rows</button>
+            <div class="cw-preset-foot">
+              <button type="button" class="cw-btn-primary" id="btn-apply-preset" onclick="applyPreset()">+ Add selected rows</button>
+            </div>
           </div>
-          <button type="button" class="cw-all-networks" onclick="applyAllNetworks()">+ Quick add: one row each from Netflix, Prime, Disney+, Hulu, Max &amp; Apple</button>
+          <button type="button" class="cw-all-networks" onclick="applyAllNetworks()">
+            <span class="cw-all-networks-ic">⚡</span>
+            Quick mix — one row each from Netflix, Prime, Disney+, Hulu, Max &amp; Apple
+          </button>
         </div>
 
         <!-- Step 4: Review -->
         <div class="cw-panel" data-step="review">
-          <p class="cw-lead">Review your Stremio home</p>
-          <p class="cw-hint">Drag to reorder. Test each row to confirm it loads. When you're happy, save to push changes to Stremio.</p>
-          <div class="cw-preview-strip" id="cw-preview-strip" aria-label="Home screen preview"></div>
-          <div class="cw-review-stats">
-            <span id="cw-row-count">0 rows</span>
-            <span>Drag rows to change order on Stremio home</span>
+          <div class="cw-panel-head">
+            <h3 class="cw-lead">Review &amp; save</h3>
+            <p class="cw-hint">Drag to reorder. Hit Test on any row to confirm it loads. Save pushes changes to Stremio on next refresh.</p>
+          </div>
+          <div class="cw-preview-strip" id="cw-preview-strip" aria-hidden="true"></div>
+          <div class="cw-review-banner">
+            <div class="cw-review-stat">
+              <span class="cw-review-stat-n" id="cw-row-count-n">0</span>
+              <span class="cw-review-stat-l">rows on home</span>
+            </div>
+            <p class="cw-review-tip" id="cw-row-count">Drag rows below to change order on your TV</p>
           </div>
           <div class="cw-filters">
             <div class="field">
@@ -486,6 +597,7 @@
 
         <div class="cw-nav">
           <button type="button" class="cw-btn-soft cw-nav-back" id="cw-nav-back" style="visibility:hidden">← Back</button>
+          <div class="cw-nav-mid" id="cw-nav-hint"></div>
           <button type="button" class="cw-btn-primary" id="cw-nav-next">Continue</button>
         </div>
 
@@ -601,8 +713,28 @@
             <div id="addon-import-results"></div>
           </div>
         </div>
+        </div><!-- /.cw-main -->
+
+        <aside class="cw-aside" aria-label="Stremio home preview">
+          <div class="cw-tv" id="cw-tv-mockup">
+            <div class="cw-tv-bezel">
+              <div class="cw-tv-bar">
+                <span class="cw-tv-dot"></span><span class="cw-tv-dot"></span><span class="cw-tv-dot"></span>
+                <span class="cw-tv-label">Stremio home preview</span>
+              </div>
+              <div class="cw-tv-screen" id="cw-tv-screen">
+                <div class="cw-tv-empty" id="cw-tv-empty">
+                  <span class="cw-tv-empty-ic">📺</span>
+                  <p>Your rows will appear here as you build</p>
+                </div>
+                <div class="cw-tv-rows" id="cw-tv-rows"></div>
+              </div>
+            </div>
+            <p class="cw-tv-caption">Live preview — order matches your review list</p>
+          </div>
+        </aside>
+        </div><!-- /.cw-shell -->
       </section>
-</section>
       <section class="page" id="page-streaming">
         <div class="ms-head">
           <div class="ms-head-main">

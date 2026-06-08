@@ -8,8 +8,27 @@
   const escHtml = (typeof window !== 'undefined' && window.escHtml) ? window.escHtml : esc;
 
   const WIZARD_STEPS = ['connect', 'library', 'discover', 'review'];
+  const PRESET_CATS = {
+    netflix: 'streaming', prime: 'streaming', disney: 'streaming', hulu: 'streaming',
+    max: 'streaming', apple: 'streaming', kids: 'family', popular: 'charts',
+    genres: 'genres', discovery: 'charts', trakt: 'charts', tmdb: 'charts',
+  };
+  const GALLERY_KEYS = ['netflix','prime','disney','hulu','max','apple','kids','popular','genres','discovery','trakt','tmdb'];
+  const QUICK_STARTS = {
+    'movie-night': { presets: ['netflix', 'popular'], maxEach: 6 },
+    family: { presets: ['kids'], maxEach: 99 },
+    trending: { presets: ['discovery', 'trakt'], maxEach: 5 },
+  };
+  const NAV_HINTS = {
+    connect: 'Keys optional — skip if you only need public lists',
+    library: 'Toggle rows your family actually watches',
+    discover: 'Try a quick-start layout or pick services',
+    review: 'Test rows, then save to push to Stremio',
+  };
+  const PROGRESS_RING = 113;
   let _currentStep = 'connect';
   let _selectedPreset = null;
+  let _galleryCat = 'all';
   let _keyTested = { trakt: null, tmdb: null, mdblist: null, rpdb: null };
 
   window.nextCatId = window.nextCatId || 0;
@@ -217,7 +236,10 @@ function selectPreset(key) {
   document.querySelectorAll('.cw-svc-card').forEach(function(b) { b.classList.toggle('active', b.dataset.key === key); });
   var list = document.getElementById('cw-preset-list');
   var sheet = document.getElementById('cw-preset-sheet');
+  var backdrop = document.getElementById('cw-preset-backdrop');
+  var sub = document.getElementById('cw-preset-sub');
   if (!list || !sheet) return;
+  if (sub) sub.textContent = p.catalogs.length + ' rows · uncheck any you don\'t want';
   list.innerHTML = '';
   p.catalogs.forEach(function(cat, idx) {
     var row = document.createElement('label'); row.className = 'cw-preset-row preset-preview-item';
@@ -232,7 +254,17 @@ function selectPreset(key) {
   });
   updatePresetCount();
   sheet.classList.add('on');
+  if (backdrop) backdrop.hidden = false;
   document.getElementById('cw-preset-title').textContent = p.label + ' layout';
+}
+
+function closePresetSheet() {
+  var sheet = document.getElementById('cw-preset-sheet');
+  var backdrop = document.getElementById('cw-preset-backdrop');
+  if (sheet) sheet.classList.remove('on');
+  if (backdrop) backdrop.hidden = true;
+  document.querySelectorAll('.cw-svc-card').forEach(function(b) { b.classList.remove('active'); });
+  _selectedPreset = null;
 }
 function updatePresetCount() {
   if (!_selectedPreset) return;
@@ -292,12 +324,42 @@ function applyPreset() {
     addExternalCatalog(catObj);
   });
   if (skipped > 0) { var ind = document.getElementById('autosave-indicator'); if (ind) { ind.textContent = skipped + ' duplicate(s) skipped'; ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove('visible'); ind.textContent = 'Settings saved'; }, 2500); } }
-  document.querySelectorAll('.cw-svc-card').forEach(function(b) { b.classList.remove('active'); });
-  var sheet = document.getElementById('cw-preset-sheet');
-  if (sheet) sheet.classList.remove('on');
-  _selectedPreset = null;
+  closePresetSheet();
   if (window.autoSave) window.autoSave();
   if (window.CatalogsWizard) window.CatalogsWizard.updateReviewUI();
+}
+
+function applyQuickStart(key) {
+  var qs = QUICK_STARTS[key];
+  if (!qs) return;
+  var mdbKey = (document.getElementById('mdblist-api-key') || {}).value || '';
+  var added = 0;
+  qs.presets.forEach(function(presetKey) {
+    var p = STREAMING_PRESETS[presetKey];
+    if (!p || !p.catalogs) return;
+    var limit = qs.maxEach || p.catalogs.length;
+    for (var i = 0; i < p.catalogs.length && i < limit; i++) {
+      var cat = p.catalogs[i];
+      var catObj = { provider: cat.provider, listType: cat.listType || '', listUrl: cat.listUrl || '',
+        mediaType: cat.mediaType || 'movie', name: cat.name, apiKey: cat.provider === 'mdblist' ? mdbKey : '', enabled: true };
+      if (cat.provider === 'tmdb') {
+        catObj.tmdbMode = cat.tmdbMode || 'charts';
+        catObj.tmdbChart = cat.tmdbChart || '';
+        catObj.tmdbWatchProvider = cat.tmdbWatchProvider || '';
+        catObj.tmdbSortBy = cat.tmdbSortBy || 'popularity.desc';
+      }
+      if (catalogRowExists(catObj)) continue;
+      addExternalCatalog(catObj);
+      added++;
+    }
+  });
+  if (added) {
+    var ind = document.getElementById('autosave-indicator');
+    if (ind) { ind.textContent = 'Added ' + added + ' row' + (added === 1 ? '' : 's'); ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(function(){ ind.classList.remove('visible'); ind.textContent = 'Settings saved'; }, 2500); }
+    if (window.autoSave) window.autoSave();
+    if (window.CatalogsWizard) window.CatalogsWizard.updateReviewUI();
+    goToStep('review');
+  }
 }
 
 function onCatalogProviderChange() {
@@ -851,6 +913,19 @@ function addTraktBrowseSelection() {
     return 'connect';
   }
 
+  function updateProgress() {
+    const idx = WIZARD_STEPS.indexOf(_currentStep);
+    const pct = Math.round(((idx + 1) / WIZARD_STEPS.length) * 100);
+    const pctEl = document.getElementById('cw-progress-pct');
+    const fill = document.getElementById('cw-progress-fill');
+    const rail = document.getElementById('cw-step-rail-fill');
+    if (pctEl) pctEl.textContent = pct + '%';
+    if (fill) fill.style.strokeDashoffset = String(PROGRESS_RING - (PROGRESS_RING * pct / 100));
+    if (rail) rail.style.width = (idx / (WIZARD_STEPS.length - 1) * 100) + '%';
+    const hint = document.getElementById('cw-nav-hint');
+    if (hint) hint.textContent = NAV_HINTS[_currentStep] || '';
+  }
+
   function goToStep(step) {
     if (!WIZARD_STEPS.includes(step)) step = 'connect';
     _currentStep = step;
@@ -864,26 +939,47 @@ function addTraktBrowseSelection() {
     const back = document.getElementById('cw-nav-back');
     const next = document.getElementById('cw-nav-next');
     if (back) back.style.visibility = step === 'connect' ? 'hidden' : 'visible';
-    if (next) next.textContent = step === 'review' ? 'Save to Stremio' : 'Continue';
+    if (next) next.textContent = step === 'review' ? 'Save to Stremio' : 'Continue →';
+    updateProgress();
     if (step === 'review') updateReviewUI();
     if (step === 'discover') renderGallery();
   }
 
   function renderGallery() {
     const gal = document.getElementById('cw-gallery');
-    if (!gal || gal.children.length) return;
-    const keys = ['netflix','prime','disney','hulu','max','apple','kids','popular','genres','discovery','trakt','tmdb'];
-    keys.forEach(k => {
+    if (!gal) return;
+    gal.innerHTML = '';
+    GALLERY_KEYS.forEach(k => {
+      const cat = PRESET_CATS[k] || 'all';
+      if (_galleryCat !== 'all' && cat !== _galleryCat) return;
       const p = STREAMING_PRESETS[k];
       if (!p || p.importHint) return;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'cw-svc-card';
       btn.dataset.key = k;
-      btn.style.background = p.color;
-      btn.innerHTML = '<div class="cw-svc-letter">' + escHtml(p.letter) + '</div><div class="cw-svc-label">' + escHtml(p.label) + '</div>';
+      btn.style.background = 'linear-gradient(145deg, ' + p.color + ', color-mix(in srgb, ' + p.color + ' 55%, #000))';
+      btn.innerHTML = '<span class="cw-svc-count">' + p.catalogs.length + '</span>'
+        + '<div class="cw-svc-letter">' + escHtml(p.letter) + '</div>'
+        + '<div class="cw-svc-label">' + escHtml(p.label) + '</div>';
       btn.addEventListener('click', () => selectPreset(k));
       gal.appendChild(btn);
+    });
+  }
+
+  function bindCategoryTabs() {
+    document.querySelectorAll('.cw-cat-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        _galleryCat = tab.dataset.cat || 'all';
+        document.querySelectorAll('.cw-cat-tab').forEach(t => t.classList.toggle('active', t === tab));
+        renderGallery();
+      });
+    });
+  }
+
+  function bindQuickStart() {
+    document.querySelectorAll('.cw-qs-card').forEach(card => {
+      card.addEventListener('click', () => applyQuickStart(card.dataset.qs));
     });
   }
 
@@ -952,41 +1048,74 @@ function addTraktBrowseSelection() {
   }
 
   function syncLibChips() {
-    document.querySelectorAll('.cw-lib-chip').forEach(chip => {
+    document.querySelectorAll('.cw-lib-tile, .cw-lib-chip').forEach(chip => {
       const inp = chip.querySelector('input[type="checkbox"]');
       if (inp) chip.classList.toggle('on', inp.checked);
+    });
+  }
+
+  const LIB_NAMES = { recent: 'Recently Added', resume: 'Continue Watching', nextup: 'Next Up', favorites: 'Favorites' };
+
+  function updateTvPreview() {
+    const rows = collectExternalCatalogs();
+    const enabled = rows.filter(r => r.enabled !== false);
+    const titles = [];
+    if (document.getElementById('show-catalog')?.checked) {
+      ['recent','resume','nextup','favorites'].forEach(k => {
+        const chk = document.getElementById('libchk-' + k);
+        if (chk && chk.checked) titles.push(LIB_NAMES[k] || k);
+      });
+    }
+    enabled.forEach(r => titles.push(r.name || r.provider));
+    const empty = document.getElementById('cw-tv-empty');
+    const container = document.getElementById('cw-tv-rows');
+    if (!container) return;
+    if (!titles.length) {
+      if (empty) empty.style.display = '';
+      container.classList.remove('on');
+      container.innerHTML = '';
+      return;
+    }
+    if (empty) empty.style.display = 'none';
+    container.classList.add('on');
+    container.innerHTML = '';
+    titles.slice(0, 8).forEach(title => {
+      const row = document.createElement('div');
+      row.className = 'cw-tv-row';
+      const h = document.createElement('div');
+      h.className = 'cw-tv-row-title';
+      h.textContent = title;
+      const posters = document.createElement('div');
+      posters.className = 'cw-tv-posters';
+      for (let i = 0; i < 5; i++) {
+        const p = document.createElement('div');
+        p.className = 'cw-tv-poster';
+        posters.appendChild(p);
+      }
+      row.appendChild(h);
+      row.appendChild(posters);
+      container.appendChild(row);
     });
   }
 
   function updateReviewUI() {
     const rows = collectExternalCatalogs();
     const enabled = rows.filter(r => r.enabled !== false);
-    const el = document.getElementById('cw-row-count');
-    const legacy = document.getElementById('catalog-count');
-    const txt = enabled.length + ' row' + (enabled.length === 1 ? '' : 's') + ' on your Stremio home';
-    if (el) el.textContent = txt;
-    if (legacy) legacy.textContent = txt;
-    const strip = document.getElementById('cw-preview-strip');
-    if (strip) {
-      strip.innerHTML = '';
-      if (document.getElementById('show-catalog')?.checked) {
-        ['recent','resume','nextup','favorites'].forEach(k => {
-          const chk = document.getElementById('libchk-' + k);
-          if (chk && chk.checked) {
-            const chip = document.createElement('span');
-            chip.className = 'cw-preview-chip';
-            chip.textContent = ({ recent: 'Recently Added', resume: 'Continue Watching', nextup: 'Next Up', favorites: 'Favorites' })[k] || k;
-            strip.appendChild(chip);
-          }
-        });
-      }
-      enabled.forEach(r => {
-        const chip = document.createElement('span');
-        chip.className = 'cw-preview-chip';
-        chip.textContent = r.name || r.provider;
-        strip.appendChild(chip);
+    let libCount = 0;
+    if (document.getElementById('show-catalog')?.checked) {
+      ['recent','resume','nextup','favorites'].forEach(k => {
+        if (document.getElementById('libchk-' + k)?.checked) libCount++;
       });
     }
+    const total = enabled.length + libCount;
+    const nEl = document.getElementById('cw-row-count-n');
+    const el = document.getElementById('cw-row-count');
+    const legacy = document.getElementById('catalog-count');
+    if (nEl) nEl.textContent = String(total);
+    const txt = total ? 'Drag rows below to change order on your TV' : 'Add rows in Discover or enable library tiles';
+    if (el) el.textContent = txt;
+    if (legacy) legacy.textContent = total + ' row' + (total === 1 ? '' : 's');
+    updateTvPreview();
   }
 
   function bindWizardNav() {
@@ -1016,7 +1145,7 @@ function addTraktBrowseSelection() {
       if (ex) ex.classList.toggle('on', on);
       if (btn) btn.classList.toggle('on', on);
     });
-    document.querySelectorAll('.cw-lib-chip').forEach(chip => {
+    document.querySelectorAll('.cw-lib-tile, .cw-lib-chip').forEach(chip => {
       chip.addEventListener('click', () => {
         const inp = chip.querySelector('input');
         if (inp) {
@@ -1027,6 +1156,8 @@ function addTraktBrowseSelection() {
         }
       });
     });
+    document.getElementById('cw-preset-close')?.addEventListener('click', closePresetSheet);
+    document.getElementById('cw-preset-backdrop')?.addEventListener('click', closePresetSheet);
     const showCat = document.getElementById('show-catalog');
     if (showCat) showCat.addEventListener('change', () => {
       toggleCatalogOptions();
@@ -1039,6 +1170,8 @@ function addTraktBrowseSelection() {
     try { initPresets(); } catch {}
     bindKeyCards();
     bindWizardNav();
+    bindCategoryTabs();
+    bindQuickStart();
     renderGallery();
     goToStep(parseStepFromHash());
     toggleCatalogOptions();
@@ -1055,6 +1188,7 @@ function addTraktBrowseSelection() {
     syncLibChips();
     refreshKeyPills();
     updateReviewUI();
+    updateProgress();
   }
 
   // Globals for configure.js + inline handlers
@@ -1080,8 +1214,10 @@ function addTraktBrowseSelection() {
   window.onCatalogUrlInput = onCatalogUrlInput;
   window.updateTmdbAutoName = updateTmdbAutoName;
   window.selectPreset = selectPreset;
+  window.closePresetSheet = closePresetSheet;
+  window.applyQuickStart = applyQuickStart;
   window.STREAMING_PRESETS = STREAMING_PRESETS;
-  window.CatalogsWizard = { init, onPageShow, goToStep, renderGallery, updateReviewUI, syncLibChips, toggleCatalogOptions };
+  window.CatalogsWizard = { init, onPageShow, goToStep, renderGallery, updateReviewUI, updateTvPreview, syncLibChips, toggleCatalogOptions, updateProgress };
 
   document.addEventListener('DOMContentLoaded', init);
   window.addEventListener('hashchange', () => {
