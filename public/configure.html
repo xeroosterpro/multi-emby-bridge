@@ -332,6 +332,12 @@
           <div class="cw-hero-meta">
             <div class="cw-progress-wrap" aria-label="Setup progress">
               <svg class="cw-progress-ring" viewBox="0 0 44 44" aria-hidden="true">
+                <defs>
+                  <linearGradient id="cw-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="var(--accent)"/>
+                    <stop offset="100%" stop-color="var(--accent-2, var(--accent))"/>
+                  </linearGradient>
+                </defs>
                 <circle class="cw-progress-track" cx="22" cy="22" r="18"/>
                 <circle class="cw-progress-fill" id="cw-progress-fill" cx="22" cy="22" r="18"/>
               </svg>
@@ -534,6 +540,7 @@
           <div class="cw-gallery" id="cw-gallery"></div>
           <div class="cw-preset-backdrop" id="cw-preset-backdrop" hidden></div>
           <div class="cw-preset-sheet" id="cw-preset-sheet" role="dialog" aria-labelledby="cw-preset-title">
+            <div class="cw-preset-grab" aria-hidden="true"></div>
             <div class="cw-preset-sheet-head">
               <div>
                 <strong id="cw-preset-title">Layout preview</strong>
@@ -560,7 +567,7 @@
           </div>
           <div class="cw-preview-strip" id="cw-preview-strip" aria-hidden="true"></div>
           <div class="cw-review-banner">
-            <div class="cw-review-stat">
+            <div class="cw-review-stat" id="cw-review-stat">
               <span class="cw-review-stat-n" id="cw-row-count-n">0</span>
               <span class="cw-review-stat-l">rows on home</span>
             </div>
@@ -721,6 +728,7 @@
               <div class="cw-tv-bar">
                 <span class="cw-tv-dot"></span><span class="cw-tv-dot"></span><span class="cw-tv-dot"></span>
                 <span class="cw-tv-label">Stremio home preview</span>
+                <span class="cw-tv-live" id="cw-tv-live"><span class="cw-tv-live-dot"></span> Live</span>
               </div>
               <div class="cw-tv-screen" id="cw-tv-screen">
                 <div class="cw-tv-empty" id="cw-tv-empty">

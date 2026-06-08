@@ -935,7 +935,15 @@ function addTraktBrowseSelection() {
       btn.classList.toggle('active', s === step);
       btn.classList.toggle('done', WIZARD_STEPS.indexOf(s) < WIZARD_STEPS.indexOf(step));
     });
-    document.querySelectorAll('.cw-panel').forEach(p => p.classList.toggle('on', p.dataset.step === step));
+    document.querySelectorAll('.cw-panel').forEach(p => {
+      const on = p.dataset.step === step;
+      p.classList.toggle('on', on);
+      if (on) {
+        p.classList.remove('cw-panel-enter');
+        void p.offsetWidth;
+        p.classList.add('cw-panel-enter');
+      }
+    });
     const back = document.getElementById('cw-nav-back');
     const next = document.getElementById('cw-nav-next');
     if (back) back.style.visibility = step === 'connect' ? 'hidden' : 'visible';
@@ -986,7 +994,11 @@ function addTraktBrowseSelection() {
   function bindKeyCards() {
     document.querySelectorAll('.cw-key-card').forEach(card => {
       const h = card.querySelector('.cw-key-card-h');
-      if (h) h.addEventListener('click', () => card.classList.toggle('open'));
+      if (h) h.addEventListener('click', () => {
+        const opening = !card.classList.contains('open');
+        document.querySelectorAll('.cw-key-card.open').forEach(c => { if (c !== card) c.classList.remove('open'); });
+        card.classList.toggle('open', opening);
+      });
     });
     [['trakt-client-id','trakt'],['tmdb-api-key','tmdb'],['mdblist-api-key','mdblist'],['rpdb-key','rpdb']].forEach(([id, key]) => {
       const el = document.getElementById(id);
@@ -1038,6 +1050,12 @@ function addTraktBrowseSelection() {
       }
       p.className = 'cw-key-pill ' + cls;
       p.textContent = txt;
+      const card = document.querySelector('.cw-key-card[data-provider="' + key + '"]');
+      if (card) {
+        card.classList.toggle('cw-key-linked', !!v);
+        card.classList.toggle('cw-key-verified', _keyTested[key] === true);
+        card.classList.toggle('cw-key-invalid', _keyTested[key] === false);
+      }
     });
   }
 
@@ -1055,46 +1073,77 @@ function addTraktBrowseSelection() {
   }
 
   const LIB_NAMES = { recent: 'Recently Added', resume: 'Continue Watching', nextup: 'Next Up', favorites: 'Favorites' };
+  const PROVIDER_HUES = { library: 215, trakt: 0, tmdb: 195, mdblist: 248, imdb: 45, letterboxd: 130, addon: 280 };
+  const PROVIDER_LABELS = { library: 'Library', trakt: 'Trakt', tmdb: 'TMDB', mdblist: 'MDB', imdb: 'IMDb', letterboxd: 'LB', addon: 'Addon' };
+  let _lastRowTotal = -1;
+
+  function pulseRowCount() {
+    const stat = document.getElementById('cw-review-stat');
+    if (!stat) return;
+    stat.classList.remove('cw-stat-pop');
+    void stat.offsetWidth;
+    stat.classList.add('cw-stat-pop');
+  }
 
   function updateTvPreview() {
     const rows = collectExternalCatalogs();
     const enabled = rows.filter(r => r.enabled !== false);
-    const titles = [];
+    const previewRows = [];
     if (document.getElementById('show-catalog')?.checked) {
       ['recent','resume','nextup','favorites'].forEach(k => {
         const chk = document.getElementById('libchk-' + k);
-        if (chk && chk.checked) titles.push(LIB_NAMES[k] || k);
+        if (chk && chk.checked) {
+          previewRows.push({ title: LIB_NAMES[k] || k, kind: 'library', hue: PROVIDER_HUES.library });
+        }
       });
     }
-    enabled.forEach(r => titles.push(r.name || r.provider));
+    enabled.forEach(r => {
+      previewRows.push({
+        title: r.name || r.provider,
+        kind: r.provider || 'addon',
+        hue: PROVIDER_HUES[r.provider] != null ? PROVIDER_HUES[r.provider] : 280,
+      });
+    });
     const empty = document.getElementById('cw-tv-empty');
     const container = document.getElementById('cw-tv-rows');
+    const live = document.getElementById('cw-tv-live');
     if (!container) return;
-    if (!titles.length) {
+    if (!previewRows.length) {
       if (empty) empty.style.display = '';
+      if (live) live.classList.remove('on');
       container.classList.remove('on');
       container.innerHTML = '';
       return;
     }
     if (empty) empty.style.display = 'none';
+    if (live) live.classList.add('on');
     container.classList.add('on');
     container.innerHTML = '';
-    titles.slice(0, 8).forEach(title => {
-      const row = document.createElement('div');
-      row.className = 'cw-tv-row';
+    previewRows.slice(0, 8).forEach((row, ri) => {
+      const el = document.createElement('div');
+      el.className = 'cw-tv-row';
+      el.style.animationDelay = (ri * 0.05) + 's';
+      const head = document.createElement('div');
+      head.className = 'cw-tv-row-head';
+      const badge = document.createElement('span');
+      badge.className = 'cw-tv-badge cw-tv-badge-' + (row.kind || 'addon');
+      badge.textContent = PROVIDER_LABELS[row.kind] || String(row.kind || '').toUpperCase();
       const h = document.createElement('div');
       h.className = 'cw-tv-row-title';
-      h.textContent = title;
+      h.textContent = row.title;
+      head.appendChild(badge);
+      head.appendChild(h);
       const posters = document.createElement('div');
       posters.className = 'cw-tv-posters';
       for (let i = 0; i < 5; i++) {
         const p = document.createElement('div');
         p.className = 'cw-tv-poster';
+        p.style.setProperty('--ph', String((row.hue + i * 18) % 360));
         posters.appendChild(p);
       }
-      row.appendChild(h);
-      row.appendChild(posters);
-      container.appendChild(row);
+      el.appendChild(head);
+      el.appendChild(posters);
+      container.appendChild(el);
     });
   }
 
@@ -1112,6 +1161,10 @@ function addTraktBrowseSelection() {
     const el = document.getElementById('cw-row-count');
     const legacy = document.getElementById('catalog-count');
     if (nEl) nEl.textContent = String(total);
+    if (total !== _lastRowTotal) {
+      _lastRowTotal = total;
+      pulseRowCount();
+    }
     const txt = total ? 'Drag rows below to change order on your TV' : 'Add rows in Discover or enable library tiles';
     if (el) el.textContent = txt;
     if (legacy) legacy.textContent = total + ' row' + (total === 1 ? '' : 's');
@@ -1178,7 +1231,9 @@ function addTraktBrowseSelection() {
     syncLibChips();
     refreshKeyPills();
     updateReviewUI();
+    updateProgress();
     if (window.Controls) window.Controls.syncAll();
+    document.querySelectorAll('.cw-panel.on').forEach(p => p.classList.add('cw-panel-enter'));
   }
 
   function onPageShow(name) {
