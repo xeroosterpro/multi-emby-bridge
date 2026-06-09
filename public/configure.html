@@ -1478,11 +1478,23 @@
             <div class="adc-panel" id="adc-panel-docs" data-panel="docs"></div>
           </div>
           <div class="adc-detail" id="adc-detail" hidden>
-            <div class="adc-detail-head">
-              <button type="button" class="adc-detail-back" id="adc-detail-back">← Back</button>
-              <strong id="adc-detail-title">Server</strong>
+            <div class="adc-detail-panel">
+              <header class="adc-detail-hero" id="adc-detail-hero">
+                <button type="button" class="adc-detail-back" id="adc-detail-back" aria-label="Close server detail">← Back</button>
+                <div class="adc-detail-hero-main">
+                  <div class="adc-detail-hero-text">
+                    <div class="adc-detail-hero-top">
+                      <span class="adc-detail-status" id="adc-detail-status"></span>
+                      <span class="adc-type-pill" id="adc-detail-type"></span>
+                    </div>
+                    <h2 class="adc-detail-title" id="adc-detail-title">Server</h2>
+                    <p class="adc-detail-sub" id="adc-detail-sub"></p>
+                  </div>
+                  <div class="adc-detail-hero-gauge" id="adc-detail-gauge"></div>
+                </div>
+              </header>
+              <div class="adc-detail-body" id="adc-detail-body"></div>
             </div>
-            <div class="adc-detail-body" id="adc-detail-body"></div>
           </div>
         </div>
       </section>

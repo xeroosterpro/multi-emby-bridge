@@ -33,18 +33,19 @@ function mapLiveProbes(probes) {
   }));
 }
 
-const DEMO_SERVER_URL_RE = /emby\.cloud\.example\.com|jellyfin\.home\.lab(?::8096)?|192\.168\.1\.42(?::8096)?/i;
+const { isDemoServer, stripDemoServers } = require('../lib/demoServers');
 
 function hasCompleteServers(servers) {
   return (servers || []).some(s => s?.url && s?.apiKey && s?.userId);
 }
 
-/** Prevent demo / stale browser cache from seeding a brand-new account. */
+/** Strip tour/demo placeholders; block stale cache from seeding new accounts. */
 function sanitizeConfigSave(curConfig, incoming) {
   const body = { ...(incoming || {}) };
+  if (Array.isArray(body.servers)) body.servers = stripDemoServers(body.servers);
   const hadServers = hasCompleteServers(curConfig?.servers);
   if (!hadServers && Array.isArray(body.servers) && hasCompleteServers(body.servers)) {
-    body.servers = body.servers.filter(s => !DEMO_SERVER_URL_RE.test(String(s.url || '')));
+    body.servers = stripDemoServers(body.servers);
   }
   return body;
 }
@@ -101,6 +102,7 @@ function makeUserRouter() {
       const patch = req.body || {};
       const cur = await uc.getEditable(req.user.id);
       const merged = { ...(cur.config || {}), ...patch };
+      if (Array.isArray(merged.servers)) merged.servers = stripDemoServers(merged.servers);
       await uc.save(req.user.id, merged);
       res.json({ ok: true });
     } catch (e) {

@@ -380,30 +380,277 @@
     $('#adc-export-servers')?.addEventListener('click', () => exportCsv('servers', filtered));
   }
 
-  function probeSummary(name, p) {
-    if (!p) return { ok: false, text: 'not probed' };
-    const ok = p.ok !== false && (p.ok === true || p.data != null);
-    if (!ok) return { ok: false, text: p.error || 'failed' };
+  const PROBE_LABELS = {
+    ping: 'Ping',
+    systemInfo: 'System Info',
+    scheduledTasks: 'Scheduled Tasks',
+    userProfile: 'User Profile',
+    libraryCounts: 'Library Counts',
+    views: 'Views',
+    latest: 'Latest Items',
+    resume: 'Resume',
+    favorites: 'Favorites',
+    playedItems: 'Played Items',
+    itemsSearch: 'Items Search',
+    sessions: 'Sessions',
+    playbackSample: 'Playback Sample',
+  };
+
+  const PROBE_ICONS = {
+    ping: '⚡', systemInfo: '🖥', scheduledTasks: '⏱', userProfile: '👤',
+    libraryCounts: '📚', views: '📂', latest: '🆕', resume: '▶', favorites: '★',
+    playedItems: '✓', itemsSearch: '🔍', sessions: '📡', playbackSample: '🎬',
+  };
+
+  function probeOk(p) {
+    return p && p.ok !== false && (p.ok === true || p.data != null);
+  }
+
+  function latencyTone(ms) {
+    if (ms == null) return '';
+    if (ms < 200) return 'fast';
+    if (ms < 800) return 'mid';
+    return 'slow';
+  }
+
+  function uptimeTone(pct) {
+    if (pct == null) return '';
+    if (pct >= 99) return 'good';
+    if (pct >= 95) return 'mid';
+    return 'bad';
+  }
+
+  function renderDetailHero(entry, payload, probeSummary) {
+    const title = $('#adc-detail-title');
+    const sub = $('#adc-detail-sub');
+    const status = $('#adc-detail-status');
+    const type = $('#adc-detail-type');
+    const gauge = $('#adc-detail-gauge');
+    const sys = payload?.probes?.systemInfo?.data;
+    const label = entry?.label || sys?.serverName || entry?.url || 'Server';
+    if (title) title.textContent = label;
+    if (sub) {
+      const parts = [entry?.url, entry?.ownerUsername, sys?.version].filter(Boolean);
+      sub.textContent = parts.join(' · ');
+    }
+    if (status) {
+      status.className = 'adc-detail-status ' + (payload?.up ? 'adc-detail-status-up' : 'adc-detail-status-down');
+      status.textContent = payload?.up ? 'Online' : 'Offline';
+    }
+    if (type) type.textContent = entry?.type || 'server';
+    if (gauge) {
+      const score = probeSummary?.scorePct;
+      if (score != null) {
+        const tone = score >= 90 ? 'good' : score >= 70 ? 'mid' : 'bad';
+        gauge.innerHTML = `<div class="gauge adc-detail-score-gauge adc-probe-score-${tone}" style="--v:${score}">
+          <div class="gauge-in"><div class="gv">${score}%</div><div class="gl">Probe</div></div></div>`;
+      } else gauge.innerHTML = '';
+    }
+  }
+
+  function renderUptimeTimeline(el, history) {
+    if (!el) return;
+    if (!history?.length) {
+      el.innerHTML = '<div class="adc-chart-empty"><span>No uptime history yet</span></div>';
+      return;
+    }
+    const upCount = history.filter(h => h.up).length;
+    const pct = Math.round(upCount / history.length * 100);
+    const cells = history.map(h =>
+      `<span class="adc-uptime-cell ${h.up ? 'up' : 'down'}" title="${esc(fmtDate(h.at))}"></span>`
+    ).join('');
+    el.innerHTML = `
+      <div class="adc-uptime-head">
+        <span class="adc-chart-stat adc-chart-stat-${uptimeTone(pct)}">${pct}%</span>
+        <span class="adc-uptime-sub">${upCount}/${history.length} checks up</span>
+      </div>
+      <div class="adc-uptime-strip">${cells}</div>`;
+  }
+
+  function renderPingChart(el, pingSeries) {
+    if (!el) return;
+    const vals = (pingSeries || []).map(p => p.ms).filter(v => v != null);
+    if (vals.length < 2) {
+      const last = vals[0];
+      el.innerHTML = `<div class="adc-chart-empty"><span>${last != null ? `Last ping ${last}ms` : 'No ping history yet'}</span></div>`;
+      return;
+    }
+    const avg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+    const last = vals[vals.length - 1];
+    const tone = latencyTone(last);
+    const statClass = tone === 'fast' ? 'good' : tone === 'mid' ? 'mid' : 'bad';
+    el.innerHTML = `
+      <div class="adc-uptime-head">
+        <span class="adc-chart-stat adc-chart-stat-${statClass}">${last}ms</span>
+        <span class="adc-uptime-sub">avg ${avg}ms · min ${Math.min(...vals)} · max ${Math.max(...vals)}</span>
+      </div>
+      <div class="adc-detail-spark" id="adc-detail-ping-spark"></div>`;
+    const color = tone === 'fast' ? '#22c55e' : tone === 'mid' ? '#f59e0b' : '#ef4444';
+    renderSpark($('#adc-detail-ping-spark'), vals, color, { width: 360, height: 72 });
+  }
+
+  function renderProbeBody(name, p) {
+    if (!p) return '<div class="adc-probe-err"><span>⚠</span><span>Not probed yet</span></div>';
+    if (!probeOk(p)) {
+      const err = p.error || 'Probe failed';
+      const hint = err.includes('404') ? ' — endpoint may be blocked on this host' : '';
+      return `<div class="adc-probe-err"><span>✕</span><span>${esc(err)}${esc(hint)}</span></div>`;
+    }
     const d = p.data;
-    if (name === 'ping') return { ok: true, text: `${d.ms}ms` };
-    if (name === 'systemInfo') return { ok: true, text: `${d.serverName || '—'} · ${d.version || '—'} · ${d.operatingSystem || '—'}` };
-    if (name === 'libraryCounts') return { ok: true, text: `${d.movies} movies · ${d.shows} shows · ${d.episodes} eps` };
-    if (name === 'userProfile') return { ok: true, text: `${d.name} · last active ${fmtDate(d.lastActivityDate)}` };
-    if (name === 'views') return { ok: true, text: `${d.count} views: ${(d.names || []).join(', ')}` };
-    if (name === 'latest') return { ok: true, text: (d || []).map(i => i.name).join(', ') || '—' };
-    if (name === 'resume') return { ok: true, text: `${d.count} items: ${(d.items || []).join(', ')}` };
-    if (name === 'favorites') return { ok: true, text: `${d.count} favorites` };
-    if (name === 'playedItems') return { ok: true, text: (d || []).slice(0, 3).map(i => i.name).join(', ') };
-    if (name === 'itemsSearch') return { ok: true, text: `${d.totalRecordCount} matches · sample: ${(d.sample || []).map(i => i.name).join(', ')}` };
-    if (name === 'scheduledTasks') return { ok: true, text: `${d.count} tasks · ${d.running} running` };
-    if (name === 'sessions') return { ok: true, text: `${d.count} sessions via ${d.method || '—'}` };
-    if (name === 'playbackSample') return { ok: true, text: `${d.sampleTitle}: ${d.container} ${d.video ? d.video.codec + ' ' + d.video.width + 'x' + d.video.height : ''}` };
-    return { ok: true, text: JSON.stringify(d).slice(0, 180) };
+    if (name === 'ping') {
+      return `<dl class="adc-probe-kv"><dt>Latency</dt><dd>${d.ms}ms</dd></dl>`;
+    }
+    if (name === 'systemInfo') {
+      return `<dl class="adc-probe-kv">
+        <dt>Server</dt><dd>${esc(d.serverName || '—')}</dd>
+        <dt>Version</dt><dd>${esc(d.version || '—')}</dd>
+        <dt>OS</dt><dd>${esc(d.operatingSystem || '—')}</dd>
+      </dl>`;
+    }
+    if (name === 'scheduledTasks') {
+      const tasks = (d.tasks || []).slice(0, 5);
+      if (!tasks.length) return `<div class="adc-probe-body">${d.count} tasks · ${d.running} running</div>`;
+      return `<ul class="adc-probe-list">${tasks.map(t =>
+        `<li><span>${esc(t.name)}</span><span class="adc-pill ${t.state === 'Running' ? 'adc-pill-warn' : 'adc-pill-up'}">${esc(t.state || '—')}</span></li>`
+      ).join('')}</ul>`;
+    }
+    if (name === 'userProfile') {
+      return `<dl class="adc-probe-kv">
+        <dt>User</dt><dd>${esc(d.name || '—')}</dd>
+        <dt>Last active</dt><dd>${esc(fmtDate(d.lastActivityDate))}</dd>
+        <dt>Admin</dt><dd>${d.isAdministrator ? 'Yes' : 'No'}</dd>
+      </dl>`;
+    }
+    if (name === 'libraryCounts') {
+      return `<div class="adc-probe-chips">
+        <span class="adc-probe-chip">${d.movies} movies</span>
+        <span class="adc-probe-chip">${d.shows} shows</span>
+        <span class="adc-probe-chip">${d.episodes} episodes</span>
+      </div>`;
+    }
+    if (name === 'views') {
+      const names = d.names || [];
+      if (!names.length) return '<div class="adc-probe-body">No views</div>';
+      return `<div class="adc-probe-chips">${names.map(n => `<span class="adc-probe-chip">${esc(n)}</span>`).join('')}</div>`;
+    }
+    if (name === 'latest' || name === 'playedItems') {
+      const items = Array.isArray(d) ? d : [];
+      if (!items.length) return '<div class="adc-probe-body">No items</div>';
+      return `<ul class="adc-probe-list">${items.slice(0, 6).map(i =>
+        `<li><span>${esc(i.name)}</span>${i.type ? `<span class="adc-probe-chip-type">${esc(i.type)}</span>` : ''}</li>`
+      ).join('')}</ul>`;
+    }
+    if (name === 'resume' || name === 'favorites') {
+      const items = d.items || [];
+      if (!items.length) return `<div class="adc-probe-body">${d.count || 0} items</div>`;
+      return `<div class="adc-probe-chips">${items.slice(0, 6).map(n => `<span class="adc-probe-chip">${esc(n)}</span>`).join('')}</div>`;
+    }
+    if (name === 'itemsSearch') {
+      const sample = d.sample || [];
+      return `<div class="adc-probe-body" style="margin-bottom:6px"><strong>${d.totalRecordCount ?? 0}</strong> matches for "the"</div>
+        ${sample.length ? `<div class="adc-probe-chips">${sample.map(i =>
+          `<span class="adc-probe-chip">${i.year ? `<span class="adc-probe-chip-type">${i.year}</span>` : ''}${esc(i.name)}</span>`
+        ).join('')}</div>` : ''}`;
+    }
+    if (name === 'sessions') {
+      return `<dl class="adc-probe-kv">
+        <dt>Active</dt><dd>${d.count ?? 0}</dd>
+        <dt>Method</dt><dd>${esc(d.method || '—')}</dd>
+      </dl>`;
+    }
+    if (name === 'playbackSample') {
+      if (d.note) return `<div class="adc-probe-body">${esc(d.note)}</div>`;
+      const v = d.video;
+      return `<dl class="adc-probe-kv">
+        <dt>Title</dt><dd>${esc(d.sampleTitle || '—')}</dd>
+        <dt>Container</dt><dd>${esc(d.container || '—')}</dd>
+        ${v ? `<dt>Video</dt><dd>${esc(v.codec)} ${v.width}×${v.height}${v.hdr ? ' · ' + esc(v.hdr) : ''}</dd>` : ''}
+        ${d.bitrate ? `<dt>Bitrate</dt><dd>${Math.round(d.bitrate / 1000)} kbps</dd>` : ''}
+      </dl>`;
+    }
+    return `<div class="adc-probe-body">${esc(JSON.stringify(d).slice(0, 200))}</div>`;
+  }
+
+  function renderProbeCard(name, p) {
+    const ok = probeOk(p);
+    const warn = ok && p?.ms != null && p.ms >= 800;
+    const tone = latencyTone(p?.ms);
+    const label = PROBE_LABELS[name] || name;
+    const icon = PROBE_ICONS[name] || '•';
+    return `<div class="adc-probe ${ok ? (warn ? 'adc-probe-warn' : 'adc-probe-ok') : 'adc-probe-fail'}">
+      <div class="adc-probe-head">
+        <span class="adc-probe-name"><span class="adc-probe-icon">${icon}</span> ${esc(label)}</span>
+        ${p?.ms != null ? `<span class="adc-probe-ms adc-probe-ms-${tone || 'mid'}">${p.ms}ms</span>` : ''}
+      </div>
+      ${renderProbeBody(name, p)}
+    </div>`;
+  }
+
+  function countProbeFails(probes, names) {
+    return (names || []).filter(n => probes[n] && !probeOk(probes[n])).length;
+  }
+
+  function renderLibraryHero(probes) {
+    const lc = probes.libraryCounts?.data;
+    if (!lc) return '';
+    return `<div class="adc-lib-hero">
+      <div class="adc-lib-stat"><div class="adc-lib-stat-n">${lc.movies ?? 0}</div><div class="adc-lib-stat-l">Movies</div></div>
+      <div class="adc-lib-stat"><div class="adc-lib-stat-n">${lc.shows ?? 0}</div><div class="adc-lib-stat-l">Shows</div></div>
+      <div class="adc-lib-stat"><div class="adc-lib-stat-n">${lc.episodes ?? 0}</div><div class="adc-lib-stat-l">Episodes</div></div>
+    </div>`;
+  }
+
+  function renderTokenDashboard(token) {
+    const ttl = token.ttlRemainingMs;
+    const ttlPct = ttl != null ? Math.min(100, Math.round(ttl / (24 * 3600000) * 100)) : null;
+    const ttlTone = ttl == null ? '' : ttl < 3600000 ? 'bad' : ttl < 6 * 3600000 ? 'warn' : 'good';
+    const ttlBarClass = ttlTone === 'good' ? 'adc-token-bar-good' : ttlTone === 'warn' ? 'adc-token-bar-warn' : 'adc-token-bar-bad';
+    return `<div class="adc-token-dash">
+      <div class="adc-token-card">
+        <div class="adc-token-card-head"><span class="adc-token-card-title">Cached token</span>
+          <span class="adc-pill ${token.hasCachedToken ? 'adc-pill-up' : 'adc-pill-down'}">${token.hasCachedToken ? 'Active' : 'None'}</span></div>
+        <div class="adc-token-val ${token.hasCachedToken ? 'adc-token-val-ok' : 'adc-token-val-bad'}">${token.hasCachedToken ? 'Yes' : 'No'}</div>
+      </div>
+      <div class="adc-token-card">
+        <div class="adc-token-card-head"><span class="adc-token-card-title">Re-auth credentials</span></div>
+        <div class="adc-token-val ${token.hasReauthCredentials ? 'adc-token-val-ok' : 'adc-token-val-bad'}">${token.hasReauthCredentials ? 'Saved' : 'Missing'}</div>
+      </div>
+      <div class="adc-token-card adc-token-card-wide">
+        <div class="adc-token-card-head"><span class="adc-token-card-title">TTL remaining</span>
+          <span class="adc-token-val adc-token-val-${ttlTone || 'warn'}" style="font-size:0.95rem">${ttl != null ? fmtUptime(ttl) : '—'}</span></div>
+        ${ttlPct != null ? `<div class="adc-token-bar"><div class="adc-token-bar-fill ${ttlBarClass}" style="width:${ttlPct}%"></div></div>` : '<div class="adc-chart-empty adc-empty-sm">No cached token</div>'}
+      </div>
+      <div class="adc-token-card">
+        <div class="adc-token-card-head"><span class="adc-token-card-title">Cache age</span></div>
+        <div class="adc-token-val">${token.cacheAgeMs != null ? fmtUptime(token.cacheAgeMs) : '—'}</div>
+      </div>
+      <div class="adc-token-card">
+        <div class="adc-token-card-head"><span class="adc-token-card-title">Using cache</span></div>
+        <div class="adc-token-val ${token.usingCache ? 'adc-token-val-ok' : ''}">${token.usingCache ? 'Yes' : 'No'}</div>
+      </div>
+    </div>`;
+  }
+
+  function renderLiveSessions(live) {
+    if (!live?.length) return '';
+    return `<div class="adc-live-section">
+      <div class="adc-live-section-title">Active streams (${live.length})</div>
+      <div class="adc-live-grid">${live.map(l => `
+        <div class="adc-live-card adc-live-card-rich">
+          <div class="adc-live-play">▶</div>
+          <div class="adc-live-body">
+            <div class="adc-live-title">${esc(l.title)}</div>
+            <div class="adc-live-meta">${esc(l.client || 'Unknown client')}${l.isTranscoding ? ' · <strong>transcoding</strong>' : ''}</div>
+            ${l.progressPct != null ? `<div class="adc-progress"><div class="adc-progress-fill" style="width:${Math.min(100, l.progressPct)}%"></div></div>` : ''}
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>`;
   }
 
   const DETAIL_GROUPS = {
     system: ['ping', 'systemInfo', 'scheduledTasks', 'userProfile'],
-    library: ['libraryCounts', 'views', 'latest', 'resume', 'favorites', 'playedItems', 'itemsSearch'],
+    library: ['views', 'latest', 'resume', 'favorites', 'playedItems', 'itemsSearch'],
     live: ['sessions', 'playbackSample'],
     token: [],
   };
@@ -411,17 +658,18 @@
   async function openServerDetail(key) {
     const detail = $('#adc-detail');
     const body = $('#adc-detail-body');
-    const title = $('#adc-detail-title');
     if (!detail || !body) return;
     _detailSubTab = 'system';
     detail.hidden = false;
-    body.innerHTML = '<div class="adc-skel"></div>';
+    body.innerHTML = '<div class="adc-skel"></div><div class="adc-skel"></div><div class="adc-skel"></div>';
+    $('#adc-detail-title') && ($('#adc-detail-title').textContent = 'Loading…');
+    $('#adc-detail-sub') && ($('#adc-detail-sub').textContent = '');
+    $('#adc-detail-gauge') && ($('#adc-detail-gauge').innerHTML = '');
     document.addEventListener('keydown', onDetailEsc);
     const r = await api('/api/admin/intel/servers/' + encodeURIComponent(key));
-    if (r.status !== 200 || !r.body) { body.innerHTML = '<div class="adc-empty">Failed to load</div>'; return; }
+    if (r.status !== 200 || !r.body) { body.innerHTML = '<div class="adc-empty">Failed to load server intel</div>'; return; }
     _cache._detail = r.body;
     renderServerDetail();
-    if (title) title.textContent = r.body.entry?.label || r.body.entry?.url || 'Server';
   }
 
   function onDetailEsc(e) {
@@ -439,36 +687,56 @@
     const token = payload.token || {};
     const tabs = ['system', 'library', 'live', 'token'];
     const ps = _cache._detail.probeSummary || {};
+    const health = _cache._detail.health || {};
+    const pingMs = probes.ping?.data?.ms;
+    const pingTone = latencyTone(pingMs);
+
+    renderDetailHero(entry, payload, ps);
+
     body.innerHTML = `
       <div class="adc-detail-actions">
-        <button type="button" class="btn-soft btn-xs" id="adc-detail-refresh">↻ Re-probe server</button>
-        ${ps.scorePct != null ? `<span class="adc-probe-score adc-probe-score-${ps.scorePct >= 90 ? 'good' : ps.scorePct >= 70 ? 'mid' : 'bad'}">Probe score ${ps.scorePct}%</span>` : ''}
-      </div>
-      <div class="adc-detail-meta">
-        <span>${esc(entry.url)}</span>
-        <span>${esc(entry.ownerUsername)}</span>
-        <span>${esc(entry.type)}</span>
-        <span>Probed ${fmtDate(payload.probedAt)}</span>
-        ${_cache._detail.health?.uptimePct != null ? `<span>Uptime ${esc(_cache._detail.health.uptimePct)}%</span>` : ''}
+        <div class="adc-detail-actions-left">
+          <button type="button" class="btn-soft btn-xs" id="adc-detail-refresh">↻ Re-probe server</button>
+          ${ps.fail ? `<span class="adc-pill adc-pill-down">${ps.fail} probe fail${ps.fail > 1 ? 's' : ''}</span>` : ''}
+        </div>
+        <span class="adc-detail-probed">Probed ${fmtDate(payload.probedAt)}${health.uptimePct != null ? ` · Uptime ${health.uptimePct}%` : ''}</span>
       </div>
       <div class="adc-detail-kpis">
-        <div class="adc-mini-kpi"><span class="adc-mini-n">${payload.up ? 'UP' : 'DOWN'}</span><span>Status</span></div>
-        <div class="adc-mini-kpi"><span class="adc-mini-n">${probes.ping?.data?.ms != null ? probes.ping.data.ms + 'ms' : '—'}</span><span>Ping</span></div>
-        <div class="adc-mini-kpi"><span class="adc-mini-n">${probes.libraryCounts?.data?.movies ?? '—'}</span><span>Movies</span></div>
-        <div class="adc-mini-kpi"><span class="adc-mini-n">${probes.sessions?.data?.count ?? 0}</span><span>Sessions</span></div>
+        <div class="adc-mini-kpi adc-mini-kpi-${payload.up ? 'up' : 'down'}">
+          <span class="adc-mini-n">${payload.up ? 'UP' : 'DOWN'}</span><span class="adc-mini-kpi-l">Status</span>
+        </div>
+        <div class="adc-mini-kpi adc-mini-kpi-${pingTone === 'slow' ? 'warn' : 'accent'}">
+          <span class="adc-mini-n">${pingMs != null ? pingMs + 'ms' : '—'}</span><span class="adc-mini-kpi-l">Ping</span>
+        </div>
+        <div class="adc-mini-kpi adc-mini-kpi-accent">
+          <span class="adc-mini-n">${probes.libraryCounts?.data?.movies ?? '—'}</span><span class="adc-mini-kpi-l">Movies</span>
+        </div>
+        <div class="adc-mini-kpi">
+          <span class="adc-mini-n">${probes.sessions?.data?.count ?? 0}</span><span class="adc-mini-kpi-l">Sessions</span>
+        </div>
       </div>
       <div class="adc-grid-2 adc-detail-charts">
-        <div><div class="adc-card-title">Uptime (7d)</div><div id="adc-detail-spark" class="adc-detail-spark"></div></div>
-        <div><div class="adc-card-title">Ping (7d)</div><div id="adc-detail-ping" class="adc-detail-spark"></div></div>
+        <div class="adc-chart-card">
+          <div class="adc-chart-card-head"><span class="adc-chart-card-title">Uptime (7d)</span></div>
+          <div id="adc-detail-uptime"></div>
+        </div>
+        <div class="adc-chart-card">
+          <div class="adc-chart-card-head"><span class="adc-chart-card-title">Ping (7d)</span></div>
+          <div id="adc-detail-ping"></div>
+        </div>
       </div>
       <div class="adc-subtabs" role="tablist">
-        ${tabs.map(t => `<button type="button" class="adc-subtab${_detailSubTab === t ? ' on' : ''}" data-sub="${t}">${t.charAt(0).toUpperCase() + t.slice(1)}</button>`).join('')}
+        ${tabs.map(t => {
+          const fails = t === 'token' ? 0 : countProbeFails(probes, DETAIL_GROUPS[t]);
+          const badge = fails ? `<span class="adc-subtab-badge">${fails}</span>` : '';
+          return `<button type="button" class="adc-subtab${_detailSubTab === t ? ' on' : ''}" data-sub="${t}">${t.charAt(0).toUpperCase() + t.slice(1)}${badge}</button>`;
+        }).join('')}
       </div>
       <div id="adc-detail-content"></div>`;
-    const histVals = (history || []).map(h => h.up ? 1 : 0);
-    renderSpark($('#adc-detail-spark'), histVals, histVals.length && histVals[histVals.length - 1] ? '#22c55e' : '#ef4444', { width: 280, height: 56 });
-    const pingVals = (_cache._detail.pingSeries || []).map(p => p.ms);
-    renderSpark($('#adc-detail-ping'), pingVals, '#60a5fa', { width: 280, height: 56 });
+
+    renderUptimeTimeline($('#adc-detail-uptime'), history);
+    renderPingChart($('#adc-detail-ping'), _cache._detail.pingSeries);
+
     $('#adc-detail-refresh')?.addEventListener('click', async () => {
       const btn = $('#adc-detail-refresh');
       if (btn) { btn.disabled = true; btn.textContent = 'Probing…'; }
@@ -493,35 +761,20 @@
     body.querySelectorAll('.adc-subtab').forEach(btn => {
       btn.addEventListener('click', () => { _detailSubTab = btn.dataset.sub; renderServerDetail(); });
     });
+
     const content = $('#adc-detail-content');
     if (_detailSubTab === 'token') {
-      content.innerHTML = `<div class="adc-card"><div class="adc-probe-grid">
-        <div class="adc-probe adc-probe-ok"><div class="adc-probe-name">Cached token</div><div class="adc-probe-val">${token.hasCachedToken ? 'Yes' : 'No'}</div></div>
-        <div class="adc-probe ${token.hasReauthCredentials ? 'adc-probe-ok' : 'adc-probe-fail'}"><div class="adc-probe-name">Re-auth credentials</div><div class="adc-probe-val">${token.hasReauthCredentials ? 'Saved' : 'Missing'}</div></div>
-        <div class="adc-probe adc-probe-ok"><div class="adc-probe-name">TTL remaining</div><div class="adc-probe-val">${token.ttlRemainingMs != null ? fmtUptime(token.ttlRemainingMs) : '—'}</div></div>
-        <div class="adc-probe adc-probe-ok"><div class="adc-probe-name">Cache age</div><div class="adc-probe-val">${token.cacheAgeMs != null ? fmtUptime(token.cacheAgeMs) : '—'}</div></div>
-      </div></div>`;
+      content.innerHTML = renderTokenDashboard(token);
       return;
     }
+
     const names = DETAIL_GROUPS[_detailSubTab] || [];
-    const probeHtml = names.map(name => {
-      const p = probes[name];
-      const sum = probeSummary(name, p);
-      return `<div class="adc-probe ${sum.ok ? 'adc-probe-ok' : 'adc-probe-fail'}">
-        <div class="adc-probe-name">${esc(name)} ${p?.ms != null ? '(' + p.ms + 'ms)' : ''}</div>
-        <div class="adc-probe-val">${esc(sum.text)}</div>
-      </div>`;
-    }).join('');
-    if (_detailSubTab === 'live' && probes.sessions?.data?.live?.length) {
-      content.innerHTML = `<div class="adc-live-grid">${probes.sessions.data.live.map(l => `
-        <div class="adc-live-card">
-          <div class="adc-live-title">${esc(l.title)}</div>
-          <div class="adc-live-meta">${esc(l.client || '')}${l.isTranscoding ? ' · transcoding' : ''}</div>
-          ${l.progressPct != null ? `<div class="adc-progress"><div class="adc-progress-fill" style="width:${l.progressPct}%"></div></div>` : ''}
-        </div>`).join('')}</div>` + (probeHtml ? `<div class="adc-probe-grid">${probeHtml}</div>` : '');
-    } else {
-      content.innerHTML = `<div class="adc-probe-grid">${probeHtml || '<div class="adc-empty">No probes in this group</div>'}</div>`;
-    }
+    let html = '';
+    if (_detailSubTab === 'library') html += renderLibraryHero(probes);
+    if (_detailSubTab === 'live') html += renderLiveSessions(probes.sessions?.data?.live);
+    const probeHtml = names.map(name => renderProbeCard(name, probes[name])).join('');
+    html += `<div class="adc-probe-grid">${probeHtml || '<div class="adc-empty">No probes in this group</div>'}</div>`;
+    content.innerHTML = html;
   }
 
   function renderTokens() {
@@ -948,9 +1201,13 @@
 
     $('#adc-refresh-btn')?.addEventListener('click', triggerServerRefresh);
     $('#adc-export-json')?.addEventListener('click', exportDashboardJson);
-    $('#adc-detail-back')?.addEventListener('click', () => {
+    function closeServerDetail() {
       const d = $('#adc-detail');
       if (d) { d.hidden = true; document.removeEventListener('keydown', onDetailEsc); }
+    }
+    $('#adc-detail-back')?.addEventListener('click', closeServerDetail);
+    $('#adc-detail')?.addEventListener('click', e => {
+      if (e.target.id === 'adc-detail') closeServerDetail();
     });
     $('#adc-autopoll')?.addEventListener('change', e => { if (e.target.checked) startPolling(); else stopPolling(); });
 

@@ -430,6 +430,13 @@ function makeAdminRouter(opts = {}) {
     catch (e) { console.error('[admin/intel/dashboard]', e.message); res.status(500).json({ error: 'dashboard failed' }); }
   });
 
+  r.post('/intel/purge-demo-servers', requireAdmin, async (req, res) => {
+    try {
+      const out = await intel.purgeDemoServersFromAllUsers();
+      res.json({ ok: true, ...out });
+    } catch (e) { console.error('[admin/intel/purge-demo]', e.message); res.status(500).json({ error: 'purge failed' }); }
+  });
+
   r.get('/intel/overview', requireAdmin, async (req, res) => {
     try {
       const overview = await intel.getOverview();
