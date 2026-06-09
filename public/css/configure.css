@@ -2524,6 +2524,110 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
   color:var(--text-mute); border:1px solid var(--border); text-transform:uppercase; letter-spacing:.03em;
 }
 
+/* Recent activity — merged Stremio + Emby/Jellyfin history */
+.da-hist-head {
+  display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  margin-bottom:4px;
+}
+.da-hist-filters {
+  display:inline-flex; gap:4px; padding:3px;
+  border-radius:10px; border:1px solid var(--border);
+  background:color-mix(in srgb, var(--bg-elevated) 80%, transparent);
+}
+.da-hist-filter {
+  padding:5px 10px; border-radius:8px; border:1px solid transparent;
+  background:transparent; color:var(--text-mute);
+  font-size:.68rem; font-weight:700; cursor:pointer;
+  transition:all .15s; display:inline-flex; align-items:center; gap:5px;
+}
+.da-hist-filter:hover { color:var(--text-primary); }
+.da-hist-filter.on {
+  background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 82%, #fff), var(--accent));
+  color:#0a0c14; box-shadow:0 4px 14px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.da-hist-filter-n {
+  min-width:16px; height:16px; padding:0 4px; border-radius:99px;
+  font-size:.58rem; font-weight:900; line-height:16px; text-align:center;
+  background:color-mix(in srgb, var(--border) 60%, transparent);
+}
+.da-hist-filter.on .da-hist-filter-n { background:#0a0c14; color:var(--accent); }
+.da-hist-stats {
+  display:flex; flex-wrap:wrap; gap:10px 16px; margin:0 0 12px;
+  font-size:.72rem; color:var(--text-mute);
+}
+.da-hist-stat strong { color:var(--text-primary); font-weight:800; }
+.da-hist-stat-resume strong { color:#fbbf24; }
+.da-hist-list {
+  flex:1; max-height:340px; overflow-y:auto;
+  display:flex; flex-direction:column; gap:8px;
+  padding:2px 2px 4px;
+}
+.da-hist-empty {
+  min-height:180px; display:flex; align-items:center; justify-content:center;
+  border-radius:var(--r-md); border:1px dashed color-mix(in srgb, var(--border) 85%, transparent);
+  background:color-mix(in srgb, var(--bg-elevated) 70%, transparent);
+}
+.da-hist-item {
+  display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center;
+  padding:12px 14px; border-radius:12px;
+  border:1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  background:linear-gradient(145deg, color-mix(in srgb, var(--bg-elevated) 92%, var(--accent) 2%), var(--bg-elevated));
+  transition:border-color .15s, transform .12s, box-shadow .15s;
+}
+.da-hist-item:hover {
+  border-color:color-mix(in srgb, var(--accent) 28%, var(--border));
+  transform:translateY(-1px);
+  box-shadow:0 8px 22px color-mix(in srgb, #000 18%, transparent);
+}
+.da-hist-item-live {
+  border-color:color-mix(in srgb, #34d399 35%, var(--border));
+  background:linear-gradient(145deg, color-mix(in srgb, #34d399 7%, transparent), var(--bg-elevated));
+}
+.da-hist-item-resume { border-left:3px solid #f59e0b; }
+.da-hist-item-played { border-left:3px solid color-mix(in srgb, var(--accent) 55%, transparent); }
+.da-hist-item-lookup { border-left:3px solid #60a5fa; }
+.da-hist-icon {
+  width:36px; height:36px; border-radius:10px; flex:none;
+  display:grid; place-items:center; font-size:1rem;
+  background:color-mix(in srgb, var(--accent) 10%, transparent);
+  border:1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+}
+.da-hist-body { min-width:0; display:flex; flex-direction:column; gap:5px; }
+.da-hist-title-row { display:flex; align-items:center; gap:8px; min-width:0; flex-wrap:wrap; }
+.da-hist-title {
+  font-weight:700; font-size:.86rem; color:var(--text-primary);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; flex:1 1 auto;
+}
+.da-hist-sub { font-size:.7rem; color:var(--text-mute); line-height:1.35; }
+.da-hist-progress {
+  height:4px; border-radius:99px; overflow:hidden;
+  background:color-mix(in srgb, var(--border) 80%, transparent); max-width:240px;
+}
+.da-hist-progress-fill {
+  height:100%; border-radius:inherit;
+  background:linear-gradient(90deg, #f59e0b, #fbbf24);
+  transition:width .35s ease;
+}
+.da-hist-meta {
+  display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex:none;
+  text-align:right; min-width:52px;
+}
+.da-hist-when { font-size:.72rem; color:var(--text-mute); white-space:nowrap; }
+.da-src-badge {
+  flex:none; padding:2px 8px; border-radius:99px;
+  font-size:.58rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+  border:1px solid var(--border);
+}
+.da-src-stremio { color:#93c5fd; border-color:color-mix(in srgb, #60a5fa 35%, var(--border)); background:color-mix(in srgb, #60a5fa 12%, transparent); }
+.da-src-emby { color:#6ee7b7; border-color:color-mix(in srgb, #34d399 35%, var(--border)); background:color-mix(in srgb, #34d399 10%, transparent); }
+.da-src-jellyfin { color:#c4b5fd; border-color:color-mix(in srgb, #a78bfa 35%, var(--border)); background:color-mix(in srgb, #a78bfa 10%, transparent); }
+.da-src-both { color:var(--text-primary); border-color:color-mix(in srgb, var(--accent) 35%, var(--border)); background:color-mix(in srgb, var(--accent) 10%, transparent); }
+.dash-act-history .da-hist-list { scrollbar-gutter:stable; }
+@media (max-width:640px) {
+  .da-hist-item { grid-template-columns:auto 1fr; }
+  .da-hist-meta { grid-column:2; flex-direction:row; justify-content:flex-start; align-items:center; gap:8px; }
+}
+
 /* Dashboard scale-up, stat-tile sheen + number pop, two-panel activity */
 #page-dashboard { max-width:1480px !important; }
 #page-dashboard .dash-page-title { font-size:2rem; letter-spacing:-.02em; }

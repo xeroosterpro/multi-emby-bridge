@@ -692,6 +692,7 @@ let _liveBundleCache = { live: [], probes: [], ts: 0 };
 let _activityRecentCache = [];
 let _dashActivityGen = 0;
 let _dashActivityData = null;
+let _dashHistFilter = 'all';
 
 function _serverLikelyDown(healthByUrl, url) {
   const rec = healthByUrl?.[_normServerUrl(url)]?.history?.[0];
@@ -918,8 +919,8 @@ function renderDashActivityShell(serverCount) {
       <div class="da-empty da-loading">Checking playback across ${n || 'your'} server${n === 1 ? '' : 's'}…</div>
     </div>
     <div class="dash-act-panel dash-act-history">
-      <h3 class="block-title dash-act-title">Watched history</h3>
-      <div class="da-empty da-loading">Loading history…</div>
+      <h3 class="block-title dash-act-title">Recent activity</h3>
+      <div class="da-empty da-loading">Loading Stremio + server history…</div>
     </div>
   </div>`;
 }
@@ -1953,6 +1954,88 @@ function dashRecentMatchesLive(entry, liveList) {
   return false;
 }
 
+function dashHistKindLabel(kind) {
+  if (kind === 'resume') return 'In progress';
+  if (kind === 'played') return 'Watched';
+  return 'Stremio play';
+}
+
+function dashHistSourceBadge(entry) {
+  const sources = entry.sources || [entry.source || 'bridge'];
+  const hasBridge = sources.includes('bridge');
+  const hasServer = sources.includes('server');
+  if (hasBridge && hasServer) return '<span class="da-src-badge da-src-both">Stremio + Server</span>';
+  if (hasServer) {
+    const t = (entry.serverType || 'emby').toLowerCase();
+    const cls = t === 'jellyfin' ? 'da-src-jellyfin' : 'da-src-emby';
+    const label = t === 'jellyfin' ? 'Jellyfin' : 'Emby';
+    return `<span class="da-src-badge ${cls}">${label}</span>`;
+  }
+  return '<span class="da-src-badge da-src-stremio">Stremio</span>';
+}
+
+function dashHistIcon(entry) {
+  const isEp = entry.season != null || entry.episode != null || entry.type === 'series' || entry.itemType === 'Episode';
+  return isEp ? '📺' : '🎬';
+}
+
+function dashHistMatchesFilter(entry, filter) {
+  if (filter === 'all') return true;
+  const sources = entry.sources || [entry.source || 'bridge'];
+  if (filter === 'bridge') return sources.includes('bridge');
+  if (filter === 'server') return sources.includes('server');
+  return true;
+}
+
+function renderDashHistoryRows(recent, live, filter) {
+  const esc = dashActivityEsc;
+  const when = dashActivityWhen;
+  const rows = (recent || []).filter(e => dashHistMatchesFilter(e, filter));
+  if (!rows.length) {
+    const emptyMsg = filter === 'all'
+      ? 'No recent activity yet — plays in Stremio or your Emby/Jellyfin apps appear here.'
+      : filter === 'bridge'
+        ? 'No Stremio plays logged yet.'
+        : 'No native server watch history returned — try playing something in Emby or Jellyfin.';
+    return `<div class="da-empty da-hist-empty">${emptyMsg}</div>`;
+  }
+  return rows.map(e => {
+    const isLive = dashRecentMatchesLive(e, live);
+    const showProgress = e.kind === 'resume' && e.progressPct != null && e.progressPct < 98;
+    const pct = showProgress ? Math.min(100, Math.max(1, Math.round(e.progressPct))) : null;
+    const kindCls = e.kind === 'resume' ? 'da-hist-item-resume' : (e.kind === 'played' ? 'da-hist-item-played' : 'da-hist-item-lookup');
+    const subParts = [];
+    if (e.server) subParts.push(esc(e.server));
+    subParts.push(esc(dashHistKindLabel(e.kind)));
+    if (e.lookupCount > 1) subParts.push(`${e.lookupCount} lookups`);
+    else if (pct != null && !showProgress) subParts.push('Completed');
+    else if (pct != null) subParts.push(`${pct}% watched`);
+    return `<div class="da-hist-item ${kindCls}${isLive ? ' da-hist-item-live' : ''}">
+      <div class="da-hist-icon" aria-hidden="true">${dashHistIcon(e)}</div>
+      <div class="da-hist-body">
+        <div class="da-hist-title-row">
+          <span class="da-hist-title" title="${esc(e.title || '')}">${esc(e.title || '—')}</span>
+          ${dashHistSourceBadge(e)}
+        </div>
+        <div class="da-hist-sub">${subParts.join(' · ')}</div>
+        ${showProgress ? `<div class="da-hist-progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div class="da-hist-progress-fill" style="width:${pct}%"></div></div>` : ''}
+      </div>
+      <div class="da-hist-meta">
+        ${isLive ? '<span class="da-hist-now">▶ now</span>' : ''}
+        <span class="da-hist-when">${when(e.ts)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function dashHistStats(recent) {
+  const list = recent || [];
+  const bridge = list.filter(e => (e.sources || [e.source]).includes('bridge')).length;
+  const server = list.filter(e => (e.sources || [e.source]).includes('server')).length;
+  const resume = list.filter(e => e.kind === 'resume').length;
+  return { total: list.length, bridge, server, resume };
+}
+
 function paintDashActivityPanels(el, a, bundle, localServers) {
   const esc = dashActivityEsc;
   const when = dashActivityWhen;
@@ -1965,24 +2048,9 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
     : '';
 
   const emptyMsg = live.length ? '' : liveEmptyMessage(probes, serverCount);
-  const recentRows = (a.recent || []).map(e => {
-    // Derive "▶ now" from the Live-panel set, not the server's looser self-match,
-    // so the two panels always agree.
-    const isLive = dashRecentMatchesLive(e, live);
-    const liveTag = isLive
-      ? `<span class="da-hist-live"><span class="da-hist-now">▶ now</span></span> · `
-      : '';
-    // Only show the S/E badge when the title doesn't already carry it (new log
-    // rows embed "SxEy" in the title; legacy rows like "Episode 2" still need it).
-    const seToken = e.season ? `S${e.season}E${e.episode || ''}` : '';
-    const seBadge = seToken && !String(e.title || '').toUpperCase().includes(seToken.toUpperCase())
-      ? ` <span class="da-ep">${seToken}</span>`
-      : '';
-    return `<div class="da-row da-history${isLive ? ' da-history-live' : ''}">
-      <span class="da-main"><span class="da-title" title="${esc(e.title || '')}">${esc(e.title || '—')}${seBadge}</span></span>
-      <span class="da-dim da-meta da-hist-meta">${liveTag}${when(e.ts)}</span>
-    </div>`;
-  }).join('');
+  const recent = a.recent || [];
+  const stats = dashHistStats(recent);
+  const histRows = renderDashHistoryRows(recent, live, _dashHistFilter);
 
   el.innerHTML = `<div class="dash-activity-grid" data-ready="1">
     <div class="dash-act-panel dash-act-live">
@@ -1992,12 +2060,29 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
       <div class="da-list">${liveRows || `<div class="da-empty">${emptyMsg}</div>`}</div>
     </div>
     <div class="dash-act-panel dash-act-history">
-      <h3 class="block-title dash-act-title">Watched history</h3>
-      <p class="dash-act-hint">Bridge stream lookups — <strong>▶ now</strong> marks titles currently playing</p>
-      <div class="da-list">${recentRows || '<div class="da-empty">No watch history yet — streams through your bridge appear here.</div>'}</div>
+      <div class="da-hist-head">
+        <h3 class="block-title dash-act-title">Recent activity</h3>
+        <div class="da-hist-filters" role="tablist" aria-label="Activity source filter">
+          <button type="button" class="da-hist-filter${_dashHistFilter === 'all' ? ' on' : ''}" data-hist-filter="all" role="tab">All <span class="da-hist-filter-n">${stats.total}</span></button>
+          <button type="button" class="da-hist-filter${_dashHistFilter === 'bridge' ? ' on' : ''}" data-hist-filter="bridge" role="tab">Stremio <span class="da-hist-filter-n">${stats.bridge}</span></button>
+          <button type="button" class="da-hist-filter${_dashHistFilter === 'server' ? ' on' : ''}" data-hist-filter="server" role="tab">Servers <span class="da-hist-filter-n">${stats.server}</span></button>
+        </div>
+      </div>
+      <p class="dash-act-hint">Stremio addon plays <strong>and</strong> native Emby/Jellyfin watch history · <strong>▶ now</strong> syncs with Live</p>
+      <div class="da-hist-stats">
+        <span class="da-hist-stat"><strong>${stats.total}</strong> titles</span>
+        ${stats.resume ? `<span class="da-hist-stat da-hist-stat-resume"><strong>${stats.resume}</strong> in progress</span>` : ''}
+      </div>
+      <div class="da-hist-list">${histRows}</div>
     </div>
   </div>`;
   el.querySelectorAll('[data-page]').forEach(link => link.addEventListener('click', e => { e.preventDefault(); location.hash = '#/' + link.dataset.page; }));
+  el.querySelectorAll('[data-hist-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _dashHistFilter = btn.dataset.histFilter || 'all';
+      paintDashActivityPanels(el, a, bundle, localServers);
+    });
+  });
 }
 
 async function renderDashActivity(opts = {}) {

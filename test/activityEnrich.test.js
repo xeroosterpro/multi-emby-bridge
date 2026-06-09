@@ -5,6 +5,7 @@ const {
   enrichRecentEntries,
   dedupeRecentByContent,
   recentMatchesLive,
+  mergeActivityHistory,
 } = require('../lib/activityEnrich');
 
 let passed = 0;
@@ -112,6 +113,21 @@ A(recentMatchesLive({ title: 'Dune: Part Two' }, liveSet) === true, 'movie match
 A(recentMatchesLive({ title: 'Severance S1E1', season: 1, episode: 1 }, liveSet) === false, 'unrelated title not live');
 A(recentMatchesLive({ title: 'Anything' }, []) === false, 'empty live set → never live');
 A(recentMatchesLive({ title: 'Anything' }, null) === false, 'missing live set → never live');
+
+console.log('\nmergeActivityHistory:');
+const merged = mergeActivityHistory(
+  [{ title: 'Bee Movie', ts: '2026-06-07T10:00:00Z', server: 'ARCTV', source: 'bridge' }],
+  [{ title: 'Bee Movie', ts: '2026-06-08T12:00:00Z', server: 'ARCTV', source: 'server', kind: 'played', serverType: 'emby' }],
+);
+A(merged.length === 1, 'merges bridge + server same title');
+A(merged[0].sources.includes('bridge') && merged[0].sources.includes('server'), 'merged row has both sources');
+A(merged[0].ts === '2026-06-08T12:00:00Z', 'keeps newer server timestamp');
+
+const resumeMerge = mergeActivityHistory([], [{
+  title: 'Breaking Bad S1E1', season: 1, episode: 1, ts: '2026-06-08T08:00:00Z',
+  source: 'server', kind: 'resume', progressPct: 42, server: 'Milkyway', serverType: 'emby',
+}]);
+A(resumeMerge[0].kind === 'resume' && resumeMerge[0].progressPct === 42, 'server resume preserved');
 
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);

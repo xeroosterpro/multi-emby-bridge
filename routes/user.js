@@ -7,7 +7,8 @@ const { makeManifestStore } = require('../lib/manifestStore');
 const { makeServerHistory } = require('../lib/serverHistory');
 const { makeRequestLog } = require('../lib/requestLog');
 const { makeLiveSessions } = require('../lib/sessions');
-const { enrichRecentEntries, dedupeRecentByContent } = require('../lib/activityEnrich');
+const { enrichRecentEntries, dedupeRecentByContent, mergeActivityHistory } = require('../lib/activityEnrich');
+const { fetchServerWatchHistory } = require('../lib/serverWatchHistory');
 const { attachBridgeLive } = require('../lib/bridgeLive');
 const { healthHistory } = require('../lib/health');
 const { detectDownServers, filterSnoozed } = require('../lib/healthAlerts');
@@ -20,6 +21,17 @@ function manifestUrl(req, token) {
 function filterLiveServers(cfg) {
   if (!cfg || !Array.isArray(cfg.servers)) return [];
   return cfg.servers.filter(s => s && s.url && s.apiKey && s.userId && s.enabled !== false);
+}
+
+const _watchHistCache = new Map();
+const WATCH_HIST_CACHE_MS = 90000;
+
+async function getCachedServerWatch(userId, servers, quick) {
+  const hit = _watchHistCache.get(userId);
+  if (hit && Date.now() - hit.at < WATCH_HIST_CACHE_MS) return hit.entries;
+  const entries = await fetchServerWatchHistory(servers, { timeoutMs: quick ? 3500 : 5500, limitPerEndpoint: 12 });
+  _watchHistCache.set(userId, { at: Date.now(), entries });
+  return entries;
 }
 
 function mapLiveProbes(probes) {
@@ -163,8 +175,12 @@ function makeUserRouter() {
           filteredServers.forEach(s => { if (s.label) labels.add(s.label.trim()); });
           const filtered = (await requestLog.forUser(req.user.id, 60))
             .filter(e => !e.server || labels.has(e.server) || (e.serverStatus || []).some(s => labels.has(s.label)));
-          // Collapse repeat Stremio stream lookups into one row per episode, then cap.
-          rawRecent = dedupeRecentByContent(filtered).slice(0, 20);
+          const bridgeRecent = dedupeRecentByContent(filtered);
+          let serverWatch = [];
+          try {
+            serverWatch = await getCachedServerWatch(req.user.id, filteredServers, quick);
+          } catch (e) { console.error('[user/activity:serverWatch]', e.message); }
+          rawRecent = mergeActivityHistory(bridgeRecent, serverWatch, { limit: 24 });
         }
         if (quick) {
           live = attachBridgeLive([], rawRecent);
