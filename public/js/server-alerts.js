@@ -1,6 +1,6 @@
-// In-app banner when user servers are down for 3+ consecutive health checks.
+// In-app banner when user servers are down for consecutive health checks.
 (function () {
-  const POLL_MS = 30000;
+  const POLL_MS = 10000;
   let timer = null;
 
   function esc(t) {

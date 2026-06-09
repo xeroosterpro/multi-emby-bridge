@@ -337,7 +337,41 @@ function _applyDashCardStatus(card, online, bridgeMs) {
   }
 }
 
-async function refreshDashCardStatus() {
+function _statusFromHealth(healthByUrl, url) {
+  const lat = healthByUrl[_normServerUrl(url)]?.history?.[0];
+  if (!lat || Date.now() - lat.ts > BRIDGE_FRESH_MS) return null;
+  return { online: !!lat.up, bridgeMs: lat.up && lat.ms != null ? lat.ms : null };
+}
+
+function _dashCardIsOnline(card) {
+  const pill = card.querySelector('[data-pill]');
+  return !!(pill && pill.classList.contains('online'));
+}
+
+function _dashCardBridgeMs(card) {
+  const msTxt = card.querySelector('[data-bridge-ms]')?.textContent || '';
+  const ms = parseInt(msTxt, 10);
+  return isNaN(ms) ? null : ms;
+}
+
+function _updateDashStatusHeader(servers, upCount, fastest) {
+  const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  setTxt('tile-servers', upCount);
+  const pingEl = document.getElementById('tile-ping');
+  if (pingEl) {
+    pingEl.textContent = fastest != null ? fastest + 'ms' : '—';
+    pingEl.title = fastest != null
+      ? `Fastest bridge path right now · ${fastest}ms (addon → server)`
+      : 'No bridge latency data yet';
+  }
+  const statusEl = document.getElementById('dash-status');
+  if (statusEl && servers.length) {
+    statusEl.textContent = `${upCount}/${servers.length} servers reachable · health every ${Math.round(DASH_GRAPH_POLL_MS / 1000)}s · auth check every ${Math.round(DASH_CONN_POLL_MS / 1000)}s`;
+  }
+}
+
+async function refreshDashCardStatus(opts = {}) {
+  const full = opts.full === true;
   const cards = document.querySelectorAll('#page-dashboard #dash-cards .gcard[data-server-url]');
   if (!cards.length) return;
   await ensureAccountConfigLoaded();
@@ -347,6 +381,22 @@ async function refreshDashCardStatus() {
   let upCount = 0;
   let fastest = null;
   const pingQueue = [];
+
+  if (!full) {
+    for (const s of servers) {
+      const card = [...cards].find(c => _normServerUrl(c.dataset.serverUrl) === _normServerUrl(s.url));
+      if (!card) continue;
+      const st = _statusFromHealth(healthByUrl, s.url);
+      if (st) _applyDashCardStatus(card, st.online, st.bridgeMs);
+      if (_dashCardIsOnline(card)) {
+        upCount++;
+        const ms = _dashCardBridgeMs(card);
+        if (ms != null && (fastest === null || ms < fastest)) fastest = ms;
+      }
+    }
+    _updateDashStatusHeader(servers, upCount, fastest);
+    return;
+  }
 
   await Promise.all(servers.map(async (s) => {
     const card = [...cards].find(c => _normServerUrl(c.dataset.serverUrl) === _normServerUrl(s.url));
@@ -377,19 +427,7 @@ async function refreshDashCardStatus() {
     } catch { /* keep last known status */ }
   }
 
-  const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  setTxt('tile-servers', upCount);
-  const pingEl = document.getElementById('tile-ping');
-  if (pingEl) {
-    pingEl.textContent = fastest != null ? fastest + 'ms' : '—';
-    pingEl.title = fastest != null
-      ? `Fastest bridge path right now · ${fastest}ms (addon → server)`
-      : 'No bridge latency data yet';
-  }
-  const statusEl = document.getElementById('dash-status');
-  if (statusEl && servers.length) {
-    statusEl.textContent = `${upCount}/${servers.length} servers reachable · status refreshes every ${Math.round(DASH_STATUS_POLL_MS / 1000)}s`;
-  }
+  _updateDashStatusHeader(servers, upCount, fastest);
 }
 
 function formatLiveTitleClient(np) {
@@ -968,12 +1006,30 @@ function stopDashLivePolling() {
   _dashLiveTimer = null;
 }
 
+let _dashHealthPingTimer = null;
+
+function startDashHealthPolling() {
+  stopDashHealthPolling();
+  _dashHealthPingTimer = setInterval(() => {
+    const dash = document.getElementById('page-dashboard');
+    if (!dash || !dash.classList.contains('on')) return;
+    fetch('/api/health/ping-now', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+  }, DASH_HEALTH_PING_MS);
+}
+
+function stopDashHealthPolling() {
+  clearInterval(_dashHealthPingTimer);
+  _dashHealthPingTimer = null;
+}
+
 try { _libStatsCache = JSON.parse(localStorage.getItem('meb-libstats-cache') || '{}'); } catch { _libStatsCache = {}; }
 function _libKey(s){ return [s.url, s.apiKey, s.userId].join('|'); }
 function _saveLibCache(){ try { localStorage.setItem('meb-libstats-cache', JSON.stringify(_libStatsCache)); } catch {} }
 const LIB_TTL_MS = 60 * 60 * 1000; // 1 hour
-const BRIDGE_FRESH_MS = 2 * 60 * 1000; // align with 90s health pings (+ buffer)
-const DASH_STATUS_POLL_MS = 30000;
+const BRIDGE_FRESH_MS = 90 * 1000; // align with 30s health pings (+ buffer)
+const DASH_GRAPH_POLL_MS = 8000; // sparklines + health-based ONLINE/OFFLINE
+const DASH_CONN_POLL_MS = 30000; // full authenticated connection test
+const DASH_HEALTH_PING_MS = 15000; // trigger backend pings while dashboard is open
 
 function _bridgeMsFromHealth(healthByUrl, url) {
   const lat = healthByUrl[_normServerUrl(url)]?.history?.[0];
@@ -1895,17 +1951,21 @@ window.onPageShow = function(name) {
   if (name === 'dashboard') {
     renderDashActivityShell();
     startDashLivePolling();
+    startDashHealthPolling();
     renderDashActivity({ refreshHistory: true });
     (async () => {
       await ensureAccountConfigLoaded();
       renderDashboard();
       fetch('/api/health/ping-now', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+      refreshDashCardHealth();
+      refreshDashCardStatus({ full: true });
       pollLivePlaybackNotifications({ force: true });
       renderOnboarding();
       replayDashTileAnimations();
     })();
   } else {
     stopDashLivePolling();
+    stopDashHealthPolling();
     _dashActivityGen++;
   }
   if (name === 'health' && typeof window.startHealth === 'function') window.startHealth();
@@ -2170,13 +2230,20 @@ function replayDashTileAnimations() {
 setInterval(() => { pollLivePlaybackNotifications(); }, LIVE_PLAYBACK_POLL_MS);
 setTimeout(() => { pollLivePlaybackNotifications({ force: true }); }, 400);
 
-// Dashboard health tiles + ONLINE/OFFLINE pills refresh while that page is open.
+// Dashboard health sparklines + fast health-based status while that page is open.
 setInterval(() => {
   const dash = document.getElementById('page-dashboard');
   if (!dash || !dash.classList.contains('on')) return;
   refreshDashCardHealth();
   refreshDashCardStatus();
-}, DASH_STATUS_POLL_MS);
+}, DASH_GRAPH_POLL_MS);
+
+// Full authenticated connection test (heavier) on a slower cadence.
+setInterval(() => {
+  const dash = document.getElementById('page-dashboard');
+  if (!dash || !dash.classList.contains('on')) return;
+  refreshDashCardStatus({ full: true });
+}, DASH_CONN_POLL_MS);
 
 const EMBY_LOGO = '<img class="brandimg" src="/img/emby.png" alt="Emby" decoding="async">';
 const JELLYFIN_LOGO = '<img class="brandimg" src="/img/jellyfin.png" alt="Jellyfin" decoding="async">';
@@ -2265,6 +2332,11 @@ async function renderDashboard(force = false) {
     await Promise.all(dashMeta.map(async (meta) => {
       const { s, setStatus, setStats } = meta;
       let bridgeMs = _bridgeMsFromHealth(healthByUrl, s.url);
+      const healthSt = _statusFromHealth(healthByUrl, s.url);
+      if (healthSt && !healthSt.online) {
+        setStatus(false, null);
+        return;
+      }
       const conn = await _testServerConnection(s);
       const online = conn.ok;
       if (online) {
