@@ -195,8 +195,8 @@
     const ov = _cache.overview || {};
     const b = badges || {};
     const live = b.live ?? _cache.live?.count ?? 0;
-    const fail = b.tokenFail24h ?? ov.tokenEvents?.fail24h || 0;
-    const down = b.down ?? ov.downCount || 0;
+    const fail = b.tokenFail24h ?? (ov.tokenEvents?.fail24h || 0);
+    const down = b.down ?? (ov.downCount || 0);
     const map = { servers: down, tokens: fail, live };
     $$('.adc-tab').forEach(tab => {
       const badge = tab.querySelector('.adc-tab-badge');
