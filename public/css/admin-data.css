@@ -1,4 +1,4 @@
-/* ─── Admin Data Center v2 ─────────────────────────────────────────────────── */
+/* ─── Admin Data Center v3 ─────────────────────────────────────────────────── */
 .adc-shell { max-width: 1320px; margin: 0 auto; }
 .adc-top {
   display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
@@ -27,6 +27,30 @@
   50% { opacity: 0.4; transform: scale(0.85); }
 }
 .adc-poll-time { font-size: 0.72rem; color: var(--text-muted); }
+.adc-live-pill.adc-live-active {
+  color: #fff;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border-color: transparent;
+  box-shadow: 0 0 18px color-mix(in srgb, #22c55e 35%, transparent);
+}
+.adc-meta-bar {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 14px; padding: 10px 12px;
+  border-radius: 12px; border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-surface) 94%, var(--accent) 2%);
+}
+.adc-meta-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 8px;
+  font-size: 0.72rem; border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 80%, transparent);
+}
+.adc-meta-k {
+  font-size: 0.58rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--text-muted);
+}
+.adc-meta-ok { border-color: color-mix(in srgb, #22c55e 30%, var(--border)); }
+.adc-meta-warn { border-color: color-mix(in srgb, #f59e0b 35%, var(--border)); }
 .adc-autopoll {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 0.72rem; color: var(--text-muted); cursor: pointer;
@@ -219,6 +243,10 @@
 .adc-uptime-bad { color: #ef4444; }
 .adc-ttl-warn { color: #f59e0b; font-weight: 700; }
 .adc-text-bad { color: #ef4444; }
+.adc-probe-score { font-weight: 900; font-size: 0.82rem; }
+.adc-probe-score-good { color: #22c55e; }
+.adc-probe-score-mid { color: #f59e0b; }
+.adc-probe-score-bad { color: #ef4444; }
 
 /* Rank bars */
 .adc-rank { display: flex; flex-direction: column; gap: 6px; }
@@ -276,6 +304,10 @@
 }
 .adc-detail[hidden] { display: none !important; }
 .adc-detail-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.adc-detail-actions {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+}
+.adc-detail-charts { margin-bottom: 14px; }
 .adc-detail-back {
   padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);
   background: transparent; color: var(--text-primary); cursor: pointer; font-size: 0.8rem;
@@ -385,3 +417,31 @@
 @keyframes adcSkel { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 
 .btn-xs { padding: 4px 10px !important; font-size: 0.68rem !important; }
+
+/* Activity feed */
+.adc-feed { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; }
+.adc-feed-row {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 10px;
+  padding: 8px 10px; border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  font-size: 0.76rem;
+}
+.adc-feed-title { font-weight: 700; grid-column: 1 / -1; }
+.adc-feed-meta { color: var(--text-muted); font-size: 0.68rem; }
+.adc-feed-time { font-size: 0.66rem; color: var(--text-muted); text-align: right; }
+
+/* Fleet heatmap */
+.adc-heatmap { display: flex; flex-direction: column; gap: 6px; overflow-x: auto; }
+.adc-heatmap-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.adc-heatmap-label {
+  flex: 0 0 120px; font-size: 0.72rem; font-weight: 700;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.adc-heatmap-cells { display: flex; gap: 2px; flex-wrap: nowrap; }
+.adc-heat-cell {
+  width: 8px; height: 18px; border-radius: 2px; display: block;
+  transition: transform 0.1s;
+}
+.adc-heat-cell:hover { transform: scaleY(1.15); }
+.adc-heat-up { background: #22c55e; opacity: 0.85; }
+.adc-heat-down { background: #ef4444; opacity: 0.75; }

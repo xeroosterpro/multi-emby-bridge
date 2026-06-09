@@ -1,4 +1,4 @@
-// ─── Admin Data Center UI v2 ─────────────────────────────────────────────────
+// ─── Admin Data Center UI v3 ─────────────────────────────────────────────────
 (function () {
   'use strict';
   const $ = s => document.querySelector(s);
@@ -26,7 +26,9 @@
   let _tab = 'overview';
   let _pollTimer = null;
   let _liveTimer = null;
+  let _statusTimer = null;
   let _cache = {};
+  let _meta = null;
   let _activityRange = '7d';
   let _serverFilter = { q: '', status: 'all', type: 'all', sort: 'label', dedupe: false };
   let _detailSubTab = 'system';
@@ -163,11 +165,38 @@
     ).join('');
   }
 
-  function updateTabBadges() {
+  function renderMetaBar(meta, badges) {
+    const el = $('#adc-meta-bar');
+    if (!el) return;
+    const m = meta || _meta || {};
+    const b = badges || {};
+    const dbOk = m.database;
+    const probing = m.refreshInFlight;
+    el.innerHTML = `
+      <div class="adc-meta-chip ${dbOk ? 'adc-meta-ok' : 'adc-meta-warn'}">
+        <span class="adc-meta-k">Database</span><span>${dbOk ? 'connected' : 'offline'}</span>
+      </div>
+      <div class="adc-meta-chip">
+        <span class="adc-meta-k">Last probe</span><span>${m.lastSnapshotAt ? fmtDate(m.lastSnapshotAt) : 'pending'}</span>
+      </div>
+      <div class="adc-meta-chip">
+        <span class="adc-meta-k">Snapshots</span><span>${m.rowCounts?.snapshots ?? '—'}</span>
+      </div>
+      <div class="adc-meta-chip">
+        <span class="adc-meta-k">Scheduler</span><span>${probing ? 'probing…' : 'idle'}</span>
+      </div>
+      <div class="adc-meta-chip">
+        <span class="adc-meta-k">Cache</span><span>${Math.round((m.scheduler?.cacheTtlMs || 30000) / 1000)}s TTL</span>
+      </div>
+      ${b.alerts ? `<div class="adc-meta-chip adc-meta-warn"><span class="adc-meta-k">Alerts</span><span>${b.alerts}</span></div>` : ''}`;
+  }
+
+  function updateTabBadges(badges) {
     const ov = _cache.overview || {};
-    const live = _cache.live?.count ?? 0;
-    const fail = ov.tokenEvents?.fail24h || 0;
-    const down = ov.downCount || 0;
+    const b = badges || {};
+    const live = b.live ?? _cache.live?.count ?? 0;
+    const fail = b.tokenFail24h ?? ov.tokenEvents?.fail24h || 0;
+    const down = b.down ?? ov.downCount || 0;
     const map = { servers: down, tokens: fail, live };
     $$('.adc-tab').forEach(tab => {
       const badge = tab.querySelector('.adc-tab-badge');
@@ -213,9 +242,21 @@
           <p class="adc-card-foot">Last probe cycle: <strong>${esc(d.snapshotAt ? fmtDate(d.snapshotAt) : 'pending')}</strong></p>
         </div>
       </div>
-      <div class="adc-card">
-        <div class="adc-card-head"><span class="adc-card-title">Bridge activity (7d)</span></div>
-        <div id="adc-overview-chart"></div>
+      <div class="adc-grid-2">
+        <div class="adc-card">
+          <div class="adc-card-head"><span class="adc-card-title">Bridge activity (7d)</span></div>
+          <div id="adc-overview-chart"></div>
+        </div>
+        <div class="adc-card">
+          <div class="adc-card-head"><span class="adc-card-title">Recent lookups</span><span class="adc-card-meta">live feed</span></div>
+          <div class="adc-feed">${(_cache.recentActivity || []).slice(0, 12).map(a => `
+            <div class="adc-feed-row">
+              <span class="adc-feed-title">${esc(a.title || '—')}</span>
+              <span class="adc-feed-meta">${esc(a.username || '—')} · ${esc(a.server || '—')}</span>
+              <span class="adc-pill ${a.found ? 'adc-pill-up' : 'adc-pill-down'}">${a.found ? 'found' : 'miss'}</span>
+              <span class="adc-feed-time">${fmtDate(a.ts)}</span>
+            </div>`).join('') || '<div class="adc-empty adc-empty-sm">No recent activity</div>'}</div>
+        </div>
       </div>`;
     renderDonut($('#adc-overview-donut'), [
       { label: 'Up', value: d.upCount || 0, color: '#22c55e' },
@@ -293,19 +334,21 @@
           <table class="adc-table" id="adc-servers-table">
             <thead><tr>
               <th>Status</th><th>Label</th><th>Owner</th><th>Type</th><th>Ping</th>
-              <th>Library</th><th>Uptime</th><th>Trend</th><th>Sessions</th><th>Token TTL</th><th>Req 7d</th>
+              <th>Probes</th><th>Library</th><th>Uptime</th><th>Trend</th><th>Sessions</th><th>Token TTL</th><th>Req 7d</th>
             </tr></thead>
             <tbody>${filtered.map(s => {
               const st = s.up === false ? 'down' : s.up ? 'up' : 'warn';
               const pill = st === 'up' ? 'adc-pill-up">UP' : st === 'down' ? 'adc-pill-down">DOWN' : 'adc-pill-warn">?';
               const lib = s.movies != null ? `${s.movies}m · ${s.shows}s` : '—';
               const ttlCls = s.tokenTtlMs != null && s.tokenTtlMs < 3600000 ? ' adc-ttl-warn' : '';
+              const probeCls = s.probeScore >= 90 ? 'good' : s.probeScore >= 70 ? 'mid' : 'bad';
               return `<tr data-key="${esc(s.key)}">
                 <td><span class="adc-pill ${pill}</span></td>
                 <td><strong>${esc(s.label || s.url)}</strong>${s.version ? `<div class="adc-row-sub">v${esc(s.version)}</div>` : ''}</td>
                 <td>${esc(s.ownerUsername)}</td>
                 <td><span class="adc-type-pill">${esc(s.type)}</span></td>
                 <td>${s.pingMs != null ? s.pingMs + 'ms' : '—'}</td>
+                <td>${s.probeScore != null ? `<span class="adc-probe-score adc-probe-score-${probeCls}">${s.probeScore}%</span><div class="adc-row-sub">${s.probeOk || 0}/${(s.probeOk || 0) + (s.probeFail || 0)}</div>` : '—'}</td>
                 <td>${esc(lib)}</td>
                 <td>${s.uptimePct != null ? `<span class="adc-uptime adc-uptime-${s.uptimePct >= 95 ? 'good' : s.uptimePct >= 80 ? 'mid' : 'bad'}">${s.uptimePct}%</span>` : '—'}</td>
                 <td><div class="adc-row-spark" data-spark="${esc(JSON.stringify(s.sparkHistory || []))}"></div></td>
@@ -378,7 +421,7 @@
     if (r.status !== 200 || !r.body) { body.innerHTML = '<div class="adc-empty">Failed to load</div>'; return; }
     _cache._detail = r.body;
     renderServerDetail();
-    if (title) title.textContent = r.body.entry.label || r.body.entry.url;
+    if (title) title.textContent = r.body.entry?.label || r.body.entry?.url || 'Server';
   }
 
   function onDetailEsc(e) {
@@ -395,12 +438,18 @@
     const probes = payload.probes || {};
     const token = payload.token || {};
     const tabs = ['system', 'library', 'live', 'token'];
+    const ps = _cache._detail.probeSummary || {};
     body.innerHTML = `
+      <div class="adc-detail-actions">
+        <button type="button" class="btn-soft btn-xs" id="adc-detail-refresh">↻ Re-probe server</button>
+        ${ps.scorePct != null ? `<span class="adc-probe-score adc-probe-score-${ps.scorePct >= 90 ? 'good' : ps.scorePct >= 70 ? 'mid' : 'bad'}">Probe score ${ps.scorePct}%</span>` : ''}
+      </div>
       <div class="adc-detail-meta">
         <span>${esc(entry.url)}</span>
         <span>${esc(entry.ownerUsername)}</span>
         <span>${esc(entry.type)}</span>
         <span>Probed ${fmtDate(payload.probedAt)}</span>
+        ${_cache._detail.health?.uptimePct != null ? `<span>Uptime ${esc(_cache._detail.health.uptimePct)}%</span>` : ''}
       </div>
       <div class="adc-detail-kpis">
         <div class="adc-mini-kpi"><span class="adc-mini-n">${payload.up ? 'UP' : 'DOWN'}</span><span>Status</span></div>
@@ -408,13 +457,39 @@
         <div class="adc-mini-kpi"><span class="adc-mini-n">${probes.libraryCounts?.data?.movies ?? '—'}</span><span>Movies</span></div>
         <div class="adc-mini-kpi"><span class="adc-mini-n">${probes.sessions?.data?.count ?? 0}</span><span>Sessions</span></div>
       </div>
-      <div id="adc-detail-spark" class="adc-detail-spark"></div>
+      <div class="adc-grid-2 adc-detail-charts">
+        <div><div class="adc-card-title">Uptime (7d)</div><div id="adc-detail-spark" class="adc-detail-spark"></div></div>
+        <div><div class="adc-card-title">Ping (7d)</div><div id="adc-detail-ping" class="adc-detail-spark"></div></div>
+      </div>
       <div class="adc-subtabs" role="tablist">
         ${tabs.map(t => `<button type="button" class="adc-subtab${_detailSubTab === t ? ' on' : ''}" data-sub="${t}">${t.charAt(0).toUpperCase() + t.slice(1)}</button>`).join('')}
       </div>
       <div id="adc-detail-content"></div>`;
     const histVals = (history || []).map(h => h.up ? 1 : 0);
-    renderSpark($('#adc-detail-spark'), histVals, histVals.length && histVals[histVals.length - 1] ? '#22c55e' : '#ef4444', { width: 600, height: 56 });
+    renderSpark($('#adc-detail-spark'), histVals, histVals.length && histVals[histVals.length - 1] ? '#22c55e' : '#ef4444', { width: 280, height: 56 });
+    const pingVals = (_cache._detail.pingSeries || []).map(p => p.ms);
+    renderSpark($('#adc-detail-ping'), pingVals, '#60a5fa', { width: 280, height: 56 });
+    $('#adc-detail-refresh')?.addEventListener('click', async () => {
+      const btn = $('#adc-detail-refresh');
+      if (btn) { btn.disabled = true; btn.textContent = 'Probing…'; }
+      const key = _cache._detail?.entry?.key;
+      if (key) {
+        const r = await api('/api/admin/intel/servers/' + encodeURIComponent(key) + '/refresh', { method: 'POST' });
+        if (r.status === 200 && r.body) {
+          _cache._detail = {
+            entry: r.body.entry,
+            payload: r.body.payload,
+            history: _cache._detail.history,
+            pingSeries: _cache._detail.pingSeries,
+            health: _cache._detail.health,
+            probeSummary: r.body.probeSummary,
+          };
+          _cache.servers = null;
+          renderServerDetail();
+        }
+      }
+      if (btn) { btn.disabled = false; btn.textContent = '↻ Re-probe server'; }
+    });
     body.querySelectorAll('.adc-subtab').forEach(btn => {
       btn.addEventListener('click', () => { _detailSubTab = btn.dataset.sub; renderServerDetail(); });
     });
@@ -584,7 +659,23 @@
         <td>${esc(s.checks)}</td>
       </tr>`;
     }).join('');
+    const heat = _cache.heatmap;
+    const heatHtml = heat?.servers?.length ? `
+      <div class="adc-card">
+        <div class="adc-card-head">
+          <span class="adc-card-title">Fleet heatmap (${heat.hours || 24}h)</span>
+          <span class="adc-card-meta">${heat.servers.length} servers · snapshot cells</span>
+        </div>
+        <div class="adc-heatmap">${heat.servers.map(s => `
+          <div class="adc-heatmap-row">
+            <span class="adc-heatmap-label" title="${esc(s.url)}">${esc(s.label)}</span>
+            <div class="adc-heatmap-cells">${(s.cells || []).map(c =>
+              `<i class="adc-heat-cell adc-heat-${c.up ? 'up' : 'down'}" title="${fmtDate(c.at)}${c.pingMs != null ? ' · ' + c.pingMs + 'ms' : ''}"></i>`
+            ).join('') || '<span class="adc-row-sub">no cells</span>'}</div>
+          </div>`).join('')}</div>
+      </div>` : '';
     panel.innerHTML = `
+      ${heatHtml}
       <div class="adc-card">
         <div class="adc-card-title">Uptime rollup (30d)</div>
         <div class="adc-table-wrap"><table class="adc-table"><thead><tr><th>Server</th><th>Uptime</th><th>Avg ms</th><th>Checks</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No health data</td></tr>'}</tbody></table></div>
@@ -716,6 +807,35 @@
     a.click();
   }
 
+  function applyDashboard(body) {
+    if (!body) return;
+    _cache.overview = body.overview;
+    _cache.activity = body.activity;
+    _cache.servers = body.servers;
+    _cache.recentActivity = body.recentActivity;
+    _cache.heatmap = body.heatmap;
+    _meta = body.meta;
+    setKpis(_cache.overview);
+    renderMetaBar(_meta);
+    updateTabBadges();
+  }
+
+  async function loadDashboard() {
+    const r = await api('/api/admin/intel/dashboard');
+    if (r.status === 200) applyDashboard(r.body);
+  }
+
+  async function pollStatus() {
+    const r = await api('/api/admin/intel/status');
+    if (r.status !== 200 || !r.body) return;
+    _meta = r.body.meta;
+    renderMetaBar(_meta, r.body.badges);
+    updateTabBadges(r.body.badges);
+    const pill = $('#adc-live-pill');
+    if (pill && r.body.badges?.live > 0) pill.classList.add('adc-live-active');
+    else if (pill) pill.classList.remove('adc-live-active');
+  }
+
   async function loadTabData(tab) {
     if (tab === 'overview') {
       const [ov, act] = await Promise.all([
@@ -750,19 +870,16 @@
   async function refreshAll() {
     const poll = $('#adc-last-poll');
     if (poll) poll.textContent = 'Refreshing…';
+    await loadDashboard();
     await Promise.all([
-      loadTabData('overview'),
-      loadTabData('servers'),
       loadTabData('tokens'),
-      loadTabData('activity'),
       loadTabData('health'),
       loadTabData('bridge'),
     ]);
     const liveR = await api('/api/admin/intel/live');
     if (liveR.status === 200) _cache.live = liveR.body;
     if (_tab === 'docs' && !_cache.docs) await loadTabData('docs');
-    setKpis(_cache.overview);
-    updateTabBadges();
+    await pollStatus();
     renderActivePanel();
     if (poll) poll.textContent = 'Updated ' + new Date().toLocaleTimeString();
   }
@@ -777,11 +894,12 @@
 
   function startPolling() {
     stopPolling();
+    _statusTimer = setInterval(pollStatus, 15000);
     _pollTimer = setInterval(refreshAll, 60000);
     _liveTimer = setInterval(async () => {
       if (_tab === 'live' || document.getElementById('adc-autopoll')?.checked) {
         const r = await api('/api/admin/intel/live');
-        if (r.status === 200) { _cache.live = r.body; updateTabBadges(); if (_tab === 'live') renderLive(); }
+        if (r.status === 200) { _cache.live = r.body; updateTabBadges({ live: r.body.count }); if (_tab === 'live') renderLive(); }
       }
     }, 15000);
   }
@@ -789,7 +907,26 @@
   function stopPolling() {
     if (_pollTimer) clearInterval(_pollTimer);
     if (_liveTimer) clearInterval(_liveTimer);
-    _pollTimer = _liveTimer = null;
+    if (_statusTimer) clearInterval(_statusTimer);
+    _pollTimer = _liveTimer = _statusTimer = null;
+  }
+
+  function exportDashboardJson() {
+    const blob = new Blob([JSON.stringify({
+      exportedAt: new Date().toISOString(),
+      overview: _cache.overview,
+      servers: _cache.servers,
+      activity: _cache.activity,
+      tokens: _cache.tokens,
+      health: _cache.health,
+      bridge: _cache.bridge,
+      heatmap: _cache.heatmap,
+      meta: _meta,
+    }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `data-center-export-${Date.now()}.json`;
+    a.click();
   }
 
   function onRoute() {
@@ -810,6 +947,7 @@
     }));
 
     $('#adc-refresh-btn')?.addEventListener('click', triggerServerRefresh);
+    $('#adc-export-json')?.addEventListener('click', exportDashboardJson);
     $('#adc-detail-back')?.addEventListener('click', () => {
       const d = $('#adc-detail');
       if (d) { d.hidden = true; document.removeEventListener('keydown', onDetailEsc); }
