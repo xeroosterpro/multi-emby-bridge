@@ -70,6 +70,8 @@ function shuffleMetas(arr) {
 }
 
 const app = express();
+// Railway/reverse proxies sit in front — needed for accurate req.ip rate limiting.
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 7000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 
@@ -269,7 +271,7 @@ app.get('/:config/servers', (req, res) => {
 });
 
 // Register servers for 24/7 health monitoring
-app.post('/api/health/register', apiLimiter, async (req, res) => {
+app.post('/api/health/register', apiLimiter, requireAuthInProduction, async (req, res) => {
   const { servers } = req.body || {};
   if (!Array.isArray(servers)) return res.status(400).json({ error: 'servers must be array' });
   try {
@@ -284,7 +286,7 @@ app.post('/api/health/register', apiLimiter, async (req, res) => {
 });
 
 // Unregister a server from health monitoring
-app.post('/api/health/unregister', apiLimiter, (req, res) => {
+app.post('/api/health/unregister', apiLimiter, requireAuthInProduction, (req, res) => {
   const { url } = req.body || {};
   if (!url) return res.status(400).json({ error: 'url is required' });
   const removed = unregisterHealthServer(url);
@@ -292,7 +294,7 @@ app.post('/api/health/unregister', apiLimiter, (req, res) => {
 });
 
 // Cleanup stale servers not in the active list
-app.post('/api/health/cleanup', apiLimiter, (req, res) => {
+app.post('/api/health/cleanup', apiLimiter, requireAuthInProduction, (req, res) => {
   const { activeUrls } = req.body || {};
   if (!Array.isArray(activeUrls)) return res.status(400).json({ error: 'activeUrls must be array' });
   const removed = cleanupStaleServers(activeUrls);
@@ -328,7 +330,7 @@ app.get('/api/health/history', async (req, res) => {
 });
 
 // Trigger an immediate ping of all registered servers
-app.post('/api/health/ping-now', apiLimiter, async (req, res) => {
+app.post('/api/health/ping-now', apiLimiter, requireAuthInProduction, async (req, res) => {
   await pingHealthServers();
   const result = healthServers.map(s => ({
     url:    s.url,
@@ -633,7 +635,7 @@ app.post('/api/test-connection', apiLimiter, requireAuthInProduction, async (req
 });
 
 // ─── Ping servers ─────────────────────────────────────────────────────────────
-app.post('/api/ping-servers', apiLimiter, async (req, res) => {
+app.post('/api/ping-servers', apiLimiter, requireAuthInProduction, async (req, res) => {
   const { servers } = req.body || {};
   if (!Array.isArray(servers)) return res.status(400).json({ error: 'servers array required' });
   const results = await Promise.all(servers.map(async s => {
@@ -655,7 +657,7 @@ app.post('/api/ping-servers', apiLimiter, async (req, res) => {
 });
 
 // ─── Live sessions (now playing) for one server ─────────────────────────────
-app.post('/api/server-sessions', apiLimiter, async (req, res) => {
+app.post('/api/server-sessions', apiLimiter, requireAuthInProduction, async (req, res) => {
   const { url, type, apiKey, userId, label, username, password } = req.body || {};
   if (!url || !apiKey) return res.status(400).json({ error: 'url and apiKey required' });
   let safeUrl;
@@ -699,7 +701,7 @@ app.post('/api/server-sessions', apiLimiter, async (req, res) => {
 });
 
 // ─── Library stats ────────────────────────────────────────────────────────────
-app.post('/api/library-stats', apiLimiter, async (req, res) => {
+app.post('/api/library-stats', apiLimiter, requireAuthInProduction, async (req, res) => {
   const { url, type, apiKey, userId, username, password } = req.body || {};
   if (!url || !apiKey || !userId) {
     return res.status(400).json({ error: 'url, apiKey, userId required' });
