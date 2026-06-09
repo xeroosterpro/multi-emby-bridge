@@ -43,6 +43,10 @@
       if (r.status === 503) { hide(); return; }
       const data = await r.json();
       if (!r.ok) { $('#au-err').textContent = data.error || 'Something went wrong'; return; }
+      try {
+        if (data.username) sessionStorage.setItem('meb_active_user', data.username);
+        ['meb_config_v1', 'meb-last-config', 'meb-libstats-cache'].forEach(k => localStorage.removeItem(k));
+      } catch { /* */ }
       location.reload();
     } catch {
       $('#au-err').textContent = 'Network error';

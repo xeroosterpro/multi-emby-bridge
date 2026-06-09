@@ -1,5 +1,38 @@
 // ── State ─────────────────────────────────────────────────────────────────
-const LS_KEY = 'meb_config_v1';
+const LS_KEY_BASE = 'meb_config_v1';
+const LS_LAST_BASE = 'meb-last-config';
+const LS_ACTIVE_USER = 'meb_active_user';
+const LS_LEGACY_KEYS = [LS_KEY_BASE, LS_LAST_BASE, 'meb-libstats-cache'];
+
+function getActiveUsername() {
+  try { return sessionStorage.getItem(LS_ACTIVE_USER) || ''; } catch { return ''; }
+}
+
+function lsKey() {
+  const u = getActiveUsername();
+  return u ? `${LS_KEY_BASE}:${u}` : LS_KEY_BASE;
+}
+
+function lsLastKey() {
+  const u = getActiveUsername();
+  return u ? `${LS_LAST_BASE}:${u}` : LS_LAST_BASE;
+}
+
+function setActiveUsername(username) {
+  try {
+    if (username) sessionStorage.setItem(LS_ACTIVE_USER, username);
+    else sessionStorage.removeItem(LS_ACTIVE_USER);
+  } catch { /* */ }
+}
+
+function purgeLegacyGlobalConfig() {
+  LS_LEGACY_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+}
+
+function hasCompleteServers(servers) {
+  return (servers || []).some(s => s?.url && s?.apiKey && s?.userId);
+}
+
 let nextId = 0;
 // nextCatId owned by catalogs-wizard.js
 
@@ -21,7 +54,7 @@ function domHasEnabledServers() {
 
 function _mergeLocalCredsIntoServers(servers) {
   let local = {};
-  try { local = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch {}
+  try { local = JSON.parse(localStorage.getItem(lsKey()) || '{}'); } catch {}
   const localByUrl = new Map((local.servers || []).map(s => [_normServerUrl(s.url), s]));
   return (servers || []).map(s => {
     const loc = localByUrl.get(_normServerUrl(s.url));
@@ -58,7 +91,7 @@ function scheduleAccountConfigSync() {
       const auth = await me.json().catch(() => null);
       if (!auth?.user) return;
       if (typeof generateLinks === 'function') generateLinks({ silent: true });
-      const enc = localStorage.getItem('meb-last-config');
+      const enc = localStorage.getItem(lsLastKey());
       if (!enc) return;
       let b = enc.replace(/-/g, '+').replace(/_/g, '/');
       while (b.length % 4) b += '=';
@@ -66,6 +99,12 @@ function scheduleAccountConfigSync() {
       const json = decodeURIComponent(Array.prototype.map.call(bin, c =>
         '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
       const cfg = JSON.parse(json);
+      const acctR = await fetch('/api/user/config', { credentials: 'same-origin' });
+      if (acctR.ok) {
+        const acctData = await acctR.json().catch(() => null);
+        const acctServers = acctData?.config?.servers || [];
+        if (!hasCompleteServers(acctServers) && hasCompleteServers(cfg.servers)) return;
+      }
       await fetch('/api/user/config', {
         method: 'POST',
         credentials: 'same-origin',
@@ -198,8 +237,17 @@ async function ensureAccountConfigLoaded() {
       const profileUpgraded = upgradeStreamProfileState(cfg);
       const accountServers = _mergeLocalCredsIntoServers(cfg.servers);
       cfg.servers = accountServers;
-      if (!accountServers.length) return null;
-      const hadLocal = !!localStorage.getItem(LS_KEY);
+      if (!accountServers.length) {
+        const container = document.getElementById('servers-container');
+        if (container) {
+          container.innerHTML = '';
+          nextId = 0;
+          addServer();
+        }
+        try { localStorage.removeItem(lsKey()); localStorage.removeItem(lsLastKey()); } catch {}
+        return null;
+      }
+      const hadLocal = !!localStorage.getItem(lsKey());
       const domServers = (collectConfig(true) || {}).servers || [];
       if (!hadLocal || !domHasEnabledServers() || accountServers.length > domServers.length || profileUpgraded) {
         populateFromConfig(cfg);
@@ -2442,7 +2490,7 @@ function importConfig(event) {
   reader.onload = (e) => {
     try {
       const state = JSON.parse(e.target.result);
-      localStorage.setItem(LS_KEY, JSON.stringify(state));
+      localStorage.setItem(lsKey(), JSON.stringify(state));
       location.reload();
     } catch { alert('Invalid config file.'); }
   };
@@ -3308,7 +3356,7 @@ Continue anyway?`;
   try {
     if (mode !== 'split') {
       const encoded = encodeConfig(config);
-      localStorage.setItem('meb-last-config', encoded);
+      localStorage.setItem(lsLastKey(), encoded);
     }
   } catch {}
 
@@ -3461,12 +3509,12 @@ function saveToLocalStorage() {
   try {
     const newState = collectFormState();
     // Preserve traktClientId/mdblistApiKey if input is currently empty but we have a saved value
-    const existing = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    const existing = JSON.parse(localStorage.getItem(lsKey()) || '{}');
     if (!newState.traktClientId && existing.traktClientId) newState.traktClientId = existing.traktClientId;
     if (!newState.mdblistApiKey && existing.mdblistApiKey) newState.mdblistApiKey = existing.mdblistApiKey;
     if (!newState.tmdbApiKey && existing.tmdbApiKey) newState.tmdbApiKey = existing.tmdbApiKey;
     if (!newState.streamProfile && existing.streamProfile) newState.streamProfile = existing.streamProfile;
-    localStorage.setItem(LS_KEY, JSON.stringify(newState));
+    localStorage.setItem(lsKey(), JSON.stringify(newState));
   } catch {}
   const ind = document.getElementById('autosave-indicator');
   if (ind) { ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(() => ind.classList.remove('visible'), 1800); }
@@ -3484,13 +3532,13 @@ function autoSave(e) {
 
 function restoreFromLocalStorage() {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = localStorage.getItem(lsKey());
     if (!raw) return false;
     const state = JSON.parse(raw);
     const profileUpgraded = upgradeStreamProfileState(state);
     // Fallback: recover traktClientId/mdblistApiKey/externalCatalogs from last generated config if missing
     try {
-      const lastRaw = localStorage.getItem('meb-last-config');
+      const lastRaw = localStorage.getItem(lsLastKey());
       if (lastRaw) {
         const last = JSON.parse(atob(lastRaw.replace(/-/g,'+').replace(/_/g,'/')));
         if (!state.traktClientId && last.traktClientId) state.traktClientId = last.traktClientId;
@@ -3599,7 +3647,7 @@ function restoreFromLocalStorage() {
     if (window.Controls) Controls.syncAll();
     updateRankingUX();
     if (profileUpgraded) {
-      try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {}
+      try { localStorage.setItem(lsKey(), JSON.stringify(state)); } catch {}
     }
     return true;
   } catch { return false; }
@@ -3608,11 +3656,18 @@ function restoreFromLocalStorage() {
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   if (!document.getElementById('servers-container')) return; // shell not ready / page absent
+  try {
+    const me = await fetch('/api/auth/me', { credentials: 'same-origin' });
+    if (me.ok) {
+      const auth = await me.json().catch(() => null);
+      if (auth?.user?.username) setActiveUsername(auth.user.username);
+    }
+  } catch { /* */ }
   await initAudioCard();   // populate AUDIO_FORMATS/PRESETS + render card before restore reads them
   if (!restoreFromLocalStorage()) addServer();
   await ensureAccountConfigLoaded();
   try {
-    const ls = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    const ls = JSON.parse(localStorage.getItem(lsKey()) || '{}');
     if (ls.streamProfile === STREAM_PROFILE_VERSION && typeof generateLinks === 'function') {
       generateLinks({ silent: true }).catch(() => {});
     }

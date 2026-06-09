@@ -33,6 +33,22 @@ function mapLiveProbes(probes) {
   }));
 }
 
+const DEMO_SERVER_URL_RE = /emby\.cloud\.example\.com|jellyfin\.home\.lab(?::8096)?|192\.168\.1\.42(?::8096)?/i;
+
+function hasCompleteServers(servers) {
+  return (servers || []).some(s => s?.url && s?.apiKey && s?.userId);
+}
+
+/** Prevent demo / stale browser cache from seeding a brand-new account. */
+function sanitizeConfigSave(curConfig, incoming) {
+  const body = { ...(incoming || {}) };
+  const hadServers = hasCompleteServers(curConfig?.servers);
+  if (!hadServers && Array.isArray(body.servers) && hasCompleteServers(body.servers)) {
+    body.servers = body.servers.filter(s => !DEMO_SERVER_URL_RE.test(String(s.url || '')));
+  }
+  return body;
+}
+
 function makeUserRouter() {
   const uc = makeUserConfig(db);
   const store = makeManifestStore(db);
@@ -70,7 +86,12 @@ function makeUserRouter() {
   });
   // save config + encrypt keys
   r.post('/config', requireAuth, async (req, res) => {
-    try { await uc.save(req.user.id, req.body || {}); res.json({ ok: true }); }
+    try {
+      const cur = await uc.getEditable(req.user.id);
+      const body = sanitizeConfigSave(cur.config, req.body || {});
+      await uc.save(req.user.id, body);
+      res.json({ ok: true });
+    }
     catch (e) { console.error('[user/config:post]', e.message); res.status(500).json({ error: 'save failed' }); }
   });
 

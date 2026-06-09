@@ -17,6 +17,26 @@
     return { status: r.status, body: await r.json().catch(() => null) };
   }
 
+  function lsLastKey() {
+    try {
+      const u = sessionStorage.getItem('meb_active_user') || '';
+      return u ? `meb-last-config:${u}` : 'meb-last-config';
+    } catch { return 'meb-last-config'; }
+  }
+
+  function hasCompleteServers(servers) {
+    return (servers || []).some(s => s?.url && s?.apiKey && s?.userId);
+  }
+
+  async function safeSyncConfig(cfg) {
+    if (!cfg) return false;
+    const cur = await api('/api/user/config');
+    const acctServers = cur.body?.config?.servers || [];
+    if (!hasCompleteServers(acctServers) && hasCompleteServers(cfg.servers)) return false;
+    const s = await api('/api/user/config', { method: 'POST', body: JSON.stringify(cfg) });
+    return s.status === 200;
+  }
+
   document.addEventListener('DOMContentLoaded', async () => {
     const install = document.getElementById('page-install');
     if (!install) return;
@@ -28,6 +48,10 @@
       if (url && urlEl) urlEl.value = url;
       if (typeof window.updateInstallStats === 'function') window.updateInstallStats();
     };
+
+    if (loggedIn && me.body.user?.username) {
+      try { sessionStorage.setItem('meb_active_user', me.body.user.username); } catch {}
+    }
 
     if (!loggedIn) {
       // accounts off / signed out — keys still save into the install blob, but
@@ -43,9 +67,9 @@
       const syncToAccount = async () => {
         try {
           if (typeof window.generateLinks === 'function') window.generateLinks({ silent: true });
-          const enc = localStorage.getItem('meb-last-config');
+          const enc = localStorage.getItem(lsLastKey());
           if (!enc) return;
-          await api('/api/user/config', { method: 'POST', body: JSON.stringify(b64urlToObj(enc)) });
+          await safeSyncConfig(b64urlToObj(enc));
         } catch { /* best-effort */ }
       };
       const scheduleSync = () => { clearTimeout(syncT); syncT = setTimeout(syncToAccount, 1500); };
@@ -56,11 +80,11 @@
     async function saveSetup() {
       if (msg) msg.textContent = '';
       if (typeof window.generateLinks === 'function') { try { window.generateLinks(); } catch {} }
-      const enc = localStorage.getItem('meb-last-config');
+      const enc = localStorage.getItem(lsLastKey());
       if (!enc) { if (msg) msg.textContent = 'Add a server on the Servers page first.'; return false; }
       let cfg; try { cfg = b64urlToObj(enc); } catch { if (msg) msg.textContent = 'Could not read your config.'; return false; }
-      const s = await api('/api/user/config', { method: 'POST', body: JSON.stringify(cfg) });
-      if (s.status !== 200) { if (msg) msg.textContent = (s.body && s.body.error) || 'Save failed'; return false; }
+      const ok = await safeSyncConfig(cfg);
+      if (!ok) { if (msg) msg.textContent = 'Save failed'; return false; }
       return true;
     }
 
