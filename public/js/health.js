@@ -61,11 +61,13 @@ function _latencyColors(ms){
   if(ms<400)return{stroke:'#fbbf24',stroke2:'#fde68a'};
   return{stroke:'#f87171',stroke2:'#fca5a5'};
 }
-function buildSpark(pts, cls, compact){
+const SPARK_MS_CAP=3000;
+function buildSpark(pts, cls, compact, opts){
   if(pts.length<2)return'';
   const wrap=cls||'rt-graph-wrap';
   const isDash=wrap==='gcard-rt-graph';
-  const vals=pts.map(p=>p.ms);
+  const downNow=!!(opts&&opts.downNow);
+  const vals=pts.map(p=>Math.min(p.ms,SPARK_MS_CAP));
   const mn=Math.min(...vals),mx=Math.max(...vals),rng=mx-mn||1;
   const W=400,H=isDash?(compact?20:32):44,p=3;
   const coords=vals.map((v,i)=>({
@@ -74,7 +76,7 @@ function buildSpark(pts, cls, compact){
   }));
   const pp=coords.map(c=>c.x.toFixed(1)+','+c.y.toFixed(1)).join(' ');
   const lv=vals[vals.length-1];
-  const pal=_latencyColors(lv);
+  const pal=downNow?{stroke:'#ef4444',stroke2:'#fca5a5'}:_latencyColors(lv);
   const lx=coords[coords.length-1].x.toFixed(1);
   const ly=coords[coords.length-1].y.toFixed(1);
   if(!isDash){
@@ -83,9 +85,10 @@ function buildSpark(pts, cls, compact){
   const uid='gspark'+(_gsparkUid++);
   const area='M'+coords[0].x.toFixed(1)+','+H+' '+coords.map(c=>'L'+c.x.toFixed(1)+','+c.y.toFixed(1)).join(' ')+' L'+coords[coords.length-1].x.toFixed(1)+','+H+' Z';
   const midY=(H/2).toFixed(1);
+  const rangeTxt=downNow?'Offline now':(mn+'–'+mx+'ms');
   const dashLabel=compact
-    ?'<div class="rt-graph-label"><span class="gcard-rt-title" title="addon → server">Bridge 24h</span><span class="gcard-rt-range">'+mn+'–'+mx+'ms</span></div>'
-    :'<div class="rt-graph-label"><span>Bridge · 24h</span><span class="gcard-rt-range">'+mn+'ms – '+mx+'ms</span></div><div class="gcard-rt-hint">addon → server · range over last 24 hours</div>';
+    ?'<div class="rt-graph-label"><span class="gcard-rt-title" title="addon → server">Bridge 24h</span><span class="gcard-rt-range'+(downNow?' gcard-rt-range-down':'')+'">'+rangeTxt+'</span></div>'
+    :'<div class="rt-graph-label"><span>Bridge · 24h</span><span class="gcard-rt-range'+(downNow?' gcard-rt-range-down':'')+'">'+rangeTxt+'</span></div><div class="gcard-rt-hint">addon → server · range over last 24 hours</div>';
   const dotR=compact?2:2.6;
   return'<div class="'+wrap+(compact?' gcard-rt-compact':'')+'">'+dashLabel+'<div class="gcard-rt-canvas"><svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="'+uid+'-line" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="'+pal.stroke2+'" stop-opacity="0.45"/><stop offset="100%" stop-color="'+pal.stroke+'"/></linearGradient><linearGradient id="'+uid+'-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+pal.stroke+'" stop-opacity="0.32"/><stop offset="100%" stop-color="'+pal.stroke+'" stop-opacity="0"/></linearGradient></defs><line class="gcard-rt-grid" x1="'+p+'" y1="'+midY+'" x2="'+(W-p)+'" y2="'+midY+'"/><path class="gcard-spark-area" d="'+area+'" fill="url(#'+uid+'-fill)"/><polyline class="gcard-spark-line" points="'+pp+'" fill="none" stroke="url(#'+uid+'-line)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle class="gcard-spark-dot" cx="'+lx+'" cy="'+ly+'" r="'+dotR+'" fill="'+pal.stroke+'"/></svg></div></div>';
 }
@@ -98,8 +101,9 @@ function buildUptimeBar(h, segments, segCls, legendCls, barCls, footCls, compact
   const uc=h.filter(e=>e.up).length;
   const pct=h.length?Math.round(uc/h.length*100):null;
   const old=h.length?new Date(h[h.length-1].ts).toLocaleDateString():'—';
+  const downNow=!!(h[0]&&!h[0].up);
   const rtp=h.filter(e=>e.up&&e.ms!=null).slice(0,80).reverse();
-  const spark=buildSpark(rtp, 'gcard-rt-graph', compact);
+  const spark=rtp.length>=2?buildSpark(rtp, 'gcard-rt-graph', compact, { downNow }):'';
   const isGcard=segCls==='gcard-seg';
   let segIdx=0;
   const bar=pad.map(e=>{

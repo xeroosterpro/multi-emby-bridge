@@ -2757,6 +2757,10 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
   background:linear-gradient(180deg, #fca5a5 0%, #ef4444 100%);
   box-shadow:0 0 3px rgba(239,68,68,.2);
 }
+.gcard-rt-range-down {
+  color: #fca5a5 !important;
+  font-weight: 800;
+}
 .gcard-seg.empty {
   height:22%;
   background:color-mix(in srgb, var(--border) 50%, transparent);

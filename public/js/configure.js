@@ -352,10 +352,24 @@ function _applyDashCardStatus(card, online, bridgeMs) {
   }
 }
 
+const HEALTH_DOWN_CONSECUTIVE = 2; // match backend alert threshold — avoid single-blip OFFLINE
+
+function _isHealthDownConfirmed(healthByUrl, url, consecutive = HEALTH_DOWN_CONSECUTIVE) {
+  const history = healthByUrl[_normServerUrl(url)]?.history || [];
+  if (history.length < consecutive) return false;
+  return history.slice(0, consecutive).every(e => e && e.up === false);
+}
+
 function _statusFromHealth(healthByUrl, url) {
-  const lat = healthByUrl[_normServerUrl(url)]?.history?.[0];
+  const hist = healthByUrl[_normServerUrl(url)]?.history || [];
+  const lat = hist[0];
   if (!lat || Date.now() - lat.ts > BRIDGE_FRESH_MS) return null;
-  return { online: !!lat.up, bridgeMs: lat.up && lat.ms != null ? lat.ms : null };
+  if (!lat.up) {
+    // One failed ping is not enough — wait for consecutive failures (same as down banner).
+    if (!_isHealthDownConfirmed(healthByUrl, url)) return null;
+    return { online: false, bridgeMs: null };
+  }
+  return { online: true, bridgeMs: lat.ms != null ? lat.ms : null };
 }
 
 function _dashCardIsOnline(card) {
@@ -751,8 +765,13 @@ let _dashActivityData = null;
 let _dashHistFilter = 'all';
 
 function _serverLikelyDown(healthByUrl, url) {
-  const rec = healthByUrl?.[_normServerUrl(url)]?.history?.[0];
-  return !!(rec && !rec.up && Date.now() - rec.ts < BRIDGE_FRESH_MS);
+  const hist = healthByUrl?.[_normServerUrl(url)]?.history || [];
+  const lat = hist[0];
+  if (!lat || !lat.up) {
+    if (!lat || Date.now() - lat.ts > BRIDGE_FRESH_MS) return false;
+    return _isHealthDownConfirmed(healthByUrl, url);
+  }
+  return false;
 }
 
 function _liveProbeSkipBrowser(probe) {
@@ -2378,11 +2397,6 @@ async function renderDashboard(force = false) {
     await Promise.all(dashMeta.map(async (meta) => {
       const { s, setStatus, setStats } = meta;
       let bridgeMs = _bridgeMsFromHealth(healthByUrl, s.url);
-      const healthSt = _statusFromHealth(healthByUrl, s.url);
-      if (healthSt && !healthSt.online) {
-        setStatus(false, null);
-        return;
-      }
       const conn = await _testServerConnection(s);
       const online = conn.ok;
       if (online) {
