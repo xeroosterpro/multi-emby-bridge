@@ -13,6 +13,8 @@ const { summarizeRequestLog, userActivity, userAnalytics, timeSeries, serverBrea
 const { makeRequestLog, normalizeServerLabel } = require('../lib/requestLog');
 const { makeSiteSettings, TOGGLEABLE_TABS } = require('../lib/siteSettings');
 const { snapshot: systemMetrics } = require('../lib/metrics');
+const { getAdminIntel } = require('../lib/adminIntelScheduler');
+const { getDataDictionary } = require('../lib/adminIntel');
 const os = require('os');
 
 function makeAdminRouter(opts = {}) {
@@ -25,7 +27,9 @@ function makeAdminRouter(opts = {}) {
   const serverHistory = makeServerHistory(db);
   const billing = makeBilling(db, payments); // events sink
   const siteSettings = makeSiteSettings(db);
+  const intel = getAdminIntel({ userConfig, requestLog, getRequestLog });
   const r = express.Router();
+  let _lastRefreshAt = 0;
 
 
   function requireAdmin(req, res, next) {
@@ -413,6 +417,81 @@ function makeAdminRouter(opts = {}) {
       console.error('[admin/site-config]', e.message);
       res.status(e.message === 'invalid announcement' ? 400 : 500).json({ error: e.message || 'save failed' });
     }
+  });
+
+  // ── Admin Data Center (intel) ─────────────────────────────────────────────
+  r.get('/intel/overview', requireAdmin, async (req, res) => {
+    try { res.json(await intel.getOverview()); }
+    catch (e) { console.error('[admin/intel/overview]', e.message); res.status(500).json({ error: 'overview failed' }); }
+  });
+
+  r.get('/intel/servers', requireAdmin, async (req, res) => {
+    try { res.json({ servers: await intel.getServers(), at: intel.getLastSnapshotAt() }); }
+    catch (e) { console.error('[admin/intel/servers]', e.message); res.status(500).json({ error: 'servers failed' }); }
+  });
+
+  r.get('/intel/servers/:key', requireAdmin, async (req, res) => {
+    try {
+      const detail = await intel.getServerDetail(decodeURIComponent(req.params.key));
+      if (!detail) return res.status(404).json({ error: 'server not found' });
+      res.json(detail);
+    } catch (e) { console.error('[admin/intel/server]', e.message); res.status(500).json({ error: 'detail failed' }); }
+  });
+
+  r.get('/intel/tokens', requireAdmin, async (req, res) => {
+    try { res.json(await intel.getTokensIntel()); }
+    catch (e) { console.error('[admin/intel/tokens]', e.message); res.status(500).json({ error: 'tokens failed' }); }
+  });
+
+  r.get('/intel/live', requireAdmin, async (req, res) => {
+    try {
+      const q = await db.query(
+        `SELECT u.id, u.username FROM users u
+          JOIN user_config uc ON uc.user_id = u.id
+         WHERE jsonb_array_length(uc.config_json->'servers') > 0`);
+      const sessions = [];
+      await Promise.all(q.rows.map(async (row) => {
+        try {
+          const cfg = await userConfig.getForServe(row.id);
+          const live = await liveSessions.forUser(cfg?.servers || []);
+          for (const s of live) sessions.push({ ...s, bridgeUserId: row.id, bridgeUsername: row.username });
+        } catch { /* */ }
+      }));
+      res.json({ live: sessions, count: sessions.length, at: new Date().toISOString() });
+    } catch (e) { console.error('[admin/intel/live]', e.message); res.status(500).json({ error: 'live failed' }); }
+  });
+
+  r.get('/intel/activity', requireAdmin, async (req, res) => {
+    try {
+      const range = req.query.range === '24h' ? '24h' : '7d';
+      res.json(await intel.getActivityIntel(range));
+    } catch (e) { console.error('[admin/intel/activity]', e.message); res.status(500).json({ error: 'activity failed' }); }
+  });
+
+  r.get('/intel/health', requireAdmin, async (req, res) => {
+    try { res.json(await intel.getHealthRollup()); }
+    catch (e) { console.error('[admin/intel/health]', e.message); res.status(500).json({ error: 'health failed' }); }
+  });
+
+  r.get('/intel/bridge', requireAdmin, async (req, res) => {
+    try {
+      const range = req.query.range === '7d' ? '7d' : '24h';
+      res.json(await intel.getBridgeIntel(range));
+    } catch (e) { console.error('[admin/intel/bridge]', e.message); res.status(500).json({ error: 'bridge failed' }); }
+  });
+
+  r.get('/intel/docs', requireAdmin, (req, res) => {
+    res.json(getDataDictionary());
+  });
+
+  r.post('/intel/refresh', requireAdmin, async (req, res) => {
+    const now = Date.now();
+    if (now - _lastRefreshAt < 30000) return res.status(429).json({ error: 'refresh rate limited (30s)' });
+    _lastRefreshAt = now;
+    try {
+      const result = await intel.triggerRefresh();
+      res.json(result);
+    } catch (e) { console.error('[admin/intel/refresh]', e.message); res.status(500).json({ error: 'refresh failed' }); }
   });
 
   return r;

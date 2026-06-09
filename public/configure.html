@@ -19,6 +19,7 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/css/configure.css?v=3" />
   <link rel="stylesheet" href="/css/catalogs-wizard.css" />
+  <link rel="stylesheet" href="/css/admin-data.css" />
   <link rel="stylesheet" href="/css/themes.css" />
 </head>
 <body class="sb-locked">
@@ -145,6 +146,7 @@
           </button>
           <div class="nav-group-items">
             <a class="nav-item admin-only" data-page="admin" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M12 2 4 6v6c0 5 8 8 8 8s8-3 8-8V6l-8-4Z"/></svg><span class="nav-label">System</span></a>
+            <a class="nav-item admin-only" data-page="admin-data" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 3 5-8"/></svg><span class="nav-label">Data Center</span></a>
             <a class="nav-item admin-only" data-page="users" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg><span class="nav-label">Users & Permissions</span></a>
           </div>
         </div>
@@ -1438,6 +1440,51 @@
         </div>
       </section>
 
+      <section class="page" id="page-admin-data">
+        <div class="adc-shell">
+          <div class="adc-top">
+            <div class="adc-top-main">
+              <h2 class="page-title adc-title">Admin · Data Center</h2>
+              <p class="page-sub adc-sub">Every Emby/Jellyfin signal, token, health metric &amp; bridge stat — documented and graphed</p>
+            </div>
+            <div class="adc-top-actions">
+              <span class="adc-live-pill" id="adc-live-pill"><span class="adc-pulse"></span> Live</span>
+              <span class="adc-poll-time" id="adc-last-poll">—</span>
+              <label class="adc-autopoll"><input type="checkbox" id="adc-autopoll" checked /> Auto-refresh</label>
+              <button type="button" class="btn-soft" id="adc-refresh-btn">↻ Refresh all</button>
+            </div>
+          </div>
+          <div class="adc-kpis" id="adc-kpis"></div>
+          <div class="adc-tabs" id="adc-tabs" role="tablist">
+            <button type="button" class="adc-tab on" data-tab="overview" role="tab">Overview</button>
+            <button type="button" class="adc-tab" data-tab="servers" role="tab">Servers</button>
+            <button type="button" class="adc-tab" data-tab="tokens" role="tab">Tokens</button>
+            <button type="button" class="adc-tab" data-tab="live" role="tab">Live</button>
+            <button type="button" class="adc-tab" data-tab="activity" role="tab">Activity</button>
+            <button type="button" class="adc-tab" data-tab="health" role="tab">Health</button>
+            <button type="button" class="adc-tab" data-tab="bridge" role="tab">Bridge</button>
+            <button type="button" class="adc-tab" data-tab="docs" role="tab">Dictionary</button>
+          </div>
+          <div class="adc-panels">
+            <div class="adc-panel on" id="adc-panel-overview" data-panel="overview"></div>
+            <div class="adc-panel" id="adc-panel-servers" data-panel="servers"></div>
+            <div class="adc-panel" id="adc-panel-tokens" data-panel="tokens"></div>
+            <div class="adc-panel" id="adc-panel-live" data-panel="live"></div>
+            <div class="adc-panel" id="adc-panel-activity" data-panel="activity"></div>
+            <div class="adc-panel" id="adc-panel-health" data-panel="health"></div>
+            <div class="adc-panel" id="adc-panel-bridge" data-panel="bridge"></div>
+            <div class="adc-panel" id="adc-panel-docs" data-panel="docs"></div>
+          </div>
+          <div class="adc-detail" id="adc-detail" hidden>
+            <div class="adc-detail-head">
+              <button type="button" class="adc-detail-back" id="adc-detail-back">← Back</button>
+              <strong id="adc-detail-title">Server</strong>
+            </div>
+            <div class="adc-detail-body" id="adc-detail-body"></div>
+          </div>
+        </div>
+      </section>
+
       <section class="page" id="page-users">
         <div class="adm-shell">
           <div class="adm-top">
@@ -1838,6 +1885,7 @@
   <script src="/js/auth-ui.js"></script>
   <script src="/js/user-account.js"></script>
   <script src="/js/admin.js"></script>
+  <script src="/js/admin-data.js"></script>
   <script src="/js/billing-ui.js"></script>
   <script src="/js/command-palette.js"></script>
 </body>

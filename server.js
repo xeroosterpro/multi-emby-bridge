@@ -1124,9 +1124,20 @@ process.on('SIGTERM', () => {
 const { runMigrations } = require('./lib/migrate');
 const { seedAdmin } = require('./lib/seed');
 const { initHealthDB } = require('./lib/health');
+const { startAdminIntelScheduler } = require('./lib/adminIntelScheduler');
+
 runMigrations()
   .then(() => seedAdmin())
   .then(() => initHealthDB())
+  .then(() => {
+    if (dbLib.isConfigured()) {
+      startAdminIntelScheduler({
+        userConfig: makeUserConfig(dbLib),
+        requestLog: _requestLogDb,
+        getRequestLog: () => REQUEST_LOG,
+      });
+    }
+  })
   .then(() => console.log('[ready] Server fully initialized (DB init complete, accepting connections)'))
   .catch(e => console.error('[boot] db init failed:', e.message));
 

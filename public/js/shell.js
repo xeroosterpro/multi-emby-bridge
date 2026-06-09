@@ -1,5 +1,5 @@
 // ── Hash router + sidebar behavior + preference controls ─────────────────────
-const PAGES = ['home','dashboard','servers','catalogs','streaming','appearance','health','install','apikeys','ping','log','settings','admin','users','billing','tickets','guide'];
+const PAGES = ['home','dashboard','servers','catalogs','streaming','appearance','health','install','apikeys','ping','log','settings','admin','admin-data','users','billing','tickets','guide'];
 
 function restoreShellSession() {
   if (!document.documentElement.classList.contains('meb-returning')) return;
@@ -24,7 +24,7 @@ function restoreShellSession() {
 function showPage(name) {
   if (!PAGES.includes(name)) name = 'home';
   // Protect admin pages from non-admins (in case of direct hash or race)
-  const adminPages = ['admin', 'users'];
+  const adminPages = ['admin', 'admin-data', 'users'];
   if (adminPages.includes(name)) {
     const user = window.currentUser;
     if (!user || user.role !== 'admin') {
@@ -60,6 +60,7 @@ function showPage(name) {
 function routeFromHash() {
   let raw = (location.hash || '#/home').replace(/^#\//, '');
   let name = raw.split('?')[0];
+  if (name === 'admin/data') name = 'admin-data';
   if (name === 'appearance') name = 'streaming';
   if (name === 'apikeys') {
     location.hash = '#/catalogs?step=connect';
@@ -233,7 +234,7 @@ function initShell() {
 
     // If a non-admin somehow landed on admin page, redirect
     const page = (location.hash || '#/home').replace(/^#\//, '');
-    const adminPages = ['admin', 'users'];
+    const adminPages = ['admin', 'admin-data', 'users'];
     if (adminPages.includes(page) && !isAdmin) {
       location.hash = '#/home';
       return;
@@ -252,7 +253,7 @@ function initShell() {
     window.currentUser = null;
     if (window.MEBBilling && window.MEBBilling.refresh) window.MEBBilling.refresh();
     const page = (location.hash || '#/home').replace(/^#\//, '');
-    const adminPages = ['admin', 'users'];
+    const adminPages = ['admin', 'admin-data', 'users'];
     if (adminPages.includes(page)) {
       location.hash = '#/home';
       return;
