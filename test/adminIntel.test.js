@@ -14,8 +14,11 @@ A(serverIntelKey({ url: 'https://a', userId: 'u1' }) === 'https://a|u1', 'server
 
 const dict = getDataDictionary();
 A(dict.categories && dict.categories.length >= 5, 'data dictionary has categories');
+A(dict.version === 2, 'data dictionary v2');
 A(dict.categories.some(c => c.id === 'tokens'), 'dictionary includes tokens');
 A(dict.categories.some(c => c.id === 'unavailable'), 'dictionary includes unavailable');
+A(dict.categories.flatMap(c => c.fields).every(f => f.status), 'dictionary fields have status');
+A(dict.categories.some(c => c.fields.some(f => f.field === 'probes.scheduledTasks')), 'dictionary includes scheduledTasks');
 
 A(TOKEN_TTL === 12 * 60 * 60 * 1000, 'token TTL 12h');
 
