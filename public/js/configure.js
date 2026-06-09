@@ -269,6 +269,21 @@ async function ensureAccountConfigLoaded() {
 
 function _normServerUrl(u) { return (u || '').replace(/\/+$/, '').toLowerCase(); }
 
+const _PLACEHOLDER_SERVER_RE = /emby\.cloud\.example\.com|jellyfin\.home\.lab(?::8096)?|192\.168\.1\.42(?::8096)?/i;
+
+function _isPlaceholderServer(server) {
+  if (!server) return false;
+  const label = String(server.label || '').trim();
+  if (label === 'Cloud Emby' || label === 'Home Jellyfin' || label === 'Backup NAS') return true;
+  return _PLACEHOLDER_SERVER_RE.test(String(server.url || ''));
+}
+
+function _allowBrowserSessionProbe(server) {
+  if (window.MEBDemo?.isActive?.()) return false;
+  if (_isPlaceholderServer(server)) return false;
+  return true;
+}
+
 function _dashHealthPanel(history) {
   if (window.HealthWidgets && typeof window.HealthWidgets.buildMiniHealthPanel === 'function') {
     return window.HealthWidgets.buildMiniHealthPanel(history, { range: '24h', compact: true });
@@ -476,6 +491,9 @@ function parseBrowserSessions(data, server) {
 
 async function fetchBrowserServerSessions(server) {
   const label = server.label || server.url || 'server';
+  if (!_allowBrowserSessionProbe(server)) {
+    return { live: [], probe: { server: label, ok: false, count: 0, error: 'skipped (demo)', method: null } };
+  }
   if (!server?.url || !server?.apiKey) {
     return { live: [], probe: { server: label, ok: false, count: 0, error: 'missing credentials', method: null } };
   }
@@ -830,7 +848,7 @@ async function fetchLiveBundle(force = false, opts = {}) {
             error: d?.error || (!r.ok ? `HTTP ${r.status}` : null),
             method: d?.probe?.method || null,
           };
-          if (!chunkLive.length && !_liveProbeSkipBrowser(probe)) {
+          if (!chunkLive.length && !probe?.ok && !_liveProbeSkipBrowser(probe) && _allowBrowserSessionProbe(s)) {
             const browser = await fetchBrowserServerSessions(s);
             if (browser.live.length) {
               chunkLive = browser.live;
@@ -841,7 +859,9 @@ async function fetchLiveBundle(force = false, opts = {}) {
           }
           return { live: chunkLive, probe };
         } catch {
-          const browser = await fetchBrowserServerSessions(s).catch(() => ({ live: [], probe: null }));
+          const browser = _allowBrowserSessionProbe(s)
+            ? await fetchBrowserServerSessions(s).catch(() => ({ live: [], probe: null }))
+            : { live: [], probe: null };
           if (browser.live?.length) return browser;
           return {
             live: [],
@@ -910,7 +930,8 @@ function liveEmptyMessage(probes, serverCount) {
 function renderLiveDock(live) {
   const list = live || [];
   let dock = document.getElementById('live-dock');
-  if (!list.length) {
+  const onDash = document.getElementById('page-dashboard')?.classList.contains('on');
+  if (!list.length || onDash) {
     if (dock) dock.remove();
     document.documentElement.classList.remove('has-live-dock');
     return;
@@ -2183,7 +2204,13 @@ async function renderDashActivity(opts = {}) {
 
     const fresh = resp.ok ? await resp.json().catch(() => null) : null;
     if (!fresh) {
-      if (!dashActivityHasContent(el)) {
+      if (!localServers.length) {
+        el.innerHTML = `<div class="dash-activity-grid" data-ready="1">
+          <div class="dash-act-panel dash-act-live"><h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming</h3><div class="da-empty">Add servers on the <a href="#" data-page="servers">Servers</a> page to see live activity from your Emby/Jellyfin instances.</div></div>
+          <div class="dash-act-panel dash-act-history"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">Your personal watch history appears here once you have servers configured.</div></div>
+        </div>`;
+        el.querySelectorAll('[data-page]').forEach(link => link.addEventListener('click', e => { e.preventDefault(); location.hash = '#/' + link.dataset.page; }));
+      } else if (!dashActivityHasContent(el)) {
         el.innerHTML = `<div class="dash-activity-grid" data-ready="1">
           <div class="dash-act-panel dash-act-live"><h3 class="block-title dash-act-title">Live streaming</h3><div class="da-empty">Activity unavailable right now.</div></div>
           <div class="dash-act-panel dash-act-history"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">History unavailable right now.</div></div>
@@ -2278,6 +2305,25 @@ async function renderDashboard(force = false) {
     if (catEl) catEl.textContent = catCount;
     if (!wrap) return;
     wrap.innerHTML = '';
+    if (!servers.length) {
+      wrap.innerHTML = `<div class="dash-empty-state">
+        <div class="dash-empty-glow" aria-hidden="true"></div>
+        <div class="dash-empty-icon" aria-hidden="true">📡</div>
+        <h4 class="dash-empty-title">Connect your first server</h4>
+        <p class="dash-empty-copy">Add Emby or Jellyfin endpoints to unlock library stats, uptime charts, live playback, and watch history on this dashboard.</p>
+        <button type="button" class="btn primary dash-empty-cta">Add server</button>
+      </div>`;
+      wrap.querySelector('.dash-empty-cta')?.addEventListener('click', () => { location.hash = '#/servers'; });
+      const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+      setTxt('tile-servers', 0);
+      setTxt('tile-movies', '0');
+      setTxt('tile-shows', '0');
+      setTxt('tile-ping', '—');
+      setTxt('tile-cost', '$0');
+      setTxt('tile-cost-l', 'Server costs · $0/yr');
+      setTxt('dash-status', 'No servers yet — add one to get started');
+      return;
+    }
     let upCount = 0, movieTotal = 0, showTotal = 0, fastest = null;
     const dashMeta = [];
     const PALETTE = [
