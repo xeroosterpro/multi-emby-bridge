@@ -2066,7 +2066,10 @@ window.onPageShow = function(name) {
       renderDashboard();
       fetch('/api/health/ping-now', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
       refreshDashCardHealth();
-      refreshDashCardStatus({ full: true });
+      // Note: renderDashboard already performs the full authenticated status + library stats pass.
+      // Avoid immediate duplicate full refreshDashCardStatus({ full: true }) to prevent thundering herd
+      // of per-server test-connection + library-stats calls. The 30s DASH_CONN_POLL and 8s graph poll
+      // will handle lighter/periodic updates. This makes dash appear much faster.
       pollLivePlaybackNotifications({ force: true });
       renderOnboarding();
       replayDashTileAnimations();
@@ -2420,6 +2423,16 @@ async function renderDashboard(force = false) {
       ['linear-gradient(135deg,#f59e0b,#fb7185)','rgba(245,158,11,.5)'],
       ['linear-gradient(135deg,#a78bfa,#f472b6)','rgba(167,139,250,.5)'],
     ];
+
+    // Quick initial status from health (no per-server Emby hit) so pills go from "…" to online/offline
+    // almost instantly. We still do the heavier authenticated _testServerConnection below to upgrade
+    // with fresh "now" data + bridge ms. This addresses the "takes a while for servers to load online/offline".
+    const initialHealthStatus = {};
+    servers.forEach(s => {
+      const st = _statusFromHealth(healthByUrl, s.url);
+      if (st) initialHealthStatus[_normServerUrl(s.url)] = st;
+    });
+
     servers.forEach((s, idx) => {
       const [bar, glow] = PALETTE[idx % PALETTE.length];
       const isJelly = (s.type === 'jellyfin');
@@ -2453,26 +2466,67 @@ async function renderDashboard(force = false) {
           <div class="gcard-health">${healthHtml}</div>
         </div>`;
       wrap.appendChild(card);
+
+      // Apply quick health-based status immediately (fast path, no Emby roundtrip).
+      // We only update the *per-card* pill here for instant feedback.
+      // Authoritative upCount / tile numbers come from the live authenticated pass below
+      // (progressively, as each test-conn + lib finishes). This stops the "all loading for a while" feel.
+      const initSt = initialHealthStatus[_normServerUrl(s.url)];
+      if (initSt) {
+        _applyDashCardStatus(card, initSt.online, initSt.bridgeMs);
+      }
+
       const setStats = (st) => {
         card.querySelector('[data-st=movies]').textContent   = (st.movies||0).toLocaleString();
         card.querySelector('[data-st=shows]').textContent    = (st.shows||0).toLocaleString();
         card.querySelector('[data-st=episodes]').textContent = (st.episodes||0).toLocaleString();
       };
       const setStatus = (online, bridgeMs) => _applyDashCardStatus(card, online, bridgeMs);
-      dashMeta.push({ s, setStatus, setStats });
+      dashMeta.push({ s, setStatus, setStats, card });
     });
+
+    // Fast approximate server count + tiles from recent health pings (instant, zero extra Emby cost).
+    // Individual cards already got their health-based pill above for immediate online/offline feedback.
+    // The live authenticated pass (below) will refine counts, bridge ms, and library numbers progressively.
+    const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    const pingEl = document.getElementById('tile-ping');
+
+    let healthUpCount = 0;
+    servers.forEach(s => {
+      const st = initialHealthStatus[_normServerUrl(s.url)];
+      if (st && st.online) healthUpCount++;
+    });
+    setTxt('tile-servers', healthUpCount);
+    if (pingEl && fastest != null) {
+      pingEl.textContent = fastest + 'ms';
+      pingEl.title = `Fastest bridge path right now · ${fastest}ms (addon → server) (from recent health)`;
+    }
+
     const pingQueue = [];
+    // Process servers in parallel for status + library stats. Status pills now upgrade from the quick
+    // health pass above. Library stats and full conn tests still happen (for accuracy + fresh data),
+    // but we update the top summary tiles *progressively* as each server reports in. This makes the
+    // dash feel much snappier — you see numbers populate instead of waiting for the slowest server.
     await Promise.all(dashMeta.map(async (meta) => {
-      const { s, setStatus, setStats } = meta;
+      const { s, setStatus, setStats, card } = meta;
       let bridgeMs = _bridgeMsFromHealth(healthByUrl, s.url);
       const conn = await _testServerConnection(s);
       const online = conn.ok;
       if (online) {
         upCount++;
         if (bridgeMs != null && (fastest === null || bridgeMs < fastest)) fastest = bridgeMs;
-        if (bridgeMs == null) pingQueue.push(meta);
+        if (bridgeMs == null) pingQueue.push({ s, setStatus, card });
       }
       setStatus(online, bridgeMs);
+
+      // Incremental tile update for servers count as soon as we have live status for this one
+      const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+      setTxt('tile-servers', upCount);
+      if (pingEl && fastest != null) {
+        pingEl.textContent = fastest + 'ms';
+        pingEl.title = `Fastest bridge path right now · ${fastest}ms (addon → server)`;
+      }
+
       if (!online) return;
       const k = _libKey(s);
       const cached = _libStatsCache[k];
@@ -2480,6 +2534,8 @@ async function renderDashboard(force = false) {
         setStats(cached);
         movieTotal += (cached.movies||0);
         showTotal += (cached.shows||0);
+        setTxt('tile-movies', movieTotal.toLocaleString());
+        setTxt('tile-shows', showTotal.toLocaleString());
         return;
       }
       try {
@@ -2497,6 +2553,8 @@ async function renderDashboard(force = false) {
           showTotal += (st.shows||0);
           _libStatsCache[k] = { movies: st.movies||0, shows: st.shows||0, episodes: st.episodes||0, ts: now };
           _saveLibCache();
+          setTxt('tile-movies', movieTotal.toLocaleString());
+          setTxt('tile-shows', showTotal.toLocaleString());
         }
       } catch { /* library counts stay — */ }
     }));
@@ -2508,23 +2566,17 @@ async function renderDashboard(force = false) {
         });
         const data = resp.ok ? await resp.json().catch(() => ({})) : {};
         (data.results || []).forEach((r, i) => {
-          const meta = pingQueue[i];
-          if (!meta || !r.up || r.ms == null) return;
-          meta.setStatus(true, r.ms);
+          const row = pingQueue[i];
+          if (!row || !r.up || r.ms == null) return;
+          row.setStatus(true, r.ms);
           if (fastest === null || r.ms < fastest) fastest = r.ms;
+          const pEl = document.getElementById('tile-ping');
+          if (pEl) {
+            pEl.textContent = fastest + 'ms';
+            pEl.title = `Fastest bridge path right now · ${fastest}ms (addon → server)`;
+          }
         });
       } catch { /* bridge ms stays blank */ }
-    }
-    const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-    setTxt('tile-servers', upCount);
-    setTxt('tile-movies', movieTotal.toLocaleString());
-    setTxt('tile-shows', showTotal.toLocaleString());
-    const pingEl = document.getElementById('tile-ping');
-    if (pingEl) {
-      pingEl.textContent = fastest != null ? fastest + 'ms' : '—';
-      pingEl.title = fastest != null
-        ? `Fastest bridge path right now · ${fastest}ms (addon → server)`
-        : 'No bridge latency data yet';
     }
     const totalMo = servers.reduce((a, s) => a + monthlyCost(s.cost, s.costPeriod), 0);
     setTxt('tile-cost', '$' + Math.round(totalMo) + (totalMo > 0 ? '/mo' : ''));
