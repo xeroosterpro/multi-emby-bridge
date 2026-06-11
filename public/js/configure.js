@@ -840,80 +840,85 @@ async function fetchLiveBundle(force = false, opts = {}) {
     let probes = [];
     let recentForBridge = _activityRecentCache || [];
 
-    if (!demoOn && window.currentUser) {
-      try {
-        const r = await fetch('/api/user/activity?quick=1', { credentials: 'same-origin' });
-        if (r.ok) {
-          const d = await r.json().catch(() => null);
-          if (d) {
-            live = Array.isArray(d.live) ? d.live : [];
-            probes = Array.isArray(d.liveProbes) ? d.liveProbes : [];
-            recentForBridge = Array.isArray(d.recent) ? d.recent : recentForBridge;
-            _activityRecentCache = recentForBridge;
-          }
-        }
-      } catch { /* fall through to per-server probe */ }
-    }
-
     await ensureAccountConfigLoaded();
     const servers = collectServersForLive();
     const healthByUrl = servers.length ? await _fetchHealthByUrl() : {};
-    if (servers.length) {
-      const clientChunks = await Promise.all(servers.map(async (s) => {
-        if (_serverLikelyDown(healthByUrl, s.url)) {
-          return {
-            live: [],
-            probe: { server: s.label || s.url, ok: false, count: 0, error: 'skipped (offline)', method: null },
-          };
-        }
-        try {
-          const r = await fetch('/api/server-sessions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify({
-              url: s.url, type: s.type, apiKey: s.apiKey, userId: s.userId, label: s.label,
-              username: s.username || '', password: s.password || '',
-            }),
-          });
-          const d = await r.json().catch(() => null);
-          if (d?.apiKey) {
-            const norm = (s.url || '').replace(/\/+$/, '');
-            const block = [...document.querySelectorAll('.server-block')].find(b => {
-              const u = b.querySelector('.f-url')?.value.trim().replace(/\/+$/, '');
-              return u && u === norm;
+
+    // Run the quick activity (for seed live + recent bridge data) in parallel with per-server probes.
+    // This overlaps the work so live panel populates as soon as the slower of the two finishes,
+    // instead of waiting for activity then probes sequentially. Helps "streams load in faster".
+    const activityP = (!demoOn && window.currentUser)
+      ? fetch('/api/user/activity?quick=1', { credentials: 'same-origin' }).then(r => r.ok ? r.json().catch(() => null) : null).catch(() => null)
+      : Promise.resolve(null);
+
+    const probesP = (servers.length && !demoOn)
+      ? Promise.all(servers.map(async (s) => {
+          if (_serverLikelyDown(healthByUrl, s.url)) {
+            return {
+              live: [],
+              probe: { server: s.label || s.url, ok: false, count: 0, error: 'skipped (offline)', method: null },
+            };
+          }
+          try {
+            const r = await fetch('/api/server-sessions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({
+                url: s.url, type: s.type, apiKey: s.apiKey, userId: s.userId, label: s.label,
+                username: s.username || '', password: s.password || '',
+              }),
             });
-            if (block) _applyRefreshedApiKey(block, d.apiKey);
-          }
-          let chunkLive = Array.isArray(d?.live) ? d.live : [];
-          let probe = d?.probe || {
-            server: s.label || s.url,
-            ok: r.ok,
-            count: chunkLive.length,
-            error: d?.error || (!r.ok ? `HTTP ${r.status}` : null),
-            method: d?.probe?.method || null,
-          };
-          if (!chunkLive.length && !probe?.ok && !_liveProbeSkipBrowser(probe) && _allowBrowserSessionProbe(s)) {
-            const browser = await fetchBrowserServerSessions(s);
-            if (browser.live.length) {
-              chunkLive = browser.live;
-              probe = browser.probe;
-            } else if (!probe.ok && browser.probe?.error === 'browser blocked') {
-              probe = { ...probe, browserNote: 'browser blocked' };
+            const d = await r.json().catch(() => null);
+            if (d?.apiKey) {
+              const norm = (s.url || '').replace(/\/+$/, '');
+              const block = [...document.querySelectorAll('.server-block')].find(b => {
+                const u = b.querySelector('.f-url')?.value.trim().replace(/\/+$/, '');
+                return u && u === norm;
+              });
+              if (block) _applyRefreshedApiKey(block, d.apiKey);
             }
+            let chunkLive = Array.isArray(d?.live) ? d.live : [];
+            let probe = d?.probe || {
+              server: s.label || s.url,
+              ok: r.ok,
+              count: chunkLive.length,
+              error: d?.error || (!r.ok ? `HTTP ${r.status}` : null),
+              method: d?.probe?.method || null,
+            };
+            if (!chunkLive.length && !probe?.ok && !_liveProbeSkipBrowser(probe) && _allowBrowserSessionProbe(s)) {
+              const browser = await fetchBrowserServerSessions(s);
+              if (browser.live.length) {
+                chunkLive = browser.live;
+                probe = browser.probe;
+              } else if (!probe.ok && browser.probe?.error === 'browser blocked') {
+                probe = { ...probe, browserNote: 'browser blocked' };
+              }
+            }
+            return { live: chunkLive, probe };
+          } catch {
+            const browser = _allowBrowserSessionProbe(s)
+              ? await fetchBrowserServerSessions(s).catch(() => ({ live: [], probe: null }))
+              : { live: [], probe: null };
+            if (browser.live?.length) return browser;
+            return {
+              live: [],
+              probe: { server: s.label || s.url, ok: false, count: 0, error: 'network error', method: null },
+            };
           }
-          return { live: chunkLive, probe };
-        } catch {
-          const browser = _allowBrowserSessionProbe(s)
-            ? await fetchBrowserServerSessions(s).catch(() => ({ live: [], probe: null }))
-            : { live: [], probe: null };
-          if (browser.live?.length) return browser;
-          return {
-            live: [],
-            probe: { server: s.label || s.url, ok: false, count: 0, error: 'network error', method: null },
-          };
-        }
-      }));
+        }))
+      : Promise.resolve([]);
+
+    const [actData, clientChunks] = await Promise.all([activityP, probesP]);
+
+    if (actData) {
+      live = Array.isArray(actData.live) ? actData.live : [];
+      probes = Array.isArray(actData.liveProbes) ? actData.liveProbes : [];
+      recentForBridge = Array.isArray(actData.recent) ? actData.recent : recentForBridge;
+      _activityRecentCache = recentForBridge;
+    }
+
+    if (servers.length && clientChunks.length) {
       const clientLive = clientChunks.flatMap(c => c.live);
       const clientProbes = clientChunks.map(c => c.probe).filter(Boolean);
       live = mergeLiveSourcesClient([live, clientLive]);

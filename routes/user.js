@@ -29,9 +29,37 @@ const WATCH_HIST_CACHE_MS = 90000;
 async function getCachedServerWatch(userId, servers, quick) {
   const hit = _watchHistCache.get(userId);
   if (hit && Date.now() - hit.at < WATCH_HIST_CACHE_MS) return hit.entries;
-  const entries = await fetchServerWatchHistory(servers, { timeoutMs: quick ? 3500 : 5500, limitPerEndpoint: 12 });
+  const entries = await fetchServerWatchHistory(servers, { timeoutMs: quick ? 3500 : 5500, limitPerEndpoint: 20 });
   _watchHistCache.set(userId, { at: Date.now(), entries });
   return entries;
+}
+
+const _liveDetailCache = new Map();
+const LIVE_DETAIL_CACHE_MS = 15000; // short cache so repeated dash polls / bundle fetches are instant
+
+async function loadLiveForUser(userId, recentForBridge) {
+  const cfg = await uc.getForServe(userId);
+  const servers = filterLiveServers(cfg);
+  if (!servers.length) return { servers, live: [], liveProbes: [] };
+
+  // Use short cache for smooth/fast repeated loads of live (dash polls, bundle refreshes)
+  const hit = _liveDetailCache.get(userId);
+  if (hit && Date.now() - hit.at < LIVE_DETAIL_CACHE_MS) {
+    return hit.data;
+  }
+
+  const detailed = await liveSessions.forUserDetailed(servers);
+  let live = detailed.live || [];
+  if (!live.length && Array.isArray(recentForBridge) && recentForBridge.length) {
+    live = attachBridgeLive(live, recentForBridge);
+  }
+  const data = {
+    servers,
+    live,
+    liveProbes: mapLiveProbes(detailed.probes),
+  };
+  _liveDetailCache.set(userId, { at: Date.now(), data });
+  return data;
 }
 
 function mapLiveProbes(probes) {
@@ -173,14 +201,14 @@ function makeUserRouter() {
         servers = filteredServers;
         if (filteredServers.length) {
           filteredServers.forEach(s => { if (s.label) labels.add(s.label.trim()); });
-          const filtered = (await requestLog.forUser(req.user.id, 60))
+          const filtered = (await requestLog.forUser(req.user.id, 80))
             .filter(e => !e.server || labels.has(e.server) || (e.serverStatus || []).some(s => labels.has(s.label)));
           const bridgeRecent = dedupeRecentByContent(filtered);
           let serverWatch = [];
           try {
             serverWatch = await getCachedServerWatch(req.user.id, filteredServers, quick);
           } catch (e) { console.error('[user/activity:serverWatch]', e.message); }
-          rawRecent = mergeActivityHistory(bridgeRecent, serverWatch, { limit: 24 });
+          rawRecent = mergeActivityHistory(bridgeRecent, serverWatch, { limit: 30 });
         }
         if (quick) {
           live = attachBridgeLive([], rawRecent);
