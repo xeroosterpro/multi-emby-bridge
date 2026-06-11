@@ -40,8 +40,15 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const install = document.getElementById('page-install');
     if (!install) return;
-    const me = await api('/api/auth/me');
-    const loggedIn = !!(me.body && me.body.enabled && me.body.user);
+    let meRes;
+    if (window.MEB_getAuth) {
+      try {
+        const auth = await window.MEB_getAuth();
+        meRes = { status: 200, body: auth };
+      } catch {}
+    }
+    if (!meRes) meRes = await api('/api/auth/me');
+    const loggedIn = !!(meRes.body && meRes.body.enabled && meRes.body.user);
 
     const urlEl = $('#acct-url'), msg = $('#acct-msg');
     const showUrl = url => {

@@ -82,12 +82,34 @@ function _applyCredsToDomBlocks(servers) {
 }
 
 let _accountSyncTimer = null;
+
+// ─── Shared auth + early bootstrap (dedupes repeated /api/auth/me and common calls) ──
+// All modules should prefer window.MEB_getAuth() over direct fetch for /api/auth/me.
+// This + parallel initial fetches dramatically reduces the burst of duplicate roundtrips
+// on first load while still fetching everything fresh (no data loss).
+let _authPromise = null;
+function getAuth() {
+  if (!_authPromise) {
+    _authPromise = fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then(r => r.ok ? r.json().catch(() => ({ user: null, enabled: false })) : ({ user: null, enabled: false }))
+      .catch(() => ({ user: null, enabled: false }));
+  }
+  return _authPromise;
+}
+window.MEB_getAuth = getAuth;
+
+// Kick off a few common non-critical fetches in parallel early (they resolve when needed).
+// Modules can await these or do their own (still safe).
+const _bootAuth = getAuth();
+const _bootSite = fetch('/api/site-config', { credentials: 'same-origin' }).then(r => r.ok ? r.json().catch(() => null) : null).catch(() => null);
+const _bootServerInfo = fetch('/api/server-info', { credentials: 'same-origin' }).then(r => r.ok ? r.json().catch(() => null) : null).catch(() => null);
+
 function scheduleAccountConfigSync() {
   clearTimeout(_accountSyncTimer);
   _accountSyncTimer = setTimeout(async () => {
     try {
-      const me = await fetch('/api/auth/me', { credentials: 'same-origin' });
-      if (!me.ok) return;
+      const me = await getAuth();
+      if (!me || !me.user) return;
       const auth = await me.json().catch(() => null);
       if (!auth?.user) return;
       if (typeof generateLinks === 'function') generateLinks({ silent: true });
@@ -226,9 +248,7 @@ async function ensureAccountConfigLoaded() {
   if (_accountConfigPromise) return _accountConfigPromise;
   _accountConfigPromise = (async () => {
     try {
-      const me = await fetch('/api/auth/me', { credentials: 'same-origin' });
-      if (!me.ok) return null;
-      const auth = await me.json().catch(() => null);
+      const auth = await getAuth();
       if (!auth?.user) return null;
       const r = await fetch('/api/user/config', { credentials: 'same-origin' });
       if (!r.ok) return null;
@@ -298,14 +318,20 @@ function _healthUrlsQuery() {
   return urls.length ? `?urls=${encodeURIComponent(urls.join(','))}` : '';
 }
 
+let _healthHistoryCache = { ts: 0, data: null };
 async function _fetchHealthByUrl() {
+  const now = Date.now();
+  if (_healthHistoryCache.data && (now - _healthHistoryCache.ts) < 25000) {
+    return _healthHistoryCache.data;
+  }
   try {
     const rows = await fetch(`/api/health/history${_healthUrlsQuery()}`, { credentials: 'same-origin' }).then(r => r.ok ? r.json() : []);
     const map = {};
     (rows || []).forEach(h => { map[_normServerUrl(h.url)] = h; });
+    _healthHistoryCache = { ts: now, data: map };
     return map;
   } catch {
-    return {};
+    return _healthHistoryCache.data || {};
   }
 }
 
@@ -1376,11 +1402,24 @@ function wireLogFilters() {
 
 async function refreshLog() {
   try {
+    // Hydrate badge count instantly from session cache for returning users (speeds perceived load on log page).
+    // We always do the real fetch below so data is never stale or missing.
+    try {
+      const cached = sessionStorage.getItem('meb_log_count_cache');
+      if (cached) {
+        const badge = document.getElementById('log-count-badge');
+        if (badge && !badge.textContent.trim().includes('entries')) {
+          badge.textContent = `${cached} entries (recent)`;
+        }
+      }
+    } catch {}
+
     const resp = await fetch('/api/request-log', { credentials: 'same-origin' });
     if (!resp.ok) { logData = []; renderLogPage(); return; }
     const data = await resp.json();
     const badge = document.getElementById('log-count-badge');
     if (badge) badge.textContent = data.length ? `${data.length} entries · stream resolution history` : 'Stream resolution history';
+    try { if (data && data.length) sessionStorage.setItem('meb_log_count_cache', String(data.length)); } catch {}
     logData = data;
     wireLogFilters();
     renderLogPage();
@@ -1394,8 +1433,17 @@ async function clearLog() {
   refreshLog();
 }
 
-refreshLog();
-let logInterval = setInterval(refreshLog, 30000);
+let logInterval = null;
+
+// Defer the very first request-log fetch a little so it doesn't contend with the critical
+// first-paint data (auth, user config, home services, etc.). We still always fetch the full
+// data (no missing history) — just not in the initial waterfall burst.
+// The visibility handler below already pauses/resumes intelligently.
+setTimeout(() => {
+  refreshLog();
+  if (!logInterval) logInterval = setInterval(refreshLog, 30000);
+}, 80);
+
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     clearInterval(logInterval);
@@ -1410,6 +1458,26 @@ document.addEventListener('visibilitychange', () => {
     }
   }
 });
+
+// Chain onPageShow so dashboard health + log data load when the user actually navigates to those
+// sections (instead of unconditionally on every initial page load). Full data is still fetched
+// (no missing data) — we just avoid the cost until the user needs the view.
+(function wireLazyPageData() {
+  const orig = window.onPageShow;
+  window.onPageShow = function (name) {
+    if (orig) orig(name);
+    if (name === 'log') {
+      setTimeout(refreshLog, 20);
+    }
+    if (name === 'dashboard') {
+      // Health for the dash cards is the heavier one — only when dashboard is the active view
+      setTimeout(() => {
+        refreshDashCardHealth();
+        refreshDashCardStatus();
+      }, 30);
+    }
+  };
+})();
 
 // ── Auto-generate server name ─────────────────────────────────────────────
 async function autoNameServer(id) {

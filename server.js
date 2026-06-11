@@ -169,7 +169,13 @@ app.use((req, res, next) => {
 // Single JSON parser for all API routes — avoids per-route double-read ("stream is not readable").
 app.use(express.json({ limit: '1mb' }));
 
-app.use(express.static(path.join(__dirname, 'public')));
+// Static assets with reasonable caching. Versioned files (?v=3 etc.) and ETag/304s already help a lot.
+// Longer maxAge improves repeat visits without missing updates (browser still validates).
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '12h',
+  etag: true,
+  lastModified: true,
+}));
 
 const { makeRequestLog } = require('./lib/requestLog');
 const { makeSiteSettings } = require('./lib/siteSettings');

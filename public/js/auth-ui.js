@@ -6,6 +6,9 @@
   let mode = 'login';
 
   async function me() {
+    if (window.MEB_getAuth) {
+      try { return await window.MEB_getAuth(); } catch {}
+    }
     try { const r = await fetch('/api/auth/me', { credentials: 'same-origin' }); return await r.json(); }
     catch { return { user: null, enabled: false }; }
   }

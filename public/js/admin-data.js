@@ -1190,8 +1190,15 @@
   }
 
   document.addEventListener('DOMContentLoaded', async () => {
-    const me = await api('/api/auth/me');
-    if (!me.body || me.body.user?.role !== 'admin') return;
+    let meBody = null;
+    if (window.MEB_getAuth) {
+      try { const a = await window.MEB_getAuth(); meBody = a; } catch {}
+    }
+    if (!meBody) {
+      const me = await api('/api/auth/me');
+      meBody = me.body;
+    }
+    if (!meBody || meBody.user?.role !== 'admin') return;
 
     $$('.adc-tab').forEach(btn => btn.addEventListener('click', async () => {
       switchTab(btn.dataset.tab);

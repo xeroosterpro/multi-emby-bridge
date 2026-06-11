@@ -1877,30 +1877,32 @@
     </div>
   </div>
 
-  <script src="/js/demo-mode.js"></script>
-  <script src="/js/live-playback.js"></script>
-  <script src="/js/live-ui.js"></script>
-  <script src="/js/home-ui.js"></script>
-  <script src="/js/onboarding-ui.js"></script>
-  <script src="/js/tickets-ui.js"></script>
-  <script src="/js/theme.js"></script>
-  <script src="/js/mobile-shell.js"></script>
-  <script src="/js/ui.js"></script>
-  <script src="/js/catalogs-wizard.js"></script>
-  <script src="/js/configure.js"></script>
-  <script src="/js/controls.js"></script>
-  <script src="/js/shell.js"></script>
-  <script src="/js/site-controls.js"></script>
-  <script src="/js/server-alerts.js"></script>
-  <script src="/js/health.js"></script>
-  <script src="/js/accordionize.js"></script>
-  <script src="/js/dropdowns.js"></script>
-  <script src="/js/dashboard-modal.js"></script>
-  <script src="/js/auth-ui.js"></script>
-  <script src="/js/user-account.js"></script>
-  <script src="/js/admin.js"></script>
-  <script src="/js/admin-data.js"></script>
-  <script src="/js/billing-ui.js"></script>
-  <script src="/js/command-palette.js"></script>
+  <!-- defer lets the static HTML + critical CSS paint immediately while all JS downloads in parallel.
+       Execution order is preserved. Core data logic (configure) still runs before most page modules. -->
+  <script src="/js/demo-mode.js" defer></script>
+  <script src="/js/live-playback.js" defer></script>
+  <script src="/js/live-ui.js" defer></script>
+  <script src="/js/home-ui.js" defer></script>
+  <script src="/js/onboarding-ui.js" defer></script>
+  <script src="/js/tickets-ui.js" defer></script>
+  <script src="/js/theme.js" defer></script>
+  <script src="/js/mobile-shell.js" defer></script>
+  <script src="/js/ui.js" defer></script>
+  <script src="/js/catalogs-wizard.js" defer></script>
+  <script src="/js/configure.js" defer></script>
+  <script src="/js/controls.js" defer></script>
+  <script src="/js/shell.js" defer></script>
+  <script src="/js/site-controls.js" defer></script>
+  <script src="/js/server-alerts.js" defer></script>
+  <script src="/js/health.js" defer></script>
+  <script src="/js/accordionize.js" defer></script>
+  <script src="/js/dropdowns.js" defer></script>
+  <script src="/js/dashboard-modal.js" defer></script>
+  <script src="/js/auth-ui.js" defer></script>
+  <script src="/js/user-account.js" defer></script>
+  <script src="/js/admin.js" defer></script>
+  <script src="/js/admin-data.js" defer></script>
+  <script src="/js/billing-ui.js" defer></script>
+  <script src="/js/command-palette.js" defer></script>
 </body>
 </html>

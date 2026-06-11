@@ -429,9 +429,13 @@
     try {
     const cfg = (await api('/api/billing/config')).body;
     if (gen !== _initGen) return;
-    const me = window.currentUser
-      ? { user: window.currentUser }
-      : (await api('/api/auth/me')).body;
+    let me = window.currentUser ? { user: window.currentUser } : null;
+    if (!me) {
+      if (window.MEB_getAuth) {
+        try { const a = await window.MEB_getAuth(); me = a ? { user: a.user || a } : null; } catch {}
+      }
+      if (!me) me = (await api('/api/auth/me')).body;
+    }
     if (gen !== _initGen) return;
 
     if (!me || !me.user) {
