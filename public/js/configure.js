@@ -83,8 +83,13 @@ function _dashConsolePaint() {
   log.scrollTop = log.scrollHeight;
 }
 
+function _dashConsolePageActive() {
+  const page = document.getElementById('page-dashboard');
+  return !!(page && (page.classList.contains('on') || (location.hash || '').includes('dashboard')));
+}
+
 function dashConsoleLog(msg, level = 'info') {
-  if (!document.getElementById('page-dashboard')?.classList.contains('on')) return;
+  if (!_dashConsolePageActive()) return;
   _dashConsoleEnsureVisible();
   _dashConsoleLines.push({ time: _dashConsoleFmtTime(), msg, level });
   if (_dashConsoleLines.length > DASH_CONSOLE_MAX) _dashConsoleLines.shift();
@@ -177,13 +182,8 @@ async function _applyDashLibraryStats(card, server, opts) {
   const { setStats, force, cachedLib, now, batchMap } = opts;
   const label = _dashServerLabel(server);
   const k = _libKey(server);
-  if (!force && cachedLib) {
-    setStats(cachedLib);
-    _recalcDashLibTiles();
-    dashConsoleLog(`Library stats · ${label} — from cache (${(cachedLib.movies || 0).toLocaleString()} movies)`, 'ok');
-    return;
-  }
-  const batchRow = _batchLibRow(batchMap, server);
+  // Batch (authoritative DB creds) wins over local cache — cache was blocking fresh counts.
+  const batchRow = batchMap ? _batchLibRow(batchMap, server) : null;
   if (batchRow) {
     if (batchRow.ok) {
       setStats({ movies: batchRow.movies, shows: batchRow.shows, episodes: batchRow.episodes });
@@ -209,6 +209,15 @@ async function _applyDashLibraryStats(card, server, opts) {
       _applyDashLibStatsError(card, batchRow.error);
       dashConsoleLog(`Library stats · ${label} — ${batchRow.error || 'failed'}`, 'err');
     }
+    return;
+  }
+  if (batchMap && !batchRow) {
+    dashConsoleLog(`Library stats · ${label} — no batch row (check label/URL match)`, 'warn');
+  }
+  if (!force && cachedLib) {
+    setStats(cachedLib);
+    _recalcDashLibTiles();
+    dashConsoleLog(`Library stats · ${label} — from cache (${(cachedLib.movies || 0).toLocaleString()} movies)`, 'ok');
     return;
   }
   dashConsoleLog(`Library stats · ${label} — POST /api/library-stats`, 'busy');
@@ -238,8 +247,35 @@ async function _applyDashLibraryStats(card, server, opts) {
   }
 }
 
+function _mergeAccountCredsIntoServers(servers) {
+  if (!_useAccountCredsForApi() || !_accountServersCache?.length) return servers || [];
+  const byLabel = new Map((_accountServersCache || []).map(s =>
+    [String(s.label || '').trim().toLowerCase(), s]
+  ));
+  const byUrl = new Map((_accountServersCache || []).map(s => [_normServerUrl(s.url), s]));
+  return (servers || []).map(s => {
+    const acc = byLabel.get(String(s.label || '').trim().toLowerCase())
+      || byUrl.get(_normServerUrl(s.url));
+    if (!acc) return s;
+    return {
+      ...acc,
+      ...s,
+      label: s.label || acc.label,
+      url: s.url || acc.url,
+      apiKey: s.apiKey || acc.apiKey,
+      userId: s.userId || acc.userId,
+      username: s.username || acc.username,
+      password: s.password || acc.password,
+      type: s.type || acc.type,
+    };
+  });
+}
+
 function _collectDashboardServers() {
   const accountByUrl = new Map((_accountServersCache || []).map(s => [_normServerUrl(s.url), s]));
+  const accountByLabel = new Map((_accountServersCache || []).map(s =>
+    [String(s.label || '').trim().toLowerCase(), s]
+  ));
   const blocks = document.querySelectorAll('.server-block');
   const servers = [];
   for (const block of blocks) {
@@ -248,7 +284,8 @@ function _collectDashboardServers() {
     const type = block.querySelector('.f-type')?.value || 'emby';
     const url = block.querySelector('.f-url')?.value.trim().replace(/\/+$/, '');
     if (!label || !url) continue;
-    const acc = accountByUrl.get(_normServerUrl(url));
+    const acc = accountByUrl.get(_normServerUrl(url))
+      || accountByLabel.get(String(label || '').trim().toLowerCase());
     const apiKey = block.querySelector('.f-apikey')?.value.trim() || acc?.apiKey || '';
     const userId = block.querySelector('.f-userid')?.value.trim() || acc?.userId || '';
     const username = block.querySelector('.f-username')?.value.trim() || acc?.username || '';
@@ -1516,7 +1553,7 @@ async function hydrateDashLibraryStats(force = false) {
   const cards = document.querySelectorAll('#dash-cards .gcard[data-server-url]');
   if (!cards.length) return;
 
-  const servers = _collectDashboardServers();
+  const servers = _mergeAccountCredsIntoServers(_collectDashboardServers());
   const now = Date.now();
   dashConsoleLog(force ? 'Refreshing library stats for all servers…' : 'Hydrating library stats…', 'busy');
   let batchLibMap = null;
@@ -1554,7 +1591,7 @@ async function hydrateDashLibraryStats(force = false) {
     await _applyDashLibraryStats(card, s, {
       setStats,
       force,
-      cachedLib: force ? null : cachedLib,
+      cachedLib: (force || batchLibMap) ? null : cachedLib,
       now,
       batchMap: batchLibMap,
     });
@@ -2585,6 +2622,8 @@ window.onPageShow = function(name) {
   }
   if (name === 'install') updateInstallStats();
   if (name === 'dashboard') {
+    const dc = document.getElementById('dash-console');
+    if (dc) dc.hidden = false;
     loadDashboardPage();
   } else {
     stopDashLivePolling();
@@ -3148,9 +3187,6 @@ async function _renderDashboardBody(gen = _dashLoadGen, force = false) {
     setTxt('dash-status', servers.length
       ? `Everything's loaded. ${upCount}/${servers.length} servers reachable.`
       : 'No servers yet — add one on the Servers page.');
-    if (gen === _dashLoadGen) {
-      await hydrateDashLibraryStats(force);
-    }
     if (gen === _dashLoadGen) {
       document.querySelectorAll('#page-dashboard .dash-tiles .tile .n').forEach(n => {
         n.classList.remove('tile-num-pop');
