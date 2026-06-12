@@ -29,38 +29,13 @@ const WATCH_HIST_CACHE_MS = 90000;
 async function getCachedServerWatch(userId, servers, quick) {
   const hit = _watchHistCache.get(userId);
   if (hit && Date.now() - hit.at < WATCH_HIST_CACHE_MS) return hit.entries;
-  const entries = await fetchServerWatchHistory(servers, { timeoutMs: quick ? 3500 : 5500, limitPerEndpoint: 20 });
+  const entries = await fetchServerWatchHistory(servers, { timeoutMs: quick ? 8000 : 5500, limitPerEndpoint: 20 });
   _watchHistCache.set(userId, { at: Date.now(), entries });
   return entries;
 }
 
 const _liveDetailCache = new Map();
 const LIVE_DETAIL_CACHE_MS = 15000; // short cache so repeated dash polls / bundle fetches are instant
-
-async function loadLiveForUser(userId, recentForBridge) {
-  const cfg = await uc.getForServe(userId);
-  const servers = filterLiveServers(cfg);
-  if (!servers.length) return { servers, live: [], liveProbes: [] };
-
-  // Use short cache for smooth/fast repeated loads of live (dash polls, bundle refreshes)
-  const hit = _liveDetailCache.get(userId);
-  if (hit && Date.now() - hit.at < LIVE_DETAIL_CACHE_MS) {
-    return hit.data;
-  }
-
-  const detailed = await liveSessions.forUserDetailed(servers);
-  let live = detailed.live || [];
-  if (!live.length && Array.isArray(recentForBridge) && recentForBridge.length) {
-    live = attachBridgeLive(live, recentForBridge);
-  }
-  const data = {
-    servers,
-    live,
-    liveProbes: mapLiveProbes(detailed.probes),
-  };
-  _liveDetailCache.set(userId, { at: Date.now(), data });
-  return data;
-}
 
 function mapLiveProbes(probes) {
   return (probes || []).map(p => ({
@@ -98,26 +73,35 @@ function makeUserRouter() {
   const requestLog = makeRequestLog(db);
   const liveSessions = makeLiveSessions();
 
-  function requireAuth(req, res, next) {
-    if (!db.isConfigured()) return res.status(503).json({ error: 'accounts unavailable' });
-    if (!req.user) return res.status(401).json({ error: 'not signed in' });
-    next();
-  }
-
   async function loadLiveForUser(userId, recentForBridge) {
     const cfg = await uc.getForServe(userId);
     const servers = filterLiveServers(cfg);
     if (!servers.length) return { servers, live: [], liveProbes: [] };
+
+    // Use short cache for smooth/fast repeated loads of live (dash polls, bundle refreshes)
+    const hit = _liveDetailCache.get(userId);
+    if (hit && Date.now() - hit.at < LIVE_DETAIL_CACHE_MS) {
+      return hit.data;
+    }
+
     const detailed = await liveSessions.forUserDetailed(servers);
     let live = detailed.live || [];
     if (!live.length && Array.isArray(recentForBridge) && recentForBridge.length) {
       live = attachBridgeLive(live, recentForBridge);
     }
-    return {
+    const data = {
       servers,
       live,
       liveProbes: mapLiveProbes(detailed.probes),
     };
+    _liveDetailCache.set(userId, { at: Date.now(), data });
+    return data;
+  }
+
+  function requireAuth(req, res, next) {
+    if (!db.isConfigured()) return res.status(503).json({ error: 'accounts unavailable' });
+    if (!req.user) return res.status(401).json({ error: 'not signed in' });
+    next();
   }
 
   // config blob + which keys are set (never the key values)

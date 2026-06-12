@@ -42,6 +42,7 @@ let _dashboardInFlight = false;
 let _accountConfigPromise = null;
 let _accountServersCache = null;
 let _dashLoadGen = 0;
+let _libHydrateGen = 0;
 let _dashLastFullLoad = 0;
 let _dashBusy = false;
 let _renderDashboardChain = Promise.resolve();
@@ -69,11 +70,19 @@ function _serverApiBody(server) {
   return body;
 }
 
+function _batchLibOriginKey(url) {
+  try { return 'origin:' + new URL(url).origin.toLowerCase(); } catch { return null; }
+}
+
 function _batchLibRow(batchMap, server) {
   if (!batchMap) return null;
-  return batchMap.get(_normServerUrl(server.url))
-    || batchMap.get('label:' + String(server.label || '').trim().toLowerCase())
-    || null;
+  const labelKey = 'label:' + String(server.label || '').trim().toLowerCase();
+  if (server.label && batchMap.has(labelKey)) return batchMap.get(labelKey);
+  const urlKey = _normServerUrl(server.url);
+  if (batchMap.has(urlKey)) return batchMap.get(urlKey);
+  const originKey = _batchLibOriginKey(server.url);
+  if (originKey && batchMap.has(originKey)) return batchMap.get(originKey);
+  return null;
 }
 
 async function _fetchDashboardLibraryStatsBatch() {
@@ -89,6 +98,8 @@ async function _fetchDashboardLibraryStatsBatch() {
     (data.servers || []).forEach(row => {
       map.set(_normServerUrl(row.url), row);
       if (row.label) map.set('label:' + String(row.label).trim().toLowerCase(), row);
+      const originKey = _batchLibOriginKey(row.url);
+      if (originKey) map.set(originKey, row);
     });
     return { ok: true, map };
   } catch (err) {
@@ -1389,14 +1400,77 @@ function _recalcDashLibTiles() {
 }
 
 function _applyDashLibStatsError(card, message) {
-  ['movies', 'shows', 'episodes'].forEach(k => {
+  ['movies', 'shows', 'episodes'].forEach((k, i) => {
     const el = card.querySelector(`[data-st=${k}]`);
     if (!el) return;
-    el.textContent = '—';
+    el.textContent = i === 0 ? '!' : '—';
     el.title = message || 'Library stats unavailable';
     el.classList.add('gchip-err');
   });
 }
+
+function _dashCardForServer(cards, server) {
+  const sUrl = _normServerUrl(server.url);
+  const label = String(server.label || '').trim();
+  return [...cards].find(c => {
+    if (_normServerUrl(c.dataset.serverUrl) === sUrl) return true;
+    const nm = c.querySelector('.gcard-nm')?.textContent?.trim();
+    return label && nm === label;
+  }) || null;
+}
+
+function _makeDashSetStats(card) {
+  return (st) => {
+    ['movies', 'shows', 'episodes'].forEach(k => {
+      const el = card.querySelector(`[data-st=${k}]`);
+      if (!el) return;
+      el.textContent = (st[k] || 0).toLocaleString();
+      el.title = '';
+      el.classList.remove('gchip-err');
+    });
+  };
+}
+
+async function hydrateDashLibraryStats(force = false) {
+  const hydrateGen = ++_libHydrateGen;
+  const cards = document.querySelectorAll('#dash-cards .gcard[data-server-url]');
+  if (!cards.length) return;
+
+  const servers = _collectDashboardServers();
+  const now = Date.now();
+  let batchLibMap = null;
+  if (_useAccountCredsForApi()) {
+    const batch = await _fetchDashboardLibraryStatsBatch();
+    if (hydrateGen !== _libHydrateGen) return;
+    if (batch.ok) batchLibMap = batch.map;
+  }
+
+  await _mapPool(servers, async (s) => {
+    if (hydrateGen !== _libHydrateGen) return;
+    const card = _dashCardForServer(cards, s);
+    if (!card) return;
+    const setStats = _makeDashSetStats(card);
+    const cacheKey = _libKey(s);
+    const cachedLib = (!force && _libStatsCache[cacheKey] && (now - _libStatsCache[cacheKey].ts < LIB_TTL_MS))
+      ? _libStatsCache[cacheKey] : null;
+    if (cachedLib) {
+      setStats(cachedLib);
+      _recalcDashLibTiles();
+    }
+    const shouldFetch = force || batchLibMap || _useAccountCredsForApi() || !cachedLib;
+    if (!shouldFetch) return;
+    await _applyDashLibraryStats(card, s, {
+      setStats,
+      force,
+      cachedLib: force ? null : cachedLib,
+      now,
+      batchMap: batchLibMap,
+    });
+  }, LIB_STATS_CONCURRENCY);
+
+  if (hydrateGen === _libHydrateGen) _recalcDashLibTiles();
+}
+window.hydrateDashLibraryStats = hydrateDashLibraryStats;
 
 async function _fetchLibraryStats(server) {
   const r = await fetch('/api/library-stats', {
@@ -2372,7 +2446,7 @@ async function loadDashboardPage() {
   if (gen !== _dashLoadGen) return;
 
   const activityP = _fetchUserActivityQuick();
-  const dashP = renderDashboard(true, gen);
+  const dashP = renderDashboard(false, gen);
   const [activity] = await Promise.all([activityP, dashP]);
   if (gen !== _dashLoadGen) return;
 
@@ -2381,6 +2455,9 @@ async function loadDashboardPage() {
   if (gen !== _dashLoadGen) return;
 
   await renderDashActivity({ activity, bundle });
+  if (gen !== _dashLoadGen) return;
+
+  await hydrateDashLibraryStats(false);
   pollLivePlaybackNotifications();
   renderOnboarding();
   replayDashTileAnimations();
@@ -2450,12 +2527,52 @@ function dashRecentMatchesLive(entry, liveList) {
 }
 
 function dashHistKindLabel(kind) {
+  if (kind === 'live') return 'Playing now';
   if (kind === 'resume') return 'In progress';
   if (kind === 'played') return 'Watched';
   return 'Stremio play';
 }
 
+function dashNormContentKey(entry) {
+  const base = entry?.imdbId || dashNormTitle(entry?.title);
+  return [base, entry?.season ?? '', entry?.episode ?? ''].join('|');
+}
+
+function dashMergeLiveIntoRecent(recent, live, opts = {}) {
+  const limit = opts.limit || 30;
+  const list = [...(recent || [])];
+  const liveSessions = (live || []).filter(s => s && s.source !== 'bridge');
+  for (const session of liveSessions) {
+    const title = session.title || session.rawTitle || session.seriesName;
+    if (!title) continue;
+    if (list.some(entry => dashRecentMatchesLive(entry, [session]))) continue;
+    list.unshift({
+      title: session.title || title,
+      season: session.season ?? null,
+      episode: session.episode ?? null,
+      server: session.server || session.pickedServer || null,
+      source: 'server',
+      kind: 'live',
+      ts: new Date().toISOString(),
+      serverType: session.serverType || null,
+      sources: ['server'],
+    });
+  }
+  const seen = new Set();
+  const deduped = [];
+  for (const entry of list) {
+    if (!entry?.title) continue;
+    const key = dashNormContentKey(entry);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(entry);
+    if (deduped.length >= limit) break;
+  }
+  return deduped;
+}
+
 function dashHistSourceBadge(entry) {
+  if (entry.kind === 'live') return '<span class="da-src-badge da-src-live">Playing now</span>';
   const sources = entry.sources || [entry.source || 'bridge'];
   const hasBridge = sources.includes('bridge');
   const hasServer = sources.includes('server');
@@ -2495,10 +2612,12 @@ function renderDashHistoryRows(recent, live, filter) {
     return `<div class="da-empty da-hist-empty">${emptyMsg}</div>`;
   }
   return rows.map(e => {
-    const isLive = dashRecentMatchesLive(e, live);
+    const isLive = e.kind === 'live' || dashRecentMatchesLive(e, live);
     const showProgress = e.kind === 'resume' && e.progressPct != null && e.progressPct < 98;
     const pct = showProgress ? Math.min(100, Math.max(1, Math.round(e.progressPct))) : null;
-    const kindCls = e.kind === 'resume' ? 'da-hist-item-resume' : (e.kind === 'played' ? 'da-hist-item-played' : 'da-hist-item-lookup');
+    const kindCls = e.kind === 'live' ? 'da-hist-item-kind-live'
+      : e.kind === 'resume' ? 'da-hist-item-resume'
+        : (e.kind === 'played' ? 'da-hist-item-played' : 'da-hist-item-lookup');
     const subParts = [];
     if (e.server) subParts.push(esc(e.server));
     subParts.push(esc(dashHistKindLabel(e.kind)));
@@ -2543,7 +2662,7 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
     : '';
 
   const emptyMsg = live.length ? '' : liveEmptyMessage(probes, serverCount);
-  const recent = a.recent || [];
+  const recent = dashMergeLiveIntoRecent(a.recent || [], live);
   const stats = dashHistStats(recent);
   const histRows = renderDashHistoryRows(recent, live, _dashHistFilter);
 
@@ -2859,17 +2978,10 @@ async function _renderDashboardBody(gen = _dashLoadGen, force = false) {
     const pingQueue = [];
     if (dashMeta.some(m => m.cachedLib)) _recalcDashLibTiles();
 
-    let batchLibMap = null;
-    if (_useAccountCredsForApi()) {
-      const batch = await _fetchDashboardLibraryStatsBatch();
-      if (_dashGenStale(gen)) return;
-      if (batch.ok) batchLibMap = batch.map;
-    }
-
-    // Batched status + library stats: avoids hammering slow Emby hosts with 6+ parallel Items/Counts calls.
+    // Authenticated connection tests (library stats hydrated separately).
     await _mapPool(dashMeta, async (meta) => {
       if (_dashGenStale(gen)) return;
-      const { s, setStatus, setStats, card, cachedLib } = meta;
+      const { s, setStatus, card } = meta;
       let bridgeMs = _bridgeMsFromHealth(healthByUrl, s.url);
       const conn = await _testServerConnection(s);
       const online = conn.ok;
@@ -2879,11 +2991,6 @@ async function _renderDashboardBody(gen = _dashLoadGen, force = false) {
         if (bridgeMs == null) pingQueue.push({ s, setStatus, card });
       }
       setStatus(online, bridgeMs);
-
-      const shouldFetchStats = batchLibMap || _useAccountCredsForApi() || online;
-      if (shouldFetchStats) {
-        await _applyDashLibraryStats(card, s, { setStats, force, cachedLib, now, batchMap: batchLibMap });
-      }
     }, LIB_STATS_CONCURRENCY);
     if (gen !== _dashLoadGen) return;
     setTxt('tile-servers', upCount);
@@ -2917,6 +3024,9 @@ async function _renderDashboardBody(gen = _dashLoadGen, force = false) {
     setTxt('dash-status', servers.length
       ? `Everything's loaded. ${upCount}/${servers.length} servers reachable.`
       : 'No servers yet — add one on the Servers page.');
+    if (gen === _dashLoadGen) {
+      await hydrateDashLibraryStats(force);
+    }
     if (gen === _dashLoadGen) {
       document.querySelectorAll('#page-dashboard .dash-tiles .tile .n').forEach(n => {
         n.classList.remove('tile-num-pop');
@@ -4379,6 +4489,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('change', autoSave);
   const qi = document.getElementById('quick-install');
   if (qi) qi.addEventListener('click', () => { location.hash = '#/install'; generateLinks(); });
+  const dashRefresh = document.getElementById('dash-refresh');
+  if (dashRefresh) {
+    dashRefresh.addEventListener('click', () => {
+      dashRefresh.disabled = true;
+      hydrateDashLibraryStats(true).finally(() => { dashRefresh.disabled = false; });
+    });
+  }
   if (window.Controls) Controls.bindAll();
   wireRankingUX();
 });

@@ -740,19 +740,36 @@ app.post('/api/library-stats', apiLimiter, requireAuthInProduction, async (req, 
   }
 });
 
+async function mapPool(items, worker, concurrency = 3) {
+  if (!items.length) return [];
+  const results = new Array(items.length);
+  let idx = 0;
+  const n = Math.min(concurrency, items.length);
+  await Promise.all(Array.from({ length: n }, async () => {
+    while (idx < items.length) {
+      const i = idx++;
+      results[i] = await worker(items[i], i);
+    }
+  }));
+  return results;
+}
+
 // Batch library stats for signed-in dashboard (authoritative DB creds, no per-card URL matching).
 app.post('/api/dashboard/library-stats', apiLimiter, requireAuthInProduction, async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'sign in required' });
   if (!dbLib.isConfigured()) return res.status(503).json({ error: 'accounts unavailable' });
+  const BATCH_LIB_TIMEOUT_MS = 20000;
+  const BATCH_LIB_CONCURRENCY = 3;
   try {
     const cfg = await makeUserConfig(dbLib).getForServe(req.user.id);
     const servers = (cfg?.servers || []).filter(s =>
       s && s.enabled !== false && s.url && s.apiKey && s.userId
     );
-    const results = await Promise.all(servers.map(async (s) => {
+    const results = await mapPool(servers, async (s) => {
       const sentKey = s.apiKey;
+      const label = s.label || s.url || '?';
       try {
-        const stats = await fetchLibraryCounts(s, 15000);
+        const stats = await fetchLibraryCounts(s, BATCH_LIB_TIMEOUT_MS);
         return {
           url: s.url,
           label: s.label || '',
@@ -766,9 +783,10 @@ app.post('/api/dashboard/library-stats', apiLimiter, requireAuthInProduction, as
           : err.name === 'AbortError'
             ? 'Connection timed out'
             : (err.message || 'Library stats failed');
+        console.error(`[dashboard/library-stats] label=${label} err=${msg}`);
         return { url: s.url, label: s.label || '', ok: false, error: msg };
       }
-    }));
+    }, BATCH_LIB_CONCURRENCY);
     res.json({ servers: results });
   } catch (err) {
     console.error('[dashboard/library-stats]', err.message);

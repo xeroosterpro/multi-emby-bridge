@@ -6,6 +6,7 @@ const {
   dedupeRecentByContent,
   recentMatchesLive,
   mergeActivityHistory,
+  mergeLiveIntoRecent,
 } = require('../lib/activityEnrich');
 
 let passed = 0;
@@ -113,6 +114,25 @@ A(recentMatchesLive({ title: 'Dune: Part Two' }, liveSet) === true, 'movie match
 A(recentMatchesLive({ title: 'Severance S1E1', season: 1, episode: 1 }, liveSet) === false, 'unrelated title not live');
 A(recentMatchesLive({ title: 'Anything' }, []) === false, 'empty live set → never live');
 A(recentMatchesLive({ title: 'Anything' }, null) === false, 'missing live set → never live');
+
+console.log('\nmergeLiveIntoRecent:');
+const liveOnly = mergeLiveIntoRecent([], [{
+  title: 'The Great British Bake Off S15E3', season: 15, episode: 3,
+  server: 'BK', source: 'sessions', serverType: 'emby',
+}]);
+A(liveOnly.length === 1 && liveOnly[0].kind === 'live', 'prepends live session with no history row');
+A(liveOnly[0].title.includes('Bake Off'), 'live row keeps title');
+
+const withHistory = mergeLiveIntoRecent(
+  [{ title: 'Dune: Part Two', ts: '2026-06-08T10:00:00Z', source: 'bridge' }],
+  [{ title: 'Dune: Part Two', source: 'sessions', server: 'ARCTV' }],
+);
+A(withHistory.length === 1, 'does not duplicate when history already matches live');
+
+const bridgeSkipped = mergeLiveIntoRecent([], [{
+  title: 'Bridge Guess', source: 'bridge', server: 'BK',
+}]);
+A(bridgeSkipped.length === 0, 'skips bridge-only live rows');
 
 console.log('\nmergeActivityHistory:');
 const merged = mergeActivityHistory(

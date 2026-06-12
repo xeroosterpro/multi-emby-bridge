@@ -1,5 +1,6 @@
 // Run with: node test/serverWatchHistory.test.js
 const { mapServerItem, progressFromItem } = require('../lib/serverWatchHistory');
+const { apiPathVariants } = require('../lib/serverPaths');
 
 let passed = 0, failed = 0;
 const A = (c, m) => { c ? (console.log(`  ✓ ${m}`), passed++) : (console.error(`  ✗ ${m}`), failed++); };
@@ -25,6 +26,15 @@ const movie = mapServerItem({
 A(movie.title === 'Dune' && movie.kind === 'played', 'movie played row');
 
 A(progressFromItem({ UserData: { PlayedPercentage: 88 } }, 'played') === 88, 'played pct');
+
+const resumePaths = apiPathVariants('https://host.example.com/emby', '/Users/u1/Items/Resume');
+A(resumePaths.length >= 1, 'resume endpoint has path variants');
+A(resumePaths.some(u => String(u).includes('/Items/Resume')), 'resume variant includes Resume path');
+A(resumePaths.some(u => String(u).includes('/emby/Users/')), 'resume variant includes /emby prefix when needed');
+
+const playedPaths = apiPathVariants('https://cloud.example.com', '/Users/u1/PlayedItems');
+A(playedPaths.some(u => String(u).includes('/PlayedItems')), 'played items path variant');
+A(playedPaths.some(u => String(u).includes('/emby/Users/')), 'played items adds /emby prefix for bare host');
 
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);

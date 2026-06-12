@@ -16,6 +16,7 @@
     } catch (e) {}
   </script>
   <title>Stream Hub — Configure</title>
+  <meta name="description" content="Stream Hub — multi-server Emby and Jellyfin bridge for Stremio. Configure servers, stream routing, catalogs, and your personal manifest URL." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/css/configure.css?v=3" />
   <link rel="stylesheet" href="/css/catalogs-wizard.css" />
@@ -122,8 +123,9 @@
             <svg class="nav-chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
           </button>
           <div class="nav-group-items">
-            <a class="nav-item" data-page="ping"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M2 12h4l3 8 4-16 3 8h6"/></svg><span class="nav-label">Ping test</span></a>
-            <a class="nav-item" data-page="log"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span class="nav-label">Request log</span></a>
+            <a class="nav-item" data-page="health" href="#/health"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg><span class="nav-label">Health</span></a>
+            <a class="nav-item" data-page="ping" href="#/ping"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M2 12h4l3 8 4-16 3 8h6"/></svg><span class="nav-label">Ping test</span></a>
+            <a class="nav-item" data-page="log" href="#/log"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span class="nav-label">Request log</span></a>
           </div>
         </div>
 
@@ -134,7 +136,7 @@
             <svg class="nav-chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
           </button>
           <div class="nav-group-items">
-            <a class="nav-item" data-page="tickets" id="nav-tickets"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="nav-label">Tickets</span><span class="nav-ticket-badge" id="nav-ticket-count" style="display:none"></span></a>
+            <a class="nav-item" data-page="tickets" id="nav-tickets" href="#/tickets"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="nav-label">Tickets</span><span class="nav-ticket-badge" id="nav-ticket-count" style="display:none" aria-hidden="true"></span></a>
           </div>
         </div>
 
@@ -154,7 +156,7 @@
       <div class="sidebar-foot">
         <a class="nav-item billing-link" data-page="billing" style="display:none"><svg class="nav-ic" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg><span class="nav-label">Billing</span></a>
         <a class="nav-item" data-page="settings"><svg class="nav-ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a1.6 1.6 0 0 0 .3 1.8 2 2 0 1 1-2.8 2.8 1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5 2 2 0 0 1-4 0 1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3 2 2 0 1 1-2.8-2.8 1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1 2 2 0 0 1 0-4 1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8 2 2 0 1 1 2.8-2.8 1.6 1.6 0 0 0 1.8.3 1.6 1.6 0 0 0 1-1.5 2 2 0 0 1 4 0 1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3 2 2 0 1 1 2.8 2.8 1.6 1.6 0 0 0-.3 1.8 1.6 1.6 0 0 0 1.5 1 2 2 0 0 1 0 4 1.6 1.6 0 0 0-1.5 1Z"/></svg><span class="nav-label">Settings</span></a>
-        <div class="save-indicator" id="autosave-indicator">✓ Settings saved</div>
+        <div class="save-indicator" id="autosave-indicator" aria-live="polite"></div>
         <div class="userbtn" id="logout" style="display:none"><div class="avatar" id="side-avatar">E</div><span class="um" id="side-username">Account · Log out</span></div>
       </div>
     </aside>
@@ -260,7 +262,10 @@
       </section>
       <section class="page" id="page-dashboard">
   <h2 class="page-title dash-page-title">Dashboard</h2>
-  <p class="page-sub dash-page-sub" id="dash-status">Live overview · click a server for details</p>
+  <div class="dash-header-actions">
+    <p class="page-sub dash-page-sub" id="dash-status">Live overview · click a server for details</p>
+    <button type="button" class="btn-soft" id="dash-refresh" title="Re-fetch library counts from all servers">↻ Refresh stats</button>
+  </div>
   <div class="onboard" id="onboard" style="display:none"></div>
   <div class="tiles dash-tiles">
     <div class="tile t1 tile-link" data-goto="servers"><div class="n" id="tile-servers">0</div><div class="l">Servers up</div></div>
@@ -1172,7 +1177,7 @@
             <button class="range-tab" onclick="setRange('30d',this)">30 days</button>
             <button class="range-tab" onclick="setRange('all',this)">All time</button>
           </div>
-          <div style="font-size:0.73rem;color:#2e2e42" id="range-info"></div>
+          <div class="health-range-info" id="range-info"></div>
         </div>
         <div id="main-content"><div class="loader">Loading health data&#x2026;</div></div>
         <div class="refresh-bar" id="refresh-bar"></div>
