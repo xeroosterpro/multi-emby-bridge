@@ -41,6 +41,8 @@ const { snapshot: systemMetrics } = require('./lib/metrics');
 const { ROW_NAMES, deriveLibraryRows } = require('./server-helpers');
 const audioRanking = require('./lib/audioRanking');
 const { assertSafeFetchUrl, normalizeServerUrl } = require('./lib/urlSafety');
+const { findServerEntry } = require('./lib/serverMatch');
+const { fetchLibraryCounts, libraryStatsPayload } = require('./lib/libraryStats');
 const {
   requireAuthInProduction,
   applyConfigureSecurityHeaders,
@@ -603,29 +605,59 @@ app.post('/api/fetch-credentials', authLimiter, requireAuthInProduction, async (
   }
 });
 
-// ─── Test connection ──────────────────────────────────────────────────────────
-app.post('/api/test-connection', apiLimiter, requireAuthInProduction, async (req, res) => {
-  const { url, type, apiKey, userId, username, password } = req.body || {};
-  if (!url || !apiKey || !userId) {
-    return res.status(400).json({ error: 'url, apiKey and userId are required.' });
-  }
+// Resolve Emby/Jellyfin credentials: prefer the signed-in user's stored config
+// (authoritative in production) and fall back to the request body for local/dev.
+async function resolveServerCredentials(req, body) {
+  const { url, type, apiKey, userId, username, password, label } = body || {};
+  if (!url) return { status: 400, error: 'url is required' };
   let safeUrl;
   try {
     await assertSafeFetchUrl(url, 'server url');
     safeUrl = normalizeServerUrl(url);
-    if (!safeUrl) return res.status(400).json({ error: 'Invalid server url' });
+    if (!safeUrl) return { status: 400, error: 'Invalid server url' };
   } catch (e) {
-    return res.status(400).json({ error: e.message });
+    return { status: 400, error: e.message };
   }
   const server = {
-    url: safeUrl, type: type || 'emby', apiKey, userId,
-    username: username || '', password: password || '',
+    url: safeUrl,
+    type: type || 'emby',
+    apiKey: String(apiKey || '').trim(),
+    userId: String(userId || '').trim(),
+    username: username || '',
+    password: password || '',
+    label: label || '',
   };
-  const sentKey = apiKey;
+  if (req.user && dbLib.isConfigured()) {
+    try {
+      const cfg = await makeUserConfig(dbLib).getForServe(req.user.id);
+      const match = findServerEntry(cfg?.servers, safeUrl, label);
+      if (match) {
+        if (match.apiKey) server.apiKey = match.apiKey;
+        if (match.userId) server.userId = match.userId;
+        if (match.type) server.type = match.type;
+        if (match.username) server.username = match.username;
+        if (match.password) server.password = match.password;
+        if (match.label) server.label = match.label;
+        if (match.url) server.url = normalizeServerUrl(match.url) || server.url;
+      }
+    } catch { /* best-effort */ }
+  }
+  if (!server.apiKey || !server.userId) {
+    return { status: 400, error: 'url, apiKey and userId are required.' };
+  }
+  return { server };
+}
+
+// ─── Test connection ──────────────────────────────────────────────────────────
+app.post('/api/test-connection', apiLimiter, requireAuthInProduction, async (req, res) => {
+  const resolved = await resolveServerCredentials(req, req.body);
+  if (resolved.error) return res.status(resolved.status).json({ error: resolved.error });
+  const server = resolved.server;
+  const sentKey = server.apiKey;
   try {
     const resp = await apiFetch(server, () => new URL(`${server.url}/System/Info`));
     const data = await resp.json();
-    const name    = data.ServerName || data.ProductName || (type === 'jellyfin' ? 'Jellyfin' : 'Emby');
+    const name    = data.ServerName || data.ProductName || (server.type === 'jellyfin' ? 'Jellyfin' : 'Emby');
     const version = data.Version ? ` v${data.Version}` : '';
     const out = { ok: true, message: `Connected — ${name}${version}` };
     const refreshed = getEffectiveApiKey(server);
@@ -664,27 +696,11 @@ app.post('/api/ping-servers', apiLimiter, requireAuthInProduction, async (req, r
 
 // ─── Live sessions (now playing) for one server ─────────────────────────────
 app.post('/api/server-sessions', apiLimiter, requireAuthInProduction, async (req, res) => {
-  const { url, type, apiKey, userId, label, username, password } = req.body || {};
-  if (!url || !apiKey) return res.status(400).json({ error: 'url and apiKey required' });
-  let safeUrl;
-  try {
-    await assertSafeFetchUrl(url, 'server url');
-    safeUrl = normalizeServerUrl(url);
-    if (!safeUrl) return res.status(400).json({ error: 'Invalid server url' });
-  } catch (e) {
-    return res.status(400).json({ error: e.message });
-  }
+  const resolved = await resolveServerCredentials(req, req.body);
+  if (resolved.error) return res.status(resolved.status).json({ error: resolved.error });
+  const server = resolved.server;
   const { fetchServerSessionsDetailed } = require('./lib/sessions');
-  const server = {
-    url: safeUrl,
-    type: type || 'emby',
-    apiKey,
-    userId: userId || '',
-    label: label || '',
-    username: username || '',
-    password: password || '',
-  };
-  const sentKey = apiKey;
+  const sentKey = server.apiKey;
   const probe = await fetchServerSessionsDetailed(server);
   const out = {
     live: probe.live || [],
@@ -708,44 +724,55 @@ app.post('/api/server-sessions', apiLimiter, requireAuthInProduction, async (req
 
 // ─── Library stats ────────────────────────────────────────────────────────────
 app.post('/api/library-stats', apiLimiter, requireAuthInProduction, async (req, res) => {
-  const { url, type, apiKey, userId, username, password } = req.body || {};
-  if (!url || !apiKey || !userId) {
-    return res.status(400).json({ error: 'url, apiKey, userId required' });
-  }
-  let safeUrl;
+  const resolved = await resolveServerCredentials(req, req.body);
+  if (resolved.error) return res.status(resolved.status).json({ error: resolved.error });
+  const server = resolved.server;
+  const sentKey = server.apiKey;
   try {
-    await assertSafeFetchUrl(url, 'server url');
-    safeUrl = normalizeServerUrl(url);
-    if (!safeUrl) return res.status(400).json({ error: 'Invalid server url' });
-  } catch (e) {
-    return res.status(400).json({ error: e.message });
-  }
-  const server = {
-    url: safeUrl, type: type || 'emby', apiKey, userId, label: '',
-    username: username || '', password: password || '',
-  };
-  const sentKey = apiKey;
-  try {
-    const resp = await apiFetch(server, () => {
-      const statsUrl = new URL(`${server.url}/Items/Counts`);
-      statsUrl.searchParams.set('UserId', userId);
-      return statsUrl;
-    }, 8000);
-    const data = await resp.json();
-    const out = {
-      movies:   data.MovieCount   || 0,
-      shows:    data.SeriesCount  || 0,
-      episodes: data.EpisodeCount || 0,
-    };
-    const refreshed = getEffectiveApiKey(server);
-    if (refreshed && refreshed !== sentKey) out.apiKey = refreshed;
-    res.json(out);
+    const stats = await fetchLibraryCounts(server, 15000);
+    res.json({ ...stats, ...libraryStatsPayload(server, sentKey) });
   } catch (err) {
     if (err.status === 401 || err.status === 403)
       return res.status(401).json({ error: 'Authentication failed' });
     if (err.name === 'AbortError')
       return res.status(504).json({ error: 'Connection timed out' });
     res.status(502).json({ error: err.message });
+  }
+});
+
+// Batch library stats for signed-in dashboard (authoritative DB creds, no per-card URL matching).
+app.post('/api/dashboard/library-stats', apiLimiter, requireAuthInProduction, async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'sign in required' });
+  if (!dbLib.isConfigured()) return res.status(503).json({ error: 'accounts unavailable' });
+  try {
+    const cfg = await makeUserConfig(dbLib).getForServe(req.user.id);
+    const servers = (cfg?.servers || []).filter(s =>
+      s && s.enabled !== false && s.url && s.apiKey && s.userId
+    );
+    const results = await Promise.all(servers.map(async (s) => {
+      const sentKey = s.apiKey;
+      try {
+        const stats = await fetchLibraryCounts(s, 15000);
+        return {
+          url: s.url,
+          label: s.label || '',
+          ok: true,
+          ...stats,
+          ...libraryStatsPayload(s, sentKey),
+        };
+      } catch (err) {
+        const msg = err.status === 401 || err.status === 403
+          ? 'Authentication failed'
+          : err.name === 'AbortError'
+            ? 'Connection timed out'
+            : (err.message || 'Library stats failed');
+        return { url: s.url, label: s.label || '', ok: false, error: msg };
+      }
+    }));
+    res.json({ servers: results });
+  } catch (err) {
+    console.error('[dashboard/library-stats]', err.message);
+    res.status(500).json({ error: 'Library stats failed' });
   }
 });
 

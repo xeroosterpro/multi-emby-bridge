@@ -264,11 +264,23 @@
     }
     if (path === '/api/request-log' && m === 'GET') return { body: requestLogEntries() };
     if (path === '/api/clear-request-log' && m === 'POST') return { body: { ok: true, demo: true } };
+    if (path === '/api/dashboard/library-stats' && m === 'POST') {
+      return { body: {
+        servers: SERVERS.map(s => {
+          const k = [s.url, s.apiKey, s.userId].join('|');
+          const st = LIB_STATS[k] || { movies: 500, shows: 80, episodes: 1200 };
+          return { url: s.url, label: s.label, ok: true, movies: st.movies, shows: st.shows, episodes: st.episodes };
+        }),
+      } };
+    }
     if (path === '/api/library-stats' && m === 'POST') {
       let body = {};
       try { body = JSON.parse(init?.body || '{}'); } catch {}
       const k = [body.url, body.apiKey, body.userId].join('|');
-      const st = LIB_STATS[k] || { movies: 500, shows: 80, episodes: 1200 };
+      const urlKey = String(body.url || '').replace(/\/+$/, '').toLowerCase();
+      const st = LIB_STATS[k]
+        || Object.entries(LIB_STATS).find(([key]) => key.toLowerCase().startsWith(urlKey))?.[1]
+        || { movies: 500, shows: 80, episodes: 1200 };
       return { body: { movies: st.movies, shows: st.shows, episodes: st.episodes } };
     }
     if (path === '/api/ping-servers' && m === 'POST') {
@@ -553,7 +565,11 @@
       <button type="button" class="dsb-btn dsb-exit" id="demo-exit-btn">Exit</button>
       <button type="button" class="dsb-btn dsb-sub" id="demo-sub-btn">Subscribe</button>`;
     el.querySelector('#demo-exit-btn').onclick = exitDemo;
-    el.querySelector('#demo-sub-btn').onclick = () => { closeSiteTour(); exitDemo(); location.hash = '#/billing'; };
+    el.querySelector('#demo-sub-btn').onclick = () => {
+      closeSiteTour();
+      try { sessionStorage.setItem('meb_demo_return', '#/billing'); } catch {}
+      exitDemo();
+    };
     el.querySelector('#demo-tour-btn').onclick = () => openSiteTour(0);
   }
 
@@ -565,6 +581,7 @@
 
   function enterDemo(startTour = true) {
     try {
+      try { sessionStorage.setItem('meb_demo_return', location.hash || '#/dashboard'); } catch {}
       if (!sessionStorage.getItem(BACKUP)) {
         sessionStorage.setItem(BACKUP, localStorage.getItem(LS_KEY) || '');
       }
@@ -589,7 +606,12 @@
       sessionStorage.removeItem(BACKUP);
       sessionStorage.removeItem(TOUR_FLAG);
       localStorage.removeItem(LIB_CACHE);
-      location.href = location.pathname + '#/billing';
+      let dest = '#/dashboard';
+      try {
+        dest = sessionStorage.getItem('meb_demo_return') || dest;
+        sessionStorage.removeItem('meb_demo_return');
+      } catch {}
+      location.href = location.pathname + dest;
       location.reload();
     } catch {
       location.reload();

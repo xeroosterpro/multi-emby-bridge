@@ -40,6 +40,150 @@ let nextId = 0;
 let _libStatsCache = {};
 let _dashboardInFlight = false;
 let _accountConfigPromise = null;
+let _accountServersCache = null;
+let _dashLoadGen = 0;
+let _dashLastFullLoad = 0;
+let _dashBusy = false;
+let _renderDashboardChain = Promise.resolve();
+let _activityFetchPromise = null;
+
+function invalidateAccountConfigCache() {
+  _accountConfigPromise = null;
+  _accountServersCache = null;
+}
+
+function _useAccountCredsForApi() {
+  return !!(window.currentUser && window.accountsEnabled);
+}
+
+function _serverApiBody(server) {
+  const body = {
+    url: server.url,
+    type: server.type || 'emby',
+    label: server.label || '',
+  };
+  if (server.apiKey) body.apiKey = server.apiKey;
+  if (server.userId) body.userId = server.userId;
+  if (server.username) body.username = server.username;
+  if (server.password) body.password = server.password;
+  return body;
+}
+
+function _batchLibRow(batchMap, server) {
+  if (!batchMap) return null;
+  return batchMap.get(_normServerUrl(server.url))
+    || batchMap.get('label:' + String(server.label || '').trim().toLowerCase())
+    || null;
+}
+
+async function _fetchDashboardLibraryStatsBatch() {
+  try {
+    const r = await fetch('/api/dashboard/library-stats', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, error: data.error || `HTTP ${r.status}`, map: null };
+    const map = new Map();
+    (data.servers || []).forEach(row => {
+      map.set(_normServerUrl(row.url), row);
+      if (row.label) map.set('label:' + String(row.label).trim().toLowerCase(), row);
+    });
+    return { ok: true, map };
+  } catch (err) {
+    return { ok: false, error: err?.message || 'Batch library stats failed', map: null };
+  }
+}
+
+async function _applyDashLibraryStats(card, server, opts) {
+  const { setStats, force, cachedLib, now, batchMap } = opts;
+  const k = _libKey(server);
+  if (!force && cachedLib) {
+    setStats(cachedLib);
+    _recalcDashLibTiles();
+    return;
+  }
+  const batchRow = _batchLibRow(batchMap, server);
+  if (batchRow) {
+    if (batchRow.ok) {
+      setStats({ movies: batchRow.movies, shows: batchRow.shows, episodes: batchRow.episodes });
+      _libStatsCache[k] = {
+        movies: batchRow.movies || 0,
+        shows: batchRow.shows || 0,
+        episodes: batchRow.episodes || 0,
+        ts: now,
+      };
+      _saveLibCache();
+      _recalcDashLibTiles();
+      if (batchRow.apiKey) {
+        const block = [...document.querySelectorAll('.server-block')].find(b =>
+          _normServerUrl(b.querySelector('.f-url')?.value) === _normServerUrl(server.url)
+        );
+        if (block) _applyRefreshedApiKey(block, batchRow.apiKey);
+      }
+    } else {
+      _applyDashLibStatsError(card, batchRow.error);
+    }
+    return;
+  }
+  try {
+    const res = await _fetchLibraryStats(server);
+    if (res.ok) {
+      setStats(res.stats);
+      _libStatsCache[k] = {
+        movies: res.stats.movies || 0,
+        shows: res.stats.shows || 0,
+        episodes: res.stats.episodes || 0,
+        ts: now,
+      };
+      _saveLibCache();
+      _recalcDashLibTiles();
+    } else {
+      _applyDashLibStatsError(card, res.error);
+    }
+  } catch (err) {
+    _applyDashLibStatsError(card, err?.message || 'Library stats failed');
+  }
+}
+
+function _collectDashboardServers() {
+  const accountByUrl = new Map((_accountServersCache || []).map(s => [_normServerUrl(s.url), s]));
+  const blocks = document.querySelectorAll('.server-block');
+  const servers = [];
+  for (const block of blocks) {
+    if (!block.querySelector('.f-enabled')?.checked) continue;
+    const label = block.querySelector('.f-label')?.value.trim();
+    const type = block.querySelector('.f-type')?.value || 'emby';
+    const url = block.querySelector('.f-url')?.value.trim().replace(/\/+$/, '');
+    if (!label || !url) continue;
+    const acc = accountByUrl.get(_normServerUrl(url));
+    const apiKey = block.querySelector('.f-apikey')?.value.trim() || acc?.apiKey || '';
+    const userId = block.querySelector('.f-userid')?.value.trim() || acc?.userId || '';
+    const username = block.querySelector('.f-username')?.value.trim() || acc?.username || '';
+    const password = block.querySelector('.f-password')?.value || acc?.password || '';
+    if (!_useAccountCredsForApi() && (!apiKey || !userId)) continue;
+    const entry = { label, type, url, apiKey, userId };
+    if (username && password) { entry.username = username; entry.password = password; }
+    const thumbnail = block.querySelector('.f-thumbnail')?.value.trim() || '';
+    const emoji = block.querySelector('.f-emoji')?.value.trim() || '';
+    if (thumbnail) entry.thumbnail = thumbnail;
+    if (emoji) entry.emoji = emoji;
+    const costRaw = block.querySelector('.f-cost')?.value.trim() || '';
+    const costPeriod = block.querySelector('.f-cost-period')?.value || 'none';
+    const cost = costRaw === '' ? NaN : Number(costRaw);
+    if (!Number.isNaN(cost) && cost > 0 && costPeriod !== 'none') { entry.cost = cost; entry.costPeriod = costPeriod; }
+    const pri = parseInt(block.querySelector('.f-priority')?.value || '5', 10);
+    if (pri >= 1 && pri <= 10 && pri !== 5) entry.priority = pri;
+    servers.push(entry);
+  }
+  if (!servers.length && _useAccountCredsForApi() && _accountServersCache?.length) {
+    return _accountServersCache
+      .filter(s => s.enabled !== false && s.url && s.label && (s.apiKey || s.userId))
+      .map(s => ({ ...s, url: String(s.url).replace(/\/+$/, '') }));
+  }
+  return servers;
+}
 
 function domHasEnabledServers() {
   const blocks = document.querySelectorAll('.server-block');
@@ -57,9 +201,11 @@ function _mergeLocalCredsIntoServers(servers) {
   try { local = JSON.parse(localStorage.getItem(lsKey()) || '{}'); } catch {}
   const localByUrl = new Map((local.servers || []).map(s => [_normServerUrl(s.url), s]));
   return (servers || []).map(s => {
-    const loc = localByUrl.get(_normServerUrl(s.url));
-    if (!loc) return s;
     const merged = { ...s };
+    const loc = localByUrl.get(_normServerUrl(s.url));
+    if (!loc) return merged;
+    if (loc.apiKey && !merged.apiKey) merged.apiKey = loc.apiKey;
+    if (loc.userId && !merged.userId) merged.userId = loc.userId;
     if (loc.username && loc.password && (!merged.username || !merged.password)) {
       merged.username = loc.username;
       merged.password = loc.password;
@@ -68,17 +214,41 @@ function _mergeLocalCredsIntoServers(servers) {
   });
 }
 
-function _applyCredsToDomBlocks(servers) {
+function _accountCredsDifferFromDom(accountServers) {
+  const byUrl = new Map((accountServers || []).map(s => [_normServerUrl(s.url), s]));
+  return [...document.querySelectorAll('.server-block')].some(block => {
+    const acc = byUrl.get(_normServerUrl(block.querySelector('.f-url')?.value.trim()));
+    if (!acc?.apiKey) return false;
+    const domKey = block.querySelector('.f-apikey')?.value.trim() || '';
+    const domId = block.querySelector('.f-userid')?.value.trim() || '';
+    return domKey !== acc.apiKey || (acc.userId && domId !== acc.userId);
+  });
+}
+
+function _applyCredsToDomBlocks(servers, opts = {}) {
+  const forceAccount = opts.forceAccount === true;
   const byUrl = new Map((servers || []).map(s => [_normServerUrl(s.url), s]));
+  let dirty = false;
   document.querySelectorAll('.server-block').forEach(block => {
     const url = block.querySelector('.f-url')?.value.trim();
     const acc = byUrl.get(_normServerUrl(url));
     if (!acc) return;
+    const keyEl = block.querySelector('.f-apikey');
+    const idEl = block.querySelector('.f-userid');
     const uEl = block.querySelector('.f-username');
     const pEl = block.querySelector('.f-password');
+    if (keyEl && acc.apiKey && (forceAccount || !keyEl.value.trim()) && keyEl.value.trim() !== acc.apiKey) {
+      keyEl.value = acc.apiKey;
+      dirty = true;
+    }
+    if (idEl && acc.userId && (forceAccount || !idEl.value.trim()) && idEl.value.trim() !== acc.userId) {
+      idEl.value = acc.userId;
+      dirty = true;
+    }
     if (uEl && acc.username && !uEl.value.trim()) uEl.value = acc.username;
     if (pEl && acc.password && !pEl.value) pEl.value = acc.password;
   });
+  if (dirty) saveToLocalStorage();
 }
 
 let _accountSyncTimer = null;
@@ -92,7 +262,16 @@ function getAuth() {
   if (!_authPromise) {
     _authPromise = fetch('/api/auth/me', { credentials: 'same-origin' })
       .then(r => r.ok ? r.json().catch(() => ({ user: null, enabled: false })) : ({ user: null, enabled: false }))
-      .catch(() => ({ user: null, enabled: false }));
+      .then(d => {
+        window.currentUser = d?.user || null;
+        window.accountsEnabled = !!d?.enabled;
+        return d;
+      })
+      .catch(() => {
+        window.currentUser = null;
+        window.accountsEnabled = false;
+        return { user: null, enabled: false };
+      });
   }
   return _authPromise;
 }
@@ -108,10 +287,8 @@ function scheduleAccountConfigSync() {
   clearTimeout(_accountSyncTimer);
   _accountSyncTimer = setTimeout(async () => {
     try {
-      const me = await getAuth();
-      if (!me || !me.user) return;
-      const auth = await me.json().catch(() => null);
-      if (!auth?.user) return;
+      const auth = await getAuth();
+      if (!auth?.enabled || !auth?.user) return;
       if (typeof generateLinks === 'function') generateLinks({ silent: true });
       const enc = localStorage.getItem(lsLastKey());
       if (!enc) return;
@@ -133,6 +310,7 @@ function scheduleAccountConfigSync() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cfg),
       });
+      invalidateAccountConfigCache();
     } catch { /* best-effort */ }
   }, 2000);
 }
@@ -249,7 +427,7 @@ async function ensureAccountConfigLoaded() {
   _accountConfigPromise = (async () => {
     try {
       const auth = await getAuth();
-      if (!auth?.user) return null;
+      if (!auth?.enabled || !auth?.user) return null;
       const r = await fetch('/api/user/config', { credentials: 'same-origin' });
       if (!r.ok) return null;
       const data = await r.json().catch(() => null);
@@ -269,7 +447,8 @@ async function ensureAccountConfigLoaded() {
       }
       const hadLocal = !!localStorage.getItem(lsKey());
       const domServers = (collectConfig(true) || {}).servers || [];
-      if (!hadLocal || !domHasEnabledServers() || accountServers.length > domServers.length || profileUpgraded) {
+      const credsDrift = _accountCredsDifferFromDom(accountServers);
+      if (!hadLocal || !domHasEnabledServers() || accountServers.length > domServers.length || profileUpgraded || credsDrift) {
         populateFromConfig(cfg);
         applyManifestSettings(cfg);
         saveToLocalStorage();
@@ -277,8 +456,9 @@ async function ensureAccountConfigLoaded() {
           try { await generateLinks({ silent: true }); } catch {}
         }
       } else {
-        _applyCredsToDomBlocks(accountServers);
+        _applyCredsToDomBlocks(accountServers, { forceAccount: true });
       }
+      _accountServersCache = accountServers;
       return cfg;
     } catch {
       return null;
@@ -312,10 +492,39 @@ function _dashHealthPanel(history) {
 }
 
 function _healthUrlsQuery() {
-  const urls = [...document.querySelectorAll('.server-block .f-url, .server-card .f-url')]
+  const urls = new Set();
+  [...document.querySelectorAll('.server-block .f-url, .server-card .f-url')]
     .map(el => (el.value || '').trim().replace(/\/+$/, ''))
-    .filter(u => u && /^https?:\/\//i.test(u));
-  return urls.length ? `?urls=${encodeURIComponent(urls.join(','))}` : '';
+    .filter(u => u && /^https?:\/\//i.test(u))
+    .forEach(u => urls.add(u));
+  if (!urls.size) {
+    try {
+      const cfg = collectConfig(true);
+      (cfg?.servers || []).forEach(s => {
+        const u = (s.url || '').trim().replace(/\/+$/, '');
+        if (u && /^https?:\/\//i.test(u)) urls.add(u);
+      });
+    } catch { /* DOM may not be ready */ }
+  }
+  if (!urls.size) {
+    document.querySelectorAll('#dash-cards .gcard[data-server-url]').forEach(card => {
+      const u = (card.dataset.serverUrl || '').trim().replace(/\/+$/, '');
+      if (u && /^https?:\/\//i.test(u)) urls.add(u);
+    });
+  }
+  const list = [...urls];
+  return list.length ? `?urls=${encodeURIComponent(list.join(','))}` : '';
+}
+
+function _invalidateHealthCache() {
+  _healthHistoryCache = { ts: 0, data: null };
+}
+
+async function _kickHealthPing() {
+  try {
+    await fetch('/api/health/ping-now', { method: 'POST', credentials: 'same-origin' });
+    _invalidateHealthCache();
+  } catch { /* best-effort */ }
 }
 
 let _healthHistoryCache = { ts: 0, data: null };
@@ -335,18 +544,23 @@ async function _fetchHealthByUrl() {
   }
 }
 
-function _registerHealthServers(servers) {
-  if (!servers?.length) return;
-  const payload = servers.map(s => ({ url: s.url, label: s.label, type: s.type || 'emby' }));
-  fetch('/api/health/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    body: JSON.stringify({ servers: payload }),
-  }).catch(() => {});
+async function _registerHealthServers(servers) {
+  const payload = (servers || [])
+    .filter(s => s?.url && s?.label)
+    .map(s => ({ url: s.url, label: s.label, type: s.type || 'emby' }));
+  if (!payload.length) return;
+  try {
+    await fetch('/api/health/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ servers: payload }),
+    });
+  } catch { /* best-effort */ }
 }
 
 async function refreshDashCardHealth() {
+  if (_dashBusy) return;
   const cards = document.querySelectorAll('#page-dashboard #dash-cards .gcard[data-server-url]');
   if (!cards.length) return;
   const byUrl = await _fetchHealthByUrl();
@@ -358,15 +572,23 @@ async function refreshDashCardHealth() {
   });
 }
 
-function _applyDashCardStatus(card, online, bridgeMs) {
+function _applyDashCardStatus(card, online, bridgeMs, authenticated = true) {
   const pill = card.querySelector('[data-pill]');
   const msEl = card.querySelector('[data-bridge-ms]');
   if (!pill) return;
-  pill.className = 'gpill ' + (online ? 'online' : 'offline');
-  pill.textContent = online ? 'ONLINE' : 'OFFLINE';
-  pill.title = online
-    ? 'Bridge reachable (authenticated)'
-    : 'Bridge cannot authenticate or reach this server';
+  if (!online) {
+    pill.className = 'gpill offline';
+    pill.textContent = 'OFFLINE';
+    pill.title = 'Bridge cannot authenticate or reach this server';
+  } else if (authenticated === false) {
+    pill.className = 'gpill reachable';
+    pill.textContent = 'REACHABLE';
+    pill.title = 'Host responds to ping — verifying API access…';
+  } else {
+    pill.className = 'gpill online';
+    pill.textContent = 'ONLINE';
+    pill.title = 'Bridge reachable (authenticated)';
+  }
   if (msEl) {
     if (online && bridgeMs != null) {
       msEl.textContent = bridgeMs + 'ms';
@@ -393,9 +615,10 @@ function _statusFromHealth(healthByUrl, url) {
   if (!lat.up) {
     // One failed ping is not enough — wait for consecutive failures (same as down banner).
     if (!_isHealthDownConfirmed(healthByUrl, url)) return null;
-    return { online: false, bridgeMs: null };
+    return { online: false, bridgeMs: null, authenticated: false };
   }
-  return { online: true, bridgeMs: lat.ms != null ? lat.ms : null };
+  const authenticated = lat.method === 'auth';
+  return { online: true, bridgeMs: lat.ms != null ? lat.ms : null, authenticated };
 }
 
 function _dashCardIsOnline(card) {
@@ -407,6 +630,25 @@ function _dashCardBridgeMs(card) {
   const msTxt = card.querySelector('[data-bridge-ms]')?.textContent || '';
   const ms = parseInt(msTxt, 10);
   return isNaN(ms) ? null : ms;
+}
+
+function _dashGenStale(gen) {
+  return gen != null && gen !== _dashLoadGen;
+}
+
+function _reconcileDashServerTile() {
+  if (_dashboardInFlight) return;
+  const cards = document.querySelectorAll('#page-dashboard #dash-cards .gcard[data-server-url]');
+  if (!cards.length) return;
+  let upCount = 0;
+  let fastest = null;
+  cards.forEach(card => {
+    if (!_dashCardIsOnline(card)) return;
+    upCount++;
+    const ms = _dashCardBridgeMs(card);
+    if (ms != null && (fastest === null || ms < fastest)) fastest = ms;
+  });
+  _updateDashStatusHeader(_collectDashboardServers(), upCount, fastest);
 }
 
 function _updateDashStatusHeader(servers, upCount, fastest) {
@@ -426,12 +668,12 @@ function _updateDashStatusHeader(servers, upCount, fastest) {
 }
 
 async function refreshDashCardStatus(opts = {}) {
+  if (_dashBusy) return;
   const full = opts.full === true;
   const cards = document.querySelectorAll('#page-dashboard #dash-cards .gcard[data-server-url]');
   if (!cards.length) return;
   await ensureAccountConfigLoaded();
-  const cfg = collectConfig(true) || { servers: [] };
-  const servers = cfg.servers || [];
+  const servers = _collectDashboardServers();
   const healthByUrl = await _fetchHealthByUrl();
   let upCount = 0;
   let fastest = null;
@@ -442,7 +684,28 @@ async function refreshDashCardStatus(opts = {}) {
       const card = [...cards].find(c => _normServerUrl(c.dataset.serverUrl) === _normServerUrl(s.url));
       if (!card) continue;
       const st = _statusFromHealth(healthByUrl, s.url);
-      if (st) _applyDashCardStatus(card, st.online, st.bridgeMs);
+      if (!st) {
+        if (_dashCardIsOnline(card)) {
+          upCount++;
+          const ms = _dashCardBridgeMs(card);
+          if (ms != null && (fastest === null || ms < fastest)) fastest = ms;
+        }
+        continue;
+      }
+      const pill = card.querySelector('[data-pill]');
+      const wasAuthOnline = !!(pill && pill.classList.contains('online'));
+      if (wasAuthOnline) {
+        if (!st.online && !_isHealthDownConfirmed(healthByUrl, s.url)) continue;
+        if (st.online && st.authenticated === false) {
+          const msEl = card.querySelector('[data-bridge-ms]');
+          if (msEl && st.bridgeMs != null) {
+            msEl.textContent = st.bridgeMs + 'ms';
+            msEl.className = 'gbridge-now ' + _srvPingClass(st.bridgeMs);
+          }
+          continue;
+        }
+      }
+      _applyDashCardStatus(card, st.online, st.bridgeMs, st.authenticated !== false);
       if (_dashCardIsOnline(card)) {
         upCount++;
         const ms = _dashCardBridgeMs(card);
@@ -828,6 +1091,18 @@ function mergeLiveSessions(lists) {
   return [...map.values()];
 }
 
+async function _fetchUserActivityQuick() {
+  const demoOn = window.MEBDemo?.isActive?.();
+  const auth = await getAuth();
+  if (!auth?.user && !demoOn) return null;
+  if (_activityFetchPromise) return _activityFetchPromise;
+  _activityFetchPromise = fetch('/api/user/activity?quick=1', { credentials: 'same-origin' })
+    .then(r => r.ok ? r.json().catch(() => null) : null)
+    .catch(() => null)
+    .finally(() => { _activityFetchPromise = null; });
+  return _activityFetchPromise;
+}
+
 async function fetchLiveBundle(force = false, opts = {}) {
   const ttl = opts.fast ? DASH_LIVE_POLL_MS : LIVE_PLAYBACK_POLL_MS;
   if (!force && _liveBundleCache.ts && Date.now() - _liveBundleCache.ts < ttl) {
@@ -844,12 +1119,9 @@ async function fetchLiveBundle(force = false, opts = {}) {
     const servers = collectServersForLive();
     const healthByUrl = servers.length ? await _fetchHealthByUrl() : {};
 
-    // Run the quick activity (for seed live + recent bridge data) in parallel with per-server probes.
-    // This overlaps the work so live panel populates as soon as the slower of the two finishes,
-    // instead of waiting for activity then probes sequentially. Helps "streams load in faster".
-    const activityP = (!demoOn && window.currentUser)
-      ? fetch('/api/user/activity?quick=1', { credentials: 'same-origin' }).then(r => r.ok ? r.json().catch(() => null) : null).catch(() => null)
-      : Promise.resolve(null);
+    const activityP = opts.activity !== undefined
+      ? Promise.resolve(opts.activity)
+      : (!demoOn ? _fetchUserActivityQuick() : Promise.resolve(null));
 
     const probesP = (servers.length && !demoOn)
       ? Promise.all(servers.map(async (s) => {
@@ -1084,7 +1356,7 @@ function startDashHealthPolling() {
   _dashHealthPingTimer = setInterval(() => {
     const dash = document.getElementById('page-dashboard');
     if (!dash || !dash.classList.contains('on')) return;
-    fetch('/api/health/ping-now', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
+    _kickHealthPing();
   }, DASH_HEALTH_PING_MS);
 }
 
@@ -1094,9 +1366,67 @@ function stopDashHealthPolling() {
 }
 
 try { _libStatsCache = JSON.parse(localStorage.getItem('meb-libstats-cache') || '{}'); } catch { _libStatsCache = {}; }
-function _libKey(s){ return [s.url, s.apiKey, s.userId].join('|'); }
+function _libKey(s) {
+  if (_useAccountCredsForApi()) return _normServerUrl(s.url);
+  return [s.url, s.apiKey, s.userId].join('|');
+}
 function _saveLibCache(){ try { localStorage.setItem('meb-libstats-cache', JSON.stringify(_libStatsCache)); } catch {} }
 const LIB_TTL_MS = 60 * 60 * 1000; // 1 hour
+const LIB_STATS_CONCURRENCY = 3;
+
+function _recalcDashLibTiles() {
+  const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  let movies = 0;
+  let shows = 0;
+  document.querySelectorAll('#dash-cards .gcard[data-server-url]').forEach(card => {
+    const m = parseInt((card.querySelector('[data-st=movies]')?.textContent || '').replace(/,/g, ''), 10);
+    const sh = parseInt((card.querySelector('[data-st=shows]')?.textContent || '').replace(/,/g, ''), 10);
+    if (!isNaN(m)) movies += m;
+    if (!isNaN(sh)) shows += sh;
+  });
+  setTxt('tile-movies', movies.toLocaleString());
+  setTxt('tile-shows', shows.toLocaleString());
+}
+
+function _applyDashLibStatsError(card, message) {
+  ['movies', 'shows', 'episodes'].forEach(k => {
+    const el = card.querySelector(`[data-st=${k}]`);
+    if (!el) return;
+    el.textContent = '—';
+    el.title = message || 'Library stats unavailable';
+    el.classList.add('gchip-err');
+  });
+}
+
+async function _fetchLibraryStats(server) {
+  const r = await fetch('/api/library-stats', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(_serverApiBody(server)),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (data.apiKey) {
+    const block = [...document.querySelectorAll('.server-block')].find(b =>
+      _normServerUrl(b.querySelector('.f-url')?.value) === _normServerUrl(server.url)
+    );
+    if (block) _applyRefreshedApiKey(block, data.apiKey);
+  }
+  if (!r.ok) return { ok: false, error: data.error || `HTTP ${r.status}` };
+  return { ok: true, stats: data };
+}
+
+async function _mapPool(items, worker, concurrency = 3) {
+  if (!items.length) return;
+  let idx = 0;
+  const n = Math.min(concurrency, items.length);
+  await Promise.all(Array.from({ length: n }, async () => {
+    while (idx < items.length) {
+      const i = idx++;
+      await worker(items[i], i);
+    }
+  }));
+}
 const BRIDGE_FRESH_MS = 90 * 1000; // align with 30s health pings (+ buffer)
 const DASH_GRAPH_POLL_MS = 8000; // sparklines + health-based ONLINE/OFFLINE
 const DASH_CONN_POLL_MS = 30000; // full authenticated connection test
@@ -1109,14 +1439,12 @@ function _bridgeMsFromHealth(healthByUrl, url) {
 }
 
 async function _testServerConnection(s) {
-  if (!s.url || !s.apiKey || !s.userId) return { ok: false };
+  if (!s.url) return { ok: false };
+  if (!_useAccountCredsForApi() && (!s.apiKey || !s.userId)) return { ok: false };
   try {
     const r = await fetch('/api/test-connection', {
       method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: s.url, type: s.type || 'emby', apiKey: s.apiKey, userId: s.userId,
-        username: s.username || '', password: s.password || '',
-      }),
+      body: JSON.stringify(_serverApiBody(s)),
     });
     const data = await r.json().catch(() => ({}));
     return { ok: r.ok && data.ok, apiKey: data.apiKey };
@@ -1463,26 +1791,6 @@ document.addEventListener('visibilitychange', () => {
     }
   }
 });
-
-// Chain onPageShow so dashboard health + log data load when the user actually navigates to those
-// sections (instead of unconditionally on every initial page load). Full data is still fetched
-// (no missing data) — we just avoid the cost until the user needs the view.
-(function wireLazyPageData() {
-  const orig = window.onPageShow;
-  window.onPageShow = function (name) {
-    if (orig) orig(name);
-    if (name === 'log') {
-      setTimeout(refreshLog, 20);
-    }
-    if (name === 'dashboard') {
-      // Health for the dash cards is the heavier one — only when dashboard is the active view
-      setTimeout(() => {
-        refreshDashCardHealth();
-        refreshDashCardStatus();
-      }, 30);
-    }
-  };
-})();
 
 // ── Auto-generate server name ─────────────────────────────────────────────
 async function autoNameServer(id) {
@@ -2009,8 +2317,10 @@ async function renderServersPage(opts = {}) {
     url: b.querySelector('.f-url')?.value.trim().replace(/\/+$/, ''),
     label: b.querySelector('.f-label')?.value.trim(),
     type: b.querySelector('.f-type')?.value || 'emby',
-  })).filter(s => s.url);
-  _registerHealthServers(healthServers);
+    apiKey: b.querySelector('.f-apikey')?.value.trim(),
+    userId: b.querySelector('.f-userid')?.value.trim(),
+  })).filter(s => s.url && s.label && s.apiKey && s.userId);
+  await _registerHealthServers(healthServers);
 }
 
 function renderOnboarding() {
@@ -2037,7 +2347,6 @@ function updateInstallStats() {
     const cfg = collectConfig(true);
     count = cfg?.servers?.length || 0;
   } catch {}
-  if (!count) count = document.querySelectorAll('.server-block').length;
   set('inst-stat-servers', count);
   const mode = document.querySelector('input[name="perf-mode"]:checked')?.value || 'normal';
   set('inst-stat-mode', { normal: 'Normal', split: 'Split', timeout: 'Fast' }[mode] || mode);
@@ -2052,6 +2361,32 @@ function _refreshMediaPreview() {
   if (sumOn && typeof updateSummaryPreview === 'function') updateSummaryPreview();
 }
 
+async function loadDashboardPage() {
+  const gen = ++_dashLoadGen;
+  renderDashActivityShell();
+  startDashLivePolling();
+  startDashHealthPolling();
+
+  await getAuth();
+  await ensureAccountConfigLoaded();
+  if (gen !== _dashLoadGen) return;
+
+  const activityP = _fetchUserActivityQuick();
+  const dashP = renderDashboard(true, gen);
+  const [activity] = await Promise.all([activityP, dashP]);
+  if (gen !== _dashLoadGen) return;
+
+  _dashLastFullLoad = Date.now();
+  const bundle = await fetchLiveBundle(true, { fast: true, activity: activity ?? undefined });
+  if (gen !== _dashLoadGen) return;
+
+  await renderDashActivity({ activity, bundle });
+  pollLivePlaybackNotifications();
+  renderOnboarding();
+  replayDashTileAnimations();
+  _reconcileDashServerTile();
+}
+
 // ── Page-show hook (router calls this when a page is shown) ────────────────
 window.onPageShow = function(name) {
   if (name !== 'servers') _stopServersAutoRefresh();
@@ -2062,23 +2397,7 @@ window.onPageShow = function(name) {
   }
   if (name === 'install') updateInstallStats();
   if (name === 'dashboard') {
-    renderDashActivityShell();
-    startDashLivePolling();
-    startDashHealthPolling();
-    renderDashActivity({ refreshHistory: true });
-    (async () => {
-      await ensureAccountConfigLoaded();
-      renderDashboard();
-      fetch('/api/health/ping-now', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
-      refreshDashCardHealth();
-      // Note: renderDashboard already performs the full authenticated status + library stats pass.
-      // Avoid immediate duplicate full refreshDashCardStatus({ full: true }) to prevent thundering herd
-      // of per-server test-connection + library-stats calls. The 30s DASH_CONN_POLL and 8s graph poll
-      // will handle lighter/periodic updates. This makes dash appear much faster.
-      pollLivePlaybackNotifications({ force: true });
-      renderOnboarding();
-      replayDashTileAnimations();
-    })();
+    loadDashboardPage();
   } else {
     stopDashLivePolling();
     stopDashHealthPolling();
@@ -2273,11 +2592,15 @@ async function renderDashActivity(opts = {}) {
   if (!dashActivityHasContent(el)) renderDashActivityShell(localServers.length);
   if (gen !== _dashActivityGen) return;
 
-  let a = opts.activity || _dashActivityData;
-  if (!a || opts.refreshHistory) {
+  let a = opts.activity !== undefined ? opts.activity : (_dashActivityData || null);
+  if (opts.activity !== undefined) {
+    if (opts.activity) _dashActivityData = opts.activity;
+  } else if (!a || opts.refreshHistory) {
     let resp;
+    let fresh;
     try {
-      resp = await fetch('/api/user/activity?quick=1', { credentials: 'same-origin' });
+      fresh = await _fetchUserActivityQuick();
+      resp = fresh ? { ok: true, status: 200 } : await fetch('/api/user/activity?quick=1', { credentials: 'same-origin' });
     } catch {
       if (!dashActivityHasContent(el)) {
         el.innerHTML = `<div class="dash-activity-grid" data-ready="1">
@@ -2289,7 +2612,7 @@ async function renderDashActivity(opts = {}) {
     }
     if (gen !== _dashActivityGen) return;
 
-    if (resp.status === 401) {
+    if (!fresh && resp.status === 401) {
       el.innerHTML = `<div class="dash-activity-grid" data-ready="1">
         <div class="dash-act-panel"><h3 class="block-title dash-act-title">Live streaming</h3><div class="da-empty">Sign in to see live activity from your servers.</div></div>
         <div class="dash-act-panel"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">Sign in to see your personal watch history.</div></div>
@@ -2297,7 +2620,7 @@ async function renderDashActivity(opts = {}) {
       return;
     }
 
-    const fresh = resp.ok ? await resp.json().catch(() => null) : null;
+    if (!fresh) fresh = resp.ok ? await resp.json().catch(() => null) : null;
     if (!fresh) {
       if (!localServers.length) {
         el.innerHTML = `<div class="dash-activity-grid" data-ready="1">
@@ -2317,6 +2640,18 @@ async function renderDashActivity(opts = {}) {
     _dashActivityData = fresh;
   }
   if (gen !== _dashActivityGen) return;
+
+  if (!a) {
+    if (!localServers.length) {
+      el.innerHTML = `<div class="dash-activity-grid" data-ready="1">
+        <div class="dash-act-panel dash-act-live"><h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming</h3><div class="da-empty">Add servers on the <a href="#" data-page="servers">Servers</a> page to see live activity from your Emby/Jellyfin instances.</div></div>
+        <div class="dash-act-panel dash-act-history"><h3 class="block-title dash-act-title">Watched history</h3><div class="da-empty">Your personal watch history appears here once you have servers configured.</div></div>
+      </div>`;
+      el.querySelectorAll('[data-page]').forEach(link => link.addEventListener('click', e => { e.preventDefault(); location.hash = '#/' + link.dataset.page; }));
+      return;
+    }
+    a = { recent: [], hasServers: true, serverCount: localServers.length, liveProbes: [] };
+  }
 
   _activityRecentCache = Array.isArray(a.recent) ? a.recent : [];
   const hasServers = localServers.length > 0 || !!a.hasServers;
@@ -2350,12 +2685,18 @@ function replayDashTileAnimations() {
 
 // Real-time: live playback + buffering notifications (all pages when signed in).
 setInterval(() => { pollLivePlaybackNotifications(); }, LIVE_PLAYBACK_POLL_MS);
-setTimeout(() => { pollLivePlaybackNotifications({ force: true }); }, 400);
+setTimeout(() => {
+  if (!document.getElementById('page-dashboard')?.classList.contains('on')) {
+    pollLivePlaybackNotifications({ force: true });
+  }
+}, 400);
 
 // Dashboard health sparklines + fast health-based status while that page is open.
 setInterval(() => {
   const dash = document.getElementById('page-dashboard');
   if (!dash || !dash.classList.contains('on')) return;
+  if (_dashBusy) return;
+  if (_dashLastFullLoad && Date.now() - _dashLastFullLoad < DASH_GRAPH_POLL_MS) return;
   refreshDashCardHealth();
   refreshDashCardStatus();
 }, DASH_GRAPH_POLL_MS);
@@ -2364,6 +2705,8 @@ setInterval(() => {
 setInterval(() => {
   const dash = document.getElementById('page-dashboard');
   if (!dash || !dash.classList.contains('on')) return;
+  if (_dashBusy) return;
+  if (_dashLastFullLoad && Date.now() - _dashLastFullLoad < DASH_CONN_POLL_MS - 3000) return;
   refreshDashCardStatus({ full: true });
 }, DASH_CONN_POLL_MS);
 
@@ -2381,24 +2724,35 @@ function openServerManage(index) {
   }, 80);
 }
 
-async function renderDashboard(force = false) {
-  if (_dashboardInFlight) return;
+async function renderDashboard(force = false, gen = _dashLoadGen) {
+  if (_dashGenStale(gen) && !force) return;
+  const task = _renderDashboardChain.then(() => _renderDashboardBody(gen, force));
+  _renderDashboardChain = task.catch(() => {});
+  return task;
+}
+
+async function _renderDashboardBody(gen = _dashLoadGen, force = false) {
+  if (_dashGenStale(gen)) return;
   _dashboardInFlight = true;
+  _dashBusy = true;
   const wrap = document.getElementById('dash-cards');
   try {
     if (wrap && !wrap.children.length) {
       wrap.innerHTML = '<div class="dash-loading">Loading your servers…</div>';
     }
     await ensureAccountConfigLoaded();
+    if (gen !== _dashLoadGen) return;
     const now = Date.now();
-    const cfg = collectConfig(true) || { servers: [] };
-    const servers = cfg.servers || [];
-    _registerHealthServers(servers);
+    const servers = _collectDashboardServers();
+    await _registerHealthServers(servers);
+    await _kickHealthPing();
+    if (gen !== _dashLoadGen) return;
     const healthByUrl = await _fetchHealthByUrl();
     const catCount = (window.collectExternalCatalogs ? window.collectExternalCatalogs() : []).length;
     const catEl = document.getElementById('tile-catalogs');
     if (catEl) catEl.textContent = catCount;
     if (!wrap) return;
+    if (_dashGenStale(gen)) return;
     wrap.innerHTML = '';
     if (!servers.length) {
       wrap.innerHTML = `<div class="dash-empty-state">
@@ -2419,7 +2773,7 @@ async function renderDashboard(force = false) {
       setTxt('dash-status', 'No servers yet — add one to get started');
       return;
     }
-    let upCount = 0, movieTotal = 0, showTotal = 0, fastest = null;
+    let upCount = 0, fastest = null;
     const dashMeta = [];
     const PALETTE = [
       ['linear-gradient(135deg,#fb923c,#f472b6)','rgba(244,114,182,.5)'],
@@ -2478,42 +2832,44 @@ async function renderDashboard(force = false) {
       // (progressively, as each test-conn + lib finishes). This stops the "all loading for a while" feel.
       const initSt = initialHealthStatus[_normServerUrl(s.url)];
       if (initSt) {
-        _applyDashCardStatus(card, initSt.online, initSt.bridgeMs);
+        _applyDashCardStatus(card, initSt.online, initSt.bridgeMs, initSt.authenticated !== false);
       }
 
       const setStats = (st) => {
-        card.querySelector('[data-st=movies]').textContent   = (st.movies||0).toLocaleString();
-        card.querySelector('[data-st=shows]').textContent    = (st.shows||0).toLocaleString();
-        card.querySelector('[data-st=episodes]').textContent = (st.episodes||0).toLocaleString();
+        ['movies', 'shows', 'episodes'].forEach(k => {
+          const el = card.querySelector(`[data-st=${k}]`);
+          if (!el) return;
+          el.textContent = (st[k] || 0).toLocaleString();
+          el.title = '';
+          el.classList.remove('gchip-err');
+        });
       };
       const setStatus = (online, bridgeMs) => _applyDashCardStatus(card, online, bridgeMs);
-      dashMeta.push({ s, setStatus, setStats, card });
+      const cacheKey = _libKey(s);
+      const cachedLib = (!force && _libStatsCache[cacheKey] && (now - _libStatsCache[cacheKey].ts < LIB_TTL_MS))
+        ? _libStatsCache[cacheKey] : null;
+      if (cachedLib) setStats(cachedLib);
+      dashMeta.push({ s, setStatus, setStats, card, cachedLib });
     });
 
-    // Fast approximate server count + tiles from recent health pings (instant, zero extra Emby cost).
-    // Individual cards already got their health-based pill above for immediate online/offline feedback.
-    // The live authenticated pass (below) will refine counts, bridge ms, and library numbers progressively.
+    // tile-servers + bridge latency refine from authenticated tests below (avoids ping-only count flicker).
     const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     const pingEl = document.getElementById('tile-ping');
 
-    let healthUpCount = 0;
-    servers.forEach(s => {
-      const st = initialHealthStatus[_normServerUrl(s.url)];
-      if (st && st.online) healthUpCount++;
-    });
-    setTxt('tile-servers', healthUpCount);
-    if (pingEl && fastest != null) {
-      pingEl.textContent = fastest + 'ms';
-      pingEl.title = `Fastest bridge path right now · ${fastest}ms (addon → server) (from recent health)`;
+    const pingQueue = [];
+    if (dashMeta.some(m => m.cachedLib)) _recalcDashLibTiles();
+
+    let batchLibMap = null;
+    if (_useAccountCredsForApi()) {
+      const batch = await _fetchDashboardLibraryStatsBatch();
+      if (_dashGenStale(gen)) return;
+      if (batch.ok) batchLibMap = batch.map;
     }
 
-    const pingQueue = [];
-    // Process servers in parallel for status + library stats. Status pills now upgrade from the quick
-    // health pass above. Library stats and full conn tests still happen (for accuracy + fresh data),
-    // but we update the top summary tiles *progressively* as each server reports in. This makes the
-    // dash feel much snappier — you see numbers populate instead of waiting for the slowest server.
-    await Promise.all(dashMeta.map(async (meta) => {
-      const { s, setStatus, setStats, card } = meta;
+    // Batched status + library stats: avoids hammering slow Emby hosts with 6+ parallel Items/Counts calls.
+    await _mapPool(dashMeta, async (meta) => {
+      if (_dashGenStale(gen)) return;
+      const { s, setStatus, setStats, card, cachedLib } = meta;
       let bridgeMs = _bridgeMsFromHealth(healthByUrl, s.url);
       const conn = await _testServerConnection(s);
       const online = conn.ok;
@@ -2524,45 +2880,17 @@ async function renderDashboard(force = false) {
       }
       setStatus(online, bridgeMs);
 
-      // Incremental tile update for servers count as soon as we have live status for this one
-      const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-      setTxt('tile-servers', upCount);
-      if (pingEl && fastest != null) {
-        pingEl.textContent = fastest + 'ms';
-        pingEl.title = `Fastest bridge path right now · ${fastest}ms (addon → server)`;
+      const shouldFetchStats = batchLibMap || _useAccountCredsForApi() || online;
+      if (shouldFetchStats) {
+        await _applyDashLibraryStats(card, s, { setStats, force, cachedLib, now, batchMap: batchLibMap });
       }
-
-      if (!online) return;
-      const k = _libKey(s);
-      const cached = _libStatsCache[k];
-      if (!force && cached && (now - cached.ts < LIB_TTL_MS)) {
-        setStats(cached);
-        movieTotal += (cached.movies||0);
-        showTotal += (cached.shows||0);
-        setTxt('tile-movies', movieTotal.toLocaleString());
-        setTxt('tile-shows', showTotal.toLocaleString());
-        return;
-      }
-      try {
-        const r = await fetch('/api/library-stats', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            url: s.url, type: s.type, apiKey: s.apiKey, userId: s.userId,
-            username: s.username || '', password: s.password || '',
-          }),
-        });
-        if (r.ok) {
-          const st = await r.json();
-          setStats(st);
-          movieTotal += (st.movies||0);
-          showTotal += (st.shows||0);
-          _libStatsCache[k] = { movies: st.movies||0, shows: st.shows||0, episodes: st.episodes||0, ts: now };
-          _saveLibCache();
-          setTxt('tile-movies', movieTotal.toLocaleString());
-          setTxt('tile-shows', showTotal.toLocaleString());
-        }
-      } catch { /* library counts stay — */ }
-    }));
+    }, LIB_STATS_CONCURRENCY);
+    if (gen !== _dashLoadGen) return;
+    setTxt('tile-servers', upCount);
+    if (pingEl && fastest != null) {
+      pingEl.textContent = fastest + 'ms';
+      pingEl.title = `Fastest bridge path right now · ${fastest}ms (addon → server)`;
+    }
     if (pingQueue.length) {
       try {
         const resp = await fetch('/api/ping-servers', {
@@ -2589,12 +2917,18 @@ async function renderDashboard(force = false) {
     setTxt('dash-status', servers.length
       ? `Everything's loaded. ${upCount}/${servers.length} servers reachable.`
       : 'No servers yet — add one on the Servers page.');
-    document.querySelectorAll('#page-dashboard .dash-tiles .tile .n').forEach(n => {
-      n.classList.remove('tile-num-pop');
-      n.offsetHeight;
-      n.classList.add('tile-num-pop');
-    });
-  } finally { _dashboardInFlight = false; }
+    if (gen === _dashLoadGen) {
+      document.querySelectorAll('#page-dashboard .dash-tiles .tile .n').forEach(n => {
+        n.classList.remove('tile-num-pop');
+        n.offsetHeight;
+        n.classList.add('tile-num-pop');
+      });
+    }
+  } finally {
+    _dashboardInFlight = false;
+    if (gen === _dashLoadGen) _dashBusy = false;
+    _reconcileDashServerTile();
+  }
 }
 
 // ── Server collapse ───────────────────────────────────────────────────────
@@ -2935,8 +3269,10 @@ async function loadLibraryStats(id) {
   try {
     const username = block.querySelector('.f-username')?.value.trim() || '';
     const password = block.querySelector('.f-password')?.value || '';
-    const resp = await fetch('/api/library-stats', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, type, apiKey, userId, username, password }) });
+    const resp = await fetch('/api/library-stats', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, type, apiKey, userId, username, password, label: block.querySelector('.f-label')?.value.trim() || '' }),
+    });
     const data = await safeJson(resp);
     if (data.apiKey) _applyRefreshedApiKey(block, data.apiKey);
     if (data.error) { statsEl.textContent = data.error; statsEl.className = 'stats-display error'; }
@@ -3477,6 +3813,7 @@ async function ensureTokenManifestUrl(config) {
     const err = await save.json().catch(() => ({}));
     throw new Error(err.error || 'Could not save config to your account');
   }
+  invalidateAccountConfigCache();
   let cur = await fetch('/api/user/manifest', { credentials: 'same-origin' }).then(r => r.json()).catch(() => ({}));
   if (!cur.url) {
     cur = await fetch('/api/user/manifest', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()).catch(() => ({}));
@@ -3859,7 +4196,12 @@ function saveToLocalStorage() {
     localStorage.setItem(lsKey(), JSON.stringify(newState));
   } catch {}
   const ind = document.getElementById('autosave-indicator');
-  if (ind) { ind.classList.add('visible'); clearTimeout(ind._t); ind._t = setTimeout(() => ind.classList.remove('visible'), 1800); }
+  if (ind) {
+    ind.textContent = '✓ Settings saved';
+    ind.classList.add('visible');
+    clearTimeout(ind._t);
+    ind._t = setTimeout(() => { ind.classList.remove('visible'); ind.textContent = ''; }, 1800);
+  }
 }
 
 const _AUTOSAVE_IGNORE = '#rlog-search,.rlog-search,#tkt-search,.tkt-search,#adm-search,#bill-code,#cmdk-input,.cmdk-input,[data-no-autosave]';
@@ -3869,6 +4211,17 @@ function autoSave(e) {
   saveTimer = setTimeout(() => {
     saveToLocalStorage();
     scheduleAccountConfigSync();
+    const cfg = collectConfig(true);
+    if (cfg?.servers?.length) {
+      _registerHealthServers(cfg.servers).then(() => {
+        if (!document.getElementById('page-dashboard')?.classList.contains('on')) return;
+        return _kickHealthPing().then(() => {
+          refreshDashCardHealth();
+          refreshDashCardStatus({ full: false });
+        });
+      }).catch(() => {});
+    }
+    if (typeof updateInstallStats === 'function') updateInstallStats();
   }, 600);
 }
 
@@ -3999,11 +4352,8 @@ function restoreFromLocalStorage() {
 document.addEventListener('DOMContentLoaded', async () => {
   if (!document.getElementById('servers-container')) return; // shell not ready / page absent
   try {
-    const me = await fetch('/api/auth/me', { credentials: 'same-origin' });
-    if (me.ok) {
-      const auth = await me.json().catch(() => null);
-      if (auth?.user?.username) setActiveUsername(auth.user.username);
-    }
+    const auth = await getAuth();
+    if (auth?.user?.username) setActiveUsername(auth.user.username);
   } catch { /* */ }
   await initAudioCard();   // populate AUDIO_FORMATS/PRESETS + render card before restore reads them
   if (!restoreFromLocalStorage()) addServer();
