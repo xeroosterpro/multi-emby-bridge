@@ -45,6 +45,72 @@ let _dashLoadGen = 0;
 let _libHydrateGen = 0;
 let _dashLastFullLoad = 0;
 let _dashBusy = false;
+const DASH_CONSOLE_MAX = 48;
+const DASH_CONSOLE_IDLE_MS = 14000;
+let _dashConsoleLines = [];
+let _dashConsoleIdleTimer = null;
+let _dashConsoleCollapsed = false;
+
+function _dashServerLabel(s) {
+  return String(s?.label || '').trim() || String(s?.url || '').replace(/^https?:\/\//, '').replace(/\/+$/, '') || 'server';
+}
+
+function _dashConsoleFmtTime() {
+  const d = new Date();
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+}
+
+function _dashConsoleEnsureVisible() {
+  const el = document.getElementById('dash-console');
+  if (el) {
+    el.hidden = false;
+    el.classList.remove('dash-console-idle');
+  }
+}
+
+function _dashConsolePaint() {
+  const log = document.getElementById('dash-console-log');
+  const status = document.getElementById('dash-console-status');
+  const root = document.getElementById('dash-console');
+  if (!log) return;
+  const busy = _dashConsoleLines.some(l => l.level === 'busy');
+  if (status) status.textContent = busy ? 'Working…' : 'Ready';
+  if (root) root.classList.toggle('dash-console-idle', !busy);
+  const esc = (typeof escHtml === 'function') ? escHtml : (x) => String(x ?? '');
+  log.innerHTML = _dashConsoleLines.map(l =>
+    `<div class="dash-console-line dash-console-${l.level}"><span class="dash-console-ts">${esc(l.time)}</span><span class="dash-console-msg">${esc(l.msg)}</span></div>`
+  ).join('');
+  log.scrollTop = log.scrollHeight;
+}
+
+function dashConsoleLog(msg, level = 'info') {
+  if (!document.getElementById('page-dashboard')?.classList.contains('on')) return;
+  _dashConsoleEnsureVisible();
+  _dashConsoleLines.push({ time: _dashConsoleFmtTime(), msg, level });
+  if (_dashConsoleLines.length > DASH_CONSOLE_MAX) _dashConsoleLines.shift();
+  _dashConsolePaint();
+  clearTimeout(_dashConsoleIdleTimer);
+  _dashConsoleIdleTimer = setTimeout(() => {
+    const status = document.getElementById('dash-console-status');
+    if (status) status.textContent = 'Idle';
+    document.getElementById('dash-console')?.classList.add('dash-console-idle');
+  }, DASH_CONSOLE_IDLE_MS);
+}
+
+function dashConsoleStart(msg) {
+  _dashConsoleLines = [];
+  _dashConsoleCollapsed = false;
+  const root = document.getElementById('dash-console');
+  const body = document.getElementById('dash-console-body');
+  if (root) {
+    root.hidden = false;
+    root.classList.remove('collapsed', 'dash-console-idle');
+  }
+  if (body) body.hidden = false;
+  const toggle = document.getElementById('dash-console-toggle');
+  if (toggle) { toggle.textContent = '−'; toggle.setAttribute('aria-expanded', 'true'); }
+  dashConsoleLog(msg || 'Dashboard load started', 'busy');
+}
 let _renderDashboardChain = Promise.resolve();
 let _activityFetchPromise = null;
 
@@ -109,10 +175,12 @@ async function _fetchDashboardLibraryStatsBatch() {
 
 async function _applyDashLibraryStats(card, server, opts) {
   const { setStats, force, cachedLib, now, batchMap } = opts;
+  const label = _dashServerLabel(server);
   const k = _libKey(server);
   if (!force && cachedLib) {
     setStats(cachedLib);
     _recalcDashLibTiles();
+    dashConsoleLog(`Library stats · ${label} — from cache (${(cachedLib.movies || 0).toLocaleString()} movies)`, 'ok');
     return;
   }
   const batchRow = _batchLibRow(batchMap, server);
@@ -127,6 +195,10 @@ async function _applyDashLibraryStats(card, server, opts) {
       };
       _saveLibCache();
       _recalcDashLibTiles();
+      dashConsoleLog(
+        `Library stats · ${label} — ${(batchRow.movies || 0).toLocaleString()} movies, ${(batchRow.shows || 0).toLocaleString()} shows (batch)`,
+        'ok',
+      );
       if (batchRow.apiKey) {
         const block = [...document.querySelectorAll('.server-block')].find(b =>
           _normServerUrl(b.querySelector('.f-url')?.value) === _normServerUrl(server.url)
@@ -135,9 +207,11 @@ async function _applyDashLibraryStats(card, server, opts) {
       }
     } else {
       _applyDashLibStatsError(card, batchRow.error);
+      dashConsoleLog(`Library stats · ${label} — ${batchRow.error || 'failed'}`, 'err');
     }
     return;
   }
+  dashConsoleLog(`Library stats · ${label} — POST /api/library-stats`, 'busy');
   try {
     const res = await _fetchLibraryStats(server);
     if (res.ok) {
@@ -150,11 +224,17 @@ async function _applyDashLibraryStats(card, server, opts) {
       };
       _saveLibCache();
       _recalcDashLibTiles();
+      dashConsoleLog(
+        `Library stats · ${label} — ${(res.stats.movies || 0).toLocaleString()} movies, ${(res.stats.shows || 0).toLocaleString()} shows`,
+        'ok',
+      );
     } else {
       _applyDashLibStatsError(card, res.error);
+      dashConsoleLog(`Library stats · ${label} — ${res.error || 'failed'}`, 'err');
     }
   } catch (err) {
     _applyDashLibStatsError(card, err?.message || 'Library stats failed');
+    dashConsoleLog(`Library stats · ${label} — ${err?.message || 'failed'}`, 'err');
   }
 }
 
@@ -1438,11 +1518,20 @@ async function hydrateDashLibraryStats(force = false) {
 
   const servers = _collectDashboardServers();
   const now = Date.now();
+  dashConsoleLog(force ? 'Refreshing library stats for all servers…' : 'Hydrating library stats…', 'busy');
   let batchLibMap = null;
   if (_useAccountCredsForApi()) {
+    dashConsoleLog('POST /api/dashboard/library-stats (batch)', 'busy');
     const batch = await _fetchDashboardLibraryStatsBatch();
     if (hydrateGen !== _libHydrateGen) return;
-    if (batch.ok) batchLibMap = batch.map;
+    if (batch.ok) {
+      batchLibMap = batch.map;
+      const rows = batch.map ? [...batch.map.values()] : [];
+      const n = new Set(rows.map(r => _normServerUrl(r.url))).size;
+      dashConsoleLog(`Batch library stats — ${n} server row(s) received`, 'ok');
+    } else {
+      dashConsoleLog(`Batch library stats — ${batch.error || 'failed'}`, 'err');
+    }
   }
 
   await _mapPool(servers, async (s) => {
@@ -1459,6 +1548,9 @@ async function hydrateDashLibraryStats(force = false) {
     }
     const shouldFetch = force || batchLibMap || _useAccountCredsForApi() || !cachedLib;
     if (!shouldFetch) return;
+    if (!cachedLib || force) {
+      dashConsoleLog(`Loading library for ${_dashServerLabel(s)}…`, 'busy');
+    }
     await _applyDashLibraryStats(card, s, {
       setStats,
       force,
@@ -1468,7 +1560,10 @@ async function hydrateDashLibraryStats(force = false) {
     });
   }, LIB_STATS_CONCURRENCY);
 
-  if (hydrateGen === _libHydrateGen) _recalcDashLibTiles();
+  if (hydrateGen === _libHydrateGen) {
+    _recalcDashLibTiles();
+    dashConsoleLog('Library stats hydration complete', 'ok');
+  }
 }
 window.hydrateDashLibraryStats = hydrateDashLibraryStats;
 
@@ -2437,23 +2532,38 @@ function _refreshMediaPreview() {
 
 async function loadDashboardPage() {
   const gen = ++_dashLoadGen;
+  dashConsoleStart('Opening dashboard…');
   renderDashActivityShell();
   startDashLivePolling();
   startDashHealthPolling();
 
+  dashConsoleLog('Checking sign-in & account config', 'busy');
   await getAuth();
   await ensureAccountConfigLoaded();
   if (gen !== _dashLoadGen) return;
+  dashConsoleLog('Account config loaded', 'ok');
 
-  const activityP = _fetchUserActivityQuick();
+  dashConsoleLog('Loading activity history (quick)', 'busy');
+  const activityP = _fetchUserActivityQuick().then(a => {
+    if (gen === _dashLoadGen) {
+      const n = Array.isArray(a?.recent) ? a.recent.length : 0;
+      dashConsoleLog(`Activity history — ${n} recent row(s)`, 'ok');
+    }
+    return a;
+  });
+  dashConsoleLog('Rendering server cards & connection tests', 'busy');
   const dashP = renderDashboard(false, gen);
   const [activity] = await Promise.all([activityP, dashP]);
   if (gen !== _dashLoadGen) return;
 
   _dashLastFullLoad = Date.now();
+  dashConsoleLog('Fetching live sessions (authoritative)', 'busy');
   const bundle = await fetchLiveBundle(true, { fast: true, activity: activity ?? undefined });
   if (gen !== _dashLoadGen) return;
+  const liveN = Array.isArray(bundle?.live) ? bundle.live.length : 0;
+  dashConsoleLog(`Live sessions — ${liveN} active stream(s)`, liveN ? 'ok' : 'info');
 
+  dashConsoleLog('Painting activity panels', 'busy');
   await renderDashActivity({ activity, bundle });
   if (gen !== _dashLoadGen) return;
 
@@ -2462,6 +2572,7 @@ async function loadDashboardPage() {
   renderOnboarding();
   replayDashTileAnimations();
   _reconcileDashServerTile();
+  dashConsoleLog('Dashboard ready', 'ok');
 }
 
 // ── Page-show hook (router calls this when a page is shown) ────────────────
@@ -2479,6 +2590,9 @@ window.onPageShow = function(name) {
     stopDashLivePolling();
     stopDashHealthPolling();
     _dashActivityGen++;
+    clearTimeout(_dashConsoleIdleTimer);
+    const dc = document.getElementById('dash-console');
+    if (dc) dc.hidden = true;
   }
   if (name === 'health' && typeof window.startHealth === 'function') window.startHealth();
   if (name === 'log' && typeof refreshLog === 'function') refreshLog();
@@ -2863,9 +2977,12 @@ async function _renderDashboardBody(gen = _dashLoadGen, force = false) {
     if (gen !== _dashLoadGen) return;
     const now = Date.now();
     const servers = _collectDashboardServers();
+    dashConsoleLog(`Servers — ${servers.length} enabled`, servers.length ? 'info' : 'warn');
+    dashConsoleLog('Registering health targets & ping', 'busy');
     await _registerHealthServers(servers);
     await _kickHealthPing();
     if (gen !== _dashLoadGen) return;
+    dashConsoleLog('Fetching health history', 'busy');
     const healthByUrl = await _fetchHealthByUrl();
     const catCount = (window.collectExternalCatalogs ? window.collectExternalCatalogs() : []).length;
     const catEl = document.getElementById('tile-catalogs');
@@ -2890,8 +3007,10 @@ async function _renderDashboardBody(gen = _dashLoadGen, force = false) {
       setTxt('tile-cost', '$0');
       setTxt('tile-cost-l', 'Server costs · $0/yr');
       setTxt('dash-status', 'No servers yet — add one to get started');
+      dashConsoleLog('No servers configured — add one on Connections', 'warn');
       return;
     }
+    dashConsoleLog(`Building ${servers.length} server card(s)`, 'info');
     let upCount = 0, fastest = null;
     const dashMeta = [];
     const PALETTE = [
@@ -2979,9 +3098,12 @@ async function _renderDashboardBody(gen = _dashLoadGen, force = false) {
     if (dashMeta.some(m => m.cachedLib)) _recalcDashLibTiles();
 
     // Authenticated connection tests (library stats hydrated separately).
+    dashConsoleLog('Testing authenticated connections…', 'busy');
     await _mapPool(dashMeta, async (meta) => {
       if (_dashGenStale(gen)) return;
       const { s, setStatus, card } = meta;
+      const label = _dashServerLabel(s);
+      dashConsoleLog(`Connection test · ${label}…`, 'busy');
       let bridgeMs = _bridgeMsFromHealth(healthByUrl, s.url);
       const conn = await _testServerConnection(s);
       const online = conn.ok;
@@ -2991,6 +3113,8 @@ async function _renderDashboardBody(gen = _dashLoadGen, force = false) {
         if (bridgeMs == null) pingQueue.push({ s, setStatus, card });
       }
       setStatus(online, bridgeMs);
+      const msTxt = bridgeMs != null ? ` · ${bridgeMs}ms bridge` : '';
+      dashConsoleLog(`Connection · ${label} — ${online ? 'ONLINE' : 'OFFLINE'}${msTxt}`, online ? 'ok' : 'warn');
     }, LIB_STATS_CONCURRENCY);
     if (gen !== _dashLoadGen) return;
     setTxt('tile-servers', upCount);
@@ -4493,7 +4617,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (dashRefresh) {
     dashRefresh.addEventListener('click', () => {
       dashRefresh.disabled = true;
+      dashConsoleStart('Manual refresh requested');
       hydrateDashLibraryStats(true).finally(() => { dashRefresh.disabled = false; });
+    });
+  }
+  const dashConsoleToggle = document.getElementById('dash-console-toggle');
+  if (dashConsoleToggle) {
+    dashConsoleToggle.addEventListener('click', () => {
+      const root = document.getElementById('dash-console');
+      if (!root) return;
+      _dashConsoleCollapsed = !root.classList.toggle('collapsed');
+      dashConsoleToggle.textContent = _dashConsoleCollapsed ? '+' : '−';
+      dashConsoleToggle.setAttribute('aria-expanded', _dashConsoleCollapsed ? 'false' : 'true');
+      dashConsoleToggle.title = _dashConsoleCollapsed ? 'Expand log' : 'Collapse log';
     });
   }
   if (window.Controls) Controls.bindAll();

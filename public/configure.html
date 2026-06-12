@@ -266,6 +266,17 @@
     <p class="page-sub dash-page-sub" id="dash-status">Live overview · click a server for details</p>
     <button type="button" class="btn-soft" id="dash-refresh" title="Re-fetch library counts from all servers">↻ Refresh stats</button>
   </div>
+  <div class="dash-console dash-console-idle" id="dash-console" hidden>
+    <div class="dash-console-head">
+      <span class="dash-console-dot" aria-hidden="true"></span>
+      <span class="dash-console-title">Backend activity</span>
+      <span class="dash-console-status" id="dash-console-status">Idle</span>
+      <button type="button" class="dash-console-toggle" id="dash-console-toggle" aria-expanded="true" title="Collapse log">−</button>
+    </div>
+    <div class="dash-console-body" id="dash-console-body">
+      <div class="dash-console-log" id="dash-console-log" role="log" aria-live="polite" aria-relevant="additions"></div>
+    </div>
+  </div>
   <div class="onboard" id="onboard" style="display:none"></div>
   <div class="tiles dash-tiles">
     <div class="tile t1 tile-link" data-goto="servers"><div class="n" id="tile-servers">0</div><div class="l">Servers up</div></div>
