@@ -2019,8 +2019,12 @@ function updateSteps() {
 // Build / version badge (injected by server at serve time with ?v= cache bust + visible short SHA)
 function initBuildBadge() {
   let el = document.getElementById('build-id');
-  const full = (window.BUILD_ID || window.__BUILD_ID__ || (el && el.getAttribute('data-build')) || 'dev').trim();
-  const short = full.slice(0, 7);
+  // Prefer window (set by server script with real BUILD_ID), treat 'dev' or placeholder as fallback.
+  let full = window.BUILD_ID || window.__BUILD_ID__ || (el && el.getAttribute('data-build')) || (el && el.textContent) || 'dev';
+  if (full === 'dev' || full === 'BUILD_ID_HERE') {
+    full = window.BUILD_ID || window.__BUILD_ID__ || 'dev';
+  }
+  const short = (full || 'dev').slice(0, 7);
   if (!el) {
     // Defensive: create badge if old HTML or not present (e.g. during partial loads)
     const header = document.querySelector('#page-dashboard .dash-header-actions');

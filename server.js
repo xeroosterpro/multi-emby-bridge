@@ -210,7 +210,16 @@ function getConfigureHtml() {
   if (_configureHtmlCache && _configureHtmlBuild === BUILD_ID) return _configureHtmlCache;
   const raw = fs.readFileSync(path.join(__dirname, 'public', 'configure.html'), 'utf8');
   // Bust browser cache on each deploy — static /js/* is cached up to 12h otherwise.
-  _configureHtmlCache = raw.replace(/(src="\/js\/[^"]+\.js)(\?[^"]*)?(")/g, `$1?v=${BUILD_ID}$3`);
+  let html = raw.replace(/(src="\/js\/[^"]+\.js)(\?[^"]*)?(")/g, `$1?v=${BUILD_ID}$3`);
+  // Always inject BUILD_ID as global for JS (robust for badge even if HTML placeholder changes).
+  html = html.replace('</head>', `<script>window.BUILD_ID = "${BUILD_ID || 'dev'}"; window.__BUILD_ID__ = "${BUILD_ID || 'dev'}"; </script></head>`);
+  // Simple reliable placeholder replacement for the build badge (short SHA for display, full in data-build).
+  // The HTML source has data-build="BUILD_ID_HERE">BUILD_ID_HERE</span>
+  const short = (BUILD_ID || 'dev').slice(0, 7);
+  const full = BUILD_ID || 'dev';
+  html = html.replace(/data-build="BUILD_ID_HERE"/g, `data-build="${full}"`);
+  html = html.replace(/>BUILD_ID_HERE</g, `>${short}<`);
+  _configureHtmlCache = html;
   _configureHtmlBuild = BUILD_ID;
   return _configureHtmlCache;
 }
@@ -631,7 +640,8 @@ app.post('/api/test-connection', apiLimiter, requireAuthInProduction, async (req
   const server = resolved.server;
   const sentKey = server.apiKey;
   try {
-    const resp = await apiFetch(server, () => new URL(`${server.url}/System/Info`));
+    // Short timeout for test-connection so a dead/unreachable server doesn't delay dashboard open or status
+    const resp = await apiFetch(server, () => new URL(`${server.url}/System/Info`), 5000);
     const data = await resp.json();
     const name    = data.ServerName || data.ProductName || (server.type === 'jellyfin' ? 'Jellyfin' : 'Emby');
     const version = data.Version ? ` v${data.Version}` : '';
@@ -677,7 +687,8 @@ app.post('/api/server-sessions', apiLimiter, requireAuthInProduction, async (req
   const server = resolved.server;
   const { fetchServerSessionsDetailed } = require('./lib/sessions');
   const sentKey = server.apiKey;
-  const probe = await fetchServerSessionsDetailed(server);
+  // Short timeout for sessions probe (live now-playing) — prevents one offline server from slowing dashboard live/activity
+  const probe = await fetchServerSessionsDetailed(server, { timeoutMs: 4000 });
   const out = {
     live: probe.live || [],
     probe: {
