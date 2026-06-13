@@ -28,7 +28,13 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // ─── Modules ─────────────────────────────────────────────────────────────────
-const { parseStreamId } = require('./lib/utils');
+const {
+  parseStreamId,
+  createRateLimiter,
+  setCatalogCache,
+  shuffleMetas,
+  dedupMetas,
+} = require('./lib/utils');
 const { fetchWithTimeout, authHeaders, appendAuth, apiFetch, pingServer, buildStreamUrl, getEffectiveApiKey, BROWSER_UA } = require('./lib/auth');
 const { resolveImdbName, queryServerForMovie, queryServerForEpisode, searchServersForCatalog, getRecentlyAdded } = require('./lib/search');
 const { getAllStreams } = require('./lib/streams');
@@ -49,27 +55,7 @@ const {
   logStartupSecurityWarnings,
 } = require('./lib/security');
 
-// Cross-row deduplication cache (60s TTL per config)
-const _dedupCache = new Map();
-function getDedupSeen(key) {
-  let e = _dedupCache.get(key);
-  if (!e || Date.now() - e.ts > 60000) { e = { ts: Date.now(), seen: new Set() }; _dedupCache.set(key, e); }
-  return e.seen;
-}
-function dedupMetas(metas, key) {
-  const seen = getDedupSeen(key);
-  const out = metas.filter(m => !seen.has(m.id));
-  out.forEach(m => seen.add(m.id));
-  return out;
-}
-function setCatalogCache(res) {
-  res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60');
-}
-function shuffleMetas(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-  return a;
-}
+// (dedupMetas, shuffleMetas, setCatalogCache now provided by lib/utils)
 
 const BUILD_ID = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7)
   || process.env.RAILWAY_DEPLOYMENT_ID?.slice(0, 12)
@@ -81,36 +67,7 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 7000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 
-// ─── Simple rate limiter (no extra dependency) ───────────────────────────────
-function createRateLimiter(windowMs, maxRequests) {
-  const hits = new Map();
-  // Cleanup every windowMs
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of hits) {
-      if (now - entry.start > windowMs) hits.delete(key);
-    }
-  }, windowMs);
-
-  return (req, res, next) => {
-    const ip = req.ip || req.connection?.remoteAddress || 'unknown';
-    const max = typeof maxRequests === 'function' ? maxRequests(req) : maxRequests;
-    const key = req.user?.id ? `user:${req.user.id}` : `ip:${ip}`;
-    const now = Date.now();
-    let entry = hits.get(key);
-    if (!entry || (now - entry.start) > windowMs) {
-      entry = { start: now, count: 0 };
-      hits.set(key, entry);
-    }
-    entry.count++;
-    if (entry.count > max) {
-      return res.status(429).json({ error: 'Too many requests. Please try again later.' });
-    }
-    next();
-  };
-}
-
-// Rate limiters for different endpoint groups
+// Rate limiters for different endpoint groups (createRateLimiter now in lib/utils)
 const apiLimiter = createRateLimiter(60 * 1000, (req) => (req.user ? 180 : 60));
 const bundleLimiter = createRateLimiter(60 * 1000, (req) => (req.user ? 120 : 30));
 const streamLimiter = createRateLimiter(60 * 1000, 120);  // 120 req/min for stream endpoints
