@@ -266,6 +266,7 @@
     <p class="page-sub dash-page-sub" id="dash-status">Live overview · click a server for details</p>
     <button type="button" class="btn-soft" id="dash-refresh" title="Re-fetch library counts from all servers">↻ Refresh stats</button>
     <span id="build-id" class="build-id" title="Build / commit SHA (click to copy full). Hard-refresh the page after a deploy to see the new version." data-build="BUILD_ID_HERE">BUILD_ID_HERE</span>
+    <span id="dash-last-sync" class="dash-last-sync" title="Last successful data sync from servers &amp; health">just now</span>
   </div>
   <div class="onboard" id="onboard" style="display:none"></div>
   <div class="tiles dash-tiles">
@@ -276,6 +277,17 @@
     <div class="tile t5 tile-link" data-goto="servers"><div class="n" id="tile-cost">$0</div><div class="l" id="tile-cost-l">Server costs</div></div>
   </div>
   <h3 class="block-title">Your servers</h3>
+  <div class="dash-servers-toolbar" id="dash-servers-toolbar">
+    <input type="search" id="dash-filter" placeholder="Filter servers…" aria-label="Filter servers by name or host" />
+    <select id="dash-sort" aria-label="Sort servers">
+      <option value="status">Sort: Status (healthy first)</option>
+      <option value="latency">Sort: Latency (fastest first)</option>
+      <option value="name">Sort: Name A–Z</option>
+      <option value="library">Sort: Library size (large first)</option>
+    </select>
+    <label class="dash-chk"><input type="checkbox" id="dash-only-issues" /> Issues only</label>
+    <span class="dash-visible" id="dash-visible-count" title="Visible / total servers">6/6</span>
+  </div>
   <div class="dash-cards" id="dash-cards"></div>
   <div class="dash-console dash-console-idle collapsed" id="dash-console">
     <div class="dash-console-head" id="dash-console-head" role="button" tabindex="0" aria-controls="dash-console-body" aria-expanded="false">

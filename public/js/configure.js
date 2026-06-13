@@ -564,6 +564,124 @@ function _dashHealthPanel(history) {
   return '<div class="gcard-health-empty">Health charts loading…</div>';
 }
 
+function _paintPingDots(card, hist = []) {
+  if (!card) return;
+  let cont = card.querySelector('.gcard-ping-dots');
+  const pad = card.querySelector('.gcard-pad');
+  if (!cont && pad) {
+    cont = document.createElement('div');
+    cont.className = 'gcard-ping-dots';
+    cont.setAttribute('aria-hidden', 'true');
+    // place after chips, before health or status log for perfect visual flow
+    const chips = pad.querySelector('.gchips');
+    const after = chips ? chips.nextSibling : pad.firstChild;
+    pad.insertBefore(cont, after && after.nextSibling ? after.nextSibling : null);
+  }
+  if (!cont) return;
+  const recent = (Array.isArray(hist) ? hist : []).slice(0, 12).reverse(); // left=older, right=newest
+  if (!recent.length) {
+    cont.innerHTML = '<span class="pd na" style="flex:1"></span>'.repeat(6);
+    return;
+  }
+  cont.innerHTML = recent.map(h => {
+    if (!h) return '<span class="pd na" title="no data"></span>';
+    let cls = 'ok';
+    if (h.up === false) cls = 'down';
+    else if (h.ms != null && h.ms > 800) cls = 'slow';
+    const t = h.ts ? new Date(h.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+    const val = h.ms != null ? `${h.ms}ms` : '';
+    return `<span class="pd pd-${cls}" title="${t} ${val}"></span>`;
+  }).join('');
+}
+
+/* ===== Beefed dashboard filters + sort + live ticker (amazing UX) ===== */
+let _dashFilterTimer = null;
+function wireDashServerFilters() {
+  const toolbar = document.getElementById('dash-servers-toolbar');
+  const filterEl = document.getElementById('dash-filter');
+  const sortEl = document.getElementById('dash-sort');
+  const onlyIssuesEl = document.getElementById('dash-only-issues');
+  const countEl = document.getElementById('dash-visible-count');
+  const wrap = document.getElementById('dash-cards');
+  if (!wrap || !toolbar) return;
+
+  const apply = () => {
+    const q = (filterEl && filterEl.value || '').toLowerCase().trim();
+    const sortMode = (sortEl && sortEl.value) || 'status';
+    const onlyIssues = !!(onlyIssuesEl && onlyIssuesEl.checked);
+    const cards = Array.from(wrap.querySelectorAll('.gcard[data-server-url]'));
+    let visible = 0;
+
+    // annotate for sort
+    cards.forEach(card => {
+      const nm = (card.querySelector('.gcard-nm')?.textContent || '').toLowerCase();
+      const host = (card.querySelector('.gcard-host')?.textContent || '').toLowerCase();
+      const pill = card.querySelector('.gpill');
+      const st = (pill?.className || '').includes('offline') ? 'down' : (pill?.className || '').includes('degraded') ? 'degraded' : 'ok';
+      const msEl = card.querySelector('[data-bridge-ms]');
+      const ms = msEl ? parseInt(msEl.textContent, 10) || 99999 : 99999;
+      const movies = parseInt(card.querySelector('[data-st="movies"]')?.textContent.replace(/[^\d]/g,'') || '0', 10);
+      card._dashMeta = { nm, host, st, ms, movies, el: card };
+      const isIssue = st !== 'ok';
+      const match = !q || nm.includes(q) || host.includes(q);
+      const show = match && (!onlyIssues || isIssue);
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+
+    // sort visible ones (re-append in order)
+    let sorted = cards.filter(c => c.style.display !== 'none');
+    if (sortMode === 'latency') sorted.sort((a,b) => (a._dashMeta.ms - b._dashMeta.ms) || a._dashMeta.nm.localeCompare(b._dashMeta.nm));
+    else if (sortMode === 'name') sorted.sort((a,b) => a._dashMeta.nm.localeCompare(b._dashMeta.nm));
+    else if (sortMode === 'library') sorted.sort((a,b) => (b._dashMeta.movies - a._dashMeta.movies) || a._dashMeta.nm.localeCompare(b._dashMeta.nm));
+    else /* status */ sorted.sort((a,b) => {
+      const rank = s => s==='ok'?0 : s==='degraded'?1 : 2;
+      return rank(a._dashMeta.st) - rank(b._dashMeta.st) || a._dashMeta.ms - b._dashMeta.ms || a._dashMeta.nm.localeCompare(b._dashMeta.nm);
+    });
+
+    sorted.forEach(c => wrap.appendChild(c)); // reorder
+
+    if (countEl) countEl.textContent = `${visible}/${cards.length}`;
+  };
+
+  const onChange = () => { clearTimeout(_dashFilterTimer); _dashFilterTimer = setTimeout(apply, 60); };
+  if (filterEl) filterEl.addEventListener('input', onChange);
+  if (sortEl) sortEl.addEventListener('change', apply);
+  if (onlyIssuesEl) onlyIssuesEl.addEventListener('change', apply);
+
+  // initial
+  requestAnimationFrame(apply);
+  // re-apply on future refreshes (exposed)
+  window._dashReapplyFilters = apply;
+}
+
+function _paintPingsForCard(card, healthByUrl) {
+  if (!card || !healthByUrl) return;
+  const url = card.dataset.serverUrl;
+  const rec = healthByUrl[_normServerUrl(url)] || {};
+  _paintPingDots(card, rec.history || []);
+}
+
+function updateDashLastSync(relative = 'just now') {
+  const el = document.getElementById('dash-last-sync');
+  if (el) el.textContent = relative;
+}
+
+function startDashTimestampTicker() {
+  clearInterval(window._dashTickTimer);
+  window._dashTickTimer = setInterval(() => {
+    const onDash = document.getElementById('page-dashboard')?.classList.contains('on');
+    if (!onDash) return;
+    // simple relative for header; per-card absolute in logs are fine + health viz tells story
+    const last = window._lastDashSyncTs || Date.now();
+    const ago = Math.max(0, Math.floor((Date.now() - last) / 1000));
+    let txt = 'just now';
+    if (ago > 90) txt = Math.floor(ago / 60) + 'm ago';
+    else if (ago > 25) txt = ago + 's ago';
+    updateDashLastSync(txt);
+  }, 15000);
+}
+
 function _healthUrlsQuery() {
   const urls = new Set();
   [...document.querySelectorAll('.server-block .f-url, .server-card .f-url')]
@@ -668,7 +786,9 @@ async function refreshDashCardHealth() {
     if (!slot) return;
     const rec = byUrl[_normServerUrl(card.dataset.serverUrl)];
     slot.innerHTML = _dashHealthPanel(rec?.history || []);
+    _paintPingsForCard(card, byUrl);
   });
+  if (window._dashReapplyFilters) window._dashReapplyFilters();
 }
 
 function _applyDashCardStatus(card, online, bridgeMs, authenticated = true) {
@@ -697,6 +817,11 @@ function _applyDashCardStatus(card, online, bridgeMs, authenticated = true) {
       msEl.className = 'gbridge-now';
     }
   }
+  card.dataset.st = online ? (authenticated === false ? 'reachable' : 'ok') : 'down';
+  card.classList.remove('skeleton');
+  card.classList.add('just-updated');
+  setTimeout(() => card.classList.remove('just-updated'), 1100);
+  if (typeof window._dashReapplyFilters === 'function') { try { window._dashReapplyFilters(); } catch {} }
 }
 
 function _applyDashCardStatusDegraded(card, bridgeMs, errMsg) {
@@ -712,7 +837,13 @@ function _applyDashCardStatusDegraded(card, bridgeMs, errMsg) {
     msEl.textContent = bridgeMs + 'ms';
     msEl.className = 'gbridge-now ' + _srvPingClass(bridgeMs);
   }
+  card.dataset.st = 'degraded';
+  card.classList.remove('skeleton');
+  card.classList.add('just-updated');
+  setTimeout(() => card.classList.remove('just-updated'), 1100);
+  if (typeof window._dashReapplyFilters === 'function') { try { window._dashReapplyFilters(); } catch {} }
   // enhance the status log entry with friendly + cache hint if we have prior good data
+
   if (card._statusLog && card._statusLog.length) {
     const last = card._statusLog[card._statusLog.length-1];
     if (last.state === 'degraded') {
@@ -1619,10 +1750,15 @@ function _createDashboardGCard(s, idx, enhance = {}) {
         <div class="gchip"><div class="cn${chipErr ? ' gchip-err' : ''}" data-st="shows">${sh}</div><div class="ct">Shows</div></div>
         <div class="gchip"><div class="cn${chipErr ? ' gchip-err' : ''}" data-st="episodes">${ep}</div><div class="ct">Episodes</div></div>
       </div>
+      <div class="gcard-ping-dots" aria-hidden="true"></div>
       ${healthHtml}
       <div class="gcard-status-log" data-status-log hidden></div>
     </div>`;
 
+  if (enhance.healthRec && enhance.healthRec.history) {
+    // paint immediately for optimistic skeleton path
+    setTimeout(() => _paintPingDots(card, enhance.healthRec.history), 0);
+  }
   return card;
 }
 
@@ -1675,6 +1811,7 @@ function paintDashboardSkeleton() {
       initialPillText: '…',
     });
     wrap.appendChild(card);
+    card.classList.add('skeleton');
     requestAnimationFrame(() => { card.style.animationDelay = `${idx * 55}ms`; });
   });
   setTxt('tile-servers', n);
@@ -1682,7 +1819,16 @@ function paintDashboardSkeleton() {
     setTxt('tile-movies', cachedMovies.toLocaleString());
     setTxt('tile-shows', cachedShows.toLocaleString());
   }
+  window._lastDashSyncTs = Date.now();
+  updateDashLastSync('just now');
+  // paint initial pings from any cached health if present (skeleton path)
+  try {
+    const by = _healthHistoryCache && _healthHistoryCache.data;
+    if (by) wrap.querySelectorAll('.gcard[data-server-url]').forEach(c => _paintPingsForCard(c, by));
+  } catch {}
+  wireDashServerFilters();
   _registerHealthServers(servers).catch(() => {});
+  startDashTimestampTicker();
   return n;
 }
 window.paintDashboardSkeleton = paintDashboardSkeleton;
@@ -2986,13 +3132,20 @@ function _refreshMediaPreview() {
 
 async function loadDashboardPage() {
   if (window.Dashboard?.load) {
-    return window.Dashboard.load();
+    const r = window.Dashboard.load();
+    window._lastDashSyncTs = Date.now();
+    updateDashLastSync('just now');
+    startDashTimestampTicker();
+    return r;
   }
   const gen = ++_dashLoadGen;
   dashConsoleStart('Opening dashboard…');
   renderDashActivityShell();
   await renderDashboard(false, gen);
   initBuildBadge();
+  window._lastDashSyncTs = Date.now();
+  updateDashLastSync('just now');
+  startDashTimestampTicker();
   dashConsoleLog('Dashboard ready (legacy path)', 'ok');
 }
 
@@ -3471,8 +3624,10 @@ function _patchDashHealthFromBundle(data) {
     const slot = card.querySelector('.gcard-health');
     const healthRec = healthByUrl[_normServerUrl(url)];
     if (slot) slot.innerHTML = _dashHealthPanel(healthRec?.history || []);
+    _paintPingsForCard(card, healthByUrl);
     _syncDashCardStatus(card, data);
   });
+  if (window._dashReapplyFilters) window._dashReapplyFilters();
 }
 
 function _patchDashConnFromBundle(data) {
@@ -3797,9 +3952,11 @@ async function _renderDashboardBody(gen = _dashLoadGen, force = false) {
             <div class="gchip"><div class="cn" data-st="shows">—</div><div class="ct">Shows</div></div>
             <div class="gchip"><div class="cn" data-st="episodes">—</div><div class="ct">Episodes</div></div>
           </div>
+          <div class="gcard-ping-dots" aria-hidden="true"></div>
           <div class="gcard-health">${healthHtml}</div>
         </div>`;
       wrap.appendChild(card);
+      card.classList.add('skeleton');
 
       // Apply quick health-based status immediately (fast path, no Emby roundtrip).
       // We only update the *per-card* pill here for instant feedback.
@@ -3826,6 +3983,14 @@ async function _renderDashboardBody(gen = _dashLoadGen, force = false) {
       if (cachedLib) setStats(cachedLib);
       dashMeta.push({ s, setStatus, setStats, card, cachedLib });
     });
+
+    window._lastDashSyncTs = Date.now();
+    updateDashLastSync('just now');
+    // paint the beautiful discrete ping history dots using the fresh health history
+    const dashCardsNow = wrap.querySelectorAll('.gcard[data-server-url]');
+    dashCardsNow.forEach(c => _paintPingsForCard(c, healthByUrl));
+    wireDashServerFilters();
+    startDashTimestampTicker();
 
     // tile-servers + bridge latency refine from authenticated tests below (avoids ping-only count flicker).
     const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
@@ -5360,10 +5525,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const done = () => { dashRefresh.disabled = false; };
       if (window.Dashboard?.refreshStats) {
         window.DashboardConsole?.start?.('Manual refresh requested');
-        window.Dashboard.refreshStats().finally(done);
+        window.Dashboard.refreshStats().finally(() => { window._lastDashSyncTs = Date.now(); updateDashLastSync('just now'); done(); });
       } else {
         dashConsoleStart('Manual refresh requested');
-        hydrateDashLibraryStats(true).finally(done);
+        hydrateDashLibraryStats(true).finally(() => { window._lastDashSyncTs = Date.now(); updateDashLastSync('just now'); done(); });
       }
     });
   }
