@@ -2668,6 +2668,9 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
 .dash-console-has-err { border-color:color-mix(in srgb, #f87171 35%, var(--border)); }
 .dash-console-idle .dash-console-dot { background:var(--text-mute); box-shadow:none; animation:none; }
 .dash-console-has-err .dash-console-dot { background:#f87171; box-shadow:0 0 8px color-mix(in srgb, #f87171 45%, transparent); animation:none; }
+.dash-console-routine-heavy { border-color: color-mix(in srgb, #34d399 25%, var(--border)); }
+.dash-console-routine-heavy .dash-console-count { color: #34d399; font-weight: 600; opacity: 0.9; }
+.dash-console-routine-heavy .dash-console-status { background: color-mix(in srgb, #34d399 12%, transparent); color: #34d399; }
 .dash-console-head {
   display:flex; align-items:flex-start; gap:10px;
   padding:9px 12px;

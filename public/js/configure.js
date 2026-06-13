@@ -762,15 +762,41 @@ function _applyDashCardStatus(card, online, bridgeMs, authenticated = true) {
 function _applyDashCardStatusDegraded(card, bridgeMs, errMsg) {
   const pill = card.querySelector('[data-pill]');
   const msEl = card.querySelector('[data-bridge-ms]');
+  const friendly = _friendlyDegradedError(errMsg);
   if (pill) {
     pill.className = 'gpill degraded';
     pill.textContent = 'DEGRADED';
-    pill.title = errMsg || 'API responds but library/catalog is unavailable';
+    pill.title = friendly + ' — tap card for details';
   }
   if (msEl && bridgeMs != null) {
     msEl.textContent = bridgeMs + 'ms';
     msEl.className = 'gbridge-now ' + _srvPingClass(bridgeMs);
   }
+  // enhance the status log entry with friendly + cache hint if we have prior good data
+  if (card._statusLog && card._statusLog.length) {
+    const last = card._statusLog[card._statusLog.length-1];
+    if (last.state === 'degraded') {
+      last.msg = friendly;
+      // try to append last-good note from cache (best effort, urls normalized elsewhere)
+      try {
+        const url = card.dataset.serverUrl;
+        const ck = Object.keys(_libStatsCache || {}).find(k => k.includes(url) || url.includes(k.split('|')[0]||''));
+        if (ck && _libStatsCache[ck] && _libStatsCache[ck].ts) {
+          const ago = Math.round((Date.now() - _libStatsCache[ck].ts)/60000);
+          last.msg += ` (last good ~${ago}m ago)`;
+        }
+      } catch {}
+    }
+  }
+}
+
+function _friendlyDegradedError(raw) {
+  const m = String(raw || '').toLowerCase();
+  if (/502|server error|internal/i.test(m)) return 'Library fetch failed (server error on Emby/Jellyfin)';
+  if (/timeout|timed out|abort/i.test(m)) return 'Connection timed out to server';
+  if (/401|403|auth|unauthorized|forbidden/i.test(m)) return 'Authentication failed — check API key / User ID';
+  if (/library stats failed|unavailable/i.test(m)) return 'Library/catalog data unavailable';
+  return raw || 'Library unavailable';
 }
 
 function _recordDashStatusEvent(card, state, msg) {
@@ -1489,20 +1515,23 @@ function liveEmptyMessage(probes, serverCount) {
   const list = probes || [];
   const failed = list.filter(p => !p.ok);
   const okEmpty = list.filter(p => p.ok && (p.count || 0) === 0);
+  const n = serverCount || list.length || 0;
+  const serverWord = n === 1 ? 'server' : 'servers';
   if (!list.length) {
-    return 'Nothing playing right now on your servers.';
+    return `No live streams detected right now across your ${serverWord}.`;
   }
   if (failed.length === list.length) {
-    return `Could not read Sessions API on any of your ${serverCount} server${serverCount === 1 ? '' : 's'}. Check API keys on the <a href="#" data-page="servers">Servers</a> page.`;
+    const names = failed.slice(0, 2).map(p => p.server || p.label).join(', ');
+    return `Could not poll live sessions on ${failed.length} ${serverWord}${names ? ` (${names}${failed.length>2?'…':''})` : ''}. Verify API access on the <a href="#" data-page="servers">Servers</a> page.`;
   }
   if (failed.length) {
-    const names = failed.slice(0, 3).map(p => p.server).join(', ');
-    return `Nothing playing right now. ${failed.length} server${failed.length === 1 ? '' : 's'} could not be polled${names ? ` (${names}${failed.length > 3 ? '…' : ''})` : ''}.`;
+    const names = failed.slice(0, 2).map(p => p.server || p.label).join(', ');
+    return `No active playback right now. ${failed.length} ${serverWord} could not be checked${names ? ` (${names}${failed.length>2?'…':''})` : ''}.`;
   }
   if (okEmpty.length === list.length) {
-    return 'All servers reachable — nothing playing right now.';
+    return `All ${n} ${serverWord} reachable — no live streams right now (refreshes every ~8s).`;
   }
-  return 'Nothing playing right now on your servers.';
+  return `No live streams detected on your ${serverWord} at the moment.`;
 }
 
 function renderLiveDock(live) {
@@ -3446,7 +3475,24 @@ function _paintDashTilesFromBundle(bundle) {
   }
   const mo = t.costMonthly || 0;
   setTxt('tile-cost', '$' + Math.round(mo) + (mo > 0 ? '/mo' : ''));
-  setTxt('tile-cost-l', 'Server costs · $' + (t.costYearly || Math.round(mo * 12)) + '/yr');
+  setTxt('tile-cost-l', 'Server costs (configured) · $' + (t.costYearly || Math.round(mo * 12)) + '/yr');
+  const costTile = document.getElementById('tile-cost');
+  if (costTile) {
+    const healthy = t.healthyCostMonthly != null ? t.healthyCostMonthly : mo;
+    costTile.title = `Configured monthly: $${Math.round(mo)} (all servers, incl. degraded). Currently healthy servers only: $${Math.round(healthy)}/mo. Per-server costs are user-configured.`;
+  }
+  // #4 polish: if healthy cost is meaningfully lower, surface a compact note under the yearly (keeps UI clean but informative)
+  const costYearEl = document.getElementById('tile-cost-l');
+  if (costYearEl && t.healthyCostMonthly != null && t.healthyCostMonthly < mo * 0.95) {
+    const h = Math.round(t.healthyCostMonthly);
+    if (!costYearEl.querySelector('[data-healthy-note]')) {
+      const note = document.createElement('span');
+      note.setAttribute('data-healthy-note','1');
+      note.style.cssText = 'display:block;font-size:0.58rem;opacity:0.75;margin-top:1px;';
+      note.textContent = `(healthy only: $${h}/mo)`;
+      costYearEl.appendChild(note);
+    }
+  }
   const n = bundle.serverCount || 0;
   const up = t.serversUp ?? 0;
   setTxt('dash-status', n

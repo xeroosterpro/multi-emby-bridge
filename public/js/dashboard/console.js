@@ -117,15 +117,26 @@
 
     const busy = lines.some(l => l.level === 'busy');
     const c = counts();
+    const nonErr = c.info + c.all - c.err - c.warn; // rough routine volume
+    const routineHeavy = !busy && c.err === 0 && c.all > 8 && nonErr > c.all * 0.6;
     if (status) {
-      status.textContent = busy ? 'Working…' : (c.err ? `${c.err} issue${c.err === 1 ? '' : 's'}` : 'Ready');
-      status.dataset.state = busy ? 'busy' : (c.err ? 'err' : 'ready');
+      if (routineHeavy) {
+        status.textContent = `Healthy · ${c.all} updates`;
+        status.dataset.state = 'idle';
+      } else {
+        status.textContent = busy ? 'Working…' : (c.err ? `${c.err} issue${c.err === 1 ? '' : 's'}` : 'Ready');
+        status.dataset.state = busy ? 'busy' : (c.err ? 'err' : 'ready');
+      }
     }
     if (root) {
       root.classList.toggle('dash-console-idle', !busy && !c.err);
       root.classList.toggle('dash-console-has-err', c.err > 0);
+      root.classList.toggle('dash-console-routine-heavy', routineHeavy);
     }
-    if (countEl) countEl.textContent = String(c.all);
+    if (countEl) {
+      countEl.textContent = routineHeavy ? `${c.all}↑` : String(c.all);
+      countEl.title = routineHeavy ? 'Mostly routine health/reachability pings' : 'Log lines';
+    }
 
     const rows = filtered();
     if (!rows.length) {
