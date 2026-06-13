@@ -71,6 +71,10 @@ function shuffleMetas(arr) {
   return a;
 }
 
+const BUILD_ID = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7)
+  || process.env.RAILWAY_DEPLOYMENT_ID?.slice(0, 12)
+  || require('./package.json').version;
+
 const app = express();
 // Railway/reverse proxies sit in front — needed for accurate req.ip rate limiting.
 app.set('trust proxy', 1);
@@ -243,9 +247,21 @@ app.use('/u/:token', async (req, res, next) => {
 
 app.get('/', (req, res) => res.redirect('/configure'));
 
+let _configureHtmlCache = null;
+let _configureHtmlBuild = null;
+function getConfigureHtml() {
+  if (_configureHtmlCache && _configureHtmlBuild === BUILD_ID) return _configureHtmlCache;
+  const raw = fs.readFileSync(path.join(__dirname, 'public', 'configure.html'), 'utf8');
+  // Bust browser cache on each deploy — static /js/* is cached up to 12h otherwise.
+  _configureHtmlCache = raw.replace(/(src="\/js\/[^"]+\.js)(\?[^"]*)?(")/g, `$1?v=${BUILD_ID}$3`);
+  _configureHtmlBuild = BUILD_ID;
+  return _configureHtmlCache;
+}
+
 app.get('/configure', (req, res) => {
   applyConfigureSecurityHeaders(res);
-  res.sendFile(path.join(__dirname, 'public', 'configure.html'));
+  res.set('Cache-Control', 'no-cache');
+  res.type('html').send(getConfigureHtml());
 });
 
 app.get('/health',  (req, res) => res.json({ status: 'ok' }));
@@ -1191,11 +1207,11 @@ process.on('SIGTERM', () => {
       process.exit(0);
     }
   });
-  // Force exit after timeout if graceful fails
+  // Force exit after timeout if graceful fails (bundle/health work can exceed 10s)
   setTimeout(() => {
     console.error('Forcing shutdown after timeout');
     process.exit(1);
-  }, 10000);
+  }, 30000).unref();
 });
 
 // ─── Database init (migrations + admin seed); no-ops without DATABASE_URL ────
