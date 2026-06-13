@@ -754,6 +754,28 @@ async function mapPool(items, worker, concurrency = 3) {
   return results;
 }
 
+// Unified dashboard bundle — one orchestrated payload per scope (full | live | stats | health).
+app.get('/api/dashboard/bundle', apiLimiter, requireAuthInProduction, async (req, res) => {
+  if (!req.user) return res.status(401).json({ error: 'sign in required' });
+  if (!dbLib.isConfigured()) return res.status(503).json({ error: 'accounts unavailable' });
+  const { buildDashboardBundle } = require('./lib/dashboard');
+  const scope = req.query.scope || 'full';
+  try {
+    const bundle = await buildDashboardBundle({
+      userId: req.user.id,
+      scope,
+      uc: makeUserConfig(dbLib),
+      requestLog: _requestLogDb,
+      healthHistory,
+      healthServers,
+    });
+    res.json(bundle);
+  } catch (err) {
+    console.error('[dashboard/bundle]', err.message);
+    res.status(500).json({ error: 'dashboard bundle failed' });
+  }
+});
+
 // Batch library stats for signed-in dashboard (authoritative DB creds, no per-card URL matching).
 app.post('/api/dashboard/library-stats', apiLimiter, requireAuthInProduction, async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'sign in required' });

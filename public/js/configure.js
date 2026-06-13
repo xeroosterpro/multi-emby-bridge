@@ -656,6 +656,7 @@ async function _kickHealthPing() {
     _invalidateHealthCache();
   } catch { /* best-effort */ }
 }
+window._kickHealthPing = _kickHealthPing;
 
 let _healthHistoryCache = { ts: 0, data: null };
 async function _fetchHealthByUrl() {
@@ -1473,6 +1474,16 @@ function renderLiveProbeStrip(probes) {
 
 async function pollLivePlaybackNotifications(opts = {}) {
   const onDash = document.getElementById('page-dashboard')?.classList.contains('on');
+  const dashBundle = window.DashboardState?.lastBundle;
+  const dashFresh = dashBundle?.ts && Date.now() - dashBundle.ts < DASH_LIVE_POLL_MS;
+  if (onDash && dashFresh && !opts.force) {
+    _syncLiveCacheFromBundle(dashBundle);
+    const buffering = (dashBundle.live || []).filter(s => s.buffering);
+    renderBufferingBanner(buffering);
+    updateDashboardBufferBadge(buffering.length);
+    notifyNewBuffering(buffering);
+    return dashBundle.live || [];
+  }
   const stale = !_liveBundleCache.ts || Date.now() - _liveBundleCache.ts >= DASH_LIVE_POLL_MS;
   const bundle = await fetchLiveBundle(!!opts.force && stale, { fast: onDash });
   const buffering = (bundle.live || []).filter(s => s.buffering);
@@ -2590,48 +2601,14 @@ function _refreshMediaPreview() {
 }
 
 async function loadDashboardPage() {
+  if (window.Dashboard?.load) {
+    return window.Dashboard.load();
+  }
   const gen = ++_dashLoadGen;
   dashConsoleStart('Opening dashboard…');
   renderDashActivityShell();
-  startDashLivePolling();
-  startDashHealthPolling();
-
-  dashConsoleLog('Checking sign-in & account config', 'busy');
-  await getAuth();
-  await ensureAccountConfigLoaded();
-  if (gen !== _dashLoadGen) return;
-  dashConsoleLog('Account config loaded', 'ok');
-
-  dashConsoleLog('Loading activity history (quick)', 'busy');
-  const activityP = _fetchUserActivityQuick().then(a => {
-    if (gen === _dashLoadGen) {
-      const n = Array.isArray(a?.recent) ? a.recent.length : 0;
-      dashConsoleLog(`Activity history — ${n} recent row(s)`, 'ok');
-    }
-    return a;
-  });
-  dashConsoleLog('Rendering server cards & connection tests', 'busy');
-  const dashP = renderDashboard(false, gen);
-  const [activity] = await Promise.all([activityP, dashP]);
-  if (gen !== _dashLoadGen) return;
-
-  _dashLastFullLoad = Date.now();
-  dashConsoleLog('Fetching live sessions (authoritative)', 'busy');
-  const bundle = await fetchLiveBundle(true, { fast: true, activity: activity ?? undefined });
-  if (gen !== _dashLoadGen) return;
-  const liveN = Array.isArray(bundle?.live) ? bundle.live.length : 0;
-  dashConsoleLog(`Live sessions — ${liveN} active stream(s)`, liveN ? 'ok' : 'info');
-
-  dashConsoleLog('Painting activity panels', 'busy');
-  await renderDashActivity({ activity, bundle });
-  if (gen !== _dashLoadGen) return;
-
-  await hydrateDashLibraryStats(false);
-  pollLivePlaybackNotifications();
-  renderOnboarding();
-  replayDashTileAnimations();
-  _reconcileDashServerTile();
-  dashConsoleLog('Dashboard ready', 'ok');
+  await renderDashboard(false, gen);
+  dashConsoleLog('Dashboard ready (legacy path)', 'ok');
 }
 
 // ── Page-show hook (router calls this when a page is shown) ────────────────
@@ -2648,6 +2625,7 @@ window.onPageShow = function(name) {
     if (dc) dc.hidden = false;
     loadDashboardPage();
   } else {
+    window.Dashboard?.stop?.();
     stopDashLivePolling();
     stopDashHealthPolling();
     _dashActivityGen++;
@@ -3017,6 +2995,178 @@ function openServerManage(index) {
     card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, 80);
 }
+
+function _mergeDashboardBundles(prev, next) {
+  if (!prev) return next;
+  if (!next) return prev;
+  const scope = next.scope || 'full';
+  const out = { ...prev, ...next, ts: next.ts || Date.now(), scope };
+  if (scope === 'live') {
+    out.live = next.live || [];
+    out.liveProbes = next.liveProbes || [];
+    out.recent = next.recent || [];
+  }
+  if (scope === 'stats') {
+    out.connections = next.connections || [];
+    out.library = next.library || [];
+    out.totals = next.totals || prev.totals;
+  }
+  if (scope === 'health') out.health = next.health || [];
+  out.errors = [...(prev.errors || []), ...(next.errors || [])].slice(-24);
+  return out;
+}
+
+function _healthMapFromBundle(healthRows) {
+  const map = {};
+  (healthRows || []).forEach(h => { map[_normServerUrl(h.url)] = h; });
+  return map;
+}
+
+function _bundleConnByUrl(bundle, url) {
+  const norm = _normServerUrl(url);
+  return (bundle.connections || []).find(c => _normServerUrl(c.url) === norm);
+}
+
+function _bundleLibByUrl(bundle, url) {
+  const norm = _normServerUrl(url);
+  return (bundle.library || []).find(r => _normServerUrl(r.url) === norm);
+}
+
+function _paintDashTilesFromBundle(bundle) {
+  const t = bundle.totals || {};
+  const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  setTxt('tile-servers', t.serversUp ?? 0);
+  setTxt('tile-movies', (t.movies || 0).toLocaleString());
+  setTxt('tile-shows', (t.shows || 0).toLocaleString());
+  const pingEl = document.getElementById('tile-ping');
+  if (pingEl) {
+    if (t.fastestBridgeMs != null) {
+      pingEl.textContent = t.fastestBridgeMs + 'ms';
+      pingEl.title = `Fastest bridge path right now · ${t.fastestBridgeMs}ms (addon → server)`;
+    } else pingEl.textContent = '—';
+  }
+  const mo = t.costMonthly || 0;
+  setTxt('tile-cost', '$' + Math.round(mo) + (mo > 0 ? '/mo' : ''));
+  setTxt('tile-cost-l', 'Server costs · $' + (t.costYearly || Math.round(mo * 12)) + '/yr');
+  const n = bundle.serverCount || 0;
+  const up = t.serversUp ?? 0;
+  setTxt('dash-status', n
+    ? `Everything's loaded. ${up}/${n} servers reachable.`
+    : 'No servers yet — add one on the Servers page.');
+}
+
+function _syncLiveCacheFromBundle(bundle) {
+  if (!bundle) return;
+  const live = Array.isArray(bundle.live) ? bundle.live : [];
+  const probes = Array.isArray(bundle.liveProbes) ? bundle.liveProbes : [];
+  const annotated = annotateLiveSessions(live);
+  _liveBundleCache = { live: annotated, probes, ts: bundle.ts || Date.now() };
+  window._mebAnnotatedLive = annotated;
+  window._mebAnnotatedLiveTs = _liveBundleCache.ts;
+  window._mebLiveProbes = probes;
+  renderLiveDock(annotated);
+}
+
+async function applyDashboardBundle(bundle, opts = {}) {
+  const prev = window.DashboardState?.lastBundle;
+  const data = opts.partial ? _mergeDashboardBundles(prev, bundle) : bundle;
+  if (!data) return;
+  window.DashboardStateApi?.setBundle?.(data, data.scope);
+
+  const servers = data.servers || [];
+  await _registerHealthServers(servers);
+  if (opts.full) await _kickHealthPing();
+
+  const wrap = document.getElementById('dash-cards');
+  const healthByUrl = _healthMapFromBundle(data.health);
+
+  if (wrap) {
+    if (!servers.length) {
+      wrap.innerHTML = `<div class="dash-empty-state">
+        <div class="dash-empty-glow" aria-hidden="true"></div>
+        <div class="dash-empty-icon" aria-hidden="true">📡</div>
+        <h4 class="dash-empty-title">Connect your first server</h4>
+        <p class="dash-empty-copy">Add Emby or Jellyfin endpoints to unlock library stats, uptime charts, live playback, and watch history on this dashboard.</p>
+        <button type="button" class="btn primary dash-empty-cta">Add server</button>
+      </div>`;
+      wrap.querySelector('.dash-empty-cta')?.addEventListener('click', () => { location.hash = '#/servers'; });
+    } else {
+      const PALETTE = [
+        ['linear-gradient(135deg,#fb923c,#f472b6)','rgba(244,114,182,.5)'],
+        ['linear-gradient(135deg,#818cf8,#22d3ee)','rgba(34,211,238,.5)'],
+        ['linear-gradient(135deg,#34d399,#22d3ee)','rgba(52,211,153,.5)'],
+        ['linear-gradient(135deg,#f59e0b,#fb7185)','rgba(245,158,11,.5)'],
+        ['linear-gradient(135deg,#a78bfa,#f472b6)','rgba(167,139,250,.5)'],
+      ];
+      wrap.innerHTML = '';
+      servers.forEach((s, idx) => {
+        const [bar, glow] = PALETTE[idx % PALETTE.length];
+        const isJelly = (s.type === 'jellyfin');
+        const brandSvg = isJelly ? JELLYFIN_LOGO : EMBY_LOGO;
+        const conn = _bundleConnByUrl(data, s.url);
+        const lib = _bundleLibByUrl(data, s.url);
+        const healthRec = healthByUrl[_normServerUrl(s.url)];
+        const card = document.createElement('div');
+        card.className = 'gcard';
+        card.dataset.serverUrl = s.url || '';
+        card.style.setProperty('--bar', bar);
+        card.style.setProperty('--accentglow', glow);
+        card.style.setProperty('--badgebg', isJelly ? 'linear-gradient(135deg,#aa5cc3,#00a4dc)' : 'linear-gradient(135deg,#52b54b,#2f8f3e)');
+        const movies = lib?.ok ? (lib.movies || 0).toLocaleString() : '—';
+        const shows = lib?.ok ? (lib.shows || 0).toLocaleString() : '—';
+        const eps = lib?.ok ? (lib.episodes || 0).toLocaleString() : '—';
+        card.innerHTML = `
+          <div class="gcard-top"></div>
+          <div class="gcard-pad">
+            <div class="gcard-head">
+              <div class="gbrand" style="--accentglow:${isJelly ? 'rgba(122,70,200,.7)' : 'rgba(82,181,75,.7)'}">${brandSvg}</div>
+              <div style="flex:1;min-width:0">
+                <div class="gcard-nm">${escHtml(s.label || 'Server')}</div>
+                <div class="gcard-host">${escHtml((s.url || '').replace(/^https?:\/\//, ''))}</div>
+              </div>
+              <div class="gstatus"><span class="gpill loading" data-pill title="Bridge connection status">…</span><span class="gbridge-now" data-bridge-ms title="Bridge latency now (addon → server)"></span></div>
+            </div>
+            <div class="gtype" style="display:none">${isJelly ? 'Jellyfin' : 'Emby'}</div>
+            <div class="gchips">
+              <div class="gchip"><div class="cn${lib && !lib.ok ? ' gchip-err' : ''}" data-st="movies"${lib && !lib.ok ? ` title="${escHtml(lib.error || 'failed')}"` : ''}>${movies}</div><div class="ct">Movies</div></div>
+              <div class="gchip"><div class="cn${lib && !lib.ok ? ' gchip-err' : ''}" data-st="shows">${shows}</div><div class="ct">Shows</div></div>
+              <div class="gchip"><div class="cn${lib && !lib.ok ? ' gchip-err' : ''}" data-st="episodes">${eps}</div><div class="ct">Episodes</div></div>
+            </div>
+            <div class="gcard-health">${_dashHealthPanel(healthRec?.history || [])}</div>
+          </div>`;
+        wrap.appendChild(card);
+        if (lib?.ok) {
+          const cacheKey = _libKey({ url: s.url, apiKey: '', userId: s.userId });
+          _libStatsCache[cacheKey] = { movies: lib.movies, shows: lib.shows, episodes: lib.episodes, ts: Date.now() };
+        }
+        if (conn) _applyDashCardStatus(card, conn.ok, conn.bridgeMs);
+        else {
+          const st = _statusFromHealth(healthByUrl, s.url);
+          if (st) _applyDashCardStatus(card, st.online, st.bridgeMs, st.authenticated !== false);
+        }
+        requestAnimationFrame(() => {
+          card.style.animationDelay = `${idx * 55}ms`;
+        });
+      });
+    }
+  }
+
+  _paintDashTilesFromBundle(data);
+  _syncLiveCacheFromBundle(data);
+  _activityRecentCache = Array.isArray(data.recent) ? data.recent : [];
+  _dashActivityData = {
+    recent: data.recent || [],
+    hasServers: !!data.hasServers,
+    serverCount: data.serverCount || servers.length,
+    liveProbes: data.liveProbes || [],
+  };
+  await renderDashActivity({
+    activity: _dashActivityData,
+    bundle: { live: _liveBundleCache.live, probes: data.liveProbes, ts: data.ts },
+  });
+  _reconcileDashServerTile();
+}
+window.applyDashboardBundle = applyDashboardBundle;
 
 async function renderDashboard(force = false, gen = _dashLoadGen) {
   if (_dashGenStale(gen) && !force) return;
@@ -4675,8 +4825,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (dashRefresh) {
     dashRefresh.addEventListener('click', () => {
       dashRefresh.disabled = true;
-      dashConsoleStart('Manual refresh requested');
-      hydrateDashLibraryStats(true).finally(() => { dashRefresh.disabled = false; });
+      const done = () => { dashRefresh.disabled = false; };
+      if (window.Dashboard?.refreshStats) {
+        window.DashboardConsole?.start?.('Manual refresh requested');
+        window.Dashboard.refreshStats().finally(done);
+      } else {
+        dashConsoleStart('Manual refresh requested');
+        hydrateDashLibraryStats(true).finally(done);
+      }
     });
   }
   const dashConsoleToggle = document.getElementById('dash-console-toggle');
@@ -4692,4 +4848,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if (window.Controls) Controls.bindAll();
   wireRankingUX();
+  window.getAuth = getAuth;
+  window.ensureAccountConfigLoaded = ensureAccountConfigLoaded;
+  window.renderDashActivityShell = renderDashActivityShell;
+  window.renderOnboarding = renderOnboarding;
+  window.replayDashTileAnimations = replayDashTileAnimations;
 });

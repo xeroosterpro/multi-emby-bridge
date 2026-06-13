@@ -14,10 +14,13 @@
     if (!listEl) return;
     listEl.innerHTML = '<div class="da-empty">Loading live sessions…</div>';
     try {
-      if (typeof window.fetchLiveBundle === 'function') {
+      const cached = window.Dashboard?.lastBundle;
+      if (!(cached?.ts && Date.now() - cached.ts < 12000) && typeof window.Dashboard?.refreshLive === 'function') {
+        await window.Dashboard.refreshLive();
+      } else if (typeof window.fetchLiveBundle === 'function') {
         await window.fetchLiveBundle(true, { fast: true });
       }
-      const live = window._mebAnnotatedLive || [];
+      const live = window._mebAnnotatedLive || window.Dashboard?.lastBundle?.live || [];
       const ui = window.MEBLiveUI;
       const filtered = ui
         ? ui.filterLiveByServer(live, _modalServer)

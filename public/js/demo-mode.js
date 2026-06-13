@@ -264,6 +264,60 @@
     }
     if (path === '/api/request-log' && m === 'GET') return { body: requestLogEntries() };
     if (path === '/api/clear-request-log' && m === 'POST') return { body: { ok: true, demo: true } };
+    if (path.startsWith('/api/dashboard/bundle') && m === 'GET') {
+      const scope = (() => {
+        try { return new URL(path, location.origin).searchParams.get('scope') || 'full'; }
+        catch { return 'full'; }
+      })();
+      const live = [
+        { title: 'Dune: Part Two', server: S_CLOUD, user: 'Alex', client: 'Apple TV', progressPct: 42, playMethod: 'DirectPlay', source: 'sessions' },
+        { title: 'Breaking Bad S01E01', server: S_HOME, user: 'demo', client: 'Stremio Web', progressPct: 18, isTranscoding: true, source: 'sessions' },
+      ];
+      const liveProbes = [
+        { server: S_CLOUD, ok: true, count: 1, ms: 42, error: null, method: 'sessions' },
+        { server: S_HOME, ok: true, count: 1, ms: 68, error: null, method: 'sessions' },
+        { server: S_NAS, ok: true, count: 0, ms: 31, error: null, method: 'sessions' },
+      ];
+      const recent = [
+        { title: 'Dune: Part Two', server: S_CLOUD, kind: 'live', source: 'server', ts: new Date().toISOString(), sources: ['server'] },
+        { title: 'Oppenheimer', server: S_CLOUD, ts: new Date(Date.now() - 3600000).toISOString(), sources: ['server'] },
+        { title: 'The Bear', server: S_HOME, season: 2, episode: 4, ts: new Date(Date.now() - 7200000).toISOString(), sources: ['server'] },
+      ];
+      const library = SERVERS.map(s => {
+        const k = [s.url, s.apiKey, s.userId].join('|');
+        const st = LIB_STATS[k] || { movies: 500, shows: 80, episodes: 1200 };
+        return { url: s.url, label: s.label, ok: true, movies: st.movies, shows: st.shows, episodes: st.episodes };
+      });
+      const connections = SERVERS.map(s => ({
+        url: s.url, label: s.label, ok: true,
+        bridgeMs: s.label === S_CLOUD ? 42 : s.label === S_HOME ? 68 : 31,
+      }));
+      const serverSummaries = SERVERS.map(s => ({
+        url: s.url, label: s.label, type: s.type, cost: s.cost, costPeriod: s.costPeriod, userId: s.userId,
+      }));
+      const totals = {
+        serversUp: 3, serversTotal: 3,
+        movies: library.reduce((a, r) => a + (r.movies || 0), 0),
+        shows: library.reduce((a, r) => a + (r.shows || 0), 0),
+        episodes: library.reduce((a, r) => a + (r.episodes || 0), 0),
+        fastestBridgeMs: 31,
+        costMonthly: 17.49,
+        costYearly: 210,
+        healthTargets: healthRows.length,
+      };
+      const base = {
+        scope,
+        ts: Date.now(),
+        hasServers: true,
+        serverCount: 3,
+        servers: serverSummaries,
+        errors: [],
+      };
+      if (scope === 'health') return { body: { ...base, health: healthRows, totals: { ...totals, serversUp: 3 } } };
+      if (scope === 'stats') return { body: { ...base, connections, library, totals } };
+      if (scope === 'live') return { body: { ...base, live, liveProbes, recent, totals: { serversUp: 3, serversTotal: 3 } } };
+      return { body: { ...base, connections, library, live, liveProbes, recent, health: healthRows, totals } };
+    }
     if (path === '/api/dashboard/library-stats' && m === 'POST') {
       return { body: {
         servers: SERVERS.map(s => {
