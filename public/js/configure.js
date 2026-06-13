@@ -45,81 +45,19 @@ let _dashLoadGen = 0;
 let _libHydrateGen = 0;
 let _dashLastFullLoad = 0;
 let _dashBusy = false;
-const DASH_CONSOLE_MAX = 48;
-const DASH_CONSOLE_IDLE_MS = 14000;
-let _dashConsoleLines = [];
-let _dashConsoleIdleTimer = null;
-let _dashConsoleCollapsed = false;
 
 function _dashServerLabel(s) {
   return String(s?.label || '').trim() || String(s?.url || '').replace(/^https?:\/\//, '').replace(/\/+$/, '') || 'server';
 }
 
-function _dashConsoleFmtTime() {
-  const d = new Date();
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-}
 
-function _dashConsoleEnsureVisible() {
-  const el = document.getElementById('dash-console');
-  if (el) {
-    el.hidden = false;
-    el.classList.remove('dash-console-idle');
-  }
-}
-
-function _dashConsolePaint() {
-  const log = document.getElementById('dash-console-log');
-  const status = document.getElementById('dash-console-status');
-  const root = document.getElementById('dash-console');
-  if (!log) return;
-  const busy = _dashConsoleLines.some(l => l.level === 'busy');
-  if (status) status.textContent = busy ? 'Working…' : 'Ready';
-  if (root) root.classList.toggle('dash-console-idle', !busy);
-  const esc = (typeof escHtml === 'function') ? escHtml : (x) => String(x ?? '');
-  log.innerHTML = _dashConsoleLines.map(l =>
-    `<div class="dash-console-line dash-console-${l.level}"><span class="dash-console-ts">${esc(l.time)}</span><span class="dash-console-msg">${esc(l.msg)}</span></div>`
-  ).join('');
-  log.scrollTop = log.scrollHeight;
-}
-
-function _dashConsolePageActive() {
-  const page = document.getElementById('page-dashboard');
-  return !!(page && (page.classList.contains('on') || (location.hash || '').includes('dashboard')));
-}
 
 function dashConsoleLog(msg, level = 'info') {
-  if (window.DashboardConsole?.log) return window.DashboardConsole.log(msg, level);
-  if (!_dashConsolePageActive()) return;
-  _dashConsoleEnsureVisible();
-  _dashConsoleLines.push({ time: _dashConsoleFmtTime(), msg, level });
-  if (_dashConsoleLines.length > DASH_CONSOLE_MAX) _dashConsoleLines.shift();
-  _dashConsolePaint();
-  clearTimeout(_dashConsoleIdleTimer);
-  _dashConsoleIdleTimer = setTimeout(() => {
-    const status = document.getElementById('dash-console-status');
-    if (status) status.textContent = 'Idle';
-    document.getElementById('dash-console')?.classList.add('dash-console-idle');
-  }, DASH_CONSOLE_IDLE_MS);
+  if (window.DashboardConsole?.log) window.DashboardConsole.log(msg, level);
 }
 
 function dashConsoleStart(msg) {
-  if (window.DashboardConsole?.start) return window.DashboardConsole.start(msg);
-  _dashConsoleLines = [];
-  _dashConsoleCollapsed = true;
-  const root = document.getElementById('dash-console');
-  const body = document.getElementById('dash-console-body');
-  const log = document.getElementById('dash-console-log');
-  if (root) {
-    root.hidden = false;
-    root.classList.add('collapsed');
-    root.classList.remove('dash-console-idle');
-  }
-  if (body) body.hidden = false;
-  if (log) log.innerHTML = '';
-  const toggle = document.getElementById('dash-console-toggle');
-  if (toggle) { toggle.textContent = '+'; toggle.setAttribute('aria-expanded', 'false'); }
-  dashConsoleLog(msg || 'Dashboard load started', 'busy');
+  if (window.DashboardConsole?.start) window.DashboardConsole.start(msg);
 }
 let _renderDashboardChain = Promise.resolve();
 let _activityFetchPromise = null;

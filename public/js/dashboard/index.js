@@ -35,9 +35,6 @@
       console.log(`Skipping refresh — rate limited (${scope})`, 'warn');
       return null;
     }
-    if (scope === 'stats' || scope === 'full') {
-      console.log(`Refreshing · scope=${scope}`, 'busy');
-    } // reduced routine conn logging (every 5s) for less noisy/smoother activity console experience
     const bundle = await fetchBundle(scope);
     if (bundle?.error) {
       const level = bundle.status === 429 ? 'warn' : 'err';
