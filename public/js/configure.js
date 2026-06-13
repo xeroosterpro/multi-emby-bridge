@@ -805,7 +805,7 @@ function _recordDashStatusEvent(card, state, msg) {
   const last = card._statusLog[card._statusLog.length - 1];
   if (last && last.state === state && last.msg === msg && (Date.now() - last.ts < 20000)) return;
   card._statusLog.push({ ts: Date.now(), state, msg: msg || state });
-  if (card._statusLog.length > 12) card._statusLog.shift();
+  if (card._statusLog.length > 20) card._statusLog.shift(); // advanced history log: keep more for down/up timeline
   _paintDashStatusLog(card);
 }
 
@@ -816,9 +816,15 @@ function _paintDashStatusLog(card) {
   if (!log.length) { el.hidden = true; return; }
   el.hidden = false;
   const esc = (typeof escHtml === 'function') ? escHtml : (x) => String(x ?? '');
-  el.innerHTML = log.slice(-4).reverse().map(e => {
+  // show more for advanced per-card server history log (downs, recoveries, etc)
+  el.innerHTML = log.slice(-8).reverse().map(e => {
     const t = new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-    return `<div class="gstatus-line gstatus-${esc(e.state)}"><span class="gstatus-ts">${t}</span><span class="gstatus-msg">${esc(e.msg)}</span></div>`;
+    let icon = '';
+    if (e.state === 'degraded') icon = '⚠ ';
+    else if (e.state === 'offline') icon = '⛔ ';
+    else if (e.state === 'online' || e.state === 'reachable') icon = '✅ ';
+    const msg = icon + esc(e.msg);
+    return `<div class="gstatus-line gstatus-${esc(e.state)}"><span class="gstatus-ts">${t}</span><span class="gstatus-msg">${msg}</span></div>`;
   }).join('');
 }
 
@@ -1977,7 +1983,7 @@ async function _mapPool(items, worker, concurrency = 3) {
 const BRIDGE_FRESH_MS = 90 * 1000; // align with 30s health pings (+ buffer)
 const DASH_GRAPH_POLL_MS = 15000; // sparklines + health-based ONLINE/OFFLINE (reduced for smoother feel, less frequent updates)
 const DASH_CONN_POLL_MS = 30000; // full authenticated connection test
-const DASH_HEALTH_PING_MS = 15000; // trigger backend pings while dashboard is open
+const DASH_HEALTH_PING_MS = 10000; // aggressive pings while dashboard open to detect downs faster (bulletproof wiring)
 
 function _bridgeMsFromHealth(healthByUrl, url) {
   const lat = healthByUrl[_normServerUrl(url)]?.history?.[0];
@@ -3160,12 +3166,16 @@ function paintDashActivityPanels(el, a, bundle, localServers) {
   const stats = dashHistStats(recent);
   const histRows = renderDashHistoryRows(recent, live, _dashHistFilter);
 
+  // aggregate idle summary instead of per-server empty
+  const idleCount = (probes || []).filter(p => p && p.ok && (p.count || 0) === 0).length;
+  const aggregateEmpty = live.length ? '' : `<div class="da-empty">${emptyMsg}<div class="da-idle-summary">${idleCount}/${serverCount} servers idle</div></div>`;
+
   el.innerHTML = `<div class="dash-activity-grid" data-ready="1">
     <div class="dash-act-panel dash-act-live">
       <h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming <span class="dash-act-count">${live.length}</span></h3>
       <p class="dash-act-hint">Sessions, browser, and bridge stream lookups · ${serverCount} server${serverCount === 1 ? '' : 's'} · refreshes every ${Math.round(DASH_LIVE_POLL_MS / 1000)}s on this page</p>
       ${renderLiveProbeStrip(probes)}
-      <div class="da-list">${liveRows || `<div class="da-empty">${emptyMsg}</div>`}</div>
+      <div class="da-list">${liveRows || aggregateEmpty}</div>
     </div>
     <div class="dash-act-panel dash-act-history">
       <div class="da-hist-head">
@@ -3432,6 +3442,19 @@ function _patchDashConnFromBundle(data) {
   _paintDashTilesFromBundle(data);
 }
 
+function _getCachedLibForUrl(url) {
+  if (!_libStatsCache) return null;
+  const norm = _normServerUrl(url);
+  for (const k of Object.keys(_libStatsCache)) {
+    const keyUrl = k.split('|')[0] || '';
+    if (_normServerUrl(keyUrl) === norm) {
+      const c = _libStatsCache[k];
+      if (c && (Date.now() - (c.ts || 0)) < 3600000) return c; // within last hour
+    }
+  }
+  return null;
+}
+
 function _patchDashStatsFromBundle(data) {
   const cards = document.querySelectorAll('#page-dashboard #dash-cards .gcard[data-server-url]');
   cards.forEach(card => {
@@ -3446,13 +3469,26 @@ function _patchDashStatsFromBundle(data) {
       else el.removeAttribute('title');
     };
     if (lib) {
-      setChip('movies', lib.ok ? (lib.movies || 0).toLocaleString() : '—', lib.ok ? '' : (lib.error || 'failed'));
-      setChip('shows', lib.ok ? (lib.shows || 0).toLocaleString() : '—', lib.ok ? '' : (lib.error || 'failed'));
-      setChip('episodes', lib.ok ? (lib.episodes || 0).toLocaleString() : '—', lib.ok ? '' : (lib.error || 'failed'));
       if (lib.ok) {
+        setChip('movies', (lib.movies || 0).toLocaleString(), '');
+        setChip('shows', (lib.shows || 0).toLocaleString(), '');
+        setChip('episodes', (lib.episodes || 0).toLocaleString(), '');
         const srv = (data.servers || []).find(s => _normServerUrl(s.url) === _normServerUrl(url));
         const cacheKey = _libKey({ url, apiKey: '', userId: srv?.userId || '' });
         _libStatsCache[cacheKey] = { movies: lib.movies, shows: lib.shows, episodes: lib.episodes, ts: Date.now() };
+      } else {
+        const cached = _getCachedLibForUrl(url);
+        const err = lib.error || 'failed';
+        if (cached) {
+          const note = ' (last known)';
+          setChip('movies', (cached.movies || 0).toLocaleString() + note, err);
+          setChip('shows', (cached.shows || 0).toLocaleString() + note, err);
+          setChip('episodes', (cached.episodes || 0).toLocaleString() + note, err);
+        } else {
+          setChip('movies', '—', err);
+          setChip('shows', '—', err);
+          setChip('episodes', '—', err);
+        }
       }
     }
     _syncDashCardStatus(card, data);

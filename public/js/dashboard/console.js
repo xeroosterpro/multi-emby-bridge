@@ -6,7 +6,7 @@
   let lines = [];
   let idleTimer = null;
   let collapsed = true;
-  let filter = 'all';
+  let filter = 'err'; // default to quieter view: only errors/issues; click "All" for routine polls + health updates
   let seenErrors = new Map();
   let lastRoutine = { live: null, conn: null, health: null, stats: null };
 
@@ -338,6 +338,12 @@
       });
     }
     setCollapsed(true);
+    filter = 'err';
+    const errBtn = document.querySelector('#dash-console-filters [data-filter="err"]');
+    if (errBtn) {
+      document.querySelectorAll('#dash-console-filters [data-filter]').forEach(b => b.classList.remove('active'));
+      errBtn.classList.add('active');
+    }
     paint();
   }
 
