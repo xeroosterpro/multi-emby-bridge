@@ -755,7 +755,9 @@ function _paintDashStatusLog(card) {
   el.hidden = false;
   const esc = (typeof escHtml === 'function') ? escHtml : (x) => String(x ?? '');
   // show more for advanced per-card server history log (downs, recoveries, etc)
-  el.innerHTML = log.slice(-8).reverse().map(e => {
+  // Only the latest event as a compact per-card footer (prevents tall cards and visual overlap with the console below).
+  // Full history stays in the unified BACKEND ACTIVITY console.
+  el.innerHTML = log.slice(-1).reverse().map(e => {
     const t = new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
     let icon = '';
     if (e.state === 'degraded') icon = '⚠ ';

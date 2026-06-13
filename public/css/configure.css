@@ -1011,7 +1011,7 @@ input[type=range][data-slider] { flex: 1; accent-color: var(--accent-a); }
 .keytile-head { cursor: pointer; }
 
 /* ===== dashboard glow cards ===== */
-.dash-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.dash-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-bottom: 8px; }
 @keyframes haloPulse { 0%,100%{ box-shadow:0 0 0 0 var(--gbglow), 0 6px 16px var(--gbglow); } 50%{ box-shadow:0 0 22px 4px var(--gbglow), 0 6px 16px var(--gbglow); } }
 @keyframes floaty { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-3px); } }
 @keyframes brandSheen { 0%{ transform:translateX(-140%) rotate(12deg); } 55%,100%{ transform:translateX(260%) rotate(12deg); } }
@@ -1540,10 +1540,10 @@ body.noanim .acc2-body{ transition:none; }
 .gpill.offline::before{ background:#f87171; box-shadow:0 0 6px #f87171; animation:status-blink 1.1s ease-in-out infinite !important; }
 .gpill.degraded{ background:rgba(251,146,60,.14); border:1px solid rgba(251,146,60,.42); color:#fb923c; }
 .gpill.degraded::before{ background:#fb923c; box-shadow:0 0 6px rgba(251,146,60,.65); animation:status-blink 1.2s ease-in-out infinite !important; }
-.gcard-status-log{ margin-top:8px; padding-top:6px; border-top:1px solid color-mix(in srgb, var(--border) 70%, transparent); font-size:.58rem; line-height:1.35; }
+.gcard-status-log{ margin-top:6px; padding-top:4px; padding-bottom:2px; border-top:1px solid color-mix(in srgb, var(--border) 60%, transparent); font-size:.56rem; line-height:1.25; }
 .gcard.has-status .gcard-status-log { opacity: 1; }
-.gstatus-line{ display:flex; gap:6px; padding:1px 0; color:var(--text-mute); }
-.gstatus-ts{ flex-shrink:0; opacity:.8; font-variant-numeric:tabular-nums; }
+.gstatus-line{ display:flex; gap:5px; padding:0; color:var(--text-mute); }
+.gstatus-ts{ flex-shrink:0; opacity:.75; font-variant-numeric:tabular-nums; font-size:.9em; }
 .gstatus-msg{ word-break:break-word; }
 .gstatus-offline .gstatus-msg{ color:#f87171; }
 .gstatus-degraded .gstatus-msg{ color:#fb923c; }
