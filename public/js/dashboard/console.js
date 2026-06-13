@@ -66,16 +66,32 @@
     log(msg || 'Dashboard load started', 'busy');
   }
 
-  function logBundle(bundle) {
+  function logBundle(bundle, opts = {}) {
     if (!bundle) return;
-    log(`Bundle · scope=${bundle.scope} · ${bundle.serverCount || 0} server(s)`, 'ok');
-    const t = bundle.totals || {};
-    if (t.serversTotal) {
-      log(`Totals · ${t.serversUp}/${t.serversTotal} up · ${(t.movies || 0).toLocaleString()} movies`, 'info');
-    }
+    const scope = opts.scope || bundle.scope || 'full';
+    log(`Bundle · scope=${scope} · ${bundle.serverCount || 0} server(s)`, 'ok');
+    if (scope === 'health') return;
+
     const liveN = Array.isArray(bundle.live) ? bundle.live.length : 0;
-    log(`Live · ${liveN} active stream(s)`, liveN ? 'ok' : 'info');
-    for (const err of (bundle.errors || [])) {
+    if (scope === 'live') {
+      log(`Live · ${liveN} active stream(s)`, liveN ? 'ok' : 'info');
+      return;
+    }
+
+    const t = bundle.totals || {};
+    if (scope === 'stats' || scope === 'full') {
+      if (t.serversTotal) {
+        log(`Totals · ${t.serversUp}/${t.serversTotal} up · ${(t.movies || 0).toLocaleString()} movies`, 'info');
+      }
+    }
+    if (scope === 'full') {
+      log(`Live · ${liveN} active stream(s)`, liveN ? 'ok' : 'info');
+    }
+    const errParts = scope === 'stats' ? new Set(['library', 'connection', 'stats'])
+      : scope === 'full' ? null : new Set();
+    const errList = Array.isArray(opts.errors) ? opts.errors : (bundle.errors || []);
+    for (const err of errList) {
+      if (errParts && !errParts.has(err.part)) continue;
       const who = err.server ? `${err.part} · ${err.server}` : err.part;
       log(`${who} — ${err.message}`, 'err');
     }

@@ -800,6 +800,12 @@ function _dashGenStale(gen) {
 
 function _reconcileDashServerTile() {
   if (_dashboardInFlight) return;
+  // Bundle totals use authenticated connection tests; card pills can show REACHABLE from health ping.
+  if (_dashboardBundleActive()) {
+    const bundle = window.DashboardState?.lastBundle;
+    if (bundle?.totals) _paintDashTilesFromBundle(bundle);
+    return;
+  }
   const cards = document.querySelectorAll('#page-dashboard #dash-cards .gcard[data-server-url]');
   if (!cards.length) return;
   let upCount = 0;
@@ -3360,7 +3366,6 @@ async function applyDashboardBundle(bundle, opts = {}) {
     activity: _dashActivityData,
     bundle: { live: _liveBundleCache.live, probes: data.liveProbes, ts: data.ts },
   });
-  if (!opts.partial) _reconcileDashServerTile();
 }
 window.applyDashboardBundle = applyDashboardBundle;
 

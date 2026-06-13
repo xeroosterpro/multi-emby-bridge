@@ -27,7 +27,7 @@
       setBundle(bundle, scope);
     }
     const merged = window.DashboardState?.lastBundle || bundle;
-    console.logBundle(merged);
+    console.logBundle(merged, { scope, errors: bundle?.errors });
     return merged;
   }
 
