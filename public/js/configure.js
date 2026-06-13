@@ -107,11 +107,13 @@ function dashConsoleStart(msg) {
   _dashConsoleCollapsed = false;
   const root = document.getElementById('dash-console');
   const body = document.getElementById('dash-console-body');
+  const log = document.getElementById('dash-console-log');
   if (root) {
     root.hidden = false;
     root.classList.remove('collapsed', 'dash-console-idle');
   }
   if (body) body.hidden = false;
+  if (log) log.innerHTML = '';
   const toggle = document.getElementById('dash-console-toggle');
   if (toggle) { toggle.textContent = '−'; toggle.setAttribute('aria-expanded', 'true'); }
   dashConsoleLog(msg || 'Dashboard load started', 'busy');
@@ -754,6 +756,12 @@ function _dashCardIsOnline(card) {
   return !!(pill && pill.classList.contains('online'));
 }
 
+function _dashCardIsUp(card) {
+  const pill = card.querySelector('[data-pill]');
+  if (!pill) return false;
+  return pill.classList.contains('online') || pill.classList.contains('reachable');
+}
+
 function _dashCardBridgeMs(card) {
   const msTxt = card.querySelector('[data-bridge-ms]')?.textContent || '';
   const ms = parseInt(msTxt, 10);
@@ -771,7 +779,7 @@ function _reconcileDashServerTile() {
   let upCount = 0;
   let fastest = null;
   cards.forEach(card => {
-    if (!_dashCardIsOnline(card)) return;
+    if (!_dashCardIsUp(card)) return;
     upCount++;
     const ms = _dashCardBridgeMs(card);
     if (ms != null && (fastest === null || ms < fastest)) fastest = ms;
@@ -823,24 +831,37 @@ async function refreshDashCardStatus(opts = {}) {
       const pill = card.querySelector('[data-pill]');
       const wasAuthOnline = !!(pill && pill.classList.contains('online'));
       if (wasAuthOnline) {
-        if (!st.online && !_isHealthDownConfirmed(healthByUrl, s.url)) continue;
+        if (!st.online && !_isHealthDownConfirmed(healthByUrl, s.url)) {
+          if (_dashCardIsUp(card)) {
+            upCount++;
+            const ms = _dashCardBridgeMs(card);
+            if (ms != null && (fastest === null || ms < fastest)) fastest = ms;
+          }
+          continue;
+        }
         if (st.online && st.authenticated === false) {
           const msEl = card.querySelector('[data-bridge-ms]');
           if (msEl && st.bridgeMs != null) {
             msEl.textContent = st.bridgeMs + 'ms';
             msEl.className = 'gbridge-now ' + _srvPingClass(st.bridgeMs);
           }
+          if (_dashCardIsUp(card)) {
+            upCount++;
+            const ms = _dashCardBridgeMs(card);
+            if (ms != null && (fastest === null || ms < fastest)) fastest = ms;
+          }
           continue;
         }
       }
       _applyDashCardStatus(card, st.online, st.bridgeMs, st.authenticated !== false);
-      if (_dashCardIsOnline(card)) {
+      if (_dashCardIsUp(card)) {
         upCount++;
         const ms = _dashCardBridgeMs(card);
         if (ms != null && (fastest === null || ms < fastest)) fastest = ms;
       }
     }
     _updateDashStatusHeader(servers, upCount, fastest);
+    _reconcileDashServerTile();
     return;
   }
 
@@ -874,6 +895,7 @@ async function refreshDashCardStatus(opts = {}) {
   }
 
   _updateDashStatusHeader(servers, upCount, fastest);
+  _reconcileDashServerTile();
 }
 
 function formatLiveTitleClient(np) {
@@ -2694,7 +2716,7 @@ function dashNormContentKey(entry) {
 function dashMergeLiveIntoRecent(recent, live, opts = {}) {
   const limit = opts.limit || 30;
   const list = [...(recent || [])];
-  const liveSessions = (live || []).filter(s => s && s.source !== 'bridge');
+  const liveSessions = (live || []).filter(s => s && s.title);
   for (const session of liveSessions) {
     const title = session.title || session.rawTitle || session.seriesName;
     if (!title) continue;

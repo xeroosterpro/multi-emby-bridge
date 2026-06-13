@@ -129,10 +129,10 @@ const withHistory = mergeLiveIntoRecent(
 );
 A(withHistory.length === 1, 'does not duplicate when history already matches live');
 
-const bridgeSkipped = mergeLiveIntoRecent([], [{
+const mergedBridgeLive = mergeLiveIntoRecent([], [{
   title: 'Bridge Guess', source: 'bridge', server: 'BK',
 }]);
-A(bridgeSkipped.length === 0, 'skips bridge-only live rows');
+A(mergedBridgeLive.length === 1 && mergedBridgeLive[0].kind === 'live', 'bridge live sessions appear in recent');
 
 console.log('\nmergeActivityHistory:');
 const merged = mergeActivityHistory(
