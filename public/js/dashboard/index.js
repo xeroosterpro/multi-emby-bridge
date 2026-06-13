@@ -35,7 +35,9 @@
       console.log(`Skipping refresh — rate limited (${scope})`, 'warn');
       return null;
     }
-    console.log(`Refreshing · scope=${scope}`, 'busy');
+    if (scope !== 'live' && scope !== 'health') {
+      console.log(`Refreshing · scope=${scope}`, 'busy');
+    }
     const bundle = await fetchBundle(scope);
     if (bundle?.error) {
       const level = bundle.status === 429 ? 'warn' : 'err';

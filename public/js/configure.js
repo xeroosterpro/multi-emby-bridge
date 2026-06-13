@@ -89,6 +89,7 @@ function _dashConsolePageActive() {
 }
 
 function dashConsoleLog(msg, level = 'info') {
+  if (window.DashboardConsole?.log) return window.DashboardConsole.log(msg, level);
   if (!_dashConsolePageActive()) return;
   _dashConsoleEnsureVisible();
   _dashConsoleLines.push({ time: _dashConsoleFmtTime(), msg, level });
@@ -103,19 +104,21 @@ function dashConsoleLog(msg, level = 'info') {
 }
 
 function dashConsoleStart(msg) {
+  if (window.DashboardConsole?.start) return window.DashboardConsole.start(msg);
   _dashConsoleLines = [];
-  _dashConsoleCollapsed = false;
+  _dashConsoleCollapsed = true;
   const root = document.getElementById('dash-console');
   const body = document.getElementById('dash-console-body');
   const log = document.getElementById('dash-console-log');
   if (root) {
     root.hidden = false;
-    root.classList.remove('collapsed', 'dash-console-idle');
+    root.classList.add('collapsed');
+    root.classList.remove('dash-console-idle');
   }
   if (body) body.hidden = false;
   if (log) log.innerHTML = '';
   const toggle = document.getElementById('dash-console-toggle');
-  if (toggle) { toggle.textContent = '−'; toggle.setAttribute('aria-expanded', 'true'); }
+  if (toggle) { toggle.textContent = '+'; toggle.setAttribute('aria-expanded', 'false'); }
   dashConsoleLog(msg || 'Dashboard load started', 'busy');
 }
 let _renderDashboardChain = Promise.resolve();
@@ -5215,17 +5218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
-  const dashConsoleToggle = document.getElementById('dash-console-toggle');
-  if (dashConsoleToggle) {
-    dashConsoleToggle.addEventListener('click', () => {
-      const root = document.getElementById('dash-console');
-      if (!root) return;
-      _dashConsoleCollapsed = !root.classList.toggle('collapsed');
-      dashConsoleToggle.textContent = _dashConsoleCollapsed ? '+' : '−';
-      dashConsoleToggle.setAttribute('aria-expanded', _dashConsoleCollapsed ? 'false' : 'true');
-      dashConsoleToggle.title = _dashConsoleCollapsed ? 'Expand log' : 'Collapse log';
-    });
-  }
+
   if (window.Controls) Controls.bindAll();
   wireRankingUX();
   window.getAuth = getAuth;
