@@ -83,21 +83,23 @@ function createRateLimiter(windowMs, maxRequests) {
   // Cleanup every windowMs
   setInterval(() => {
     const now = Date.now();
-    for (const [ip, entry] of hits) {
-      if (now - entry.start > windowMs) hits.delete(ip);
+    for (const [key, entry] of hits) {
+      if (now - entry.start > windowMs) hits.delete(key);
     }
   }, windowMs);
 
   return (req, res, next) => {
     const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+    const max = typeof maxRequests === 'function' ? maxRequests(req) : maxRequests;
+    const key = req.user?.id ? `user:${req.user.id}` : `ip:${ip}`;
     const now = Date.now();
-    let entry = hits.get(ip);
+    let entry = hits.get(key);
     if (!entry || (now - entry.start) > windowMs) {
       entry = { start: now, count: 0 };
-      hits.set(ip, entry);
+      hits.set(key, entry);
     }
     entry.count++;
-    if (entry.count > maxRequests) {
+    if (entry.count > max) {
       return res.status(429).json({ error: 'Too many requests. Please try again later.' });
     }
     next();
@@ -105,7 +107,8 @@ function createRateLimiter(windowMs, maxRequests) {
 }
 
 // Rate limiters for different endpoint groups
-const apiLimiter = createRateLimiter(60 * 1000, 60);     // 60 req/min for API endpoints
+const apiLimiter = createRateLimiter(60 * 1000, (req) => (req.user ? 180 : 60));
+const bundleLimiter = createRateLimiter(60 * 1000, (req) => (req.user ? 120 : 30));
 const streamLimiter = createRateLimiter(60 * 1000, 120);  // 120 req/min for stream endpoints
 const authLimiter = createRateLimiter(60 * 1000, 10);     // 10 req/min for auth endpoints
 
@@ -755,7 +758,7 @@ async function mapPool(items, worker, concurrency = 3) {
 }
 
 // Unified dashboard bundle — one orchestrated payload per scope (full | live | stats | health).
-app.get('/api/dashboard/bundle', apiLimiter, requireAuthInProduction, async (req, res) => {
+app.get('/api/dashboard/bundle', bundleLimiter, requireAuthInProduction, async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'sign in required' });
   if (!dbLib.isConfigured()) return res.status(503).json({ error: 'accounts unavailable' });
   const { buildDashboardBundle } = require('./lib/dashboard');

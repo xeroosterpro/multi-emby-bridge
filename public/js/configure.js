@@ -650,6 +650,9 @@ function _invalidateHealthCache() {
   _healthHistoryCache = { ts: 0, data: null };
 }
 
+let _lastHealthKickTs = 0;
+const HEALTH_KICK_MIN_MS = 60000;
+
 async function _kickHealthPing() {
   try {
     await fetch('/api/health/ping-now', { method: 'POST', credentials: 'same-origin' });
@@ -657,6 +660,14 @@ async function _kickHealthPing() {
   } catch { /* best-effort */ }
 }
 window._kickHealthPing = _kickHealthPing;
+
+async function _kickHealthPingThrottled() {
+  const now = Date.now();
+  if (now - _lastHealthKickTs < HEALTH_KICK_MIN_MS) return;
+  _lastHealthKickTs = now;
+  return _kickHealthPing();
+}
+window._kickHealthPingThrottled = _kickHealthPingThrottled;
 
 let _healthHistoryCache = { ts: 0, data: null };
 async function _fetchHealthByUrl() {
@@ -675,11 +686,18 @@ async function _fetchHealthByUrl() {
   }
 }
 
+let _lastHealthRegisterKey = '';
+let _lastHealthRegisterTs = 0;
+
 async function _registerHealthServers(servers) {
   const payload = (servers || [])
     .filter(s => s?.url && s?.label)
     .map(s => ({ url: s.url, label: s.label, type: s.type || 'emby' }));
   if (!payload.length) return;
+  const key = payload.map(s => s.url).sort().join('|');
+  if (key === _lastHealthRegisterKey && Date.now() - _lastHealthRegisterTs < 30000) return;
+  _lastHealthRegisterKey = key;
+  _lastHealthRegisterTs = Date.now();
   try {
     await fetch('/api/health/register', {
       method: 'POST',
@@ -690,8 +708,15 @@ async function _registerHealthServers(servers) {
   } catch { /* best-effort */ }
 }
 
+function _dashboardBundleActive() {
+  const onDash = document.getElementById('page-dashboard')?.classList.contains('on');
+  const lc = window.DashboardState?.lifecycle;
+  return onDash && (lc === 'ready' || lc === 'polling') && !!window.DashboardState?.lastBundle;
+}
+
 async function refreshDashCardHealth() {
   if (_dashBusy) return;
+  if (_dashboardBundleActive()) return;
   const cards = document.querySelectorAll('#page-dashboard #dash-cards .gcard[data-server-url]');
   if (!cards.length) return;
   const byUrl = await _fetchHealthByUrl();
@@ -806,6 +831,7 @@ function _updateDashStatusHeader(servers, upCount, fastest) {
 
 async function refreshDashCardStatus(opts = {}) {
   if (_dashBusy) return;
+  if (_dashboardBundleActive()) return;
   const full = opts.full === true;
   const cards = document.querySelectorAll('#page-dashboard #dash-cards .gcard[data-server-url]');
   if (!cards.length) return;
@@ -1475,8 +1501,40 @@ function renderLiveProbeStrip(probes) {
 async function pollLivePlaybackNotifications(opts = {}) {
   const onDash = document.getElementById('page-dashboard')?.classList.contains('on');
   const dashBundle = window.DashboardState?.lastBundle;
+  const dashReady = window.DashboardState?.lifecycle === 'ready'
+    || window.DashboardState?.lifecycle === 'polling';
   const dashFresh = dashBundle?.ts && Date.now() - dashBundle.ts < DASH_LIVE_POLL_MS;
-  if (onDash && dashFresh && !opts.force) {
+
+  if (onDash && dashReady && dashBundle && !opts.force) {
+    _syncLiveCacheFromBundle(dashBundle);
+    const buffering = (dashBundle.live || []).filter(s => s.buffering);
+    renderBufferingBanner(buffering);
+    updateDashboardBufferBadge(buffering.length);
+    notifyNewBuffering(buffering);
+    return dashBundle.live || [];
+  }
+
+  if (!onDash && window.DashboardApi?.fetchBundle && !opts.force) {
+    const ttl = LIVE_PLAYBACK_POLL_MS;
+    if (_liveBundleCache.ts && Date.now() - _liveBundleCache.ts < ttl) {
+      const buffering = (_liveBundleCache.live || []).filter(s => s.buffering);
+      renderBufferingBanner(buffering);
+      updateDashboardBufferBadge(buffering.length);
+      notifyNewBuffering(buffering);
+      return _liveBundleCache.live || [];
+    }
+    const liveBundle = await window.DashboardApi.fetchBundle('live');
+    if (liveBundle && !liveBundle.error) {
+      _syncLiveCacheFromBundle(liveBundle);
+      const buffering = (liveBundle.live || []).filter(s => s.buffering);
+      renderBufferingBanner(buffering);
+      updateDashboardBufferBadge(buffering.length);
+      notifyNewBuffering(buffering);
+      return liveBundle.live || [];
+    }
+  }
+
+  if (onDash && dashFresh && dashBundle && !opts.force) {
     _syncLiveCacheFromBundle(dashBundle);
     const buffering = (dashBundle.live || []).filter(s => s.buffering);
     renderBufferingBanner(buffering);
@@ -2536,6 +2594,7 @@ function _startServersAutoRefresh() {
 }
 
 async function renderServersPage(opts = {}) {
+  if (!opts.force && !_isServersPageActive()) return;
   await ensureAccountConfigLoaded();
   _updateServersEmptyState();
   const blocks = [...document.querySelectorAll('#servers-container .server-card')];
@@ -2939,8 +2998,16 @@ async function renderDashActivity(opts = {}) {
 
   let bundle = opts.bundle;
   if (!bundle?.ts) {
-    if (_liveBundleCache.ts) bundle = _liveBundleCache;
-    else bundle = await fetchLiveBundle(false, { fast: true });
+    const dashBundle = window.DashboardState?.lastBundle;
+    if (dashBundle?.ts) {
+      bundle = { live: dashBundle.live, probes: dashBundle.liveProbes, ts: dashBundle.ts };
+    } else if (_liveBundleCache.ts) {
+      bundle = _liveBundleCache;
+    } else if (!_dashboardBundleActive()) {
+      bundle = await fetchLiveBundle(false, { fast: true });
+    } else {
+      bundle = _liveBundleCache;
+    }
   }
   if (gen !== _dashActivityGen) return;
 
@@ -2956,7 +3023,10 @@ function replayDashTileAnimations() {
 }
 
 // Real-time: live playback + buffering notifications (all pages when signed in).
-setInterval(() => { pollLivePlaybackNotifications(); }, LIVE_PLAYBACK_POLL_MS);
+setInterval(() => {
+  if (_dashboardBundleActive()) return;
+  pollLivePlaybackNotifications();
+}, LIVE_PLAYBACK_POLL_MS);
 setTimeout(() => {
   if (!document.getElementById('page-dashboard')?.classList.contains('on')) {
     pollLivePlaybackNotifications({ force: true });
@@ -2968,6 +3038,7 @@ setInterval(() => {
   const dash = document.getElementById('page-dashboard');
   if (!dash || !dash.classList.contains('on')) return;
   if (_dashBusy) return;
+  if (_dashboardBundleActive()) return;
   if (_dashLastFullLoad && Date.now() - _dashLastFullLoad < DASH_GRAPH_POLL_MS) return;
   refreshDashCardHealth();
   refreshDashCardStatus();
@@ -2978,6 +3049,7 @@ setInterval(() => {
   const dash = document.getElementById('page-dashboard');
   if (!dash || !dash.classList.contains('on')) return;
   if (_dashBusy) return;
+  if (_dashboardBundleActive()) return;
   if (_dashLastFullLoad && Date.now() - _dashLastFullLoad < DASH_CONN_POLL_MS - 3000) return;
   refreshDashCardStatus({ full: true });
 }, DASH_CONN_POLL_MS);
@@ -3075,7 +3147,7 @@ async function applyDashboardBundle(bundle, opts = {}) {
 
   const servers = data.servers || [];
   await _registerHealthServers(servers);
-  if (opts.full) await _kickHealthPing();
+  if (opts.full) await _kickHealthPingThrottled();
 
   const wrap = document.getElementById('dash-cards');
   const healthByUrl = _healthMapFromBundle(data.health);
@@ -3435,7 +3507,7 @@ function renumberBlocks() {
   updateSteps();
 }
 
-function addServer(data = null) {
+function addServer(data = null, opts = {}) {
   const container = document.getElementById('servers-container');
   if (container.querySelectorAll('.server-block').length >= 10) return;
   const id = nextId++;
@@ -3460,7 +3532,9 @@ function addServer(data = null) {
   }
   renumberBlocks();
   updateCredWarning(id);
-  refreshServerCard(block).then(() => renderServersPage());
+  if (!opts.skipRefresh) {
+    refreshServerCard(block).then(() => renderServersPage());
+  }
   _updateServersEmptyState();
   if (!data) {
     block.classList.add('open');          // new manual add → open the drawer to fill in
@@ -3523,7 +3597,8 @@ function collectConfig(silent = false) {
 function populateFromConfig(config) {
   document.getElementById('servers-container').innerHTML = '';
   nextId = 0;
-  for (const server of (config.servers || [])) addServer(server);
+  for (const server of (config.servers || [])) addServer(server, { skipRefresh: true });
+  if (_isServersPageActive()) renderServersPage({ force: true });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -4656,8 +4731,9 @@ function autoSave(e) {
     const cfg = collectConfig(true);
     if (cfg?.servers?.length) {
       _registerHealthServers(cfg.servers).then(() => {
+        if (_dashboardBundleActive()) return;
         if (!document.getElementById('page-dashboard')?.classList.contains('on')) return;
-        return _kickHealthPing().then(() => {
+        return _kickHealthPingThrottled().then(() => {
           refreshDashCardHealth();
           refreshDashCardStatus({ full: false });
         });
@@ -4691,7 +4767,7 @@ function restoreFromLocalStorage() {
       nextId = 0;
       state.servers.forEach(s => {
         const id = nextId;
-        addServer(s);
+        addServer(s, { skipRefresh: true });
         const block = document.getElementById(`server-${id}`);
         if (!block) return;
         if (s.enabled === false) {
@@ -4704,6 +4780,7 @@ function restoreFromLocalStorage() {
           updateSummary(id);
         }
       });
+      if (_isServersPageActive()) renderServersPage({ force: true });
     }
 
     if (state.mode) {
