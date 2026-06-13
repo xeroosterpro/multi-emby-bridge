@@ -1473,6 +1473,97 @@ function dashActivityHasContent(el) {
   return !!(el && el.querySelector('.dash-activity-grid[data-ready="1"]'));
 }
 
+const _DASH_CARD_PALETTE = [
+  ['linear-gradient(135deg,#fb923c,#f472b6)','rgba(244,114,182,.5)'],
+  ['linear-gradient(135deg,#818cf8,#22d3ee)','rgba(34,211,238,.5)'],
+  ['linear-gradient(135deg,#34d399,#22d3ee)','rgba(52,211,153,.5)'],
+  ['linear-gradient(135deg,#f59e0b,#fb7185)','rgba(245,158,11,.5)'],
+  ['linear-gradient(135deg,#a78bfa,#f472b6)','rgba(167,139,250,.5)'],
+];
+
+function paintDashboardSkeleton() {
+  const servers = _collectDashboardServers();
+  const wrap = document.getElementById('dash-cards');
+  if (!wrap) return 0;
+  const now = Date.now();
+  const n = servers.length;
+  const statusEl = document.getElementById('dash-status');
+  if (statusEl) {
+    statusEl.textContent = n
+      ? `Loading stats for ${n} server${n === 1 ? '' : 's'}…`
+      : 'No servers yet — add one on the Servers page.';
+  }
+  const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  if (!n) {
+    wrap.innerHTML = `<div class="dash-empty-state">
+      <div class="dash-empty-glow" aria-hidden="true"></div>
+      <div class="dash-empty-icon" aria-hidden="true">📡</div>
+      <h4 class="dash-empty-title">Connect your first server</h4>
+      <p class="dash-empty-copy">Add Emby or Jellyfin endpoints to unlock library stats, uptime charts, live playback, and watch history on this dashboard.</p>
+      <button type="button" class="btn primary dash-empty-cta">Add server</button>
+    </div>`;
+    wrap.querySelector('.dash-empty-cta')?.addEventListener('click', () => { location.hash = '#/servers'; });
+    return 0;
+  }
+  const existing = [...wrap.querySelectorAll('.gcard[data-server-url]')];
+  if (existing.length === n && existing.every(card => servers.some(s => _normServerUrl(s.url) === _normServerUrl(card.dataset.serverUrl)))) {
+    return n;
+  }
+  let cachedMovies = 0;
+  let cachedShows = 0;
+  wrap.innerHTML = '';
+  servers.forEach((s, idx) => {
+    const [bar, glow] = _DASH_CARD_PALETTE[idx % _DASH_CARD_PALETTE.length];
+    const isJelly = (s.type === 'jellyfin');
+    const brandSvg = isJelly ? JELLYFIN_LOGO : EMBY_LOGO;
+    const cacheKey = _libKey(s);
+    const c = _libStatsCache[cacheKey];
+    const hasLib = c && now - c.ts < LIB_TTL_MS;
+    if (hasLib) {
+      cachedMovies += c.movies || 0;
+      cachedShows += c.shows || 0;
+    }
+    const movies = hasLib ? (c.movies || 0).toLocaleString() : '…';
+    const shows = hasLib ? (c.shows || 0).toLocaleString() : '…';
+    const eps = hasLib ? (c.episodes || 0).toLocaleString() : '…';
+    const card = document.createElement('div');
+    card.className = 'gcard';
+    card.dataset.serverUrl = s.url || '';
+    card.style.setProperty('--bar', bar);
+    card.style.setProperty('--accentglow', glow);
+    card.style.setProperty('--badgebg', isJelly ? 'linear-gradient(135deg,#aa5cc3,#00a4dc)' : 'linear-gradient(135deg,#52b54b,#2f8f3e)');
+    card.innerHTML = `
+      <div class="gcard-top"></div>
+      <div class="gcard-pad">
+        <div class="gcard-head">
+          <div class="gbrand" style="--accentglow:${isJelly ? 'rgba(122,70,200,.7)' : 'rgba(82,181,75,.7)'}">${brandSvg}</div>
+          <div style="flex:1;min-width:0">
+            <div class="gcard-nm">${escHtml(s.label || 'Server')}</div>
+            <div class="gcard-host">${escHtml((s.url || '').replace(/^https?:\/\//, ''))}</div>
+          </div>
+          <div class="gstatus"><span class="gpill reachable" data-pill title="Checking connection…">…</span><span class="gbridge-now" data-bridge-ms title="Bridge latency now (addon → server)"></span></div>
+        </div>
+        <div class="gtype" style="display:none">${isJelly ? 'Jellyfin' : 'Emby'}</div>
+        <div class="gchips">
+          <div class="gchip"><div class="cn" data-st="movies">${movies}</div><div class="ct">Movies</div></div>
+          <div class="gchip"><div class="cn" data-st="shows">${shows}</div><div class="ct">Shows</div></div>
+          <div class="gchip"><div class="cn" data-st="episodes">${eps}</div><div class="ct">Episodes</div></div>
+        </div>
+        <div class="gcard-health"></div>
+      </div>`;
+    wrap.appendChild(card);
+    requestAnimationFrame(() => { card.style.animationDelay = `${idx * 55}ms`; });
+  });
+  setTxt('tile-servers', n);
+  if (cachedMovies || cachedShows) {
+    setTxt('tile-movies', cachedMovies.toLocaleString());
+    setTxt('tile-shows', cachedShows.toLocaleString());
+  }
+  _registerHealthServers(servers).catch(() => {});
+  return n;
+}
+window.paintDashboardSkeleton = paintDashboardSkeleton;
+
 function renderDashActivityShell(serverCount) {
   const el = document.getElementById('dash-activity');
   if (!el || dashActivityHasContent(el)) return;

@@ -57,12 +57,13 @@
     const logEl = document.getElementById('dash-console-log');
     if (root) {
       root.hidden = false;
-      root.classList.remove('collapsed', 'dash-console-idle');
+      root.classList.add('collapsed');
+      root.classList.remove('dash-console-idle');
     }
     if (body) body.hidden = false;
     if (logEl) logEl.innerHTML = '';
     const toggle = document.getElementById('dash-console-toggle');
-    if (toggle) { toggle.textContent = '−'; toggle.setAttribute('aria-expanded', 'true'); }
+    if (toggle) { toggle.textContent = '+'; toggle.setAttribute('aria-expanded', 'false'); toggle.title = 'Expand log'; }
     log(msg || 'Dashboard load started', 'busy');
   }
 
