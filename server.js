@@ -1198,7 +1198,7 @@ function doGracefulShutdown(signal = 'SIGTERM') {
   _isShuttingDown = true;
   console.log(`${signal} received, shutting down gracefully...`);
 
-  // Stop all DB-using background work immediately. Order: schedulers first.
+  // Stop all DB-using background work *immediately*.
   try {
     const healthMod = require('./lib/health');
     if (typeof healthMod.stopHealthPinger === 'function') {
@@ -1213,37 +1213,49 @@ function doGracefulShutdown(signal = 'SIGTERM') {
     }
   } catch (e) { /* best effort */ }
 
-  // Tell the DB layer to go quiet (no new queries, swallow expected disconnect noise)
+  // Tell the DB layer to go quiet (no new queries, swallow expected disconnect noise in Node logs)
+  let db;
   try {
-    const db = require('./lib/db');
+    db = require('./lib/db');
     if (typeof db.setShuttingDown === 'function') db.setShuttingDown(true);
   } catch (e) { /* best effort */ }
 
-  const finish = () => {
-    // Use the db helper which nulls the pool and awaits .end() (best effort).
+  // Close the HTTP server (prevents new work) but do **not** wait for it.
+  // In-flight requests may be cut short — that's fine on shutdown/deploy.
+  try {
+    server.close(() => {
+      console.log('HTTP server closed (no new connections).');
+    });
+  } catch (e) { /* ignore */ }
+
+  // **Prioritize draining the Postgres pool right away.**
+  // This gives pg clients the best chance to send clean "terminate" messages
+  // before the platform force-kills the container (Railway often does this ~10-30s after SIGTERM).
+  // We no longer wait for server.close() — DB close is higher priority for quiet Postgres logs.
+  const drainDb = async () => {
     try {
-      const db = require('./lib/db');
-      if (typeof db.shutdown === 'function' && db.isConfigured && db.isConfigured()) {
-        db.shutdown().then(() => {
-          console.log('Postgres pool drained.');
-          process.exit(0);
-        }).catch(() => process.exit(0));
-        return;
+      if (db && typeof db.shutdown === 'function' && typeof db.isConfigured === 'function' && db.isConfigured()) {
+        // Give the pool a short grace to cleanly close connections (usually <2s is enough for idle clients).
+        await Promise.race([
+          db.shutdown(),
+          new Promise(r => setTimeout(r, 4500))
+        ]);
+        console.log('Postgres pool drained (clean client disconnects attempted).');
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) {
+      // ignore
+    }
+    // Exit promptly. Any remaining socket teardown will be minimal.
     process.exit(0);
   };
 
-  server.close(() => {
-    console.log('HTTP server closed.');
-    finish();
-  });
+  drainDb();
 
-  // Force exit after timeout if graceful fails (background work, slow pool drain etc.)
+  // Hard safety net (should rarely hit now that we exit after DB drain window).
   setTimeout(() => {
     console.error('Forcing shutdown after timeout');
     process.exit(1);
-  }, 30000).unref();
+  }, 15000).unref();
 }
 
 process.on('SIGTERM', () => doGracefulShutdown('SIGTERM'));
