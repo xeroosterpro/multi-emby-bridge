@@ -3325,7 +3325,7 @@ function _mergeDashboardBundles(prev, next) {
   if (!next) return prev;
   const scope = next.scope || 'full';
   if (scope === 'full') return next;
-  if (!prev) return null;
+  if (!prev) return next;  // allow first partial after skeleton to populate its data (stats, conn, health) and set state
 
   const out = {
     ...prev,
