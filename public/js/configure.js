@@ -3069,10 +3069,10 @@ function openServerManage(index) {
 }
 
 function _mergeDashboardBundles(prev, next) {
-  if (!prev) return next;
   if (!next) return prev;
   const scope = next.scope || 'full';
   if (scope === 'full') return next;
+  if (!prev) return null;
 
   const out = {
     ...prev,
@@ -3082,7 +3082,7 @@ function _mergeDashboardBundles(prev, next) {
     hasServers: next.hasServers ?? prev.hasServers,
     serverCount: next.serverCount ?? prev.serverCount,
     servers: (next.servers?.length ? next.servers : prev.servers) || [],
-    totals: prev.totals,
+    totals: prev.totals ? { ...prev.totals } : prev.totals,
     connections: prev.connections || [],
     library: prev.library || [],
     live: prev.live || [],
@@ -3233,7 +3233,6 @@ async function applyDashboardBundle(bundle, opts = {}) {
 
   if (opts.partial && scope === 'health') {
     _patchDashHealthFromBundle(data);
-    _paintDashTilesFromBundle(data);
     return;
   }
 

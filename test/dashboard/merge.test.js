@@ -1,10 +1,10 @@
 'use strict';
 
 function mergeDashboardBundles(prev, next) {
-  if (!prev) return next;
   if (!next) return prev;
   const scope = next.scope || 'full';
   if (scope === 'full') return next;
+  if (!prev) return null;
 
   const out = {
     ...prev,
@@ -14,7 +14,7 @@ function mergeDashboardBundles(prev, next) {
     hasServers: next.hasServers ?? prev.hasServers,
     serverCount: next.serverCount ?? prev.serverCount,
     servers: (next.servers?.length ? next.servers : prev.servers) || [],
-    totals: prev.totals,
+    totals: prev.totals ? { ...prev.totals } : prev.totals,
     connections: prev.connections || [],
     library: prev.library || [],
     live: prev.live || [],
@@ -97,6 +97,11 @@ test('live scope keeps totals and updates recent', () => {
   if (merged.totals.movies !== 270196) throw new Error('totals wiped');
   if (merged.recent[0].title !== 'New') throw new Error('recent not updated');
   if (merged.library.length !== 1) throw new Error('library cleared');
+});
+
+test('partial scope without prev returns null', () => {
+  const merged = mergeDashboardBundles(null, { scope: 'health', ts: 1, health: [] });
+  if (merged !== null) throw new Error('expected null');
 });
 
 test('stats scope updates library and totals', () => {
