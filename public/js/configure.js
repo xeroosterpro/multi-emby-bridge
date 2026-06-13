@@ -1946,7 +1946,7 @@ async function _mapPool(items, worker, concurrency = 3) {
   }));
 }
 const BRIDGE_FRESH_MS = 90 * 1000; // align with 30s health pings (+ buffer)
-const DASH_GRAPH_POLL_MS = 8000; // sparklines + health-based ONLINE/OFFLINE
+const DASH_GRAPH_POLL_MS = 15000; // sparklines + health-based ONLINE/OFFLINE (reduced for smoother feel, less frequent updates)
 const DASH_CONN_POLL_MS = 30000; // full authenticated connection test
 const DASH_HEALTH_PING_MS = 15000; // trigger backend pings while dashboard is open
 
