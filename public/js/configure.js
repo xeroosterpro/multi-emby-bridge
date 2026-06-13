@@ -2648,8 +2648,40 @@ function updateInstallStats() {
   set('inst-stat-servers', count);
   const mode = document.querySelector('input[name="perf-mode"]:checked')?.value || 'normal';
   set('inst-stat-mode', { normal: 'Normal', split: 'Split', timeout: 'Fast' }[mode] || mode);
+  const hasUrl = !!url;
+  ['acct-install', 'acct-copy'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn || btn.dataset.authLocked === '1') return;
+    btn.disabled = !hasUrl;
+  });
 }
 window.updateInstallStats = updateInstallStats;
+
+async function loadInstallPage() {
+  await ensureAccountConfigLoaded();
+  const config = collectConfig(true);
+  if (config) {
+    try { await generateLinks({ silent: true }); } catch {}
+  }
+  try {
+    const auth = await getAuth();
+    if (auth?.enabled && auth?.user) {
+      const urlEl = document.getElementById('acct-url');
+      let url = urlEl?.value?.trim() || '';
+      if (!url) {
+        const cur = await fetch('/api/user/manifest', { credentials: 'same-origin' })
+          .then(r => r.json()).catch(() => ({}));
+        url = cur.url || '';
+      }
+      if (!url && config) {
+        try { url = await ensureTokenManifestUrl(config); } catch {}
+      }
+      if (url && urlEl) urlEl.value = url;
+    }
+  } catch {}
+  updateInstallStats();
+}
+window.loadInstallPage = loadInstallPage;
 
 function _refreshMediaPreview() {
   if (typeof updateLabelPreview === 'function') updateLabelPreview();
@@ -2678,7 +2710,7 @@ window.onPageShow = function(name) {
     updateMediaSourceStats();
     _refreshMediaPreview();
   }
-  if (name === 'install') updateInstallStats();
+  if (name === 'install') loadInstallPage().catch(() => updateInstallStats());
   if (name === 'dashboard') {
     const dc = document.getElementById('dash-console');
     if (dc) dc.hidden = false;
@@ -4653,6 +4685,7 @@ Continue anyway?`;
     fetch('/api/health/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ servers: healthServers }) }).catch(() => {});
   } catch {}
 }
+window.generateLinks = generateLinks;
 
 // ── Copy ──────────────────────────────────────────────────────────────────
 function copySpecific(btn) {

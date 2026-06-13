@@ -51,20 +51,33 @@
     const loggedIn = !!(meRes.body && meRes.body.enabled && meRes.body.user);
 
     const urlEl = $('#acct-url'), msg = $('#acct-msg');
+    const syncInstallBtn = () => {
+      const btn = $('#acct-install');
+      if (!btn) return;
+      const hasUrl = !!(urlEl && urlEl.value && urlEl.value.trim());
+      btn.disabled = !hasUrl;
+      btn.title = hasUrl ? '' : (loggedIn ? 'Generate your manifest link first' : 'Sign in and configure servers to get your link');
+    };
     const showUrl = url => {
       if (url && urlEl) urlEl.value = url;
       if (typeof window.updateInstallStats === 'function') window.updateInstallStats();
+      syncInstallBtn();
     };
 
-    if (loggedIn && me.body.user?.username) {
-      try { sessionStorage.setItem('meb_active_user', me.body.user.username); } catch {}
+    if (loggedIn && meRes.body?.user?.username) {
+      try { sessionStorage.setItem('meb_active_user', meRes.body.user.username); } catch {}
     }
+
+    syncInstallBtn();
 
     if (!loggedIn) {
       // accounts off / signed out — keys still save into the install blob, but
       // there's no personal link to mint. Soften the manifest card.
       if (urlEl) urlEl.placeholder = 'Sign in to generate your personal link';
-      ['acct-regen', 'acct-copy'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = true; });
+      ['acct-regen', 'acct-copy', 'acct-install'].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) { b.disabled = true; b.dataset.authLocked = '1'; }
+      });
     } else {
       const cur = await api('/api/user/manifest');
       if (cur.body) showUrl(cur.body.url);
