@@ -3072,19 +3072,38 @@ function _mergeDashboardBundles(prev, next) {
   if (!prev) return next;
   if (!next) return prev;
   const scope = next.scope || 'full';
-  const out = { ...prev, ...next, ts: next.ts || Date.now(), scope };
+  if (scope === 'full') return next;
+
+  const out = {
+    ...prev,
+    ts: next.ts || Date.now(),
+    scope,
+    errors: [...(prev.errors || []), ...(next.errors || [])].slice(-24),
+    hasServers: next.hasServers ?? prev.hasServers,
+    serverCount: next.serverCount ?? prev.serverCount,
+    servers: (next.servers?.length ? next.servers : prev.servers) || [],
+    totals: prev.totals,
+    connections: prev.connections || [],
+    library: prev.library || [],
+    live: prev.live || [],
+    liveProbes: prev.liveProbes || [],
+    recent: prev.recent || [],
+    health: prev.health || [],
+  };
+
   if (scope === 'live') {
-    out.live = next.live || [];
-    out.liveProbes = next.liveProbes || [];
-    out.recent = next.recent || [];
+    out.live = next.live ?? prev.live ?? [];
+    out.liveProbes = next.liveProbes ?? prev.liveProbes ?? [];
+    out.recent = next.recent ?? prev.recent ?? [];
   }
   if (scope === 'stats') {
-    out.connections = next.connections || [];
-    out.library = next.library || [];
+    out.connections = next.connections ?? prev.connections ?? [];
+    out.library = next.library ?? prev.library ?? [];
     out.totals = next.totals || prev.totals;
   }
-  if (scope === 'health') out.health = next.health || [];
-  out.errors = [...(prev.errors || []), ...(next.errors || [])].slice(-24);
+  if (scope === 'health') {
+    out.health = next.health ?? prev.health ?? [];
+  }
   return out;
 }
 
@@ -3102,6 +3121,52 @@ function _bundleConnByUrl(bundle, url) {
 function _bundleLibByUrl(bundle, url) {
   const norm = _normServerUrl(url);
   return (bundle.library || []).find(r => _normServerUrl(r.url) === norm);
+}
+
+function _patchDashHealthFromBundle(data) {
+  const healthByUrl = _healthMapFromBundle(data.health);
+  const cards = document.querySelectorAll('#page-dashboard #dash-cards .gcard[data-server-url]');
+  cards.forEach(card => {
+    const url = card.dataset.serverUrl;
+    const slot = card.querySelector('.gcard-health');
+    const healthRec = healthByUrl[_normServerUrl(url)];
+    if (slot) slot.innerHTML = _dashHealthPanel(healthRec?.history || []);
+    const conn = _bundleConnByUrl(data, url);
+    if (conn) _applyDashCardStatus(card, conn.ok, conn.bridgeMs);
+    else {
+      const st = _statusFromHealth(healthByUrl, url);
+      if (st) _applyDashCardStatus(card, st.online, st.bridgeMs, st.authenticated !== false);
+    }
+  });
+}
+
+function _patchDashStatsFromBundle(data) {
+  const cards = document.querySelectorAll('#page-dashboard #dash-cards .gcard[data-server-url]');
+  cards.forEach(card => {
+    const url = card.dataset.serverUrl;
+    const lib = _bundleLibByUrl(data, url);
+    const conn = _bundleConnByUrl(data, url);
+    const setChip = (st, val, err) => {
+      const el = card.querySelector(`[data-st="${st}"]`);
+      if (!el) return;
+      el.textContent = val;
+      el.classList.toggle('gchip-err', !!err);
+      if (err) el.title = err;
+      else el.removeAttribute('title');
+    };
+    if (lib) {
+      setChip('movies', lib.ok ? (lib.movies || 0).toLocaleString() : '—', lib.ok ? '' : (lib.error || 'failed'));
+      setChip('shows', lib.ok ? (lib.shows || 0).toLocaleString() : '—', lib.ok ? '' : (lib.error || 'failed'));
+      setChip('episodes', lib.ok ? (lib.episodes || 0).toLocaleString() : '—', lib.ok ? '' : (lib.error || 'failed'));
+      if (lib.ok) {
+        const srv = (data.servers || []).find(s => _normServerUrl(s.url) === _normServerUrl(url));
+        const cacheKey = _libKey({ url, apiKey: '', userId: srv?.userId || '' });
+        _libStatsCache[cacheKey] = { movies: lib.movies, shows: lib.shows, episodes: lib.episodes, ts: Date.now() };
+      }
+    }
+    if (conn) _applyDashCardStatus(card, conn.ok, conn.bridgeMs);
+  });
+  _paintDashTilesFromBundle(data);
 }
 
 function _paintDashTilesFromBundle(bundle) {
@@ -3143,11 +3208,39 @@ async function applyDashboardBundle(bundle, opts = {}) {
   const prev = window.DashboardState?.lastBundle;
   const data = opts.partial ? _mergeDashboardBundles(prev, bundle) : bundle;
   if (!data) return;
-  window.DashboardStateApi?.setBundle?.(data, data.scope);
+  const scope = data.scope || bundle.scope || 'full';
+  window.DashboardStateApi?.setBundle?.(data, scope);
 
   const servers = data.servers || [];
   await _registerHealthServers(servers);
   if (opts.full) await _kickHealthPingThrottled();
+
+  if (opts.partial && scope === 'live') {
+    _syncLiveCacheFromBundle(data);
+    _activityRecentCache = Array.isArray(data.recent) ? data.recent : [];
+    _dashActivityData = {
+      recent: data.recent || [],
+      hasServers: !!data.hasServers,
+      serverCount: data.serverCount || servers.length,
+      liveProbes: data.liveProbes || [],
+    };
+    await renderDashActivity({
+      activity: _dashActivityData,
+      bundle: { live: _liveBundleCache.live, probes: data.liveProbes, ts: data.ts },
+    });
+    return;
+  }
+
+  if (opts.partial && scope === 'health') {
+    _patchDashHealthFromBundle(data);
+    _paintDashTilesFromBundle(data);
+    return;
+  }
+
+  if (opts.partial && scope === 'stats') {
+    _patchDashStatsFromBundle(data);
+    return;
+  }
 
   const wrap = document.getElementById('dash-cards');
   const healthByUrl = _healthMapFromBundle(data.health);
@@ -3236,7 +3329,7 @@ async function applyDashboardBundle(bundle, opts = {}) {
     activity: _dashActivityData,
     bundle: { live: _liveBundleCache.live, probes: data.liveProbes, ts: data.ts },
   });
-  _reconcileDashServerTile();
+  if (!opts.partial) _reconcileDashServerTile();
 }
 window.applyDashboardBundle = applyDashboardBundle;
 

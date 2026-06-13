@@ -22,11 +22,13 @@
       return null;
     }
     if (typeof window.applyDashboardBundle === 'function') {
-      window.applyDashboardBundle(bundle, { partial: scope !== 'full' });
+      await window.applyDashboardBundle(bundle, { partial: scope !== 'full' });
+    } else {
+      setBundle(bundle, scope);
     }
-    setBundle(bundle, scope);
-    console.logBundle(bundle);
-    return bundle;
+    const merged = window.DashboardState?.lastBundle || bundle;
+    console.logBundle(merged);
+    return merged;
   }
 
   async function load() {
