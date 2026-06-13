@@ -1537,6 +1537,16 @@ body.noanim .acc2-body{ transition:none; }
 .gpill.reachable::before{ background:#fbbf24; box-shadow:0 0 5px rgba(251,191,36,.55); }
 .gpill.offline{ background:rgba(248,113,113,.13); border:1px solid rgba(248,113,113,.4); color:#f87171; }
 .gpill.offline::before{ background:#f87171; box-shadow:0 0 6px #f87171; animation:status-blink 1.1s ease-in-out infinite !important; }
+.gpill.degraded{ background:rgba(251,146,60,.14); border:1px solid rgba(251,146,60,.42); color:#fb923c; }
+.gpill.degraded::before{ background:#fb923c; box-shadow:0 0 6px rgba(251,146,60,.65); animation:status-blink 1.2s ease-in-out infinite !important; }
+.gcard-status-log{ margin-top:8px; padding-top:6px; border-top:1px solid color-mix(in srgb, var(--border) 70%, transparent); font-size:.58rem; line-height:1.35; }
+.gstatus-line{ display:flex; gap:6px; padding:1px 0; color:var(--text-mute); }
+.gstatus-ts{ flex-shrink:0; opacity:.8; font-variant-numeric:tabular-nums; }
+.gstatus-msg{ word-break:break-word; }
+.gstatus-offline .gstatus-msg{ color:#f87171; }
+.gstatus-degraded .gstatus-msg{ color:#fb923c; }
+.gstatus-online .gstatus-msg{ color:#34d399; }
+.gstatus-reachable .gstatus-msg{ color:#fbbf24; }
 .gpill-ms{ font-size:.62rem; color:var(--text-mute); font-weight:600; }
 .gpill-ms:empty{ display:none; }
 

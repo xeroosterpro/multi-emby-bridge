@@ -73,6 +73,20 @@
     log(`Bundle · scope=${scope} · ${bundle.serverCount || 0} server(s)`, 'ok');
     if (scope === 'health') return;
 
+    if (scope === 'conn') {
+      const t = bundle.totals || {};
+      if (t.serversTotal != null) {
+        log(`Reachability · ${t.serversUp}/${t.serversTotal} up`, 'info');
+      }
+      const errList = Array.isArray(opts.errors) ? opts.errors : (bundle.errors || []);
+      for (const err of errList) {
+        if (err.part !== 'connection') continue;
+        const who = err.server ? `${err.part} · ${err.server}` : err.part;
+        log(`${who} — ${err.message}`, 'err');
+      }
+      return;
+    }
+
     const liveN = Array.isArray(bundle.live) ? bundle.live.length : 0;
     if (scope === 'live') {
       log(`Live · ${liveN} active stream(s)`, liveN ? 'ok' : 'info');

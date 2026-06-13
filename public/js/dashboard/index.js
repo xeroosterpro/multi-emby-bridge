@@ -12,6 +12,7 @@
 
   function startPolling() {
     polling.start({
+      onConn: () => refreshScope('conn'),
       onLive: () => refreshScope('live'),
       onHealth: () => {
         window._kickHealthPingThrottled?.();
@@ -52,6 +53,8 @@
   }
 
   async function stagedLoad(gen) {
+    await refreshScope('conn');
+    if (staleLoadGen(gen)) return null;
     await refreshScope('health');
     if (staleLoadGen(gen)) return null;
     await refreshScope('stats');

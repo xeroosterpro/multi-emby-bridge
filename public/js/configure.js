@@ -756,6 +756,76 @@ function _applyDashCardStatus(card, online, bridgeMs, authenticated = true) {
   }
 }
 
+function _applyDashCardStatusDegraded(card, bridgeMs, errMsg) {
+  const pill = card.querySelector('[data-pill]');
+  const msEl = card.querySelector('[data-bridge-ms]');
+  if (pill) {
+    pill.className = 'gpill degraded';
+    pill.textContent = 'DEGRADED';
+    pill.title = errMsg || 'API responds but library/catalog is unavailable';
+  }
+  if (msEl && bridgeMs != null) {
+    msEl.textContent = bridgeMs + 'ms';
+    msEl.className = 'gbridge-now ' + _srvPingClass(bridgeMs);
+  }
+}
+
+function _recordDashStatusEvent(card, state, msg) {
+  if (!card) return;
+  if (!card._statusLog) card._statusLog = [];
+  const last = card._statusLog[card._statusLog.length - 1];
+  if (last && last.state === state && last.msg === msg && (Date.now() - last.ts < 20000)) return;
+  card._statusLog.push({ ts: Date.now(), state, msg: msg || state });
+  if (card._statusLog.length > 12) card._statusLog.shift();
+  _paintDashStatusLog(card);
+}
+
+function _paintDashStatusLog(card) {
+  const el = card.querySelector('[data-status-log]');
+  if (!el) return;
+  const log = card._statusLog || [];
+  if (!log.length) { el.hidden = true; return; }
+  el.hidden = false;
+  const esc = (typeof escHtml === 'function') ? escHtml : (x) => String(x ?? '');
+  el.innerHTML = log.slice(-4).reverse().map(e => {
+    const t = new Date(e.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    return `<div class="gstatus-line gstatus-${esc(e.state)}"><span class="gstatus-ts">${t}</span><span class="gstatus-msg">${esc(e.msg)}</span></div>`;
+  }).join('');
+}
+
+function _syncDashCardStatus(card, bundle) {
+  const url = card.dataset.serverUrl;
+  const conn = _bundleConnByUrl(bundle, url);
+  const lib = _bundleLibByUrl(bundle, url);
+  const healthByUrl = _healthMapFromBundle(bundle.health);
+  const healthRec = healthByUrl[_normServerUrl(url)];
+
+  if (conn) {
+    if (!conn.ok) {
+      _recordDashStatusEvent(card, 'offline', conn.error || 'Connection failed');
+      _applyDashCardStatus(card, false, conn.bridgeMs);
+      return;
+    }
+    if (lib && lib.ok === false) {
+      _recordDashStatusEvent(card, 'degraded', lib.error || 'Library unavailable');
+      _applyDashCardStatusDegraded(card, conn.bridgeMs, lib.error);
+      return;
+    }
+    if (lib && lib.ok) _recordDashStatusEvent(card, 'online', 'Library OK');
+    else _recordDashStatusEvent(card, 'online', 'API reachable');
+    _applyDashCardStatus(card, true, conn.bridgeMs, true);
+    return;
+  }
+
+  const st = _statusFromHealth(healthByUrl, url);
+  if (st) {
+    if (!st.online) _recordDashStatusEvent(card, 'offline', 'Confirmed down (health)');
+    else if (st.authenticated === false) _recordDashStatusEvent(card, 'reachable', 'Ping only — checking API…');
+    else _recordDashStatusEvent(card, 'online', 'Health probe OK');
+    _applyDashCardStatus(card, st.online, st.bridgeMs, st.authenticated !== false);
+  }
+}
+
 const HEALTH_DOWN_CONSECUTIVE = 2; // match backend alert threshold — avoid single-blip OFFLINE
 
 function _isHealthDownConfirmed(healthByUrl, url, consecutive = HEALTH_DOWN_CONSECUTIVE) {
@@ -1550,6 +1620,7 @@ function paintDashboardSkeleton() {
           <div class="gchip"><div class="cn" data-st="episodes">${eps}</div><div class="ct">Episodes</div></div>
         </div>
         <div class="gcard-health"></div>
+        <div class="gcard-status-log" data-status-log hidden></div>
       </div>`;
     wrap.appendChild(card);
     requestAnimationFrame(() => { card.style.animationDelay = `${idx * 55}ms`; });
@@ -3233,6 +3304,15 @@ function _mergeDashboardBundles(prev, next) {
   if (scope === 'health') {
     out.health = next.health ?? prev.health ?? [];
   }
+  if (scope === 'conn') {
+    out.connections = next.connections ?? prev.connections ?? [];
+    const up = out.connections.filter(c => c.ok).length;
+    if (prev.totals) {
+      out.totals = { ...prev.totals, serversUp: up, serversTotal: out.serverCount || prev.totals.serversTotal };
+    } else if (next.totals) {
+      out.totals = next.totals;
+    }
+  }
   return out;
 }
 
@@ -3260,13 +3340,14 @@ function _patchDashHealthFromBundle(data) {
     const slot = card.querySelector('.gcard-health');
     const healthRec = healthByUrl[_normServerUrl(url)];
     if (slot) slot.innerHTML = _dashHealthPanel(healthRec?.history || []);
-    const conn = _bundleConnByUrl(data, url);
-    if (conn) _applyDashCardStatus(card, conn.ok, conn.bridgeMs);
-    else {
-      const st = _statusFromHealth(healthByUrl, url);
-      if (st) _applyDashCardStatus(card, st.online, st.bridgeMs, st.authenticated !== false);
-    }
+    _syncDashCardStatus(card, data);
   });
+}
+
+function _patchDashConnFromBundle(data) {
+  const cards = document.querySelectorAll('#page-dashboard #dash-cards .gcard[data-server-url]');
+  cards.forEach(card => _syncDashCardStatus(card, data));
+  _paintDashTilesFromBundle(data);
 }
 
 function _patchDashStatsFromBundle(data) {
@@ -3274,7 +3355,6 @@ function _patchDashStatsFromBundle(data) {
   cards.forEach(card => {
     const url = card.dataset.serverUrl;
     const lib = _bundleLibByUrl(data, url);
-    const conn = _bundleConnByUrl(data, url);
     const setChip = (st, val, err) => {
       const el = card.querySelector(`[data-st="${st}"]`);
       if (!el) return;
@@ -3293,7 +3373,7 @@ function _patchDashStatsFromBundle(data) {
         _libStatsCache[cacheKey] = { movies: lib.movies, shows: lib.shows, episodes: lib.episodes, ts: Date.now() };
       }
     }
-    if (conn) _applyDashCardStatus(card, conn.ok, conn.bridgeMs);
+    _syncDashCardStatus(card, data);
   });
   _paintDashTilesFromBundle(data);
 }
@@ -3365,6 +3445,11 @@ async function applyDashboardBundle(bundle, opts = {}) {
     return;
   }
 
+  if (opts.partial && scope === 'conn') {
+    _patchDashConnFromBundle(data);
+    return;
+  }
+
   if (opts.partial && scope === 'stats') {
     _patchDashStatsFromBundle(data);
     return;
@@ -3426,17 +3511,14 @@ async function applyDashboardBundle(bundle, opts = {}) {
               <div class="gchip"><div class="cn${lib && !lib.ok ? ' gchip-err' : ''}" data-st="episodes">${eps}</div><div class="ct">Episodes</div></div>
             </div>
             <div class="gcard-health">${_dashHealthPanel(healthRec?.history || [])}</div>
+            <div class="gcard-status-log" data-status-log hidden></div>
           </div>`;
         wrap.appendChild(card);
         if (lib?.ok) {
           const cacheKey = _libKey({ url: s.url, apiKey: '', userId: s.userId });
           _libStatsCache[cacheKey] = { movies: lib.movies, shows: lib.shows, episodes: lib.episodes, ts: Date.now() };
         }
-        if (conn) _applyDashCardStatus(card, conn.ok, conn.bridgeMs);
-        else {
-          const st = _statusFromHealth(healthByUrl, s.url);
-          if (st) _applyDashCardStatus(card, st.online, st.bridgeMs, st.authenticated !== false);
-        }
+        _syncDashCardStatus(card, data);
         requestAnimationFrame(() => {
           card.style.animationDelay = `${idx * 55}ms`;
         });

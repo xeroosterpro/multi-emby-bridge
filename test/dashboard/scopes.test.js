@@ -15,5 +15,8 @@ A(scopeNeeds('live', 'live') === true, 'live scope needs live');
 A(scopeNeeds('live', 'stats') === false, 'live scope skips stats');
 A(scopeNeeds('stats', 'stats') === true, 'stats scope needs stats');
 A(scopeNeeds('health', 'health') === true, 'health scope needs health');
+A(VALID_SCOPES.has('conn'), 'conn is valid scope');
+A(scopeNeeds('conn', 'stats') === false, 'conn scope skips full stats');
+A(scopeNeeds('conn', 'live') === false, 'conn scope skips live');
 
 console.log('\ndashboard/scopes.test.js: all passed');

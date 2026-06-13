@@ -36,6 +36,15 @@ function mergeDashboardBundles(prev, next) {
   if (scope === 'health') {
     out.health = next.health ?? prev.health ?? [];
   }
+  if (scope === 'conn') {
+    out.connections = next.connections ?? prev.connections ?? [];
+    const up = out.connections.filter(c => c.ok).length;
+    if (prev.totals) {
+      out.totals = { ...prev.totals, serversUp: up, serversTotal: out.serverCount || prev.totals.serversTotal };
+    } else if (next.totals) {
+      out.totals = next.totals;
+    }
+  }
   return out;
 }
 
