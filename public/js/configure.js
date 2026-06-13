@@ -682,6 +682,185 @@ function startDashTimestampTicker() {
   }, 15000);
 }
 
+/* ===== Next-level amazing: count-up, interactive history, persist, fleet pulse ===== */
+function animateNumber(el, newVal, duration = 480) {
+  if (!el) return;
+  const clean = (s) => parseInt(String(s || '0').replace(/[^\d-]/g, '')) || 0;
+  const start = clean(el.textContent);
+  const end = clean(newVal);
+  if (start === end) {
+    el.textContent = newVal;
+    return;
+  }
+  const startTs = performance.now();
+  const tick = (ts) => {
+    const p = Math.min((ts - startTs) / duration, 1);
+    const eased = p < .5 ? 2 * p * p : -1 + (4 - 2 * p) * p;
+    const cur = Math.round(start + (end - start) * eased);
+    el.textContent = cur.toLocaleString();
+    if (p < 1) requestAnimationFrame(tick);
+    else el.textContent = (typeof newVal === 'string' ? newVal : end.toLocaleString());
+  };
+  requestAnimationFrame(tick);
+}
+
+function _setDashNumber(elOrId, val) {
+  const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+  if (!el) return;
+  animateNumber(el, val);
+  const parent = el.closest('.tile, .gchip');
+  if (parent) {
+    parent.classList.add('just-updated');
+    setTimeout(() => parent.classList.remove('just-updated'), 700);
+  }
+}
+
+function _updateFleetPulse() {
+  const pulse = document.getElementById('dash-fleet-pulse');
+  if (!pulse) return;
+  const cards = document.querySelectorAll('#dash-cards .gcard');
+  if (!cards.length) { pulse.textContent = ''; return; }
+  let healthy = 0;
+  cards.forEach(c => {
+    const p = c.querySelector('.gpill');
+    if (p && (p.classList.contains('online') || p.classList.contains('reachable'))) healthy++;
+  });
+  pulse.textContent = `${healthy}/${cards.length} healthy`;
+  pulse.style.display = 'inline-block';
+}
+
+function _wirePingDotInteractions() {
+  const wrap = document.getElementById('dash-cards');
+  if (!wrap) return;
+  wrap.querySelectorAll('.gcard-ping-dots').forEach(dotsEl => {
+    if (dotsEl._wiredInteractive) return;
+    dotsEl._wiredInteractive = true;
+    dotsEl.style.cursor = 'pointer';
+    dotsEl.addEventListener('click', () => {
+      const card = dotsEl.closest('.gcard');
+      if (!card) return;
+      let exp = card.querySelector('.gcard-ping-expando');
+      if (exp) {
+        exp.style.maxHeight = '0';
+        setTimeout(() => exp && exp.parentNode && exp.parentNode.removeChild(exp), 140);
+        return;
+      }
+      const pds = Array.from(dotsEl.querySelectorAll('.pd[title]'));
+      const items = pds.slice(-5).map(pd => {
+        const cls = pd.className.includes('down') ? 'down' : pd.className.includes('slow') ? 'slow' : 'ok';
+        return `<div class="pd-item pd-${cls}">${pd.title}</div>`;
+      }).join('');
+      exp = document.createElement('div');
+      exp.className = 'gcard-ping-expando';
+      exp.innerHTML = `<div class="pd-exp-head">Last pings (click dots to close)</div><div class="pd-items">${items || '<span style="opacity:.6">No details</span>'}</div>`;
+      dotsEl.after(exp);
+      // brief auto hint
+      setTimeout(() => { if (exp) exp.style.opacity = '1'; }, 10);
+    });
+  });
+}
+
+let _dashFilterSaveTimer = null;
+function wireDashServerFilters() {
+  const toolbar = document.getElementById('dash-servers-toolbar');
+  const filterEl = document.getElementById('dash-filter');
+  const sortEl = document.getElementById('dash-sort');
+  const onlyIssuesEl = document.getElementById('dash-only-issues');
+  const countEl = document.getElementById('dash-visible-count');
+  const wrap = document.getElementById('dash-cards');
+  if (!wrap || !toolbar) return;
+
+  const LS_KEY = 'meb-dash-prefs-v2';
+  // restore
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    if (s.q && filterEl) filterEl.value = s.q;
+    if (s.sort && sortEl) sortEl.value = s.sort;
+    if (typeof s.only === 'boolean' && onlyIssuesEl) onlyIssuesEl.checked = s.only;
+  } catch {}
+
+  const apply = () => {
+    const q = (filterEl && filterEl.value || '').toLowerCase().trim();
+    const sortMode = (sortEl && sortEl.value) || 'status';
+    const onlyIssues = !!(onlyIssuesEl && onlyIssuesEl.checked);
+    const cards = Array.from(wrap.querySelectorAll('.gcard[data-server-url]'));
+    let visible = 0;
+
+    cards.forEach(card => {
+      const nm = (card.querySelector('.gcard-nm')?.textContent || '').toLowerCase();
+      const host = (card.querySelector('.gcard-host')?.textContent || '').toLowerCase();
+      const pill = card.querySelector('.gpill');
+      const st = (pill?.className || '').includes('offline') ? 'down' : (pill?.className || '').includes('degraded') ? 'degraded' : 'ok';
+      const msEl = card.querySelector('[data-bridge-ms]');
+      const ms = msEl ? parseInt(msEl.textContent, 10) || 99999 : 99999;
+      const movies = parseInt((card.querySelector('[data-st="movies"]')?.textContent || '0').replace(/[^\d]/g,'') || '0', 10);
+      card._dashMeta = { nm, host, st, ms, movies, el: card };
+      const isIssue = st !== 'ok';
+      const match = !q || nm.includes(q) || host.includes(q);
+      const show = match && (!onlyIssues || isIssue);
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+
+    let sorted = cards.filter(c => c.style.display !== 'none');
+    if (sortMode === 'latency') sorted.sort((a,b) => (a._dashMeta.ms - b._dashMeta.ms) || a._dashMeta.nm.localeCompare(b._dashMeta.nm));
+    else if (sortMode === 'name') sorted.sort((a,b) => a._dashMeta.nm.localeCompare(b._dashMeta.nm));
+    else if (sortMode === 'library') sorted.sort((a,b) => (b._dashMeta.movies - a._dashMeta.movies) || a._dashMeta.nm.localeCompare(b._dashMeta.nm));
+    else sorted.sort((a,b) => {
+      const rank = s => s==='ok'?0 : s==='degraded'?1 : 2;
+      return rank(a._dashMeta.st) - rank(b._dashMeta.st) || a._dashMeta.ms - b._dashMeta.ms || a._dashMeta.nm.localeCompare(b._dashMeta.nm);
+    });
+    sorted.forEach(c => wrap.appendChild(c));
+
+    if (countEl) countEl.textContent = `${visible}/${cards.length}`;
+    _updateFleetPulse();
+    _wirePingDotInteractions();
+
+    // persist (debounced)
+    clearTimeout(_dashFilterSaveTimer);
+    _dashFilterSaveTimer = setTimeout(() => {
+      try { localStorage.setItem(LS_KEY, JSON.stringify({ q: filterEl?.value||'', sort: sortEl?.value||'status', only: !!onlyIssuesEl?.checked })); } catch {}
+    }, 300);
+  };
+
+  const onChange = () => { clearTimeout(_dashFilterTimer); _dashFilterTimer = setTimeout(apply, 55); };
+  if (filterEl) filterEl.addEventListener('input', onChange);
+  if (sortEl) sortEl.addEventListener('change', apply);
+  if (onlyIssuesEl) onlyIssuesEl.addEventListener('change', apply);
+
+  // quick chips
+  toolbar.querySelectorAll('.dash-chip-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const m = btn.dataset.quick;
+      if (m === 'issues' && onlyIssuesEl) onlyIssuesEl.checked = true;
+      else if (m === 'healthy' && onlyIssuesEl) onlyIssuesEl.checked = false;
+      // 'all' leaves the checkbox as-is
+      apply();
+      // visual active
+      toolbar.querySelectorAll('.dash-chip-btn').forEach(b => b.classList.toggle('on', b === btn));
+    });
+  });
+
+  // keyboard: / focuses filter when dashboard visible
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.getElementById('page-dashboard')?.classList.contains('on')) {
+      if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+      e.preventDefault();
+      filterEl && filterEl.focus();
+      filterEl && filterEl.select();
+    }
+  });
+
+  // initial apply + wires
+  requestAnimationFrame(() => {
+    apply();
+    _wirePingDotInteractions();
+    _updateFleetPulse();
+  });
+
+  window._dashReapplyFilters = apply;
+}
+
 function _healthUrlsQuery() {
   const urls = new Set();
   [...document.querySelectorAll('.server-block .f-url, .server-card .f-url')]
@@ -998,11 +1177,10 @@ function _reconcileDashServerTile() {
 }
 
 function _updateDashStatusHeader(servers, upCount, fastest) {
-  const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  setTxt('tile-servers', upCount);
+  _setDashNumber('tile-servers', upCount);
   const pingEl = document.getElementById('tile-ping');
   if (pingEl) {
-    pingEl.textContent = fastest != null ? fastest + 'ms' : '—';
+    animateNumber(pingEl, fastest != null ? fastest + 'ms' : '—');
     pingEl.title = fastest != null
       ? `Fastest bridge path right now · ${fastest}ms (addon → server)`
       : 'No bridge latency data yet';
@@ -1011,6 +1189,7 @@ function _updateDashStatusHeader(servers, upCount, fastest) {
   if (statusEl && servers.length) {
     statusEl.textContent = `${upCount}/${servers.length} servers reachable · health every ${Math.round(DASH_GRAPH_POLL_MS / 1000)}s · auth check every ${Math.round(DASH_CONN_POLL_MS / 1000)}s`;
   }
+  _updateFleetPulse();
 }
 
 async function refreshDashCardStatus(opts = {}) {
@@ -1814,10 +1993,10 @@ function paintDashboardSkeleton() {
     card.classList.add('skeleton');
     requestAnimationFrame(() => { card.style.animationDelay = `${idx * 55}ms`; });
   });
-  setTxt('tile-servers', n);
+  _setDashNumber('tile-servers', n);
   if (cachedMovies || cachedShows) {
-    setTxt('tile-movies', cachedMovies.toLocaleString());
-    setTxt('tile-shows', cachedShows.toLocaleString());
+    _setDashNumber('tile-movies', cachedMovies);
+    _setDashNumber('tile-shows', cachedShows);
   }
   window._lastDashSyncTs = Date.now();
   updateDashLastSync('just now');
@@ -3971,7 +4150,7 @@ async function _renderDashboardBody(gen = _dashLoadGen, force = false) {
         ['movies', 'shows', 'episodes'].forEach(k => {
           const el = card.querySelector(`[data-st=${k}]`);
           if (!el) return;
-          el.textContent = (st[k] || 0).toLocaleString();
+          _setDashNumber(el, st[k] || 0);
           el.title = '';
           el.classList.remove('gchip-err');
         });
@@ -3990,10 +4169,12 @@ async function _renderDashboardBody(gen = _dashLoadGen, force = false) {
     const dashCardsNow = wrap.querySelectorAll('.gcard[data-server-url]');
     dashCardsNow.forEach(c => _paintPingsForCard(c, healthByUrl));
     wireDashServerFilters();
+    _wirePingDotInteractions();
+    _updateFleetPulse();
     startDashTimestampTicker();
 
     // tile-servers + bridge latency refine from authenticated tests below (avoids ping-only count flicker).
-    const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    const setTxt = (id, v) => _setDashNumber(id, v);
     const pingEl = document.getElementById('tile-ping');
 
     const pingQueue = [];

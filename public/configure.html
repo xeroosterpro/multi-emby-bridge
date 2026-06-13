@@ -264,6 +264,7 @@
   <h2 class="page-title dash-page-title">Dashboard</h2>
   <div class="dash-header-actions">
     <p class="page-sub dash-page-sub" id="dash-status">Live overview · click a server for details</p>
+    <span id="dash-fleet-pulse" class="dash-fleet-pulse" title="Live fleet health from card status"></span>
     <button type="button" class="btn-soft" id="dash-refresh" title="Re-fetch library counts from all servers">↻ Refresh stats</button>
     <span id="build-id" class="build-id" title="Build / commit SHA (click to copy full). Hard-refresh the page after a deploy to see the new version." data-build="BUILD_ID_HERE">BUILD_ID_HERE</span>
     <span id="dash-last-sync" class="dash-last-sync" title="Last successful data sync from servers &amp; health">just now</span>
@@ -286,6 +287,11 @@
       <option value="library">Sort: Library size (large first)</option>
     </select>
     <label class="dash-chk"><input type="checkbox" id="dash-only-issues" /> Issues only</label>
+    <span class="dash-quick-chips">
+      <button type="button" class="dash-chip-btn" data-quick="all">All</button>
+      <button type="button" class="dash-chip-btn" data-quick="healthy">Healthy</button>
+      <button type="button" class="dash-chip-btn" data-quick="issues">Issues</button>
+    </span>
     <span class="dash-visible" id="dash-visible-count" title="Visible / total servers">6/6</span>
   </div>
   <div class="dash-cards" id="dash-cards"></div>
