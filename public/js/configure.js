@@ -101,11 +101,12 @@ function _batchLibRow(batchMap, server) {
 
 async function _fetchDashboardLibraryStatsBatch() {
   try {
-    const r = await fetch('/api/dashboard/library-stats', {
+    // Shortish client timeout on batch so one problematic server doesn't delay the whole dashboard library hydration
+    const r = await _fetchWithTimeout('/api/dashboard/library-stats', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-    });
+    }, 9000);
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return { ok: false, error: data.error || `HTTP ${r.status}`, map: null };
     const map = new Map();
@@ -117,6 +118,7 @@ async function _fetchDashboardLibraryStatsBatch() {
     });
     return { ok: true, map };
   } catch (err) {
+    if (err?.name === 'AbortError') return { ok: false, error: 'timeout', map: null };
     return { ok: false, error: err?.message || 'Batch library stats failed', map: null };
   }
 }
@@ -943,37 +945,55 @@ async function refreshDashCardStatus(opts = {}) {
     return;
   }
 
-  await Promise.all(servers.map(async (s) => {
+  // HUGE LOAD TIME WIN (refined): per-server status is fully incremental.
+  // Each _test (capped ~5s) updates its card *immediately*. We still compute final header from settled results, but the UI for individual boxes is never blocked by the slowest server.
+  // Good boxes (history, status, pill) light up as fast as their probe; bad ones (EAGLE etc.) surface error fast without stalling the rest.
+  const statusPromises = servers.map(async (s) => {
     const card = [...cards].find(c => _normServerUrl(c.dataset.serverUrl) === _normServerUrl(s.url));
-    if (!card) return;
-    const conn = await _testServerConnection(s);
+    if (!card) return { ok: false };
+    let conn;
+    try { conn = await _testServerConnection(s); } catch { conn = { ok: false }; }
     let bridgeMs = conn.ok ? _bridgeMsFromHealth(healthByUrl, s.url) : null;
-    if (conn.ok) {
-      upCount++;
-      if (bridgeMs != null && (fastest === null || bridgeMs < fastest)) fastest = bridgeMs;
-      if (bridgeMs == null) pingQueue.push({ card, s });
-    }
-    _applyDashCardStatus(card, conn.ok, bridgeMs);
-  }));
+    if (conn.ok && bridgeMs == null) pingQueue.push({ card, s });
+    _applyDashCardStatus(card, conn.ok, bridgeMs);   // <— instant per-box update
+    return { ok: !!conn.ok, bridgeMs };
+  });
 
+  // fire-and-forget extra pings (non-blocking for load)
   if (pingQueue.length) {
-    try {
-      const resp = await fetch('/api/ping-servers', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ servers: pingQueue.map(m => ({ url: m.s.url, label: m.s.label })) }),
-      });
-      const data = resp.ok ? await resp.json().catch(() => ({})) : {};
+    fetch('/api/ping-servers', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ servers: pingQueue.map(m => ({ url: m.s.url, label: m.s.label })) }),
+    }).then(r => r.ok ? r.json() : {}).then(data => {
       (data.results || []).forEach((r, i) => {
         const row = pingQueue[i];
-        if (!row || !r.up || r.ms == null) return;
-        _applyDashCardStatus(row.card, true, r.ms);
-        if (fastest === null || r.ms < fastest) fastest = r.ms;
+        if (row && r.up && r.ms != null) _applyDashCardStatus(row.card, true, r.ms);
       });
-    } catch { /* keep last known status */ }
+    }).catch(() => {});
   }
+
+  // Still compute aggregates for the header/tile, but the per-card "box loading" is already done incrementally.
+  const statusResults = await Promise.allSettled(statusPromises);
+  statusResults.forEach(res => {
+    if (res.status === 'fulfilled' && res.value && res.value.ok) {
+      upCount++;
+      const ms = res.value.bridgeMs;
+      if (ms != null && (fastest === null || ms < fastest)) fastest = ms;
+    }
+  });
 
   _updateDashStatusHeader(servers, upCount, fastest);
   _reconcileDashServerTile();
+
+  // Append short build to the dynamic status line (helps notice deploys)
+  try {
+    const st = document.getElementById('dash-status');
+    const bidEl = document.getElementById('build-id');
+    const bid = (window.BUILD_ID || (bidEl && bidEl.getAttribute('data-build')) || '').slice(0,7);
+    if (st && bid && !st.textContent.includes(bid)) {
+      st.textContent += ` · ${bid}`;
+    }
+  } catch {}
 }
 
 function formatLiveTitleClient(np) {
@@ -1168,9 +1188,10 @@ function formatLiveMetaLine(s) {
 
 async function fetchLiveSessionsForServers(servers) {
   if (!servers?.length) return [];
-  const chunks = await Promise.all(servers.map(async (s) => {
+  // Short timeout + allSettled: one timing-out/offline server (EAGLE etc.) won't make live or opening dash hang
+  const settled = await Promise.allSettled(servers.map(async (s) => {
     try {
-      const r = await fetch('/api/server-sessions', {
+      const r = await _fetchWithTimeout('/api/server-sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
@@ -1178,7 +1199,7 @@ async function fetchLiveSessionsForServers(servers) {
           url: s.url, type: s.type, apiKey: s.apiKey, userId: s.userId, label: s.label,
           username: s.username || '', password: s.password || '',
         }),
-      });
+      }, 4000);
       if (!r.ok) return [];
       const d = await r.json().catch(() => null);
       if (d?.apiKey) {
@@ -1194,6 +1215,9 @@ async function fetchLiveSessionsForServers(servers) {
       return [];
     }
   }));
+  const chunks = settled
+    .filter(r => r.status === 'fulfilled')
+    .map(r => r.value);
   return chunks.flat();
 }
 
@@ -1667,10 +1691,11 @@ function renderDashActivityShell(serverCount) {
   const el = document.getElementById('dash-activity');
   if (!el || dashActivityHasContent(el)) return;
   const n = serverCount || collectServersForLive().length || 0;
+  // Improved: note possible slowness from unreachable servers (common in mixed fleets)
   el.innerHTML = `<div class="dash-activity-grid">
     <div class="dash-act-panel dash-act-live">
       <h3 class="block-title dash-act-title"><span class="da-dot"></span> Live streaming</h3>
-      <div class="da-empty da-loading">Checking playback across ${n || 'your'} server${n === 1 ? '' : 's'}…</div>
+      <div class="da-empty da-loading">Checking playback across ${n || 'your'} server${n === 1 ? '' : 's'}… (some may be slow/unreachable – see console for details)</div>
     </div>
     <div class="dash-act-panel dash-act-history">
       <h3 class="block-title dash-act-title">Recent activity</h3>
@@ -1858,6 +1883,21 @@ async function hydrateDashLibraryStats(force = false) {
     }
   }
 
+  // HUGE LOAD WIN: show any cached last-known lib counts *immediately* (optimistic, non-blocking).
+  // Good boxes get numbers/history fast; only missing/forced ones do real work.
+  servers.forEach(s => {
+    const card = _dashCardForServer(Array.from(cards), s);
+    if (!card) return;
+    const setStats = _makeDashSetStats(card);
+    const cacheKey = _libKey(s);
+    const cachedLib = (!force && _libStatsCache[cacheKey] && (now - _libStatsCache[cacheKey].ts < LIB_TTL_MS))
+      ? _libStatsCache[cacheKey] : null;
+    if (cachedLib) {
+      setStats(cachedLib);
+    }
+  });
+  _recalcDashLibTiles();
+
   await _mapPool(servers, async (s) => {
     if (hydrateGen !== _libHydrateGen) return;
     const card = _dashCardForServer(cards, s);
@@ -1892,21 +1932,26 @@ async function hydrateDashLibraryStats(force = false) {
 window.hydrateDashLibraryStats = hydrateDashLibraryStats;
 
 async function _fetchLibraryStats(server) {
-  const r = await fetch('/api/library-stats', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(_serverApiBody(server)),
-  });
-  const data = await r.json().catch(() => ({}));
-  if (data.apiKey) {
-    const block = [...document.querySelectorAll('.server-block')].find(b =>
-      _normServerUrl(b.querySelector('.f-url')?.value) === _normServerUrl(server.url)
-    );
-    if (block) _applyRefreshedApiKey(block, data.apiKey);
+  try {
+    const r = await _fetchWithTimeout('/api/library-stats', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(_serverApiBody(server)),
+    }, 8000);
+    const data = await r.json().catch(() => ({}));
+    if (data.apiKey) {
+      const block = [...document.querySelectorAll('.server-block')].find(b =>
+        _normServerUrl(b.querySelector('.f-url')?.value) === _normServerUrl(server.url)
+      );
+      if (block) _applyRefreshedApiKey(block, data.apiKey);
+    }
+    if (!r.ok) return { ok: false, error: data.error || `HTTP ${r.status}` };
+    return { ok: true, stats: data };
+  } catch (e) {
+    if (e.name === 'AbortError') return { ok: false, error: 'timeout' };
+    return { ok: false };
   }
-  if (!r.ok) return { ok: false, error: data.error || `HTTP ${r.status}` };
-  return { ok: true, stats: data };
 }
 
 async function _mapPool(items, worker, concurrency = 3) {
@@ -1931,17 +1976,31 @@ function _bridgeMsFromHealth(healthByUrl, url) {
   return lat.ms;
 }
 
+const OPENING_FETCH_TIMEOUT_MS = 6000; // cap per-server waits so one slow/timeout server (e.g. auth fail, unreachable) doesn't make "Opening dashboard" hang forever
+
+async function _fetchWithTimeout(url, options = {}, timeoutMs = OPENING_FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function _testServerConnection(s) {
   if (!s.url) return { ok: false };
   if (!_useAccountCredsForApi() && (!s.apiKey || !s.userId)) return { ok: false };
   try {
-    const r = await fetch('/api/test-connection', {
+    const r = await _fetchWithTimeout('/api/test-connection', {
       method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(_serverApiBody(s)),
-    });
+    }, 5000);
     const data = await r.json().catch(() => ({}));
     return { ok: r.ok && data.ok, apiKey: data.apiKey };
-  } catch {
+  } catch (e) {
+    if (e.name === 'AbortError') return { ok: false, error: 'timeout' };
     return { ok: false };
   }
 }
@@ -1955,6 +2014,40 @@ function updateSteps() {
   if (!s1) return;
   s1.className = hasServers ? 'step done' : 'step active';
   s2.className = hasServers ? 'step active' : 'step';
+}
+
+// Build / version badge (injected by server at serve time with ?v= cache bust + visible short SHA)
+function initBuildBadge() {
+  let el = document.getElementById('build-id');
+  const full = (window.BUILD_ID || window.__BUILD_ID__ || (el && el.getAttribute('data-build')) || 'dev').trim();
+  const short = full.slice(0, 7);
+  if (!el) {
+    // Defensive: create badge if old HTML or not present (e.g. during partial loads)
+    const header = document.querySelector('#page-dashboard .dash-header-actions');
+    if (header) {
+      el = document.createElement('span');
+      el.id = 'build-id';
+      el.className = 'build-id';
+      header.appendChild(el);
+    } else {
+      return;
+    }
+  }
+  el.textContent = short;
+  el.setAttribute('data-build', full);
+  el.title = `Build: ${full} (click to copy full SHA)`;
+  el.style.cursor = 'pointer';
+  // Remove old listeners if any, re-attach
+  el.onclick = (e) => {
+    e.preventDefault();
+    navigator.clipboard.writeText(full).then(() => {
+      const orig = el.textContent;
+      el.textContent = 'copied!';
+      setTimeout(() => { if (el && el.parentNode) el.textContent = short; }, 1200);
+    }).catch(() => {
+      try { prompt('Build ID (full):', full); } catch {}
+    });
+  };
 }
 
 // -- External Catalogs: see catalogs-wizard.js --
@@ -2895,6 +2988,7 @@ async function loadDashboardPage() {
   dashConsoleStart('Opening dashboard…');
   renderDashActivityShell();
   await renderDashboard(false, gen);
+  initBuildBadge();
   dashConsoleLog('Dashboard ready (legacy path)', 'ok');
 }
 
@@ -2911,6 +3005,7 @@ window.onPageShow = function(name) {
     const dc = document.getElementById('dash-console');
     if (dc) dc.hidden = false;
     loadDashboardPage();
+    initBuildBadge();
   } else {
     window.Dashboard?.stop?.();
     stopDashLivePolling();
@@ -5267,6 +5362,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         hydrateDashLibraryStats(true).finally(done);
       }
     });
+  }
+
+  // Ensure build badge is initialized (safe if already done via dashboard afterReady)
+  if (typeof initBuildBadge === 'function') {
+    try { initBuildBadge(); } catch {}
   }
 
   if (window.Controls) Controls.bindAll();
