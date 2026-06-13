@@ -1517,7 +1517,8 @@ body.noanim .acc2-body{ transition:none; }
 @keyframes brandBreathe{ 0%,100%{ transform:scale(1) } 50%{ transform:scale(1.05) } }
 .gstatus{ display:inline-flex; flex-direction:row; align-items:center; justify-content:flex-end; gap:5px; flex:none; margin-left:auto; }
 .gpill{ display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:3px 9px;
-  font-weight:800; font-size:.58rem; letter-spacing:.05em; white-space:nowrap; }
+  font-weight:800; font-size:.58rem; letter-spacing:.05em; white-space:nowrap;
+  transition: background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .gbridge-now {
   font-size:.72rem; font-weight:900; font-variant-numeric:tabular-nums;
   letter-spacing:-.01em; line-height:1;
@@ -1540,6 +1541,7 @@ body.noanim .acc2-body{ transition:none; }
 .gpill.degraded{ background:rgba(251,146,60,.14); border:1px solid rgba(251,146,60,.42); color:#fb923c; }
 .gpill.degraded::before{ background:#fb923c; box-shadow:0 0 6px rgba(251,146,60,.65); animation:status-blink 1.2s ease-in-out infinite !important; }
 .gcard-status-log{ margin-top:8px; padding-top:6px; border-top:1px solid color-mix(in srgb, var(--border) 70%, transparent); font-size:.58rem; line-height:1.35; }
+.gcard.has-status .gcard-status-log { opacity: 1; }
 .gstatus-line{ display:flex; gap:6px; padding:1px 0; color:var(--text-mute); }
 .gstatus-ts{ flex-shrink:0; opacity:.8; font-variant-numeric:tabular-nums; }
 .gstatus-msg{ word-break:break-word; }
@@ -2174,7 +2176,7 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
   border:1px solid color-mix(in srgb, var(--border) 62%, var(--accent) 22%);
   border-radius:var(--radius-sm); padding:10px 6px; text-align:center;
 }
-.gchip .cn{ font-weight:800; font-size:1.05rem; }
+.gchip .cn{ font-weight:800; font-size:1.05rem; transition: color .16s ease, opacity .16s ease; }
 .gchip .cn.gchip-err, .gchip .cn[data-st].gchip-err{ color:#f59e0b; opacity:1; font-weight:600; }
 .gchip .cn.gchip-err[data-st=movies]{ color:#f59e0b; }
 .gchip .ct{ font-size:.6rem; color:var(--text-mute); text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
@@ -2820,7 +2822,9 @@ body.demo-tour-active .demo-site-banner{ opacity:.35; pointer-events:none; }
 .gcard-health {
   margin-top:11px; padding-top:9px;
   border-top:1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  transition: opacity .2s ease;
 }
+.gcard-status-log { transition: opacity .16s ease; }
 .gcard-health-empty {
   font-size:.66rem; color:var(--text-mute); text-align:center;
   padding:10px 8px; border-radius:var(--r-sm);

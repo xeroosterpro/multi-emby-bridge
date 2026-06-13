@@ -1554,6 +1554,79 @@ const _DASH_CARD_PALETTE = [
   ['linear-gradient(135deg,#a78bfa,#f472b6)','rgba(167,139,250,.5)'],
 ];
 
+/**
+ * Single source of truth for a dashboard server card element.
+ * Used by skeleton (initial/ cached view) and full/partial bundle apply paths.
+ * Eliminates HTML drift and makes future state (incl. degraded) easier to keep consistent.
+ */
+function _createDashboardGCard(s, idx, enhance = {}) {
+  const PALETTE = _DASH_CARD_PALETTE;
+  const [bar, glow] = PALETTE[idx % PALETTE.length];
+  const isJelly = (s.type === 'jellyfin');
+  const brandSvg = isJelly ? JELLYFIN_LOGO : EMBY_LOGO;
+  const card = document.createElement('div');
+  card.className = 'gcard';
+  card.dataset.serverUrl = s.url || '';
+  card.style.setProperty('--bar', bar);
+  card.style.setProperty('--accentglow', glow);
+  card.style.setProperty('--badgebg', isJelly ? 'linear-gradient(135deg,#aa5cc3,#00a4dc)' : 'linear-gradient(135deg,#52b54b,#2f8f3e)');
+
+  // enhance may contain { conn, lib, healthRec, useCache, cached }
+  const lib = enhance.lib || null;
+  const healthRec = enhance.healthRec || null;
+  const useCache = !!enhance.useCache;
+  const cached = enhance.cached || null;
+
+  let m = '—', sh = '—', ep = '—';
+  let chipErr = '';
+  if (lib && lib.ok) {
+    m = (lib.movies || 0).toLocaleString();
+    sh = (lib.shows || 0).toLocaleString();
+    ep = (lib.episodes || 0).toLocaleString();
+  } else if (useCache && cached) {
+    m = (cached.movies || 0).toLocaleString();
+    sh = (cached.shows || 0).toLocaleString();
+    ep = (cached.episodes || 0).toLocaleString();
+  } else if (lib && lib.ok === false) {
+    m = '—'; sh = '—'; ep = '—';
+    chipErr = ` title="${escHtml(lib.error || 'failed')}"`;
+  } else if (!lib) {
+    // skeleton or pending
+    m = '…'; sh = '…'; ep = '…';
+  }
+
+  const healthHtml = healthRec && healthRec.history
+    ? _dashHealthPanel(healthRec.history)
+    : '<div class="gcard-health"></div>';
+
+  const initialPillClass = (enhance.initialPillClass || 'loading');
+  const initialPillTitle = (enhance.initialPillTitle || 'Bridge connection status');
+  const initialPillText = (enhance.initialPillText || '…');
+
+  card.innerHTML = `
+    <div class="gcard-top"></div>
+    <div class="gcard-pad">
+      <div class="gcard-head">
+        <div class="gbrand" style="--accentglow:${isJelly ? 'rgba(122,70,200,.7)' : 'rgba(82,181,75,.7)'}">${brandSvg}</div>
+        <div style="flex:1;min-width:0">
+          <div class="gcard-nm">${escHtml(s.label || 'Server')}</div>
+          <div class="gcard-host">${escHtml((s.url || '').replace(/^https?:\/\//, ''))}</div>
+        </div>
+        <div class="gstatus"><span class="gpill ${initialPillClass}" data-pill title="${escHtml(initialPillTitle)}">${initialPillText}</span><span class="gbridge-now" data-bridge-ms title="Bridge latency now (addon → server)"></span></div>
+      </div>
+      <div class="gtype" style="display:none">${isJelly ? 'Jellyfin' : 'Emby'}</div>
+      <div class="gchips">
+        <div class="gchip"><div class="cn${chipErr ? ' gchip-err' : ''}" data-st="movies"${chipErr}>${m}</div><div class="ct">Movies</div></div>
+        <div class="gchip"><div class="cn${chipErr ? ' gchip-err' : ''}" data-st="shows">${sh}</div><div class="ct">Shows</div></div>
+        <div class="gchip"><div class="cn${chipErr ? ' gchip-err' : ''}" data-st="episodes">${ep}</div><div class="ct">Episodes</div></div>
+      </div>
+      ${healthHtml}
+      <div class="gcard-status-log" data-status-log hidden></div>
+    </div>`;
+
+  return card;
+}
+
 function paintDashboardSkeleton() {
   const servers = _collectDashboardServers();
   const wrap = document.getElementById('dash-cards');
@@ -1586,9 +1659,6 @@ function paintDashboardSkeleton() {
   let cachedShows = 0;
   wrap.innerHTML = '';
   servers.forEach((s, idx) => {
-    const [bar, glow] = _DASH_CARD_PALETTE[idx % _DASH_CARD_PALETTE.length];
-    const isJelly = (s.type === 'jellyfin');
-    const brandSvg = isJelly ? JELLYFIN_LOGO : EMBY_LOGO;
     const cacheKey = _libKey(s);
     const c = _libStatsCache[cacheKey];
     const hasLib = c && now - c.ts < LIB_TTL_MS;
@@ -1596,35 +1666,15 @@ function paintDashboardSkeleton() {
       cachedMovies += c.movies || 0;
       cachedShows += c.shows || 0;
     }
-    const movies = hasLib ? (c.movies || 0).toLocaleString() : '…';
-    const shows = hasLib ? (c.shows || 0).toLocaleString() : '…';
-    const eps = hasLib ? (c.episodes || 0).toLocaleString() : '…';
-    const card = document.createElement('div');
-    card.className = 'gcard';
-    card.dataset.serverUrl = s.url || '';
-    card.style.setProperty('--bar', bar);
-    card.style.setProperty('--accentglow', glow);
-    card.style.setProperty('--badgebg', isJelly ? 'linear-gradient(135deg,#aa5cc3,#00a4dc)' : 'linear-gradient(135deg,#52b54b,#2f8f3e)');
-    card.innerHTML = `
-      <div class="gcard-top"></div>
-      <div class="gcard-pad">
-        <div class="gcard-head">
-          <div class="gbrand" style="--accentglow:${isJelly ? 'rgba(122,70,200,.7)' : 'rgba(82,181,75,.7)'}">${brandSvg}</div>
-          <div style="flex:1;min-width:0">
-            <div class="gcard-nm">${escHtml(s.label || 'Server')}</div>
-            <div class="gcard-host">${escHtml((s.url || '').replace(/^https?:\/\//, ''))}</div>
-          </div>
-          <div class="gstatus"><span class="gpill reachable" data-pill title="Checking connection…">…</span><span class="gbridge-now" data-bridge-ms title="Bridge latency now (addon → server)"></span></div>
-        </div>
-        <div class="gtype" style="display:none">${isJelly ? 'Jellyfin' : 'Emby'}</div>
-        <div class="gchips">
-          <div class="gchip"><div class="cn" data-st="movies">${movies}</div><div class="ct">Movies</div></div>
-          <div class="gchip"><div class="cn" data-st="shows">${shows}</div><div class="ct">Shows</div></div>
-          <div class="gchip"><div class="cn" data-st="episodes">${eps}</div><div class="ct">Episodes</div></div>
-        </div>
-        <div class="gcard-health"></div>
-        <div class="gcard-status-log" data-status-log hidden></div>
-      </div>`;
+    const cachedForCard = hasLib ? c : null;
+
+    const card = _createDashboardGCard(s, idx, {
+      useCache: true,
+      cached: cachedForCard,
+      initialPillClass: 'reachable',
+      initialPillTitle: 'Checking connection…',
+      initialPillText: '…',
+    });
     wrap.appendChild(card);
     requestAnimationFrame(() => { card.style.animationDelay = `${idx * 55}ms`; });
   });
@@ -3481,42 +3531,20 @@ async function applyDashboardBundle(bundle, opts = {}) {
       ];
       wrap.innerHTML = '';
       servers.forEach((s, idx) => {
-        const [bar, glow] = PALETTE[idx % PALETTE.length];
-        const isJelly = (s.type === 'jellyfin');
-        const brandSvg = isJelly ? JELLYFIN_LOGO : EMBY_LOGO;
         const conn = _bundleConnByUrl(data, s.url);
         const lib = _bundleLibByUrl(data, s.url);
         const healthRec = healthByUrl[_normServerUrl(s.url)];
-        const card = document.createElement('div');
-        card.className = 'gcard';
-        card.dataset.serverUrl = s.url || '';
-        card.style.setProperty('--bar', bar);
-        card.style.setProperty('--accentglow', glow);
-        card.style.setProperty('--badgebg', isJelly ? 'linear-gradient(135deg,#aa5cc3,#00a4dc)' : 'linear-gradient(135deg,#52b54b,#2f8f3e)');
-        const movies = lib?.ok ? (lib.movies || 0).toLocaleString() : '—';
-        const shows = lib?.ok ? (lib.shows || 0).toLocaleString() : '—';
-        const eps = lib?.ok ? (lib.episodes || 0).toLocaleString() : '—';
-        card.innerHTML = `
-          <div class="gcard-top"></div>
-          <div class="gcard-pad">
-            <div class="gcard-head">
-              <div class="gbrand" style="--accentglow:${isJelly ? 'rgba(122,70,200,.7)' : 'rgba(82,181,75,.7)'}">${brandSvg}</div>
-              <div style="flex:1;min-width:0">
-                <div class="gcard-nm">${escHtml(s.label || 'Server')}</div>
-                <div class="gcard-host">${escHtml((s.url || '').replace(/^https?:\/\//, ''))}</div>
-              </div>
-              <div class="gstatus"><span class="gpill loading" data-pill title="Bridge connection status">…</span><span class="gbridge-now" data-bridge-ms title="Bridge latency now (addon → server)"></span></div>
-            </div>
-            <div class="gtype" style="display:none">${isJelly ? 'Jellyfin' : 'Emby'}</div>
-            <div class="gchips">
-              <div class="gchip"><div class="cn${lib && !lib.ok ? ' gchip-err' : ''}" data-st="movies"${lib && !lib.ok ? ` title="${escHtml(lib.error || 'failed')}"` : ''}>${movies}</div><div class="ct">Movies</div></div>
-              <div class="gchip"><div class="cn${lib && !lib.ok ? ' gchip-err' : ''}" data-st="shows">${shows}</div><div class="ct">Shows</div></div>
-              <div class="gchip"><div class="cn${lib && !lib.ok ? ' gchip-err' : ''}" data-st="episodes">${eps}</div><div class="ct">Episodes</div></div>
-            </div>
-            <div class="gcard-health">${_dashHealthPanel(healthRec?.history || [])}</div>
-            <div class="gcard-status-log" data-status-log hidden></div>
-          </div>`;
+
+        const card = _createDashboardGCard(s, idx, {
+          conn,
+          lib,
+          healthRec,
+          initialPillClass: 'loading',
+          initialPillTitle: 'Bridge connection status',
+          initialPillText: '…',
+        });
         wrap.appendChild(card);
+
         if (lib?.ok) {
           const cacheKey = _libKey({ url: s.url, apiKey: '', userId: s.userId });
           _libStatsCache[cacheKey] = { movies: lib.movies, shows: lib.shows, episodes: lib.episodes, ts: Date.now() };
