@@ -1187,16 +1187,18 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 });
 
 // Graceful shutdown to avoid abrupt DB connection resets on Railway deploys/restarts
-const { getPool, isConfigured } = require('./lib/db');
+// We stop *all* background schedulers that touch Postgres (health pinger + adminIntel)
+// *before* closing the HTTP server and draining the pool. This minimizes in-flight
+// queries so Postgres sees fewer "connection reset / SSL eof" client drops.
+// Expected noise on the Postgres side during deploys is swallowed in db.js error handler.
 let _isShuttingDown = false;
 
-process.on('SIGTERM', () => {
+function doGracefulShutdown(signal = 'SIGTERM') {
   if (_isShuttingDown) return;
   _isShuttingDown = true;
-  console.log('SIGTERM received, shutting down gracefully...');
+  console.log(`${signal} received, shutting down gracefully...`);
 
-  // Stop background DB-heavy work *first* (health pinger etc.) so we don't
-  // open new connections or kick off pings while the pool is draining.
+  // Stop all DB-using background work immediately. Order: schedulers first.
   try {
     const healthMod = require('./lib/health');
     if (typeof healthMod.stopHealthPinger === 'function') {
@@ -1204,34 +1206,48 @@ process.on('SIGTERM', () => {
     }
   } catch (e) { /* best effort */ }
 
+  try {
+    const adminSched = require('./lib/adminIntelScheduler');
+    if (typeof adminSched.stopAdminIntelScheduler === 'function') {
+      adminSched.stopAdminIntelScheduler();
+    }
+  } catch (e) { /* best effort */ }
+
+  // Tell the DB layer to go quiet (no new queries, swallow expected disconnect noise)
+  try {
+    const db = require('./lib/db');
+    if (typeof db.setShuttingDown === 'function') db.setShuttingDown(true);
+  } catch (e) { /* best effort */ }
+
+  const finish = () => {
+    // Use the db helper which nulls the pool and awaits .end() (best effort).
+    try {
+      const db = require('./lib/db');
+      if (typeof db.shutdown === 'function' && db.isConfigured && db.isConfigured()) {
+        db.shutdown().then(() => {
+          console.log('Postgres pool drained.');
+          process.exit(0);
+        }).catch(() => process.exit(0));
+        return;
+      }
+    } catch (e) { /* ignore */ }
+    process.exit(0);
+  };
+
   server.close(() => {
     console.log('HTTP server closed.');
-    if (isConfigured()) {
-      const pool = getPool();
-      if (pool) {
-        // End the pool; expected client resets on the Postgres side are normal
-        // during container termination and are not application errors.
-        pool.end(() => {
-          console.log('Postgres pool closed.');
-          process.exit(0);
-        }).catch(() => {
-          // Pool end can reject in some edge cases; force clean exit anyway.
-          process.exit(0);
-        });
-      } else {
-        process.exit(0);
-      }
-    } else {
-      process.exit(0);
-    }
+    finish();
   });
 
-  // Force exit after timeout if graceful fails (bundle/health work can exceed 10s)
+  // Force exit after timeout if graceful fails (background work, slow pool drain etc.)
   setTimeout(() => {
     console.error('Forcing shutdown after timeout');
     process.exit(1);
   }, 30000).unref();
-});
+}
+
+process.on('SIGTERM', () => doGracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => doGracefulShutdown('SIGINT'));
 
 // ─── Database init (migrations + admin seed); no-ops without DATABASE_URL ────
 const { runMigrations } = require('./lib/migrate');
