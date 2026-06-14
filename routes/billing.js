@@ -83,8 +83,24 @@ function makeBillingRouter() {
   });
 
   r.post('/cancel', requireAuth, async (req, res) => {
-    try { await billing.cancel(req.user.id); res.json({ ok: true }); }
-    catch (e) { res.status(500).json({ error: 'cancel failed' }); }
+    try {
+      // Cancel at PayPal first so billing actually stops (SEC-5). Only flip the
+      // local status once PayPal confirms (or has nothing left to cancel).
+      const sub = await billing.get(req.user.id);
+      if (paypal.isConfigured() && sub.paypal_subscription_id && sub.status !== 'cancelled') {
+        try {
+          await paypal.cancelSubscription(sub.paypal_subscription_id);
+        } catch (e) {
+          // 404/422 = already cancelled/expired at PayPal → safe to finalize locally.
+          if (e.status !== 404 && e.status !== 422) {
+            console.error('[billing/cancel] paypal cancel failed:', e.message);
+            return res.status(502).json({ error: 'could not cancel with PayPal — please try again' });
+          }
+        }
+      }
+      await billing.cancel(req.user.id);
+      res.json({ ok: true });
+    } catch (e) { console.error('[billing/cancel]', e.message); res.status(500).json({ error: 'cancel failed' }); }
   });
 
   r.post('/redeem', requireAuth, async (req, res) => {

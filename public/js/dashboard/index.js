@@ -28,6 +28,10 @@
     }
     if (typeof window.renderOnboarding === 'function') window.renderOnboarding();
     if (typeof window.replayDashTileAnimations === 'function') window.replayDashTileAnimations();
+    // Show build version badge (for detecting deploys/updates)
+    if (typeof window.initBuildBadge === 'function') {
+      try { window.initBuildBadge(); } catch {}
+    }
   }
 
   async function refreshScope(scope) {
