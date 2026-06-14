@@ -15,8 +15,17 @@ function fakeDb() {
       return { rowCount: 1, rows: [] };
     }
     if (/UPDATE subscriptions SET status='cancelled'/i.test(text)) { const r = subs.get(params[0]); if (r) r.status = 'cancelled'; return { rowCount: 1 }; }
+    if (/SELECT active, max_uses, uses FROM discount_codes WHERE code/i.test(text)) { const r = codes.get(params[0]); return { rows: r ? [r] : [], rowCount: r ? 1 : 0 }; }
     if (/SELECT \* FROM discount_codes WHERE code/i.test(text)) { const r = codes.get(params[0]); return { rows: r ? [r] : [], rowCount: r ? 1 : 0 }; }
     if (/INSERT INTO discount_codes/i.test(text)) { codes.set(params[0], { code: params[0], type: params[1], active: true, max_uses: params[2], uses: 0 }); return { rowCount: 1 }; }
+    // Atomic claim: only succeed when active and under max_uses (mirrors real SQL).
+    if (/UPDATE discount_codes SET uses = uses \+ 1/i.test(text)) {
+      const c = codes.get(params[0]);
+      const ok = c && c.active && (c.max_uses == null || c.uses < c.max_uses);
+      if (!ok) return { rows: [], rowCount: 0 };
+      c.uses++;
+      return { rows: [{ code: c.code, type: c.type }], rowCount: 1 };
+    }
     if (/UPDATE discount_codes SET uses=uses\+1/i.test(text)) { const c = codes.get(params[0]); if (c) c.uses++; return { rowCount: 1 }; }
     if (/UPDATE discount_codes SET active=false/i.test(text)) { const c = codes.get(params[0]); if (c) c.active = false; return { rowCount: 1 }; }
     if (/SELECT .* FROM discount_codes ORDER BY/i.test(text)) { return { rows: [...codes.values()], rowCount: codes.size }; }

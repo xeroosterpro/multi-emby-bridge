@@ -1,10 +1,12 @@
 const assert = require('assert');
-const { buildDashboardBundle } = require('../../lib/dashboard/bundle');
 const serverWatch = require('../../lib/serverWatchHistory');
 const connections = require('../../lib/dashboard/connections');
 const library = require('../../lib/dashboard/library');
+const { clearWatchCache } = require('../../lib/dashboard/activity');
 
 serverWatch.fetchServerWatchHistory = async () => [];
+clearWatchCache();
+const { buildDashboardBundle } = require('../../lib/dashboard/bundle');
 
 function A(cond, msg) {
   assert.ok(cond, msg);
@@ -132,6 +134,7 @@ library.fetchLibraryBatch = async (servers) => {
   A(Array.isArray(full.errors), 'errors array present');
 
   console.log('\ndashboard/bundle.test.js: all passed');
+  process.exit(0);
 })().catch((e) => {
   console.error(e);
   process.exit(1);

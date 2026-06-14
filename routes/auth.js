@@ -3,9 +3,13 @@ const express = require('express');
 const db = require('../lib/db');
 const { makeUsers } = require('../lib/users');
 const { makeSessions } = require('../lib/sessions');
-const { verifyPassword } = require('../lib/accounts');
+const { verifyPassword, hashPassword } = require('../lib/accounts');
 
 const COOKIE = 'meb_session';
+// Pre-computed valid scrypt hash of a random secret. Used as a constant-time
+// decoy when the username doesn't exist, so login timing can't reveal whether
+// an account exists (SEC-3).
+const DUMMY_HASH = hashPassword(require('crypto').randomBytes(24).toString('hex'));
 
 function cookieOpts() {
   return {
@@ -26,12 +30,15 @@ function parseCookies(req) {
   return out;
 }
 
-function makeAuthRouter() {
+function makeAuthRouter(opts = {}) {
   const users = makeUsers(db);
   const sessions = makeSessions(db);
   const r = express.Router();
+  // Brute-force / credential-stuffing guard on the credential-bearing routes.
+  // No-op passthrough if no limiter is injected (keeps unit tests simple).
+  const loginLimiter = typeof opts.loginLimiter === 'function' ? opts.loginLimiter : (req, _res, next) => next();
 
-  r.post('/register', async (req, res) => {
+  r.post('/register', loginLimiter, async (req, res) => {
     if (!db.isConfigured()) return res.status(503).json({ error: 'accounts unavailable' });
     const allowReg = process.env.ALLOW_PUBLIC_REGISTER;
     if (allowReg === '0' || allowReg === 'false') {
@@ -51,12 +58,18 @@ function makeAuthRouter() {
     }
   });
 
-  r.post('/login', async (req, res) => {
+  r.post('/login', loginLimiter, async (req, res) => {
     if (!db.isConfigured()) return res.status(503).json({ error: 'accounts unavailable' });
     const { username, password } = req.body || {};
     try {
       const user = await users.findByUsername(username || '');
-      if (!user || !verifyPassword(password || '', user.password_hash)) {
+      if (!user) {
+        // Burn an equivalent scrypt cost so "no such user" and "wrong password"
+        // take the same time — closes the username-enumeration timing oracle.
+        verifyPassword(password || '', DUMMY_HASH);
+        return res.status(401).json({ error: 'invalid credentials' });
+      }
+      if (!verifyPassword(password || '', user.password_hash)) {
         return res.status(401).json({ error: 'invalid credentials' });
       }
       const { token } = await sessions.create(user.id);
