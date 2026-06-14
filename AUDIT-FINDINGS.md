@@ -19,7 +19,7 @@ Each fix is verified with the existing `test/*.test.js` suite (plus new targeted
 | SEC-1 | **High** | `/api/auth/login` & `/api/auth/register` have **no rate limiter** — brute-force / credential-stuffing open. An `authLimiter` (10/min) exists but is only wired to profile/credential routes, not the actual login endpoints. | `lib/createApp.js:60`, `routes/auth.js` | **Fixed** |
 | SEC-2 | **High** | `userConfig.getForServe()` re-encrypts + re-writes the full config row on **every call** (manifest/stream hot path). `hasPlaintext` is computed from `cfg.servers` *after* `applyServerCreds()` re-injects decrypted creds, so it's always truthy → infinite lazy-"migration". | `lib/userConfig.js:156-172` | **Fixed** |
 | SEC-3 | Medium | Login user-enumeration timing oracle: `verifyPassword` is skipped when the username doesn't exist, so "no such user" returns measurably faster than "wrong password". | `routes/auth.js:58-61` | **Fixed** |
-| SEC-4 | Medium | Discount-code redemption is check-then-increment (TOCTOU). Concurrent redeems can exceed `max_uses`. No per-user cap either (same user can redeem repeatedly). | `lib/billing.js:79-89` | **Fixed (atomic);** per-user cap deferred (needs migration) |
+| SEC-4 | Medium | Discount-code redemption is check-then-increment (TOCTOU). Concurrent redeems can exceed `max_uses`. No per-user cap either (same user can redeem repeatedly). | `lib/billing.js`, `migrations/014_discount_redemptions.sql` | **Fixed** — atomic claim + per-user `discount_redemptions` ledger (one redeem per user/code) |
 | SEC-5 | Medium | `/api/billing/cancel` flipped local status to `cancelled` but never called PayPal's cancel API — the subscription kept billing the customer. | `routes/billing.js:85-88` | **Fixed** — calls `paypal.cancelSubscription()` before local cancel; treats 404/422 as already-done |
 | SEC-6 | Medium | SSRF guard validated the URL pre-fetch, but `node-fetch` then **followed redirects** and re-resolved DNS — bypassable via 30x→internal-IP or DNS-rebinding. Affected test-connection, fetch-credentials, ping, reauth, health, catalogs. | `lib/auth.js`, `lib/urlSafety.js` | **Fixed** — custom validating `dns.lookup` on a shared agent re-checks the connect-time IP on every hop; redirects capped at 5 |
 | SEC-7 | Low | `isPrivateIp` misses CGNAT `100.64.0.0/10` and some IPv6 forms. | `lib/urlSafety.js:9-33` | **Fixed** |
@@ -96,8 +96,22 @@ admin (`Eli`), driving it with a real browser (desktop + 390px mobile).
 | LIVE-4 | Medium | `/api/server-sessions` returns **502** for these servers — the backend's `/Sessions` probe fails even though `/System/Ping` succeeds (servers likely block the datacenter IP on that endpoint). | `routes/bridgeApi.js:405`, `lib/sessions.js` | **Mitigated** by LIVE-3 — the browser now reaches these servers directly (where Railway can't); backend remains a graceful fallback |
 | LIVE-5 | Low | Console floods with errors on every navigation (LIVE-1 ×3-5 + CSP ×N). Purely a symptom of LIVE-1/2/3; resolving those clears it. | — | Resolves with above |
 
-### Stage-2 verification
-- LIVE-1 & LIVE-2 fixed in the working tree; full `npm test` still green (`security.test.js`
-  CSP assertions still hold). **These require a Railway redeploy to verify live.**
-- After redeploy I can re-drive the site to confirm: zero `_dashConsoleIdleTimer` errors,
-  PayPal button renders, and (if LIVE-3 chosen) live sessions + "YOU" test work.
+### Stage-2 verification — ✅ confirmed live (deploy `302c845`)
+Merged to `main` → Railway deployed in ~30s → re-driven on production (cache-busted):
+- **LIVE-1** ✅ `_dashConsoleIdleTimer` ReferenceError **gone** on every page (was firing 3-5×/nav).
+- **LIVE-2** ✅ PayPal SDK no longer CSP-blocked (the `script-src` violation is gone). Admin
+  account sees the billing "history" view, so the button itself renders only for non-subscribers.
+- **LIVE-3** ✅ Browser now **connects directly to the Emby servers** (real HTTP responses, e.g.
+  a `401` from a server with a stale key) instead of CSP `connect-src` blocks. Console errors
+  per page dropped from ~48-79 to ~8-10.
+- **LIVE-4** Backend `/api/server-sessions` still `502`s for WAF'd servers (expected), but the
+  now-working client-side path compensates.
+- **No regressions:** dashboard, install, connections, health, request-log, catalogs, admin
+  all render correctly with zero new JS/CSP/500 errors. Mobile layout verified.
+
+### Residual (deferred, low priority)
+- One demo/real server (`emby.ompremium.cc`) returns `401` — stale/invalid API key (data, not a bug).
+- `/api/server-sessions` 502 noise: could be suppressed by not attempting the backend probe
+  for servers the client can reach directly.
+- ~~Per-user discount-code cap~~ — **done** (`discount_redemptions` ledger, migration 014).
+- PayPal webhook raw-body verification; structured logging; CORS scoping (SEC-8). All low severity.
