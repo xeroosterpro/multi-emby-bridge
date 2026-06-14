@@ -5,8 +5,21 @@ let passed = 0, failed = 0;
 const A = (c, m) => { c ? (console.log(`  ✓ ${m}`), passed++) : (console.error(`  ✗ ${m}`), failed++); };
 
 function fakeDb() {
-  const subs = new Map(); const codes = new Map();
+  const subs = new Map(); const codes = new Map(); const redemptions = new Set();
   return { async query(text, params) {
+    if (/INSERT INTO discount_redemptions/i.test(text)) {
+      const key = `${params[0]}|${params[1]}`;
+      if (redemptions.has(key)) return { rows: [], rowCount: 0 }; // ON CONFLICT DO NOTHING
+      redemptions.add(key);
+      return { rows: [{ code: params[0] }], rowCount: 1 };
+    }
+    if (/DELETE FROM discount_redemptions/i.test(text)) {
+      redemptions.delete(`${params[0]}|${params[1]}`);
+      return { rows: [], rowCount: 1 };
+    }
+    if (/SELECT 1 FROM discount_codes WHERE code/i.test(text)) {
+      const r = codes.get(params[0]); return { rows: r ? [{ '?column?': 1 }] : [], rowCount: r ? 1 : 0 };
+    }
     if (/SELECT \* FROM subscriptions WHERE user_id/i.test(text)) { const r = subs.get(params[0]); return { rows: r ? [r] : [], rowCount: r ? 1 : 0 }; }
     if (/INSERT INTO subscriptions/i.test(text)) {
       const uid = params[0];
@@ -54,6 +67,14 @@ function fakeDb() {
   A(res.applied && res.comped, 'comp_100 code comps the user');
   A(await b.hasAccess('u3') === true, 'redeeming comp code grants access');
   A((await b.redeemCode('u4', 'NOPE')).applied === false, 'invalid code rejected');
+
+  // SEC-4 residual: same user cannot redeem the same code twice
+  const dup = await b.redeemCode('u3', 'FAMILY100');
+  A(dup.applied === false && dup.reason === 'already redeemed', 'same user cannot re-redeem a code');
+  // ...and a different user can still redeem the remaining use
+  const u6 = await b.redeemCode('u6', 'FAMILY100');
+  A(u6.applied === true, 'a different user can still redeem the remaining use');
+
   await b.deactivateCode('FAMILY100');
   A((await b.redeemCode('u5', 'FAMILY100')).applied === false, 'deactivated code rejected');
 
