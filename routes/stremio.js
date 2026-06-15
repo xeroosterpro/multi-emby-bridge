@@ -35,7 +35,7 @@ function registerStremioRoutes(app, deps) {
       catalogs: [],
       resources: ['stream'],
       idPrefixes: ['tt'],
-      behaviorHints: { configurable: true, configurationRequired: true },
+      behaviorHints: { configurable: false, configurationRequired: false },
     });
   });
 

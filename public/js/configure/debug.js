@@ -1,6 +1,15 @@
 // configure/debug.js — outbound API traffic (Debug tab only)
 let _dbgTimer = null;
 
+const _CAT_LABELS = {
+  stream: 'Stream lookup',
+  health: 'Health probe',
+  auth: 'Auth renewal',
+  session: 'Live sessions',
+  activity: 'Watch history',
+  other: 'Other',
+};
+
 function _isDebugActive() {
   const sec = document.getElementById('page-debug');
   return !!(sec && sec.classList.contains('on'));
@@ -11,11 +20,36 @@ function _fmtTime(ts) {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
+function _catClass(cat, essential) {
+  if (cat === 'stream' || essential) return 'dbg-cat-stream';
+  if (cat === 'activity' || cat === 'session') return 'dbg-cat-noise';
+  return 'dbg-cat-opt';
+}
+
+function _renderCategories(cats) {
+  const el = document.getElementById('dbg-categories');
+  if (!el) return;
+  if (!cats || !cats.length) {
+    el.innerHTML = '<p class="dbg-empty">No calls recorded yet.</p>';
+    return;
+  }
+  el.innerHTML = cats.map(c => {
+    const label = _CAT_LABELS[c.category] || c.category;
+    const cls = _catClass(c.category, c.category === 'stream');
+    return `<div class="dbg-cat-card ${cls}">
+      <div class="dbg-cat-name">${escHtml(label)}</div>
+      <div class="dbg-cat-stats">${c.count || 0} total · ${c.cached || 0} cached · ${c.network || 0} live${c.errors ? ` · ${c.errors} err` : ''}</div>
+    </div>`;
+  }).join('');
+}
+
 function _renderDebug(data) {
   const serversEl = document.getElementById('dbg-servers');
   const callsEl = document.getElementById('dbg-calls');
   const uaEl = document.getElementById('dbg-ua');
   if (!serversEl || !callsEl) return;
+
+  _renderCategories(data.byCategory || []);
 
   const rows = data.byServer || [];
   if (!rows.length) {
@@ -37,9 +71,10 @@ function _renderDebug(data) {
     callsEl.innerHTML = '<p class="dbg-empty">Waiting for API calls…</p>';
   } else {
     callsEl.innerHTML = `<table class="dbg-table dbg-table-calls"><thead><tr>
-      <th>Time</th><th>Server</th><th>Path</th><th>Source</th><th>Status</th><th>ms</th>
+      <th>Time</th><th>Purpose</th><th>Server</th><th>Path</th><th>Source</th><th>Status</th><th>ms</th>
     </tr></thead><tbody>${calls.map(c => `<tr class="${c.ok ? '' : 'dbg-err'}">
       <td>${escHtml(_fmtTime(c.ts))}</td>
+      <td><span class="dbg-cat-badge ${_catClass(c.category, c.essential)}">${escHtml(c.purpose || '—')}</span></td>
       <td>${escHtml(c.label || c.host)}</td>
       <td class="dbg-path">${escHtml(c.path)}</td>
       <td><span class="dbg-badge ${c.cached ? 'cached' : 'live'}">${c.cached ? 'cache' : 'live'}</span></td>
@@ -50,7 +85,7 @@ function _renderDebug(data) {
 
   if (uaEl) {
     const ttl = data.cacheTtlMs ? Math.round(data.cacheTtlMs / 1000) : 45;
-    uaEl.textContent = `UA: ${data.ua || '—'} · cache TTL ${ttl}s`;
+    uaEl.innerHTML = `UA: ${escHtml(data.ua || '—')}<br>Emby client: ${escHtml(data.embyClient || '—')}<br>Response cache TTL: ${ttl}s`;
   }
 }
 

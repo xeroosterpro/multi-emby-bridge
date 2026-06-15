@@ -153,16 +153,13 @@ function makeUserRouter() {
 
   r.get('/live-sessions', requireAuth, async (req, res) => {
     try {
-      let recent = [];
-      try {
-        recent = await requestLog.forUser(req.user.id, 30);
-      } catch { /* optional */ }
-      const { servers, live, liveProbes } = await loadLiveForUser(req.user.id, recent);
+      const cfg = await uc.getForServe(req.user.id);
+      const servers = filterLiveServers(cfg);
       res.json({
         hasServers: servers.length > 0,
         serverCount: servers.length,
-        live,
-        liveProbes,
+        live: [],
+        liveProbes: [],
       });
     } catch (e) {
       console.error('[user/live-sessions]', e.message);
@@ -172,14 +169,10 @@ function makeUserRouter() {
 
   r.get('/activity', requireAuth, async (req, res) => {
     try {
-      let live = [];
-      let liveProbes = [];
       let servers = [];
       let recent = [];
-      const quick = req.query.quick === '1' || req.query.quick === 'true';
       try {
         const labels = new Set();
-        let rawRecent = [];
         const cfg = await uc.getForServe(req.user.id);
         const filteredServers = filterLiveServers(cfg);
         servers = filteredServers;
@@ -187,22 +180,7 @@ function makeUserRouter() {
           filteredServers.forEach(s => { if (s.label) labels.add(s.label.trim()); });
           const filtered = (await requestLog.forUser(req.user.id, 80))
             .filter(e => !e.server || labels.has(e.server) || (e.serverStatus || []).some(s => labels.has(s.label)));
-          const bridgeRecent = dedupeRecentByContent(filtered);
-          let serverWatch = [];
-          try {
-            serverWatch = await getCachedServerWatch(req.user.id, filteredServers, quick);
-          } catch (e) { console.error('[user/activity:serverWatch]', e.message); }
-          rawRecent = mergeActivityHistory(bridgeRecent, serverWatch, { limit: 30 });
-        }
-        if (quick) {
-          live = attachBridgeLive([], rawRecent);
-          if (servers.length) recent = enrichRecentEntries(rawRecent, live);
-        } else {
-          const loaded = await loadLiveForUser(req.user.id, rawRecent);
-          servers = loaded.servers;
-          live = loaded.live;
-          liveProbes = loaded.liveProbes;
-          if (servers.length) recent = enrichRecentEntries(rawRecent, live);
+          recent = dedupeRecentByContent(filtered).slice(0, 30);
         }
       } catch (e) {
         console.error('[user/activity:inner]', e.message);
@@ -210,8 +188,8 @@ function makeUserRouter() {
       res.json({
         hasServers: servers.length > 0,
         serverCount: servers.length,
-        live,
-        liveProbes,
+        live: [],
+        liveProbes: [],
         recent,
       });
     } catch (e) { console.error('[user/activity]', e.message); res.status(500).json({ error: 'activity failed' }); }

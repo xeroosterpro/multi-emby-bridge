@@ -5731,5 +5731,19 @@ html.has-server-down-banner:not(:has(#site-announcement)) .content { padding-top
 .dbg-badge { font-size: .58rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; }
 .dbg-badge.cached { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); border: 1px solid color-mix(in srgb, var(--success) 28%, var(--border)); }
 .dbg-badge.live { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border)); }
-.dbg-foot { margin: 4px 0 0; font-size: .66rem; color: var(--text-mute); font-family: ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
+.dbg-foot { margin: 4px 0 0; font-size: .66rem; color: var(--text-mute); font-family: ui-monospace, Menlo, Consolas, monospace; word-break: break-all; line-height: 1.5; }
+.dbg-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+.dbg-cat-card { padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-surface); }
+.dbg-cat-name { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.dbg-cat-stats { font-size: .68rem; color: var(--text-mute); }
+.dbg-cat-stream { border-color: color-mix(in srgb, var(--success) 35%, var(--border)); }
+.dbg-cat-stream .dbg-cat-name { color: var(--success); }
+.dbg-cat-opt { border-color: color-mix(in srgb, var(--accent) 25%, var(--border)); }
+.dbg-cat-opt .dbg-cat-name { color: var(--accent); }
+.dbg-cat-noise { border-color: color-mix(in srgb, var(--text-mute) 40%, var(--border)); opacity: .85; }
+.dbg-cat-noise .dbg-cat-name { color: var(--text-mute); }
+.dbg-cat-badge { font-size: .62rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.dbg-cat-badge.dbg-cat-stream { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); border: 1px solid color-mix(in srgb, var(--success) 28%, var(--border)); }
+.dbg-cat-badge.dbg-cat-opt { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border)); }
+.dbg-cat-badge.dbg-cat-noise { color: var(--text-mute); background: var(--bg-elevated); border: 1px solid var(--border); }
 

@@ -53,6 +53,7 @@ function A(cond, msg) {
   A(html.includes('data-page="install"'), 'configure.html has install nav');
   A(html.includes('data-page="debug"'), 'configure.html has debug nav');
   A(html.includes('id="page-debug"'), 'configure.html has debug page section');
+  A(html.includes('id="dbg-categories"'), 'configure.html has debug category grouping');
   A(!html.includes('data-page="dashboard"'), 'configure.html omits dashboard nav');
   A(!html.includes('dashboard-fetch.js'), 'configure.html omits dashboard scripts');
 
