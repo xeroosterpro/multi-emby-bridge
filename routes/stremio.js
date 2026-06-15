@@ -139,7 +139,7 @@ function registerStremioRoutes(app, deps) {
         codecMode: cfg.codecMode,
         labelPreset: cfg.labelPreset,
         pingDetail: cfg.pingDetail,
-        autoSelect: cfg.autoSelect,
+        autoSelect: cfg.autoSelect === true,
         qualityBadge: cfg.qualityBadge === true ? 'emoji' : (cfg.qualityBadge || null),
         flagEmoji: cfg.flagEmoji === true ? 'flag' : (cfg.flagEmoji || null),
         bitrateBar: cfg.bitrateBar === true ? 'blocks' : (cfg.bitrateBar || null),

@@ -227,7 +227,7 @@ function _applyExcludeRes(excludeRes) {
 
 const STREAM_PROFILE_VERSION = 2;
 const STREMIO_STREAM_DEFAULTS = {
-  autoSelect: true,
+  autoSelect: false,
   labelPreset: 'compact',
   audioRank: true,
   audioRankMode: 'audioFirst',
