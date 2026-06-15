@@ -59,8 +59,10 @@ function fakeDb() {
   const edit = await uc.getEditable('u1');
   A(edit.keys.trakt === true && edit.keys.tmdb === true && edit.keys.mdblist === true, 'getEditable reports catalog key presence');
   A(edit.config.traktClientId === undefined, 'getEditable never exposes catalog key values');
-  A(edit.config.servers[0].hasApiKey === true, 'getEditable reports hasApiKey without value');
-  A(edit.config.servers[0].apiKey === undefined, 'getEditable never exposes server apiKey');
+  A(edit.config.servers[0].hasApiKey === true, 'getEditable reports hasApiKey flag');
+  A(edit.config.servers[0].apiKey === 'EMBYKEY', 'getEditable returns server apiKey for configure UI');
+  A(edit.config.servers[0].username === 'admin', 'getEditable returns server username for configure UI');
+  A(edit.config.servers[0].password === 'secret', 'getEditable returns server password for configure UI');
 
   // Merge-on-save: partial update without creds should retain stored secrets
   await uc.save('u1', { servers: [{ label: 'Renamed', url: 'https://emby.example.com', userId: 'u1' }], sort: 'ping' });

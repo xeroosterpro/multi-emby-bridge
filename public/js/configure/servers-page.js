@@ -99,11 +99,11 @@ function buildServerBlock(id) {
         <div class="cred-inputs">
           <div class="field-group">
             <label>Username</label>
-            <input type="text" class="f-username" placeholder="admin" autocomplete="off" oninput="updateCredWarning(${id})" />
+            <input type="text" class="f-username" placeholder="server username" autocomplete="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="server-user-${id}" oninput="updateCredWarning(${id})" />
           </div>
           <div class="field-group">
             <label>Password</label>
-            <input type="password" class="f-password" placeholder="••••••••" autocomplete="off" oninput="updateCredWarning(${id});autoSave()" />
+            <input type="password" class="f-password" placeholder="••••••••" autocomplete="new-password" data-lpignore="true" data-form-type="other" name="server-pass-${id}" oninput="updateCredWarning(${id});autoSave()" />
           </div>
         </div>
         <button class="btn-fetch" onclick="fetchCredentials(${id})">Fetch API Key &amp; User ID</button>
