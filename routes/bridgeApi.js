@@ -381,6 +381,7 @@ function registerBridgeApi(app, deps) {
   app.post('/api/ping-servers', apiLimiter, requireAuthInProduction, async (req, res) => {
     const { servers } = req.body || {};
     if (!Array.isArray(servers)) return res.status(400).json({ error: 'servers array required' });
+    if (servers.length > 50) return res.status(400).json({ error: 'too many servers (max 50)' });
     const results = await Promise.all(servers.map(async s => {
       const t0 = Date.now();
       try {
