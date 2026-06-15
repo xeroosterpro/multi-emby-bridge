@@ -45,6 +45,13 @@ console.log('\nparseStreamId');
 }
 
 {
+  const r = parseStreamId('movie', 'tt1234567:1:3');
+  assertEqual(r.imdbId, 'tt1234567:1:3', 'movie: colon suffix kept as imdb id (not parsed as episode)');
+  assertEqual(r.season, null, 'movie: ignores season even with colons in id');
+  assertEqual(r.episode, null, 'movie: ignores episode even with colons in id');
+}
+
+{
   const r = parseStreamId('series', 'tt1234567:2:5');
   assertEqual(r.imdbId, 'tt1234567', 'series: imdbId extracted');
   assertEqual(r.season, 2, 'series: season parsed');

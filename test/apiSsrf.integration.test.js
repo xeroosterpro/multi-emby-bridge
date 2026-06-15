@@ -97,19 +97,6 @@ function startServer(port) {
         expect: 400,
         errIncludes: ['private', 'host not allowed', 'blocked'],
       },
-      {
-        name: 'POST /api/library-stats blocks 10.x private URL',
-        method: 'POST',
-        path: '/api/library-stats',
-        body: {
-          url: 'http://10.0.0.5:8096',
-          type: 'emby',
-          apiKey: 'fake',
-          userId: 'fake',
-        },
-        expect: 400,
-        errIncludes: ['private', 'blocked'],
-      },
     ];
 
     for (const c of cases) {

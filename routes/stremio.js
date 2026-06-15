@@ -1,7 +1,7 @@
 const { parseStreamId, setCatalogCache, shuffleMetas, dedupMetas } = require('../lib/utils');
 
 const { getAllStreams } = require('../lib/streams');
-const { prepareStreamServers } = require('../lib/auth');
+const { prepareStreamServers, canQueryServer } = require('../lib/auth');
 const { upgradeStreamProfile } = require('../lib/streamDefaults');
 const { fetchExternalCatalog } = require('../lib/catalogs');
 const { healthHistory } = require('../lib/health');
@@ -116,19 +116,39 @@ function registerStremioRoutes(app, deps) {
     const { imdbId, season, episode } = parseStreamId(type, id);
     if (!imdbId || !imdbId.startsWith('tt')) return res.json({ streams: [] });
     const configKey = req.params.config;
-    const streamCacheKey = l3Key(configKey, type, id);
+    const deviceUserKey = req._mebUserId || configKey;
+    const streamOpts = {
+      autoSelect: cfg.autoSelect === true,
+      sortOrder: cfg.sortOrder,
+      excludeRes: cfg.excludeRes,
+      audioRank: cfg.audioRank !== false,
+      audioOrder: cfg.audioOrder || undefined,
+      audioDisabled: cfg.audioDisabled || [],
+      labelPreset: cfg.labelPreset,
+    };
+    const streamCacheKey = l3Key(configKey, type, id, streamOpts);
     const cachedResult = cacheGet('L3', streamCacheKey);
     if (cachedResult) {
       recordCacheHit('L3', 'Stremio play — cached stream list');
       return res.json({ streams: cachedResult.streams });
     }
     const timeoutMs = (cfg.timeout && cfg.timeout >= 2000 && cfg.timeout <= 10000) ? cfg.timeout : 10000;
-    const servers = (await prepareStreamServers(cfg.servers || []))
-      .map(s => ({ ...s, _timeout: timeoutMs, _fastPace: true }));
+    const candidateServers = (cfg.servers || []).filter(
+      (s) => s && s.url && s.enabled !== false && canQueryServer(s)
+    );
+    if (candidateServers.length === 0) return res.json({ streams: [] });
+    const servers = (await prepareStreamServers(candidateServers))
+      .map(s => ({ ...s, _timeout: timeoutMs, _fastPace: true, _deviceUserKey: deviceUserKey }));
     if (servers.length === 0) return res.json({ streams: [] });
     const _t0 = Date.now();
     try {
-      const runLookup = async () => getAllStreams(servers, type, imdbId, season, episode, {
+      const runLookup = async (signal) => {
+        if (signal?.aborted) {
+          const err = new Error('superseded');
+          err.superseded = true;
+          throw err;
+        }
+        return getAllStreams(servers, type, imdbId, season, episode, {
         sortOrder: cfg.sortOrder,
         excludeRes: cfg.excludeRes,
         recommend: cfg.recommend,
@@ -154,7 +174,8 @@ function registerStremioRoutes(app, deps) {
         surroundPriority: cfg.surroundPriority === true,
         healthHistory,
         failoverHideDown: cfg.failoverHideDown === true,
-      });
+        });
+      };
 
       let streams, meta;
       try {
