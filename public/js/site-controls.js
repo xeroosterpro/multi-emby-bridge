@@ -66,13 +66,21 @@
       document.body.appendChild(el);
     }
     el.className = 'site-announcement site-announcement-' + (ann.severity || 'info');
-    const link = ann.link
-      ? ` <a class="sab-link" href="${ann.link.replace(/"/g, '&quot;')}" target="_blank" rel="noopener">${ann.linkText || 'Learn more'}</a>`
+    const esc = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    // Only allow http(s) announcement links — a javascript:/data: href would be
+    // stored XSS executed for every user who sees the announcement. Link text is
+    // also escaped (was previously injected raw).
+    let safeHref = null;
+    if (ann.link) {
+      try { const u = new URL(ann.link, location.origin); if (u.protocol === 'http:' || u.protocol === 'https:') safeHref = u.href; }
+      catch { safeHref = null; }
+    }
+    const link = safeHref
+      ? ` <a class="sab-link" href="${esc(safeHref)}" target="_blank" rel="noopener noreferrer">${esc(ann.linkText || 'Learn more')}</a>`
       : '';
     const dismiss = ann.dismissible !== false
       ? '<button type="button" class="sab-dismiss" aria-label="Dismiss">×</button>'
       : '';
-    const esc = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     el.innerHTML = `<span class="sab-text">${esc(ann.message)}${link}</span>${dismiss}`;
     const btn = el.querySelector('.sab-dismiss');
     if (btn) {

@@ -78,7 +78,13 @@
       const cap = (_me.user.username||'there')[0].toUpperCase() + (_me.user.username||'there').slice(1);
       const h = new Date().getHours();
       const tod = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-      el.innerHTML = `${tod}, ${cap} <span class="wave">👋</span>`;
+      // Username is user-controlled — set as text (not interpolated into innerHTML)
+      // to prevent self-XSS, then append the decorative wave.
+      el.textContent = `${tod}, ${cap} `;
+      const wave = document.createElement('span');
+      wave.className = 'wave';
+      wave.textContent = '👋';
+      el.appendChild(wave);
       if (sub) {
         if (_me.user.role === 'admin') {
           sub.textContent = 'Full admin access — manage servers, users, and support from here.';
