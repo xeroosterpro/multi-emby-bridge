@@ -2,12 +2,19 @@
 // ── Generate links ────────────────────────────────────────────────────────
 const LEGACY_INSTALL_WARN = 'Legacy encoded install URLs embed your config (including API keys) in the link. Use your personal /u/:token manifest instead.';
 
+function minimalManifestConfig() {
+  const cfg = buildStreamConfig(true);
+  if (cfg) return cfg;
+  return { servers: [], streamProfile: typeof STREAM_PROFILE_VERSION !== 'undefined' ? STREAM_PROFILE_VERSION : 3 };
+}
+
 async function ensureTokenManifestUrl(config) {
+  const payload = config || minimalManifestConfig();
   const save = await fetch('/api/user/config', {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(config),
+    body: JSON.stringify(payload),
   });
   if (!save.ok) {
     const err = await save.json().catch(() => ({}));
@@ -43,7 +50,12 @@ async function renderTokenInstallUI(config, mode) {
     if (urlEl) urlEl.value = manifestUrl;
     if (typeof updateInstallStats === 'function') updateInstallStats();
     const deepLink = manifestUrl.replace(/^https?:\/\//i, 'stremio://');
+    const serverCount = (config?.servers || []).length;
+    const serverWarn = serverCount === 0
+      ? '<p class="install-note" style="color:var(--warning,#e6a700)">No servers configured yet — Stremio will install, but streams will be empty until you add servers on the Servers tab and revisit Install.</p>'
+      : '';
     section.innerHTML = `<h2>Ready to install${mode === 'timeout' ? ' — Fast Timeout' : ''}</h2>
+      ${serverWarn}
       <p class="install-note">Use the Manifest URL above — it updates when you change settings. Keys never leave the server.</p>
       <div class="url-row"><input type="text" readonly value="${escHtml(manifestUrl)}" /><button class="btn-copy" data-url="${escHtml(manifestUrl)}" onclick="copySpecific(this)">Copy</button></div>
       <a class="btn-install" href="${escHtml(deepLink)}">Install in Stremio</a>
@@ -282,26 +294,22 @@ function updateInstallStats() {
 
 async function loadInstallPage() {
   await ensureAccountConfigLoaded();
-  const config = collectConfig(true);
-  if (config) {
-    try { await generateLinks({ silent: true }); } catch {}
-  }
   try {
     const auth = await getAuth();
     if (auth?.enabled && auth?.user) {
+      const config = buildStreamConfig(true) || minimalManifestConfig();
+      const url = await ensureTokenManifestUrl(config);
       const urlEl = document.getElementById('acct-url');
-      let url = urlEl?.value?.trim() || '';
-      if (!url) {
-        const cur = await fetch('/api/user/manifest', { credentials: 'same-origin' })
-          .then(r => r.json()).catch(() => ({}));
-        url = cur.url || '';
-      }
-      if (!url && config) {
-        try { url = await ensureTokenManifestUrl(config); } catch {}
-      }
-      if (url && urlEl) urlEl.value = url;
+      if (urlEl) urlEl.value = url;
+      try { await generateLinks({ silent: true }); } catch {}
     }
-  } catch {}
+  } catch (err) {
+    const section = document.getElementById('result-section');
+    if (section) {
+      section.innerHTML = `<h2>Install link unavailable</h2><p class="install-note">${escHtml(err.message || 'Sign in and try again.')}</p>`;
+      section.style.display = 'block';
+    }
+  }
   updateInstallStats();
 }
 

@@ -20,7 +20,7 @@ function registerManifestToken(app, { dbLib, paypal }) {
         if (!allowed) return res.status(402).json({ error: 'subscription required' });
       }
       let cfg = await makeUserConfig(dbLib).getForServe(rec.user_id);
-      if (!cfg) return res.status(404).json({ error: 'no configuration saved' });
+      if (!cfg) cfg = { servers: [] };
       cfg = upgradeStreamProfile(cfg).cfg;
       req._mebUserId = rec.user_id;
       const rest = req.url === '/' ? '/manifest.json' : req.url;

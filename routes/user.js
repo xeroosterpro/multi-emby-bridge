@@ -135,14 +135,31 @@ function makeUserRouter() {
     }
   });
 
-  // current manifest URL (or null)
+  async function ensureManifestReady(userId) {
+    const existing = await uc.getForServe(userId);
+    if (!existing) {
+      const { upgradeStreamProfile } = require('../lib/streamDefaults');
+      await uc.save(userId, upgradeStreamProfile({ servers: [] }).cfg);
+    }
+  }
+
+  // current manifest URL (auto-issue token if missing)
   r.get('/manifest', requireAuth, async (req, res) => {
-    try { const t = await store.current(req.user.id); res.json({ url: t ? manifestUrl(req, t) : null }); }
+    try {
+      await ensureManifestReady(req.user.id);
+      let t = await store.current(req.user.id);
+      if (!t) t = await store.issue(req.user.id);
+      res.json({ url: manifestUrl(req, t) });
+    }
     catch (e) { console.error('[user/manifest:get]', e.message); res.status(500).json({ error: 'lookup failed' }); }
   });
   // generate / regenerate (invalidates the old link)
   r.post('/manifest', requireAuth, async (req, res) => {
-    try { const t = await store.regenerate(req.user.id); res.json({ url: manifestUrl(req, t) }); }
+    try {
+      await ensureManifestReady(req.user.id);
+      const t = await store.regenerate(req.user.id);
+      res.json({ url: manifestUrl(req, t) });
+    }
     catch (e) { console.error('[user/manifest:post]', e.message); res.status(500).json({ error: 'generate failed' }); }
   });
 
