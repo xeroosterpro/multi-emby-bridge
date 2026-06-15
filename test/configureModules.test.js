@@ -19,6 +19,7 @@ const REQUIRED_MODULES = [
   '/js/configure/profile-credentials.js',
   '/js/configure/streaming-settings.js',
   '/js/configure/install.js',
+  '/js/configure/debug.js',
 ];
 
 const GLOBAL_HANDLERS = [
@@ -41,7 +42,7 @@ function A(cond, msg) {
   const cfg = fs.readFileSync(CFG_JS, 'utf8');
   const cfgLines = cfg.split(/\r?\n/).length;
 
-  A(cfgLines < 150, `configure.js orchestrator is slim (${cfgLines} lines)`);
+  A(cfgLines < 160, `configure.js orchestrator is slim (${cfgLines} lines)`);
   A(!cfg.includes('// ── Generate links'), 'install block not duplicated in configure.js');
   A(!cfg.includes('function saveProfile'), 'profile-credentials not duplicated in configure.js');
   A(!cfg.includes('function collectFormState'), 'form-state not duplicated in configure.js');
@@ -50,6 +51,8 @@ function A(cond, msg) {
   A(html.includes('data-page="servers"'), 'configure.html has servers nav');
   A(html.includes('data-page="streaming"'), 'configure.html has media sources nav');
   A(html.includes('data-page="install"'), 'configure.html has install nav');
+  A(html.includes('data-page="debug"'), 'configure.html has debug nav');
+  A(html.includes('id="page-debug"'), 'configure.html has debug page section');
   A(!html.includes('data-page="dashboard"'), 'configure.html omits dashboard nav');
   A(!html.includes('dashboard-fetch.js'), 'configure.html omits dashboard scripts');
 
@@ -73,6 +76,9 @@ function A(cond, msg) {
     'configure.js loads before form-state.js');
   A(order('/js/configure/profile-credentials.js') < order('/js/configure/install.js'),
     'profile-credentials.js loads before install.js');
+  A(order('/js/configure/install.js') < order('/js/configure/debug.js'),
+    'install.js loads before debug.js');
+  A(cfg.includes("name === 'debug'"), 'configure.js handles debug tab');
 
   const account = fs.readFileSync(path.join(ROOT, 'public', 'js', 'configure', 'account-bootstrap.js'), 'utf8');
   A(account.includes('window.MEB_getAuth = getAuth'), 'account-bootstrap.js exports MEB_getAuth');

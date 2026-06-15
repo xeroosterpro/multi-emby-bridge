@@ -1,5 +1,6 @@
 const fetch = require('node-fetch');
-const { apiFetch, getEffectiveApiKey, BROWSER_UA } = require('../lib/auth');
+const { apiFetch, getEffectiveApiKey, SHIELD_UA } = require('../lib/auth');
+const { EMBY_CLIENT_HEADER, getSnapshot, clear: clearTraffic } = require('../lib/apiTraffic');
 const { assertSafeFetchUrl, safeAgent, SAFE_REDIRECT_LIMIT } = require('../lib/urlSafety');
 const { requireAuthInProduction } = require('../lib/security');
 const { resolveServerCredentials } = require('../lib/serverCredentials');
@@ -30,7 +31,7 @@ function registerBridgeApi(app, deps) {
     } catch (e) {
       return res.status(400).json({ error: e.message });
     }
-    const authHeader = 'MediaBrowser Client="MultiEmbyBridge", Device="Web", DeviceId="meb-setup", Version="1.0.0"';
+    const authHeader = EMBY_CLIENT_HEADER;
     const authPaths = [
       `${safeOrigin}/Users/AuthenticateByName`,
       `${safeOrigin}/emby/Users/AuthenticateByName`,
@@ -48,7 +49,7 @@ function registerBridgeApi(app, deps) {
             'Content-Type': 'application/json',
             'X-Emby-Authorization': authHeader,
             Authorization: authHeader,
-            'User-Agent': BROWSER_UA,
+            'User-Agent': SHIELD_UA,
           },
           body: JSON.stringify({ Username: username, Pw: password }),
           signal: controller.signal,
@@ -88,6 +89,15 @@ function registerBridgeApi(app, deps) {
         : `Could not reach server: ${err.message}`;
       res.status(504).json({ error: msg });
     }
+  });
+
+  app.get('/api/debug/traffic', apiLimiter, requireAuthInProduction, (req, res) => {
+    res.json(getSnapshot());
+  });
+
+  app.post('/api/debug/traffic/clear', apiLimiter, requireAuthInProduction, (req, res) => {
+    clearTraffic();
+    res.json({ ok: true });
   });
 
   app.post('/api/test-connection', apiLimiter, requireAuthInProduction, async (req, res) => {

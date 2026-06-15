@@ -98,6 +98,7 @@
         <a class="nav-item on" data-page="servers"><svg class="nav-ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg><span class="nav-label">Servers</span></a>
         <a class="nav-item" data-page="streaming"><svg class="nav-ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m10 9 5 3-5 3V9Z"/></svg><span class="nav-label">Media Sources</span></a>
         <a class="nav-item" data-page="install"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg><span class="nav-label">Install</span></a>
+        <a class="nav-item" data-page="debug"><svg class="nav-ic" viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg><span class="nav-label">Debug</span></a>
       </nav>
       <div class="sidebar-foot">
         <div class="save-indicator" id="autosave-indicator" aria-live="polite"></div>
@@ -601,6 +602,30 @@
         </div>
         <div id="result-section" class="inst-result"></div>
       </section>
+      <section class="page" id="page-debug">
+        <div class="rlog-shell">
+          <div class="rlog-top">
+            <div>
+              <h2 class="rlog-title">API traffic</h2>
+              <p class="rlog-sub">Outbound Emby/Jellyfin calls from this bridge — per-server counts and cache hits.</p>
+            </div>
+            <div class="rlog-top-actions">
+              <button class="btn-soft rlog-btn rlog-btn-danger" type="button" onclick="clearDebugTraffic()">Clear</button>
+            </div>
+          </div>
+          <div class="rlog-panel">
+            <div class="dbg-block">
+              <h3 class="dbg-h">Per server</h3>
+              <div id="dbg-servers"><p class="dbg-empty">Loading…</p></div>
+            </div>
+            <div class="dbg-block">
+              <h3 class="dbg-h">Recent calls</h3>
+              <div id="dbg-calls"><p class="dbg-empty">Loading…</p></div>
+            </div>
+            <p class="dbg-foot" id="dbg-ua"></p>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
     </main>
@@ -625,6 +650,7 @@
   <script src="/js/configure/profile-credentials.js" defer></script>
   <script src="/js/configure/streaming-settings.js" defer></script>
   <script src="/js/configure/install.js" defer></script>
+  <script src="/js/configure/debug.js" defer></script>
   <script src="/js/controls.js" defer></script>
   <script src="/js/shell.js" defer></script>
   <script src="/js/auth-ui.js" defer></script>

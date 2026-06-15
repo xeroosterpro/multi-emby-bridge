@@ -7,6 +7,12 @@ window.onPageShow = function(name) {
     if (typeof refreshMediaPreview === 'function') refreshMediaPreview();
   }
   if (name === 'install') loadInstallPage().catch(() => updateInstallStats());
+  if (name === 'debug') {
+    if (typeof _stopDebugPoll === 'function') _stopDebugPoll();
+    if (typeof _startDebugPoll === 'function') _startDebugPoll();
+  } else if (typeof _stopDebugPoll === 'function') {
+    _stopDebugPoll();
+  }
   if (window.Controls) Controls.syncAll();
 };
 

@@ -5718,3 +5718,18 @@ html.has-server-down-banner:not(:has(#site-announcement)) .content { padding-top
 /* catalog provider tiles — responsive base */
 .cat-provider-tiles { grid-template-columns: repeat(5, 1fr); margin-bottom: 10px; }
 
+/* Debug tab — outbound API traffic */
+.dbg-block { margin-bottom: 14px; }
+.dbg-h { margin: 0 0 8px; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--text-mute); }
+.dbg-empty { margin: 0; font-size: .8rem; color: var(--text-mute); padding: 12px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-md); }
+.dbg-table { width: 100%; border-collapse: collapse; font-size: .78rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.dbg-table th, .dbg-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+.dbg-table th { font-size: .58rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--text-mute); background: var(--bg-elevated); }
+.dbg-table tr:last-child td { border-bottom: 0; }
+.dbg-table tr.dbg-err td { background: color-mix(in srgb, var(--error) 5%, transparent); }
+.dbg-path { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .72rem; color: var(--text-dim); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dbg-badge { font-size: .58rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; }
+.dbg-badge.cached { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); border: 1px solid color-mix(in srgb, var(--success) 28%, var(--border)); }
+.dbg-badge.live { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border)); }
+.dbg-foot { margin: 4px 0 0; font-size: .66rem; color: var(--text-mute); font-family: ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
+

@@ -1,5 +1,5 @@
 // ── Hash router + sidebar behavior ───────────────────────────────────────────
-const PAGES = ['servers', 'streaming', 'install'];
+const PAGES = ['servers', 'streaming', 'install', 'debug'];
 
 function restoreShellSession() {
   if (!document.documentElement.classList.contains('meb-returning')) return;
