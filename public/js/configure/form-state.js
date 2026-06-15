@@ -97,17 +97,6 @@ function autoSave(e) {
   saveTimer = setTimeout(() => {
     saveToLocalStorage();
     scheduleAccountConfigSync();
-    const cfg = collectConfig(true);
-    if (cfg?.servers?.length) {
-      _registerHealthServers(cfg.servers).then(() => {
-        if (_dashboardBundleActive()) return;
-        if (!document.getElementById('page-dashboard')?.classList.contains('on')) return;
-        return _kickHealthPingThrottled().then(() => {
-          refreshDashCardHealth();
-          refreshDashCardStatus({ full: false });
-        });
-      }).catch(() => {});
-    }
     if (typeof updateInstallStats === 'function') updateInstallStats();
   }, 600);
 }

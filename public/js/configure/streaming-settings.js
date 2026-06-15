@@ -245,12 +245,9 @@ function wireRankingUX() {
 }
 
 async function initAudioCard() {
-  try {
-    const r = await fetch('/api/audio-formats');
-    const data = await r.json();
-    AUDIO_FORMATS = data.formats || [];
-    AUDIO_PRESETS = data.presets || [];
-  } catch { AUDIO_FORMATS = []; AUDIO_PRESETS = []; }
+  const data = window.MEB_AUDIO_FORMATS_DATA || {};
+  AUDIO_FORMATS = data.formats || [];
+  AUDIO_PRESETS = data.presets || [];
   renderAudioPresetChips();
   renderAudioRankList(AUDIO_FORMATS.map(f => f.token), []);
 }

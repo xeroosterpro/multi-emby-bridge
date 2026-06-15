@@ -179,25 +179,14 @@ function getAuth() {
 
 // Kick off a few common non-critical fetches in parallel early (they resolve when needed).
 // Modules can await these or do their own (still safe).
-const _bootAuth = getAuth();
-const _bootSite = fetch('/api/site-config', { credentials: 'same-origin' }).then(r => r.ok ? r.json().catch(() => null) : null).catch(() => null);
-const _bootServerInfo = fetch('/api/server-info', { credentials: 'same-origin' }).then(r => r.ok ? r.json().catch(() => null) : null).catch(() => null);
-
 function scheduleAccountConfigSync() {
   clearTimeout(_accountSyncTimer);
   _accountSyncTimer = setTimeout(async () => {
     try {
       const auth = await getAuth();
       if (!auth?.enabled || !auth?.user) return;
-      if (typeof generateLinks === 'function') generateLinks({ silent: true });
-      const enc = localStorage.getItem(lsLastKey());
-      if (!enc) return;
-      let b = enc.replace(/-/g, '+').replace(/_/g, '/');
-      while (b.length % 4) b += '=';
-      const bin = atob(b);
-      const json = decodeURIComponent(Array.prototype.map.call(bin, c =>
-        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-      const cfg = JSON.parse(json);
+      const cfg = typeof buildStreamConfig === 'function' ? buildStreamConfig(true) : null;
+      if (!cfg) return;
       const acctR = await fetch('/api/user/config', { credentials: 'same-origin' });
       if (acctR.ok) {
         const acctData = await acctR.json().catch(() => null);
@@ -210,6 +199,9 @@ function scheduleAccountConfigSync() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cfg),
       });
+      try {
+        localStorage.setItem(lsLastKey(), encodeConfig(cfg));
+      } catch {}
       invalidateAccountConfigCache();
     } catch { /* best-effort */ }
   }, 2000);
@@ -237,7 +229,7 @@ const STREMIO_STREAM_DEFAULTS = {
   showSummary: true,
   summaryStyle: 'compact',
   recommend: true,
-  ping: true,
+  ping: false,
   pingDetail: false,
 };
 
@@ -352,9 +344,7 @@ async function ensureAccountConfigLoaded() {
         populateFromConfig(cfg);
         applyManifestSettings(cfg);
         saveToLocalStorage();
-        if (profileUpgraded && typeof generateLinks === 'function') {
-          try { await generateLinks({ silent: true }); } catch {}
-        }
+        if (profileUpgraded) scheduleAccountConfigSync();
       } else {
         _applyCredsToDomBlocks(accountServers, { forceAccount: true });
       }

@@ -24,36 +24,18 @@ function registerStremioRoutes(app, deps) {
     } catch {
       return res.status(400).json({ error: 'Invalid config' });
     }
-    res.setHeader('Deprecation', 'true');
     res.setHeader('Link', '</configure#/install>; rel="successor-version"');
     const names = (cfg.servers || []).map((s) => s.label).join(', ');
-    const extCats = [];
-    (cfg.externalCatalogs || []).filter(c => c.enabled !== false).forEach((c, i) => {
-      const types = c.mediaType === 'both' ? ['movie', 'series'] : [c.mediaType || 'movie'];
-      types.forEach(t => extCats.push({ type: t, id: 'extcat-' + i, name: c.name || c.provider, extra: [] }));
-    });
-    const buildLibraryCatalogs = (config) => {
-      const rows = deriveLibraryRows(config);
-      const out = [
-        { type: 'movie', id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: true }] },
-        { type: 'series', id: 'myemby', name: 'My Media', extra: [{ name: 'search', isRequired: true }] },
-      ];
-      rows.forEach(key => {
-        const types = key === 'nextup' ? ['series'] : ['movie', 'series'];
-        types.forEach(type => out.push({ type, id: 'myemby-' + key, name: ROW_NAMES[key], extra: [] }));
-      });
-      return out;
-    };
     res.json({
       id: 'com.multiemby.bridge',
       version: '1.0.0',
       name: 'Stream Hub',
       description: `Streams from: ${names || 'configured servers'}`,
       types: ['movie', 'series'],
-      catalogs: [...buildLibraryCatalogs(cfg), ...extCats],
-      resources: ['catalog', 'stream'],
+      catalogs: [],
+      resources: ['stream'],
       idPrefixes: ['tt'],
-      behaviorHints: { configurable: true, configurationRequired: false },
+      behaviorHints: { configurable: true, configurationRequired: true },
     });
   });
 

@@ -403,19 +403,9 @@ async function refreshServerCard(block, opts = {}) {
   }
 }
 
-let _serversRefreshTimer = null;
-let _serversFailedRetryTimer = null;
-
 function _isServersPageActive() {
   const page = document.getElementById('page-servers');
   return !!(page && page.classList.contains('on'));
-}
-
-function _stopServersAutoRefresh() {
-  clearInterval(_serversRefreshTimer);
-  clearInterval(_serversFailedRetryTimer);
-  _serversRefreshTimer = null;
-  _serversFailedRetryTimer = null;
 }
 
 function _recomputeServersHeaderStats(blocks) {
@@ -430,47 +420,13 @@ function _recomputeServersHeaderStats(blocks) {
   _updateServersHeaderStats(up, blocks.length, fastestBridge);
 }
 
-async function _refreshServersPingMetrics(blocks, opts = {}) {
-  const healthByUrl = opts.healthByUrl || await _fetchHealthByUrl();
-  const rows = blocks.map(block => ({
-    block,
-    url: block.querySelector('.f-url')?.value.trim().replace(/\/+$/, ''),
-    label: block.querySelector('.f-label')?.value.trim() || 'Server',
-  })).filter(r => r.url);
-
-  const needsLivePing = [];
-  for (const row of rows) {
-    const bridgeEl = row.block.querySelector('[data-bind=ping-bridge]');
-    if (!row.block.classList.contains('ok')) {
-      _srvSetPingEm(bridgeEl, null);
-    } else {
-      const seeded = _bridgeMsFromHealth(healthByUrl, row.url);
-      if (seeded != null) _srvSetPingEm(bridgeEl, seeded);
-      else {
-        _srvSetPingEm(bridgeEl, null);
-        needsLivePing.push(row);
-      }
-    }
-    const youEl = row.block.querySelector('[data-bind=ping-you]');
+function _clearServersPingMetrics(blocks) {
+  for (const block of blocks) {
+    _srvSetPingEm(block.querySelector('[data-bind=ping-bridge]'), null);
+    const youEl = block.querySelector('[data-bind=ping-you]');
     if (youEl) { youEl.textContent = '—'; youEl.className = ''; }
-    const youBtn = row.block.querySelector('.srv-you-test');
+    const youBtn = block.querySelector('.srv-you-test');
     if (youBtn) { youBtn.disabled = false; youBtn.textContent = 'Test'; }
-  }
-  if (!needsLivePing.length) return;
-
-  try {
-    const resp = await fetch('/api/ping-servers', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ servers: needsLivePing.map(r => ({ url: r.url, label: r.label })) }),
-    });
-    const data = resp.ok ? await resp.json().catch(() => ({})) : {};
-    (data.results || []).forEach((r, i) => {
-      const row = needsLivePing[i];
-      if (!row || !r.up) return;
-      _srvSetPingEm(row.block.querySelector('[data-bind=ping-bridge]'), r.ms);
-    });
-  } catch {
-    needsLivePing.forEach(r => _srvSetPingEm(r.block.querySelector('[data-bind=ping-bridge]'), null));
   }
 }
 
@@ -500,16 +456,6 @@ async function testYouPing(id) {
 }
 window.testYouPing = testYouPing;
 
-function _startServersAutoRefresh() {
-  _stopServersAutoRefresh();
-  _serversFailedRetryTimer = setInterval(() => {
-    if (_isServersPageActive()) renderServersPage({ failedOnly: true });
-  }, 30000);
-  _serversRefreshTimer = setInterval(() => {
-    if (_isServersPageActive()) renderServersPage({ full: true });
-  }, 120000);
-}
-
 async function renderServersPage(opts = {}) {
   if (!opts.force && !_isServersPageActive()) return;
   await ensureAccountConfigLoaded();
@@ -524,18 +470,8 @@ async function renderServersPage(opts = {}) {
     return aBad - bBad;
   });
   await Promise.all(failedFirst.map(block => refreshServerCard(block)));
-  await _ensureAddonRegionLabel();
-  const healthByUrl = await _fetchHealthByUrl();
-  await _refreshServersPingMetrics(blocks, { healthByUrl });
+  _clearServersPingMetrics(blocks);
   _recomputeServersHeaderStats(blocks);
-  const healthServers = blocks.map(b => ({
-    url: b.querySelector('.f-url')?.value.trim().replace(/\/+$/, ''),
-    label: b.querySelector('.f-label')?.value.trim(),
-    type: b.querySelector('.f-type')?.value || 'emby',
-    apiKey: b.querySelector('.f-apikey')?.value.trim(),
-    userId: b.querySelector('.f-userid')?.value.trim(),
-  })).filter(s => s.url && s.label && s.apiKey && s.userId);
-  await _registerHealthServers(healthServers);
 }
 
 // ── Server collapse ───────────────────────────────────────────────────────

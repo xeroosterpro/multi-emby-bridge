@@ -1,14 +1,9 @@
-// ── Hash router + sidebar behavior + preference controls ─────────────────────
-const PAGES = ['home','dashboard','servers','catalogs','streaming','appearance','health','install','apikeys','ping','log','settings','admin','admin-data','users','billing','tickets','guide'];
+// ── Hash router + sidebar behavior ───────────────────────────────────────────
+const PAGES = ['servers', 'streaming', 'install'];
 
 function restoreShellSession() {
   if (!document.documentElement.classList.contains('meb-returning')) return;
   try {
-    const isAdmin = sessionStorage.getItem('meb_is_admin') === '1';
-    if (isAdmin) {
-      document.querySelectorAll('.nav-group.admin-only').forEach(el => { el.style.display = 'block'; });
-      document.querySelectorAll('.nav-item.admin-only, .nav-sec-toggle.admin-only').forEach(el => { el.style.display = ''; });
-    }
     const username = sessionStorage.getItem('meb_username');
     if (username) {
       const btn = document.getElementById('logout');
@@ -22,111 +17,29 @@ function restoreShellSession() {
 }
 
 function showPage(name) {
-  // Strip any hash query (e.g. "catalogs?step=connect") so callers that pass the
-  // raw hash still resolve to a real page instead of falling back to home (UI-1).
   name = String(name || '').split('?')[0];
-  if (!PAGES.includes(name)) name = 'home';
-  // Protect admin pages from non-admins (in case of direct hash or race)
-  const adminPages = ['admin', 'admin-data', 'users'];
-  if (adminPages.includes(name)) {
-    const user = window.currentUser;
-    if (!user || user.role !== 'admin') {
-      name = 'home';
-    }
-  }
-  // Full demo site: allow exploring all pages with sample data
-  if (window.MEBDemo && window.MEBDemo.isActive && window.MEBDemo.isActive()) {
-    /* no billing lock */
-  } else if (window.MEBSite) {
-    // Admin preview: unpaid users are locked to billing; hide admin pages in preview
-    if (window.MEBSite.isViewAsUnpaid && window.MEBSite.isViewAsUnpaid() && name !== 'billing') {
-      name = 'billing';
-    }
-    if (window.MEBSite.isViewAs && window.MEBSite.isViewAs() && adminPages.includes(name)) {
-      name = 'dashboard';
-    }
-  }
+  if (!PAGES.includes(name)) name = 'servers';
   PAGES.forEach(p => {
     const sec = document.getElementById('page-' + p);
     if (sec) sec.classList.toggle('on', p === name);
   });
-  document.querySelectorAll('.nav-item, .foot-link').forEach(el => {
+  document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('on', el.dataset.page === name);
   });
-  // Each post-navigation hook is isolated: a throw in one (a module's onPageShow,
-  // group-open, or mobile-close) must not abort the others or leave the app broken.
-  // The page swap above already happened, so navigation always completes.
-  try { if (window.onPageShow) window.onPageShow(name); }            // hook for live data
+  try { if (window.onPageShow) window.onPageShow(name); }
   catch (e) { console.error('[shell] onPageShow failed for', name, e); }
-  try { if (window.ensureActiveNavGroupOpen) window.ensureActiveNavGroupOpen(); } catch (e) { /* non-fatal */ }
   try {
     if (window.MEBMobile && window.MEBMobile.isMobile && window.MEBMobile.isMobile()) window.MEBMobile.close();
   } catch (e) { /* non-fatal */ }
 }
 
 function routeFromHash() {
-  let raw = (location.hash || '#/home').replace(/^#\//, '');
+  let raw = (location.hash || '#/servers').replace(/^#\//, '');
   let name = raw.split('?')[0];
-  if (name === 'admin/data') name = 'admin-data';
   if (name === 'appearance') name = 'streaming';
-  if (name === 'apikeys') {
-    location.hash = '#/catalogs?step=connect';
-    name = 'catalogs';
-  }
   showPage(name);
 }
 
-// ── Collapsible sidebar groups (smooth sub-dropdowns for crowded nav) ───────
-function initNavGroups() {
-  const groups = document.querySelectorAll('.nav-group');
-
-  // Restore previously collapsed groups from localStorage
-  let collapsed = [];
-  try {
-    collapsed = JSON.parse(localStorage.getItem('meb-nav-collapsed') || '[]');
-  } catch (e) {}
-
-  groups.forEach(group => {
-    const key = group.dataset.group;
-    if (key && collapsed.includes(key)) {
-      group.classList.add('collapsed');
-    }
-
-    const toggle = group.querySelector('.nav-sec-toggle');
-    if (toggle) {
-      toggle.addEventListener('click', (e) => {
-        e.preventDefault();
-        const isNowCollapsed = group.classList.toggle('collapsed');
-
-        // Persist
-        let cur = [];
-        try { cur = JSON.parse(localStorage.getItem('meb-nav-collapsed') || '[]'); } catch (e) {}
-        if (isNowCollapsed) {
-          if (!cur.includes(key)) cur.push(key);
-        } else {
-          cur = cur.filter(k => k !== key);
-        }
-        localStorage.setItem('meb-nav-collapsed', JSON.stringify(cur));
-      });
-    }
-  });
-
-  // Ensure the group containing the active nav item is always expanded
-  // (so you don't land on a page and have to manually open its section)
-  function ensureActiveNavGroupOpen() {
-    const active = document.querySelector('.nav-item.on');
-    if (!active) return;
-    const group = active.closest('.nav-group');
-    if (group) group.classList.remove('collapsed');
-  }
-
-  window.ensureActiveNavGroupOpen = ensureActiveNavGroupOpen;
-
-  // Run once shortly after first paint (after initial routeFromHash)
-  setTimeout(ensureActiveNavGroupOpen, 30);
-}
-
-// Falling background particles (theme-tinted, gentle). Paused by .noanim / reduced-motion.
 function generateParticles() {
   const st = document.getElementById('stipple');
   if (!st || st._done) return; st._done = 1;
@@ -149,54 +62,26 @@ function initShell() {
   });
   window.addEventListener('hashchange', routeFromHash);
 
-  // Initialize smooth collapsible nav sections (addresses long sidebar)
-  initNavGroups();
-
-  // sidebar pin (lock)
   const sb = document.getElementById('sidebar');
   document.getElementById('pin-btn')?.addEventListener('click', e => {
     e.stopPropagation();
     if (window.MEBPrefs) window.MEBPrefs.setLock(!sb.classList.contains('locked'));
   });
 
-  // preference controls (theme.js applies + persists)
-  document.querySelectorAll('.swatch').forEach(sw => sw.addEventListener('click', () => {
-    document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('sel', s === sw));
-    if (window.MEBPrefs) window.MEBPrefs.setTheme(sw.dataset.t);
-  }));
-  const scale = document.getElementById('ui-scale');
-  scale?.addEventListener('input', function () {
-    if (window.MEBPrefs) window.MEBPrefs.setScale(+this.value);
-    const sv = document.getElementById('scale-val'); if (sv) sv.textContent = this.value + '%';
-  });
-  document.getElementById('lock-switch')?.addEventListener('click', () => {
-    if (window.MEBPrefs) window.MEBPrefs.setLock(!sb.classList.contains('locked'));
-  });
-  document.getElementById('motion-switch')?.addEventListener('click', function () {
-    const on = !this.classList.contains('on');   // on = animate the background
-    this.classList.toggle('on', on);
-    if (window.MEBPrefs) window.MEBPrefs.setMotion(on ? 'on' : 'off');
-  });
-  document.querySelectorAll('.bg-style-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('.bg-style-chip').forEach(c => c.classList.toggle('sel', c === chip));
-      if (window.MEBPrefs) window.MEBPrefs.setBgStyle(chip.dataset.bg || 'orbs');
-    });
-  });
+  const authFetch = window.getAuth
+    ? window.getAuth()
+    : fetch('/api/auth/me', { credentials: 'same-origin' }).then(r => r.json()).catch(() => ({ user: null }));
 
-  // sidebar user button: show + populate when logged in; click logs out
-  fetch('/api/auth/me', { credentials: 'same-origin' }).then(r => r.json()).then(d => {
+  authFetch.then(d => {
     const btn = document.getElementById('logout');
     const loggedIn = !!(d && d.user);
     window.currentUser = d && d.user ? d.user : null;
+    window.accountsEnabled = !!d?.enabled;
     try {
       if (loggedIn) {
         sessionStorage.setItem('meb_username', d.user.username || '');
-        sessionStorage.setItem('meb_is_admin', d.user.role === 'admin' ? '1' : '0');
       } else {
         sessionStorage.removeItem('meb_username');
-        sessionStorage.removeItem('meb_is_admin');
-        sessionStorage.removeItem('meb_home_cache');
       }
     } catch {}
 
@@ -209,63 +94,9 @@ function initShell() {
         location.reload();
       });
     }
-
-    const isAdmin = !!(d && d.user && d.user.role === 'admin');
-
-    // Hide nav items that require an account (or admin role) when not allowed.
-    const authGatedPages = ['tickets', 'billing', 'admin', 'users'];
-    authGatedPages.forEach(p => {
-      const show = loggedIn && (p !== 'admin' && p !== 'users' || isAdmin);
-      document.querySelectorAll(`.nav-item[data-page="${p}"], .foot-link[data-page="${p}"]`).forEach(el => {
-        /* Billing link visibility is owned by billing-ui.js (subscribed vs locked). */
-        if (p === 'billing' && el.classList.contains('billing-link')) return;
-        el.style.display = show ? '' : 'none';
-      });
-    });
-
-    // Show/hide the Administration section and its admin-only items
-    document.querySelectorAll('.nav-group.admin-only').forEach(el => {
-      el.style.display = isAdmin ? 'block' : 'none';
-    });
-    document.querySelectorAll('.nav-item.admin-only, .nav-sec-toggle.admin-only').forEach(el => {
-      el.style.display = isAdmin ? '' : 'none';
-    });
-
-    if (window.MEBSite && window.MEBSite.refresh) window.MEBSite.refresh();
-    if (window.MEBBilling && window.MEBBilling.refresh) window.MEBBilling.refresh();
-    document.addEventListener('viewas-changed', () => {
-      const pg = (location.hash || '#/home').replace(/^#\//, '');
-      showPage(pg);
-      if (window.MEBBilling && window.MEBBilling.refresh) window.MEBBilling.refresh();
-    });
-
-    // If a non-admin somehow landed on admin page, redirect
-    const page = (location.hash || '#/home').replace(/^#\//, '');
-    const adminPages = ['admin', 'admin-data', 'users'];
-    if (adminPages.includes(page) && !isAdmin) {
-      location.hash = '#/home';
-      return;
-    }
-
-    // Re-evaluate which nav group should be open now that admin-only items may have appeared
-    if (window.ensureActiveNavGroupOpen) window.ensureActiveNavGroupOpen();
   }).catch(() => {
-    // On error assume not logged in → hide gated nav items
-    const authGatedPages = ['tickets', 'billing', 'admin', 'users'];
-    authGatedPages.forEach(p => {
-      document.querySelectorAll(`.nav-item[data-page="${p}"], .foot-link[data-page="${p}"]`).forEach(el => {
-        el.style.display = 'none';
-      });
-    });
     window.currentUser = null;
-    if (window.MEBBilling && window.MEBBilling.refresh) window.MEBBilling.refresh();
-    const page = (location.hash || '#/home').replace(/^#\//, '');
-    const adminPages = ['admin', 'admin-data', 'users'];
-    if (adminPages.includes(page)) {
-      location.hash = '#/home';
-      return;
-    }
-    if (window.ensureActiveNavGroupOpen) window.ensureActiveNavGroupOpen();
+    window.accountsEnabled = false;
   });
 
   routeFromHash();

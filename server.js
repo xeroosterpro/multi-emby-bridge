@@ -91,21 +91,9 @@ function registerShutdownHandlers() {
 function runBootTasks() {
   const { runMigrations } = require('./lib/migrate');
   const { seedAdmin } = require('./lib/seed');
-  const { initHealthDB } = require('./lib/health');
-  const { startAdminIntelScheduler } = require('./lib/adminIntelScheduler');
 
   return runMigrations()
     .then(() => seedAdmin())
-    .then(() => initHealthDB())
-    .then(() => {
-      if (dbLib.isConfigured()) {
-        startAdminIntelScheduler({
-          userConfig: makeUserConfig(dbLib),
-          requestLog: requestLogDb,
-          getRequestLog: () => deps.requestLogMemory.getRequestLog(),
-        });
-      }
-    })
     .then(() => console.log('[ready] Server fully initialized (DB init complete, accepting connections)'))
     .catch(e => console.error('[boot] db init failed:', e.message));
 }
