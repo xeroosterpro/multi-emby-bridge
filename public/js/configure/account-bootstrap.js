@@ -186,24 +186,32 @@ function scheduleAccountConfigSync() {
       const auth = await getAuth();
       if (!auth?.enabled || !auth?.user) return;
       const cfg = typeof buildStreamConfig === 'function' ? buildStreamConfig(true) : null;
-      if (!cfg || !hasCompleteServers(cfg.servers)) return;
+      if (!cfg) return;
+
+      let acctServers = [];
       const acctR = await fetch('/api/user/config', { credentials: 'same-origin' });
       if (acctR.ok) {
         const acctData = await acctR.json().catch(() => null);
-        const acctServers = acctData?.config?.servers || [];
-        if (!hasCompleteServers(acctServers) && hasCompleteServers(cfg.servers)) {
-          // seed empty account from the form
-        } else if (hasCompleteServers(acctServers) && cfg.servers.length < acctServers.length) {
-          return;
-        } else if (hasCompleteServers(acctServers) && !hasCompleteServers(cfg.servers)) {
-          return;
-        }
+        acctServers = acctData?.config?.servers || [];
       }
+
+      const hasAcctServers = hasCompleteServers(acctServers);
+      const hasFormServers = hasCompleteServers(cfg.servers);
+      if (!hasAcctServers && !hasFormServers) return;
+
+      const payload = { ...cfg };
+      if (hasAcctServers && !hasFormServers) {
+        // Media Sources / streaming prefs changed — servers already in Postgres; don't require DOM creds.
+        delete payload.servers;
+      } else if (hasAcctServers && hasFormServers && cfg.servers.length < acctServers.length) {
+        return;
+      }
+
       await fetch('/api/user/config', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cfg),
+        body: JSON.stringify(payload),
       });
       try {
         localStorage.setItem(lsLastKey(), encodeConfig(cfg));
@@ -225,7 +233,7 @@ function _applyExcludeRes(excludeRes) {
   document.querySelectorAll('.res-cb').forEach(cb => { cb.checked = set.has(cb.value); });
 }
 
-const STREAM_PROFILE_VERSION = 2;
+const STREAM_PROFILE_VERSION = 4;
 const STREMIO_STREAM_DEFAULTS = {
   autoSelect: false,
   labelPreset: 'compact',
