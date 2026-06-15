@@ -70,6 +70,11 @@ function fakeDb() {
   A(serve2.servers[0].label === 'Renamed', 'save updates non-secret server fields');
   A(serve2.servers[0].apiKey === 'EMBYKEY', 'save retains stored apiKey when omitted from client payload');
 
+  await uc.save('u1', { streamProfile: 3, servers: [] });
+  const serve3 = await uc.getForServe('u1');
+  A(serve3.servers.length === 1, 'empty servers array does not wipe saved servers');
+  A(serve3.servers[0].apiKey === 'EMBYKEY', 'empty servers save retains encrypted creds');
+
   const none = await uc.getEditable('nobody');
   A(none.keys.trakt === false, 'missing user → keys all false');
 

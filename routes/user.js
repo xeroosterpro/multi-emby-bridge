@@ -58,7 +58,13 @@ function hasCompleteServers(servers) {
 function sanitizeConfigSave(curConfig, incoming) {
   const body = { ...(incoming || {}) };
   if (Array.isArray(body.servers)) body.servers = stripDemoServers(body.servers);
-  const hadServers = hasCompleteServers(curConfig?.servers);
+  const hadServers = (curConfig?.servers || []).length > 0;
+  if (hadServers && Array.isArray(body.servers) && body.servers.length === 0) {
+    delete body.servers;
+  }
+  if (hadServers && Array.isArray(body.servers) && !hasCompleteServers(body.servers)) {
+    delete body.servers;
+  }
   if (!hadServers && Array.isArray(body.servers) && hasCompleteServers(body.servers)) {
     body.servers = stripDemoServers(body.servers);
   }

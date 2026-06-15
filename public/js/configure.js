@@ -23,8 +23,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (auth?.user?.username) setActiveUsername(auth.user.username);
   } catch { /* */ }
   await initAudioCard();
-  if (!restoreFromLocalStorage()) addServer();
   await ensureAccountConfigLoaded();
+  if (!domHasEnabledServers() && !restoreFromLocalStorage()) addServer();
   _updateServersEmptyState();
   if (_isServersPageActive()) {
     await renderServersPage({ force: true });

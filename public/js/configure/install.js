@@ -10,17 +10,19 @@ function minimalManifestConfig() {
 
 async function ensureTokenManifestUrl(config) {
   const payload = config || minimalManifestConfig();
-  const save = await fetch('/api/user/config', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!save.ok) {
-    const err = await save.json().catch(() => ({}));
-    throw new Error(err.error || 'Could not save config to your account');
+  if (hasCompleteServers(payload.servers)) {
+    const save = await fetch('/api/user/config', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!save.ok) {
+      const err = await save.json().catch(() => ({}));
+      throw new Error(err.error || 'Could not save config to your account');
+    }
+    invalidateAccountConfigCache();
   }
-  invalidateAccountConfigCache();
   let cur = await fetch('/api/user/manifest', { credentials: 'same-origin' }).then(r => r.json()).catch(() => ({}));
   if (!cur.url) {
     cur = await fetch('/api/user/manifest', { method: 'POST', credentials: 'same-origin' }).then(r => r.json()).catch(() => ({}));

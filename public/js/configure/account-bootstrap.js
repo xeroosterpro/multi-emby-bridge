@@ -186,12 +186,18 @@ function scheduleAccountConfigSync() {
       const auth = await getAuth();
       if (!auth?.enabled || !auth?.user) return;
       const cfg = typeof buildStreamConfig === 'function' ? buildStreamConfig(true) : null;
-      if (!cfg) return;
+      if (!cfg || !hasCompleteServers(cfg.servers)) return;
       const acctR = await fetch('/api/user/config', { credentials: 'same-origin' });
       if (acctR.ok) {
         const acctData = await acctR.json().catch(() => null);
         const acctServers = acctData?.config?.servers || [];
-        if (!hasCompleteServers(acctServers) && hasCompleteServers(cfg.servers)) return;
+        if (!hasCompleteServers(acctServers) && hasCompleteServers(cfg.servers)) {
+          // seed empty account from the form
+        } else if (hasCompleteServers(acctServers) && cfg.servers.length < acctServers.length) {
+          return;
+        } else if (hasCompleteServers(acctServers) && !hasCompleteServers(cfg.servers)) {
+          return;
+        }
       }
       await fetch('/api/user/config', {
         method: 'POST',
