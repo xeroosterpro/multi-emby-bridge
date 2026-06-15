@@ -1,6 +1,7 @@
 const { parseStreamId, setCatalogCache, shuffleMetas, dedupMetas } = require('../lib/utils');
 
 const { getAllStreams } = require('../lib/streams');
+const { prepareStreamServers } = require('../lib/auth');
 const { upgradeStreamProfile } = require('../lib/streamDefaults');
 const { fetchExternalCatalog } = require('../lib/catalogs');
 const { healthHistory } = require('../lib/health');
@@ -122,8 +123,7 @@ function registerStremioRoutes(app, deps) {
       return res.json({ streams: cachedResult.streams });
     }
     const timeoutMs = (cfg.timeout && cfg.timeout >= 2000 && cfg.timeout <= 10000) ? cfg.timeout : 10000;
-    const servers = (cfg.servers || [])
-      .filter(s => s.url && s.apiKey && s.userId)
+    const servers = (await prepareStreamServers(cfg.servers || []))
       .map(s => ({ ...s, _timeout: timeoutMs, _fastPace: true }));
     if (servers.length === 0) return res.json({ streams: [] });
     const _t0 = Date.now();
@@ -146,7 +146,7 @@ function registerStremioRoutes(app, deps) {
         subsStyle: cfg.hideSubs === true ? 'hidden' : (cfg.subsStyle || 'full'),
         customNameFields: cfg.customNameFields || [],
         customDescFields: cfg.customDescFields || [],
-        audioRank: cfg.audioRank === true,
+        audioRank: cfg.audioRank !== false,
         audioOrder: cfg.audioOrder || undefined,
         audioDisabled: cfg.audioDisabled || [],
         audioRankMode: cfg.audioRankMode || 'audioFirst',
