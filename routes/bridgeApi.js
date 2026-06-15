@@ -1,6 +1,7 @@
 const fetch = require('node-fetch');
-const { apiFetch, getEffectiveApiKey, SHIELD_UA } = require('../lib/auth');
-const { EMBY_CLIENT_HEADER, getSnapshot, clear: clearTraffic } = require('../lib/apiTraffic');
+const { apiFetch, getEffectiveApiKey } = require('../lib/auth');
+const { buildAuthOnlyHeaders } = require('../lib/embyClient');
+const { getSnapshot, clear: clearTraffic } = require('../lib/apiTraffic');
 const { assertSafeFetchUrl, safeAgent, SAFE_REDIRECT_LIMIT } = require('../lib/urlSafety');
 const { requireAuthInProduction } = require('../lib/security');
 const { resolveServerCredentials } = require('../lib/serverCredentials');
@@ -31,7 +32,6 @@ function registerBridgeApi(app, deps) {
     } catch (e) {
       return res.status(400).json({ error: e.message });
     }
-    const authHeader = EMBY_CLIENT_HEADER;
     const authPaths = [
       `${safeOrigin}/Users/AuthenticateByName`,
       `${safeOrigin}/emby/Users/AuthenticateByName`,
@@ -45,12 +45,7 @@ function registerBridgeApi(app, deps) {
           method: 'POST',
           agent: safeAgent,
           follow: SAFE_REDIRECT_LIMIT,
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Emby-Authorization': authHeader,
-            Authorization: authHeader,
-            'User-Agent': SHIELD_UA,
-          },
+          headers: buildAuthOnlyHeaders(),
           body: JSON.stringify({ Username: username, Pw: password }),
           signal: controller.signal,
         });

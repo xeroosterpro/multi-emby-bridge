@@ -26,6 +26,66 @@ function _catClass(cat, essential) {
   return 'dbg-cat-opt';
 }
 
+function _sourceBadge(source, cached) {
+  const src = source || (cached ? 'cache-L1' : 'live');
+  const isCache = String(src).startsWith('cache');
+  const cls = isCache ? 'cached' : 'live';
+  return `<span class="dbg-badge ${cls}">${escHtml(src)}</span>`;
+}
+
+function _renderIdentity(id) {
+  const el = document.getElementById('dbg-identity');
+  if (!el) return;
+  if (!id) {
+    el.innerHTML = '<p class="dbg-empty">No identity data.</p>';
+    return;
+  }
+  const lines = (id.sampleHeaders || []).map(h => escHtml(h)).join('<br>');
+  el.innerHTML = `<div class="dbg-identity-box">
+    <div><strong>Device ID</strong> <code>${escHtml(id.deviceId || '—')}</code></div>
+    <div><strong>Client</strong> ${escHtml(id.client || '—')} · v${escHtml(id.clientVersion || '—')}</div>
+    <div class="dbg-identity-headers">${lines}</div>
+  </div>`;
+}
+
+function _renderCacheTiers(tiers) {
+  const el = document.getElementById('dbg-cache-tiers');
+  if (!el) return;
+  if (!tiers) {
+    el.innerHTML = '<p class="dbg-empty">No cache data.</p>';
+    return;
+  }
+  const labels = {
+    L1: 'HTTP responses',
+    L2: 'Title lookups',
+    L3: 'Stream lists',
+    manifest: 'Manifest',
+  };
+  el.innerHTML = Object.entries(tiers).map(([k, v]) => {
+    const ttlMin = v.ttlMs ? Math.round(v.ttlMs / 60000) : 60;
+    return `<div class="dbg-cat-card dbg-cat-stream">
+      <div class="dbg-cat-name">${escHtml(labels[k] || k)}</div>
+      <div class="dbg-cat-stats">${v.hits || 0} hits · ${v.size || 0} stored · ${ttlMin}m TTL</div>
+    </div>`;
+  }).join('');
+}
+
+function _renderPacing(p) {
+  const el = document.getElementById('dbg-pacing');
+  if (!el) return;
+  if (!p) {
+    el.innerHTML = '<p class="dbg-empty">No pacing data.</p>';
+    return;
+  }
+  el.innerHTML = `<div class="dbg-pacing-grid">
+    <div class="dbg-pacing-stat"><span class="dbg-pacing-n">${p.scheduled || 0}</span><span class="dbg-pacing-l">Scheduled</span></div>
+    <div class="dbg-pacing-stat"><span class="dbg-pacing-n">${p.coalesced || 0}</span><span class="dbg-pacing-l">Coalesced</span></div>
+    <div class="dbg-pacing-stat"><span class="dbg-pacing-n">${p.dropped || 0}</span><span class="dbg-pacing-l">Dropped</span></div>
+    <div class="dbg-pacing-stat"><span class="dbg-pacing-n">${p.avgDelayMs || 0}ms</span><span class="dbg-pacing-l">Avg delay</span></div>
+    <div class="dbg-pacing-stat"><span class="dbg-pacing-n">${p.paceMs || 300}ms</span><span class="dbg-pacing-l">Min gap</span></div>
+  </div>`;
+}
+
 function _renderCategories(cats) {
   const el = document.getElementById('dbg-categories');
   if (!el) return;
@@ -49,6 +109,9 @@ function _renderDebug(data) {
   const uaEl = document.getElementById('dbg-ua');
   if (!serversEl || !callsEl) return;
 
+  _renderIdentity(data.clientIdentity);
+  _renderCacheTiers(data.cacheTiers);
+  _renderPacing(data.pacing);
   _renderCategories(data.byCategory || []);
 
   const rows = data.byServer || [];
@@ -76,17 +139,17 @@ function _renderDebug(data) {
       <td>${escHtml(_fmtTime(c.ts))}</td>
       <td><span class="dbg-cat-badge ${_catClass(c.category, c.essential)}">${escHtml(c.purpose || '—')}</span></td>
       <td>${escHtml(c.label || c.host)}</td>
-      <td class="dbg-path">${escHtml(c.path)}</td>
-      <td><span class="dbg-badge ${c.cached ? 'cached' : 'live'}">${c.cached ? 'cache' : 'live'}</span></td>
+      <td class="dbg-path" title="${escHtml(c.query || '')}">${escHtml(c.path)}</td>
+      <td>${_sourceBadge(c.source, c.cached)}</td>
       <td>${c.status != null ? c.status : '—'}</td>
       <td>${c.ms != null ? c.ms : '—'}</td>
     </tr>`).join('')}</tbody></table>`;
   }
 
   if (uaEl) {
-    const ttl = data.cacheTtlMs ? Math.round(data.cacheTtlMs / 1000) : 45;
-    const streamTtl = data.streamCacheTtlMs ? Math.round(data.streamCacheTtlMs / 60) : 5;
-    uaEl.innerHTML = `UA: ${escHtml(data.ua || '—')}<br>Emby client: ${escHtml(data.embyClient || '—')}<br>Response cache: ${ttl}s (UI/health) · ${streamTtl}m (stream lookups)`;
+    const ttlMin = data.cacheTtlMs ? Math.round(data.cacheTtlMs / 60000) : 60;
+    const origin = window.location.origin || '';
+    uaEl.innerHTML = `Shield emulation active · All caches ${ttlMin}m TTL · <a href="${escHtml(origin)}/configure">${escHtml(origin.replace(/^https?:\/\//, ''))}</a>`;
   }
 }
 

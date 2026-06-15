@@ -1,12 +1,15 @@
 const { parseStreamId, setCatalogCache, shuffleMetas, dedupMetas } = require('../lib/utils');
-const { searchServersForCatalog, getRecentlyAdded } = require('../lib/search');
+
 const { getAllStreams } = require('../lib/streams');
 const { upgradeStreamProfile } = require('../lib/streamDefaults');
 const { fetchExternalCatalog } = require('../lib/catalogs');
 const { healthHistory } = require('../lib/health');
 const { makeUserConfig } = require('../lib/userConfig');
 const { decodeConfig } = require('../lib/configCodec');
-const { ROW_NAMES, deriveLibraryRows } = require('../server-helpers');
+
+const { get: cacheGet, set: cacheSet, l3Key, manifestKey } = require('../lib/embyCache');
+const { coalesceStream } = require('../lib/requestPacer');
+const { recordCacheHit } = require('../lib/apiTraffic');
 
 function registerStremioRoutes(app, deps) {
   const { streamLimiter, requestLogMemory, dbLib } = deps;
@@ -17,16 +20,9 @@ function registerStremioRoutes(app, deps) {
   // through onboarding (LOG-2). In-memory only; rebuilt lazily after restart.
   const _onboardingTested = new Set();
 
-  app.get('/:config/manifest.json', (req, res) => {
-    let cfg;
-    try {
-      cfg = upgradeStreamProfile(decodeConfig(req.params.config)).cfg;
-    } catch {
-      return res.status(400).json({ error: 'Invalid config' });
-    }
-    res.setHeader('Link', '</configure#/install>; rel="successor-version"');
+  function buildManifest(cfg) {
     const names = (cfg.servers || []).map((s) => s.label).join(', ');
-    res.json({
+    return {
       id: 'com.multiemby.bridge',
       version: '1.0.0',
       name: 'Stream Hub',
@@ -36,7 +32,27 @@ function registerStremioRoutes(app, deps) {
       resources: ['stream'],
       idPrefixes: ['tt'],
       behaviorHints: { configurable: false, configurationRequired: false },
-    });
+    };
+  }
+
+  app.get('/:config/manifest.json', (req, res) => {
+    let cfg;
+    try {
+      cfg = upgradeStreamProfile(decodeConfig(req.params.config)).cfg;
+    } catch {
+      return res.status(400).json({ error: 'Invalid config' });
+    }
+    const mKey = manifestKey(req.params.config);
+    const cached = cacheGet('manifest', mKey);
+    res.setHeader('Link', '</configure#/install>; rel="successor-version"');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    if (cached) {
+      recordCacheHit('manifest', 'Stremio manifest poll (cached)');
+      return res.json(cached);
+    }
+    const payload = buildManifest(cfg);
+    cacheSet('manifest', mKey, payload);
+    res.json(payload);
   });
 
   app.get('/:config/configure', (req, res) => {
@@ -65,60 +81,27 @@ function registerStremioRoutes(app, deps) {
   }
 
   app.get('/:config/catalog/:type/:id/:extra.json', streamLimiter, async (req, res) => {
-    const extraStr = decodeURIComponent(req.params.extra || '');
-    const searchMatch = extraStr.match(/^search=(.+)$/);
-    const query = searchMatch ? searchMatch[1].trim() : null;
+    setCatalogCache(res);
     let cfg;
     try { cfg = upgradeStreamProfile(decodeConfig(req.params.config)).cfg; } catch { return res.json({ metas: [] }); }
     const { type } = req.params;
     if (!['movie', 'series'].includes(type)) return res.json({ metas: [] });
-    const servers = (cfg.servers || []).filter(s => s.url && s.apiKey && s.userId);
-    if (servers.length === 0) return res.json({ metas: [] });
     if (req.params.id && req.params.id.startsWith('extcat-')) {
       return handleExternalCatalog(req, res, cfg, type);
     }
-    try {
-      if (query) {
-        const metas = await searchServersForCatalog(servers, type, query, 8000, cfg.rpdbKey || null, cfg.catalogLang || null);
-        const dme = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas;
-        setCatalogCache(res);
-        res.json({ metas: dme });
-      } else {
-        const libKey = (req.params.id && req.params.id.indexOf('myemby-') === 0)
-          ? req.params.id.slice('myemby-'.length)
-          : (cfg.catalogContent || 'recent');
-        const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, libKey, cfg.catalogLang || null);
-        const dme = cfg.noDupes ? dedupMetas(metas, req.params.config) : metas;
-        setCatalogCache(res);
-        res.json({ metas: dme });
-      }
-    } catch (err) {
-      console.error('Catalog error:', err.message);
-      res.json({ metas: [] });
-    }
+    return res.json({ metas: [] });
   });
 
   app.get('/:config/catalog/:type/:id.json', streamLimiter, async (req, res) => {
+    setCatalogCache(res);
     let cfg;
     try { cfg = upgradeStreamProfile(decodeConfig(req.params.config)).cfg; } catch { return res.json({ metas: [] }); }
     const { type } = req.params;
     if (!['movie', 'series'].includes(type)) return res.json({ metas: [] });
-    const servers = (cfg.servers || []).filter(s => s.url && s.apiKey && s.userId);
-    if (servers.length === 0) return res.json({ metas: [] });
     if (req.params.id && req.params.id.startsWith('extcat-')) {
       return handleExternalCatalog(req, res, cfg, type);
     }
-    try {
-      const libKey = (req.params.id && req.params.id.indexOf('myemby-') === 0)
-        ? req.params.id.slice('myemby-'.length)
-        : (cfg.catalogContent || 'recent');
-      const metas = await getRecentlyAdded(servers, type, 8000, cfg.rpdbKey || null, libKey, cfg.catalogLang || null);
-      setCatalogCache(res);
-      res.json({ metas });
-    } catch (err) {
-      console.error('Catalog browse error:', err.message);
-      res.json({ metas: [] });
-    }
+    return res.json({ metas: [] });
   });
 
   app.get('/:config/stream/:type/:id.json', streamLimiter, async (req, res) => {
@@ -131,6 +114,13 @@ function registerStremioRoutes(app, deps) {
     const { type, id } = req.params;
     const { imdbId, season, episode } = parseStreamId(type, id);
     if (!imdbId || !imdbId.startsWith('tt')) return res.json({ streams: [] });
+    const configKey = req.params.config;
+    const streamCacheKey = l3Key(configKey, type, id);
+    const cachedResult = cacheGet('L3', streamCacheKey);
+    if (cachedResult) {
+      recordCacheHit('L3', 'Stremio play — cached stream list');
+      return res.json({ streams: cachedResult.streams });
+    }
     const timeoutMs = (cfg.timeout && cfg.timeout >= 2000 && cfg.timeout <= 10000) ? cfg.timeout : 10000;
     const servers = (cfg.servers || [])
       .filter(s => s.url && s.apiKey && s.userId)
@@ -138,7 +128,7 @@ function registerStremioRoutes(app, deps) {
     if (servers.length === 0) return res.json({ streams: [] });
     const _t0 = Date.now();
     try {
-      const { streams, meta } = await getAllStreams(servers, type, imdbId, season, episode, {
+      const runLookup = async () => getAllStreams(servers, type, imdbId, season, episode, {
         sortOrder: cfg.sortOrder,
         excludeRes: cfg.excludeRes,
         recommend: cfg.recommend,
@@ -165,6 +155,16 @@ function registerStremioRoutes(app, deps) {
         healthHistory,
         failoverHideDown: cfg.failoverHideDown === true,
       });
+
+      let streams, meta;
+      try {
+        const result = await coalesceStream(configKey, `${type}/${id}`, runLookup);
+        streams = result.streams;
+        meta = result.meta;
+      } catch (err) {
+        if (err.superseded) return res.json({ streams: [] });
+        throw err;
+      }
 
       if (cfg.showSummary) {
         const found = meta.serverStatus.filter(s => s.status === 'found');
@@ -268,6 +268,7 @@ function registerStremioRoutes(app, deps) {
           return makeUserConfig(dbLib).save(uid, merged).then(() => { _onboardingTested.add(uid); });
         }).catch((e) => { console.warn('[stream] onboarding update failed:', e.message); });
       }
+      cacheSet('L3', streamCacheKey, { streams, meta });
       res.json({ streams });
     } catch (err) {
       console.error('Stream handler error:', err);
