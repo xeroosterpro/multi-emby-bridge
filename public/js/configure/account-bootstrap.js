@@ -185,7 +185,7 @@ function scheduleAccountConfigSync() {
     try {
       const auth = await getAuth();
       if (!auth?.enabled || !auth?.user) return;
-      const cfg = typeof buildStreamConfig === 'function' ? buildStreamConfig(true) : null;
+      const cfg = typeof buildStreamConfig === 'function' ? buildStreamConfig(true, { explicit: true }) : null;
       if (!cfg) return;
 
       let acctServers = [];

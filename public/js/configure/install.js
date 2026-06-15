@@ -89,15 +89,13 @@ function renderLegacySplitInstall(rows) {
   section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function buildStreamConfig(silent = false) {
-  const config = collectConfig(silent);
-  if (!config) return null;
+function _readStreamingForm() {
   const mode = document.querySelector('input[name="perf-mode"]:checked')?.value || 'normal';
   const sortOrder = document.getElementById('sort-order')?.value || 'size';
   const excludeRes = [...document.querySelectorAll('.res-cb:checked')].map(cb => cb.value);
-  const recommend = document.getElementById('show-recommend')?.checked;
-  const showPing = document.getElementById('show-ping')?.checked;
-  const pingDetail = document.getElementById('ping-detail')?.checked;
+  const recommend = !!document.getElementById('show-recommend')?.checked;
+  const showPing = !!document.getElementById('show-ping')?.checked;
+  const pingDetail = !!document.getElementById('ping-detail')?.checked;
   const audioLang = document.getElementById('audio-lang')?.value || 'any';
   const prefCodec = document.getElementById('pref-codec')?.value || 'any';
   const codecMode = document.getElementById('codec-mode')?.value || 'prefer';
@@ -108,41 +106,110 @@ function buildStreamConfig(silent = false) {
   const audioDisableAction = document.getElementById('audio-disable-action')?.value || 'hide';
   const audioOrderChanged = audioOrder.length > 0 && audioOrder.join(',') !== AUDIO_FORMATS.map(f => f.token).join(',');
   const surroundPriority = document.getElementById('surround-priority')?.value === 'on';
-  const maxBitrate = document.getElementById('max-bitrate')?.value || '';
-  const autoSelect = document.getElementById('auto-select')?.checked;
-  const labelPreset = document.getElementById('label-preset')?.value || 'standard';
-  const showSummary = document.getElementById('show-summary')?.checked;
+  const maxBitrateRaw = document.getElementById('max-bitrate')?.value || '';
+  const autoSelect = !!document.getElementById('auto-select')?.checked;
+  const labelPreset = document.getElementById('label-preset')?.value || 'compact';
+  const showSummary = !!document.getElementById('show-summary')?.checked;
   const summaryStyle = document.getElementById('summary-style')?.value || 'compact';
   const qualityBadge = document.getElementById('quality-badge')?.value || '';
   const flagEmoji = document.getElementById('flag-emoji')?.value || '';
   const bitrateBar = document.getElementById('bitrate-bar')?.value || '';
   const subsStyle = document.getElementById('subs-style')?.value || 'full';
+  const failoverHideDown = !!document.getElementById('failover-hide-down')?.checked;
+  return {
+    mode, sortOrder, excludeRes, recommend, showPing, pingDetail, audioLang, prefCodec, codecMode,
+    audioRank, audioOrder, audioDisabled, audioRankMode, audioDisableAction, audioOrderChanged,
+    surroundPriority, maxBitrateRaw, autoSelect, labelPreset, showSummary, summaryStyle,
+    qualityBadge, flagEmoji, bitrateBar, subsStyle, failoverHideDown,
+  };
+}
 
-  if (mode === 'timeout') config.timeout = parseInt(document.getElementById('timeout-value')?.value || '5000', 10);
-  if (sortOrder !== 'size') config.sortOrder = sortOrder;
-  if (excludeRes.length > 0) config.excludeRes = excludeRes;
-  if (recommend) config.recommend = true;
-  if (showPing) config.ping = true;
-  if (pingDetail) config.pingDetail = true;
-  if (audioLang !== 'any') config.audioLang = audioLang;
-  if (maxBitrate) config.maxBitrate = parseInt(maxBitrate, 10);
-  if (prefCodec !== 'any') { config.prefCodec = prefCodec; config.codecMode = codecMode; }
-  if (audioRank) config.audioRank = true;
-  if (audioRank && audioRankMode !== 'audioFirst') config.audioRankMode = audioRankMode;
-  if (audioOrderChanged) config.audioOrder = audioOrder;
-  if (audioDisabled.length) config.audioDisabled = audioDisabled;
-  if (audioDisabled.length && audioDisableAction !== 'hide') config.audioDisableAction = audioDisableAction;
-  if (surroundPriority) config.surroundPriority = true;
-  if (document.getElementById('failover-hide-down')?.checked) config.failoverHideDown = true;
-  if (labelPreset !== 'standard') config.labelPreset = labelPreset;
-  if (autoSelect) config.autoSelect = true;
-  if (showSummary) { config.showSummary = true; if (summaryStyle !== 'compact') config.summaryStyle = summaryStyle; }
-  if (qualityBadge) config.qualityBadge = qualityBadge;
-  if (flagEmoji) config.flagEmoji = flagEmoji;
-  if (bitrateBar) config.bitrateBar = bitrateBar;
-  if (subsStyle !== 'full') config.subsStyle = subsStyle;
+/** Full streaming prefs for Postgres merge — always emits explicit on/off values. */
+function buildStreamingPrefs() {
+  const f = _readStreamingForm();
+  const out = {
+    streamProfile: STREAM_PROFILE_VERSION,
+    mode: f.mode,
+    sortOrder: f.sortOrder,
+    excludeRes: f.excludeRes,
+    recommend: f.recommend,
+    ping: f.showPing,
+    pingDetail: f.pingDetail,
+    audioLang: f.audioLang,
+    prefCodec: f.prefCodec === 'any' ? null : f.prefCodec,
+    codecMode: f.codecMode,
+    audioRank: f.audioRank,
+    audioRankMode: f.audioRankMode,
+    audioOrder: f.audioOrder,
+    audioDisabled: f.audioDisabled,
+    audioDisableAction: f.audioDisableAction,
+    surroundPriority: f.surroundPriority,
+    maxBitrate: f.maxBitrateRaw ? parseInt(f.maxBitrateRaw, 10) : null,
+    autoSelect: f.autoSelect,
+    labelPreset: f.labelPreset,
+    showSummary: f.showSummary,
+    summaryStyle: f.summaryStyle,
+    qualityBadge: f.qualityBadge || null,
+    flagEmoji: f.flagEmoji || null,
+    bitrateBar: f.bitrateBar || null,
+    subsStyle: f.subsStyle,
+    failoverHideDown: f.failoverHideDown,
+    showCatalog: false,
+  };
+  if (f.mode === 'timeout') {
+    out.timeout = parseInt(document.getElementById('timeout-value')?.value || '5000', 10);
+  } else {
+    out.timeout = null;
+  }
+  if (f.labelPreset === 'custom') {
+    out.customNameFields = Array.from(document.querySelectorAll('.cn-field:checked')).map(cb => cb.value);
+    out.customDescFields = Array.from(document.querySelectorAll('.cd-field:checked')).map(cb => cb.value);
+  }
+  return out;
+}
+
+function buildStreamConfig(silent = false, opts = {}) {
+  const explicit = opts.explicit === true;
+  const base = collectConfig(silent);
+  if (!base) {
+    if (silent || explicit) return { servers: [], ...buildStreamingPrefs() };
+    return null;
+  }
+  const f = _readStreamingForm();
+  const config = { ...base };
+
+  if (explicit) {
+    Object.assign(config, buildStreamingPrefs());
+    config.servers = base.servers;
+    return config;
+  }
+
+  if (f.mode === 'timeout') config.timeout = parseInt(document.getElementById('timeout-value')?.value || '5000', 10);
+  if (f.sortOrder !== 'size') config.sortOrder = f.sortOrder;
+  if (f.excludeRes.length > 0) config.excludeRes = f.excludeRes;
+  if (f.recommend) config.recommend = true;
+  if (f.showPing) config.ping = true;
+  if (f.pingDetail) config.pingDetail = true;
+  if (f.audioLang !== 'any') config.audioLang = f.audioLang;
+  if (f.maxBitrateRaw) config.maxBitrate = parseInt(f.maxBitrateRaw, 10);
+  if (f.prefCodec !== 'any') { config.prefCodec = f.prefCodec; config.codecMode = f.codecMode; }
+  if (f.audioRank) config.audioRank = true;
+  if (f.audioRank && f.audioRankMode !== 'audioFirst') config.audioRankMode = f.audioRankMode;
+  if (f.audioOrderChanged) config.audioOrder = f.audioOrder;
+  if (f.audioDisabled.length) config.audioDisabled = f.audioDisabled;
+  if (f.audioDisabled.length && f.audioDisableAction !== 'hide') config.audioDisableAction = f.audioDisableAction;
+  if (f.surroundPriority) config.surroundPriority = true;
+  if (f.failoverHideDown) config.failoverHideDown = true;
+  if (f.labelPreset !== 'standard' && f.labelPreset !== 'compact') config.labelPreset = f.labelPreset;
+  else if (f.labelPreset === 'compact') config.labelPreset = 'compact';
+  if (f.autoSelect) config.autoSelect = true;
+  if (f.showSummary) { config.showSummary = true; if (f.summaryStyle !== 'compact') config.summaryStyle = f.summaryStyle; }
+  if (f.qualityBadge) config.qualityBadge = f.qualityBadge;
+  if (f.flagEmoji) config.flagEmoji = f.flagEmoji;
+  if (f.bitrateBar) config.bitrateBar = f.bitrateBar;
+  if (f.subsStyle !== 'full') config.subsStyle = f.subsStyle;
   config.showCatalog = false;
-  if (labelPreset === 'custom') {
+  if (f.labelPreset === 'custom') {
     config.customNameFields = Array.from(document.querySelectorAll('.cn-field:checked')).map(cb => cb.value);
     config.customDescFields = Array.from(document.querySelectorAll('.cd-field:checked')).map(cb => cb.value);
   }
@@ -316,6 +383,7 @@ async function loadInstallPage() {
 }
 
 window.buildStreamConfig = buildStreamConfig;
+window.buildStreamingPrefs = buildStreamingPrefs;
 window.generateLinks = generateLinks;
 window.copySpecific = copySpecific;
 window.runPingTest = runPingTest;
