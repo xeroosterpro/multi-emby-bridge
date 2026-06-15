@@ -53,11 +53,15 @@ function showPage(name) {
   document.querySelectorAll('.nav-item, .foot-link').forEach(el => {
     el.classList.toggle('on', el.dataset.page === name);
   });
-  if (window.onPageShow) window.onPageShow(name);   // hook for live data
-  if (window.ensureActiveNavGroupOpen) window.ensureActiveNavGroupOpen();
-  if (window.MEBMobile && window.MEBMobile.isMobile && window.MEBMobile.isMobile()) {
-    window.MEBMobile.close();
-  }
+  // Each post-navigation hook is isolated: a throw in one (a module's onPageShow,
+  // group-open, or mobile-close) must not abort the others or leave the app broken.
+  // The page swap above already happened, so navigation always completes.
+  try { if (window.onPageShow) window.onPageShow(name); }            // hook for live data
+  catch (e) { console.error('[shell] onPageShow failed for', name, e); }
+  try { if (window.ensureActiveNavGroupOpen) window.ensureActiveNavGroupOpen(); } catch (e) { /* non-fatal */ }
+  try {
+    if (window.MEBMobile && window.MEBMobile.isMobile && window.MEBMobile.isMobile()) window.MEBMobile.close();
+  } catch (e) { /* non-fatal */ }
 }
 
 function routeFromHash() {
