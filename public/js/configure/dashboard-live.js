@@ -515,11 +515,12 @@ function renderLiveDock(live) {
     document.documentElement.classList.remove('has-live-dock');
     return;
   }
-  const esc = dashActivityEsc;
   const solo = list.length === 1 ? list[0] : null;
   const soloServer = solo ? formatBridgeServerLabel(solo) : '';
+  // Assigned via .textContent below (which is safe), so DON'T HTML-escape here —
+  // doing so double-escapes (e.g. "Romance & Confectionery" → "Romance &amp; …") (UI-2).
   const summary = solo
-    ? (soloServer ? `${esc(solo.title)} on ${esc(soloServer)}` : esc(solo.title))
+    ? (soloServer ? `${solo.title} on ${soloServer}` : solo.title)
     : `${list.length} streams active`;
   if (!dock) {
     dock = document.createElement('div');
