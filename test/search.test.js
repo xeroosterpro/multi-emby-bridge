@@ -42,6 +42,7 @@ function A(cond, msg) {
   const items = await queryServerForMovie(server, 'tt9990001');
   A(items.length === 1, 'filters to matching imdb id');
   A(items[0].Id === '1', 'returns validated item');
-  A(apiCalls.length >= 1, 'queries emby api');
+  A(apiCalls.length === 1, 'sequential lookup stops after first hit');
+  A(apiCalls[0].includes('/Users/u1/Items'), 'prefers user-scoped Items path');
   console.log('\nsearch.test.js: all passed');
 })().catch((e) => { console.error(e); process.exit(1); });
