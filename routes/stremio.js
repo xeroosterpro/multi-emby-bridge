@@ -124,7 +124,7 @@ function registerStremioRoutes(app, deps) {
     const timeoutMs = (cfg.timeout && cfg.timeout >= 2000 && cfg.timeout <= 10000) ? cfg.timeout : 10000;
     const servers = (cfg.servers || [])
       .filter(s => s.url && s.apiKey && s.userId)
-      .map(s => ({ ...s, _timeout: timeoutMs }));
+      .map(s => ({ ...s, _timeout: timeoutMs, _fastPace: true }));
     if (servers.length === 0) return res.json({ streams: [] });
     const _t0 = Date.now();
     try {
@@ -162,7 +162,11 @@ function registerStremioRoutes(app, deps) {
         streams = result.streams;
         meta = result.meta;
       } catch (err) {
-        if (err.superseded) return res.json({ streams: [] });
+        if (err.superseded) {
+          const stale = cacheGet('L3', streamCacheKey);
+          if (stale?.streams?.length) return res.json({ streams: stale.streams });
+          return res.json({ streams: [] });
+        }
         throw err;
       }
 

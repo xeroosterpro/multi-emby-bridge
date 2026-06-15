@@ -55,9 +55,10 @@ function makeSource(overrides = {}) {
     Container: 'mkv',
     Name: 'Movie',
     Path: '/media/Movie.mkv',
+    DefaultAudioStreamIndex: 2,
     MediaStreams: [
-      { Type: 'Video', Codec: 'hevc', Width: 3840, Height: 2160, BitDepth: 10, VideoRangeType: 'HDR10' },
-      { Type: 'Audio', Codec: 'truehd', Channels: 8, Profile: 'Atmos', Language: 'eng' },
+      { Type: 'Video', Index: 1, Codec: 'hevc', Width: 3840, Height: 2160, BitDepth: 10, VideoRangeType: 'HDR10' },
+      { Type: 'Audio', Index: 2, Codec: 'truehd', Channels: 8, Profile: 'Atmos', Language: 'eng' },
     ],
     ...overrides,
   };
@@ -84,7 +85,9 @@ console.log('\nmediaSourcesToStreams — compact preset');
 {
   const [s] = mediaSourcesToStreams(server, 'item1', [makeSource()], 'compact');
   assert(s.name.includes('HEVC'), 'compact: codec in name');
+  assert(s.name.includes('Atmos') || s.name.includes('TrueHD'), 'compact: audio in name');
   assert(!s.description.includes('\n'), 'compact: single-line description');
+  assert(s.description.includes('GB') || s.description.includes('Mbps'), 'compact: bitrate/size in desc');
 }
 
 // ─── Detailed preset ─────────────────────────────────────────────────────────

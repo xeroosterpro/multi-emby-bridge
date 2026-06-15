@@ -5,7 +5,7 @@ function updateLabelPreview() {
   const previewEl = document.getElementById('label-preview');
   const previews = {
     standard: { name: 'Server · 4K · DV', desc: 'HEVC 10bit · REMUX\nTrueHD 7.1\nMKV · 85.2Mbps · 58.32 GB' },
-    compact:  { name: 'Server · 4K · DV · HEVC 10bit', desc: 'TrueHD 7.1 · 85.2Mbps · 58.32 GB' },
+    compact:  { name: 'Server · 4K · TrueHD 7.1 · HEVC 10bit', desc: '85.2Mbps · 58.3GB' },
     detailed: { name: 'Server · 4K · DV', desc: 'HEVC 10bit · REMUX\nENG TrueHD 7.1 · FRE DD+ 5.1\nSubs: EN · FR · ES\n3840x2160 · 85.2Mbps · 58.32 GB' },
     cinema:   { name: 'Server · 4K · DV · REMUX', desc: 'HEVC 10bit\nTrueHD 7.1\nSubs: EN · FR · ES\n58.32 GB' },
     minimal:  { name: 'Server · 4K', desc: '58.32 GB' },
@@ -21,7 +21,7 @@ function updateLabelPreview() {
   else if (qb === 'tags') name = '[REMUX][4K][HDR] ' + name;
   // For custom preset keep its own descriptive text; otherwise compose desc from the badges.
   let descSource = p.desc;
-  if (preset !== 'custom') {
+  if (preset !== 'custom' && preset !== 'compact') {
     const parts = [];
     if (fl === '') parts.push('ENG');
     else if (fl === 'flag') parts.push('🇬🇧');
