@@ -129,23 +129,28 @@ function makeBillingRouter() {
       const type = ev.event_type || '';
       const resource = ev.resource || {};
       const subId = resource.id || (resource.billing_agreement_id) || null;
-      if (subId) {
-        if (type === 'BILLING.SUBSCRIPTION.ACTIVATED') await billing.setByPaypalSub(subId, 'active', resource.billing_info && resource.billing_info.next_billing_time);
-        else if (type === 'BILLING.SUBSCRIPTION.CANCELLED' || type === 'BILLING.SUBSCRIPTION.EXPIRED') await billing.setByPaypalSub(subId, 'cancelled', null);
-        else if (type === 'BILLING.SUBSCRIPTION.SUSPENDED') await billing.setByPaypalSub(subId, 'past_due', null);
-        else if (type === 'PAYMENT.SALE.COMPLETED' && resource.billing_agreement_id) {
-          await billing.setByPaypalSub(resource.billing_agreement_id, 'active', null);
-          try {
-            const u = await db.query('SELECT user_id FROM subscriptions WHERE paypal_subscription_id=$1', [resource.billing_agreement_id]);
+      if (subId && db.isConfigured()) {
+        // All writes for one webhook run in a single transaction (atomic), guarded
+        // by an idempotency claim so PayPal retries can't double-apply a payment.
+        await db.withTransaction(async (client) => {
+          const txPayments = makePayments(client);
+          const txBilling = makeBilling(client, txPayments);
+          if (!(await txBilling.claimWebhook(ev.id, type))) return; // already processed
+          if (type === 'BILLING.SUBSCRIPTION.ACTIVATED') await txBilling.setByPaypalSub(subId, 'active', resource.billing_info && resource.billing_info.next_billing_time);
+          else if (type === 'BILLING.SUBSCRIPTION.CANCELLED' || type === 'BILLING.SUBSCRIPTION.EXPIRED') await txBilling.setByPaypalSub(subId, 'cancelled', null);
+          else if (type === 'BILLING.SUBSCRIPTION.SUSPENDED') await txBilling.setByPaypalSub(subId, 'past_due', null);
+          else if (type === 'PAYMENT.SALE.COMPLETED' && resource.billing_agreement_id) {
+            await txBilling.setByPaypalSub(resource.billing_agreement_id, 'active', null);
+            const u = await client.query('SELECT user_id FROM subscriptions WHERE paypal_subscription_id=$1', [resource.billing_agreement_id]);
             if (u.rowCount) {
               const userId = u.rows[0].user_id;
               const amt = resource.amount && (resource.amount.total || resource.amount.value);
               const cur = (resource.amount && (resource.amount.currency || resource.amount.currency_code)) || 'USD';
-              await payments.record({ userId, paypalSaleId: resource.id, amount: amt, currency: cur, paidAt: resource.create_time || null });
-              await payments.addEvent({ userId, type: 'payment', detail: { saleId: resource.id, amount: amt, currency: cur } });
+              await txPayments.record({ userId, paypalSaleId: resource.id, amount: amt, currency: cur, paidAt: resource.create_time || null });
+              await txPayments.addEvent({ userId, type: 'payment', detail: { saleId: resource.id, amount: amt, currency: cur } });
             }
-          } catch (e) { console.error('[webhook/payment-record]', e.message); }
-        }
+          }
+        });
       }
       res.json({ ok: true });
     } catch (e) { console.error('[billing/webhook]', e.message); res.json({ ok: true }); } // always 200 so PayPal doesn't retry-storm

@@ -5,8 +5,14 @@ let passed = 0, failed = 0;
 const A = (c, m) => { c ? (console.log(`  ✓ ${m}`), passed++) : (console.error(`  ✗ ${m}`), failed++); };
 
 function fakeDb() {
-  const subs = new Map(); const codes = new Map(); const redemptions = new Set();
+  const subs = new Map(); const codes = new Map(); const redemptions = new Set(); const webhooks = new Set();
   return { async query(text, params) {
+    if (/INSERT INTO processed_webhooks/i.test(text)) {
+      const id = params[0];
+      if (webhooks.has(id)) return { rows: [], rowCount: 0 }; // ON CONFLICT DO NOTHING
+      webhooks.add(id);
+      return { rows: [{ event_id: id }], rowCount: 1 };
+    }
     if (/INSERT INTO discount_redemptions/i.test(text)) {
       const key = `${params[0]}|${params[1]}`;
       if (redemptions.has(key)) return { rows: [], rowCount: 0 }; // ON CONFLICT DO NOTHING
@@ -77,6 +83,12 @@ function fakeDb() {
 
   await b.deactivateCode('FAMILY100');
   A((await b.redeemCode('u5', 'FAMILY100')).applied === false, 'deactivated code rejected');
+
+  // webhook idempotency: first claim processes, duplicate is skipped
+  A(await b.claimWebhook('WH-1', 'PAYMENT.SALE.COMPLETED') === true, 'first webhook id is claimed (process)');
+  A(await b.claimWebhook('WH-1', 'PAYMENT.SALE.COMPLETED') === false, 'duplicate webhook id is skipped');
+  A(await b.claimWebhook('WH-2', 'BILLING.SUBSCRIPTION.ACTIVATED') === true, 'a different webhook id is claimed');
+  A(await b.claimWebhook(null) === true, 'missing webhook id is allowed through (can\'t dedupe)');
 
   // events: pass an event sink and verify status changes emit audit rows
   const events = [];

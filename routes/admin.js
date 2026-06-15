@@ -138,13 +138,16 @@ function makeAdminRouter(opts = {}) {
     if (!allowed.includes(status)) return res.status(400).json({ error: 'invalid status' });
     if (periodEnd && Number.isNaN(Date.parse(periodEnd))) return res.status(400).json({ error: 'invalid periodEnd' });
     try {
-      await db.query(
-        `INSERT INTO subscriptions(user_id, status, current_period_end, updated_at)
-         VALUES($1,$2,$3,now())
-         ON CONFLICT (user_id) DO UPDATE SET status=$2, current_period_end=$3, updated_at=now()`,
-        [req.params.id, status, periodEnd || null]
-      );
-      await payments.addEvent({ userId: req.params.id, type: 'admin_override', detail: { status, periodEnd: periodEnd || null }, actorId: req.user.id });
+      // Status change + audit event written atomically.
+      await db.withTransaction(async (client) => {
+        await client.query(
+          `INSERT INTO subscriptions(user_id, status, current_period_end, updated_at)
+           VALUES($1,$2,$3,now())
+           ON CONFLICT (user_id) DO UPDATE SET status=$2, current_period_end=$3, updated_at=now()`,
+          [req.params.id, status, periodEnd || null]
+        );
+        await makePayments(client).addEvent({ userId: req.params.id, type: 'admin_override', detail: { status, periodEnd: periodEnd || null }, actorId: req.user.id });
+      });
       res.json({ ok: true, status, periodEnd: periodEnd || null });
     } catch (e) { console.error('[admin/subscription]', e.message); res.status(500).json({ error: 'override failed' }); }
   });
