@@ -29,8 +29,29 @@ function makeConfigurePageRouter({ buildId, rootDir }) {
         res.set('Cache-Control', 'no-cache');
         res.type('html').send(getConfigureHtml());
       });
+      // Liveness: fast, dependency-free (Railway's healthcheck points here, so it
+      // must NOT depend on the DB or it could restart-loop on a transient blip).
       app.get('/health', (req, res) => res.json({ status: 'ok' }));
       app.get('/healthz', (req, res) => res.json({ status: 'ok' }));
+      // Readiness: deep check for monitoring/alerting — verifies DB connectivity.
+      app.get('/health/ready', async (req, res) => {
+        const db = require('../lib/db');
+        const out = { status: 'ok', build: buildId || 'dev', uptimeSec: Math.round(process.uptime()) };
+        if (db.isConfigured()) {
+          try {
+            const t0 = Date.now();
+            await db.query('SELECT 1');
+            out.db = { ok: true, ms: Date.now() - t0 };
+          } catch (e) {
+            out.status = 'degraded';
+            out.db = { ok: false, error: e.message };
+            return res.status(503).json(out);
+          }
+        } else {
+          out.db = { ok: false, configured: false };
+        }
+        res.json(out);
+      });
     },
   };
 }
