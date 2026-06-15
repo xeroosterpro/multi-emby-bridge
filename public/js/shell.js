@@ -22,6 +22,9 @@ function restoreShellSession() {
 }
 
 function showPage(name) {
+  // Strip any hash query (e.g. "catalogs?step=connect") so callers that pass the
+  // raw hash still resolve to a real page instead of falling back to home (UI-1).
+  name = String(name || '').split('?')[0];
   if (!PAGES.includes(name)) name = 'home';
   // Protect admin pages from non-admins (in case of direct hash or race)
   const adminPages = ['admin', 'admin-data', 'users'];

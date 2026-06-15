@@ -37,7 +37,7 @@
 
     updateNavGroupVisibility();
 
-    const cur = (location.hash || '').replace(/^#\//, '');
+    const cur = (location.hash || '').replace(/^#\//, '').split('?')[0];
     if (asUser && state.disabled.includes(cur)) location.hash = '#/dashboard';
     if (window.MEBDemo && window.MEBDemo.isActive && window.MEBDemo.isActive()) { /* demo unlocks nav */ }
     else if (state.role === 'admin' && mode === 'unpaid' && cur !== 'billing') location.hash = '#/billing';
