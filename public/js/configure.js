@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await ensureAccountConfigLoaded();
   _updateServersEmptyState();
   if (_isServersPageActive()) {
-    await renderServersPage({ full: true });
+    await renderServersPage({ force: true });
   }
   [updateLabelPreview, toggleCustomPreset, onShowPingChange]
     .forEach(fn => { try { fn(); } catch (_) {} });

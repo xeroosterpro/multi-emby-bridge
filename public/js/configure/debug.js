@@ -2,11 +2,11 @@
 let _dbgTimer = null;
 
 const _CAT_LABELS = {
-  stream: 'Stream lookup',
-  health: 'Health probe',
-  auth: 'Auth renewal',
-  session: 'Live sessions',
-  activity: 'Watch history',
+  stream: 'Stremio playback',
+  health: 'Configure UI checks',
+  auth: 'Token renewal',
+  session: 'Live sessions (off)',
+  activity: 'Watch history (off)',
   other: 'Other',
 };
 
@@ -85,7 +85,8 @@ function _renderDebug(data) {
 
   if (uaEl) {
     const ttl = data.cacheTtlMs ? Math.round(data.cacheTtlMs / 1000) : 45;
-    uaEl.innerHTML = `UA: ${escHtml(data.ua || '—')}<br>Emby client: ${escHtml(data.embyClient || '—')}<br>Response cache TTL: ${ttl}s`;
+    const streamTtl = data.streamCacheTtlMs ? Math.round(data.streamCacheTtlMs / 60) : 5;
+    uaEl.innerHTML = `UA: ${escHtml(data.ua || '—')}<br>Emby client: ${escHtml(data.embyClient || '—')}<br>Response cache: ${ttl}s (UI/health) · ${streamTtl}m (stream lookups)`;
   }
 }
 

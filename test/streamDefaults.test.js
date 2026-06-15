@@ -11,7 +11,8 @@ console.log('\nstreamDefaults');
 {
   assert(needsStreamProfileUpgrade({}), 'empty config needs upgrade');
   assert(needsStreamProfileUpgrade({ streamProfile: 1 }), 'v1 needs upgrade');
-  assert(!needsStreamProfileUpgrade({ streamProfile: 2 }), 'v2 does not need upgrade');
+  assert(needsStreamProfileUpgrade({ streamProfile: 2 }), 'v2 needs upgrade to v3');
+  assert(!needsStreamProfileUpgrade({ streamProfile: 3 }), 'v3 does not need upgrade');
 
   const { cfg, changed } = upgradeStreamProfile({ servers: [{ label: 'A' }], labelPreset: 'standard' });
   assert(changed, 'upgrade reports changed');
@@ -19,8 +20,8 @@ console.log('\nstreamDefaults');
   assert(cfg.labelPreset === 'standard', 'preserves explicit labelPreset on upgrade');
   assert(cfg.audioRank === true, 'audio rank on');
   assert(cfg.showSummary === true && cfg.summaryStyle === 'compact', 'compact summary');
-  assert(cfg.ping === true && cfg.recommend === true, 'ping + recommend on');
-  assert(cfg.streamProfile === 2, 'profile version set');
+  assert(cfg.ping === false && cfg.recommend === true, 'ping off, recommend on');
+  assert(cfg.streamProfile === 3, 'profile version set');
 
   const again = upgradeStreamProfile(cfg);
   assert(!again.changed, 'second upgrade is no-op');
@@ -32,7 +33,7 @@ console.log('\nstreamDefaults');
     audioRankMode: 'tiebreak',
     sortOrder: 'bitrate',
   });
-  assert(merged.streamProfile === 2, 'bumps stream profile');
+  assert(merged.streamProfile === 3, 'bumps stream profile');
   assert(merged.audioRank === false, 'keeps saved audioRank');
   assert(merged.audioRankMode === 'tiebreak', 'keeps saved audioRankMode');
   assert(merged.sortOrder === 'bitrate', 'keeps unrelated fields');

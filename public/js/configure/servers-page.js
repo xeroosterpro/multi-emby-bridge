@@ -344,8 +344,20 @@ function _srvSetBadge(badge, cls) {
   badge.classList.add('srv-status-pop');
 }
 
+const _srvCheckCache = new Map();
+const SRV_CHECK_TTL_OK_MS = 5 * 60 * 1000;
+const SRV_CHECK_TTL_FAIL_MS = 2 * 60 * 1000;
+
+function _srvCheckCacheKey(block) {
+  const url = block.querySelector('.f-url')?.value.trim().replace(/\/+$/, '') || '';
+  const apiKey = block.querySelector('.f-apikey')?.value.trim() || '';
+  const userId = block.querySelector('.f-userid')?.value.trim() || '';
+  return `${url}|${apiKey}|${userId}`;
+}
+
 async function refreshServerCard(block, opts = {}) {
   const retry = opts.retry !== false;
+  const force = opts.force === true;
   const get = sel => block.querySelector(sel)?.value.trim() || '';
   const label = get('.f-label'), url = get('.f-url').replace(/\/+$/, '');
   const type = block.querySelector('.f-type')?.value || 'emby';
@@ -375,6 +387,14 @@ async function refreshServerCard(block, opts = {}) {
     block.classList.toggle('checking', cls === 'checking');
   };
   if (!url || !apiKey || !userId) { setState('unknown', 'Not set'); return null; }
+
+  const cacheKey = _srvCheckCacheKey(block);
+  const cached = _srvCheckCache.get(cacheKey);
+  if (!force && cached && (Date.now() - cached.ts) < (cached.up ? SRV_CHECK_TTL_OK_MS : SRV_CHECK_TTL_FAIL_MS)) {
+    setState(cached.up ? 'up' : 'down', cached.up ? 'Online' : 'Offline');
+    return { up: cached.up, cached: true };
+  }
+
   setState('checking', 'Checking…');
   try {
     const r = await fetch('/api/test-connection', {
@@ -388,6 +408,7 @@ async function refreshServerCard(block, opts = {}) {
     }
     if (r.ok && data.ok) {
       setState('up', 'Online');
+      _srvCheckCache.set(cacheKey, { up: true, ts: Date.now() });
       return { up: true };
     }
     if ((r.status === 401 || r.status === 403) && retry && username && password) {
@@ -396,9 +417,11 @@ async function refreshServerCard(block, opts = {}) {
       if (refreshed.ok) return refreshServerCard(block, { retry: false });
     }
     setState('down', 'Offline');
+    _srvCheckCache.set(cacheKey, { up: false, ts: Date.now() });
     return { up: false };
   } catch {
     setState('down', 'Offline');
+    _srvCheckCache.set(cacheKey, { up: false, ts: Date.now() });
     return { up: false };
   }
 }
@@ -469,7 +492,7 @@ async function renderServersPage(opts = {}) {
     const bBad = b.classList.contains('bad') ? 0 : 1;
     return aBad - bBad;
   });
-  await Promise.all(failedFirst.map(block => refreshServerCard(block)));
+  await Promise.all(failedFirst.map(block => refreshServerCard(block, { force: opts.force })));
   _clearServersPingMetrics(blocks);
   _recomputeServersHeaderStats(blocks);
 }

@@ -16,7 +16,7 @@ function A(cond, msg) {
   A(serverHost('https://emby.example.com:8096/emby') === 'emby.example.com:8096', 'serverHost parses URL');
 
   const resume = classifyPath('/Users/abc/Items/Resume');
-  A(resume.category === 'activity' && resume.purpose === 'Watch history sync', 'classify Resume');
+  A(resume.category === 'activity' && resume.purpose === 'Watch history sync (disabled)', 'classify Resume');
 
   const playback = classifyPath('/Items/tt123/PlaybackInfo');
   A(playback.category === 'stream' && playback.essential === true, 'classify PlaybackInfo');
@@ -30,7 +30,7 @@ function A(cond, msg) {
 
   const snap = getSnapshot();
   A(snap.calls.length === 3, 'ring buffer has 3 entries');
-  A(snap.calls.some(c => c.purpose === 'Stream source lookup'), 'call row has purpose');
+  A(snap.calls.some(c => c.purpose === 'Stremio play — read file qualities'), 'call row has purpose');
   A(snap.byCategory.length >= 2, 'byCategory aggregated');
   A(snap.byCategory.some(c => c.category === 'stream'), 'stream category present');
 
