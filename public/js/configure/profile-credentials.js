@@ -110,7 +110,8 @@ async function fetchCredentials(id) {
     updateCredWarning(id);
     statusEl.textContent = 'Credentials fetched!'; statusEl.className = 'cred-status success';
     autoSave();
-    refreshServerCard(block).then(() => renderServersPage());
+    syncServerCardDisplay(block);
+    renderServersPage();
   } catch (err) {
     statusEl.textContent = err.message; statusEl.className = 'cred-status error';
   } finally { btn.disabled = false; btn.textContent = 'Fetch API Key & User ID'; }

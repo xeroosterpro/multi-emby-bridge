@@ -11,31 +11,24 @@ function updateSteps() {
 }
 window.updateSteps = updateSteps;
 
-// ── Auto-generate server name ─────────────────────────────────────────────
-async function autoNameServer(id) {
+// ── Auto-generate server name (hostname only — no Emby API) ───────────────
+function autoNameServer(id) {
   const block = document.getElementById(`server-${id}`);
   if (!block) return;
   const labelEl = block.querySelector('.f-label');
   const urlEl = block.querySelector('.f-url');
-  const typeEl = block.querySelector('.f-type');
   if (!urlEl || !labelEl) return;
   const url = (urlEl.value || '').trim().replace(/\/+$/, '');
   if (!url || labelEl.value.trim()) return;
   try {
-    const resp = await fetch('/api/test-connection', {
-      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, type: typeEl?.value || 'emby', apiKey: '', userId: '' }),
-    });
-    const data = await resp.json();
-    if (data.message) {
-      const match = data.message.match(/Connected — (.+?)(?:\s+v[\d.]+)?$/);
-      if (match && match[1]) {
-        labelEl.value = match[1];
-        if (block.classList.contains('collapsed')) updateSummary(id);
-        autoSave();
-      }
-    }
-  } catch {}
+    const parsed = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
+    const host = parsed.hostname.replace(/^www\./i, '');
+    const slug = host.split('.')[0] || host;
+    if (!slug) return;
+    labelEl.value = slug.charAt(0).toUpperCase() + slug.slice(1);
+    if (block.classList.contains('collapsed')) updateSummary(id);
+    autoSave();
+  } catch { /* invalid URL — user will fix on save */ }
 }
 
 
@@ -166,13 +159,9 @@ function buildServerBlock(id) {
         <span class="srv-name" data-bind="name">New server</span>
         <span class="srv-host" data-bind="host">not configured</span>
       </div>
-      <div class="srv-ping-col">
-        <span class="srv-ping-row" title="Stream Hub addon → your server"><small>Bridge</small><em data-bind="ping-bridge">—</em></span>
-        <span class="srv-ping-row srv-ping-you" title="Your browser → your server (click Test)"><small>You</small><em data-bind="ping-you">—</em><button type="button" class="srv-you-test" onclick="event.stopPropagation();testYouPing(${id})" title="Test from your browser">Test</button></span>
-      </div>
       <div class="srv-end">
-        <span class="srv-status unknown" data-bind="badge"><span class="srv-status-dot"></span><span data-bind="badge-txt">Checking</span></span>
-        <button type="button" class="srv-reconnect" onclick="event.stopPropagation();reconnectServer(${id})" title="Fix connection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button>
+        <span class="srv-status unknown" data-bind="badge"><span class="srv-status-dot"></span><span data-bind="badge-txt">—</span></span>
+        <button type="button" class="srv-reconnect" onclick="event.stopPropagation();reconnectServer(${id})" title="Refresh saved login"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button>
         <span class="srv-expand" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg></span>
       </div>
     </div>
@@ -279,60 +268,32 @@ async function reconnectServer(id) {
   const badgeTxt = block.querySelector('[data-bind=badge-txt]');
   const badge = block.querySelector('[data-bind=badge]');
   if (badge) badge.className = 'srv-status checking';
-  if (badgeTxt) badgeTxt.textContent = 'Checking…';
+  if (badgeTxt) badgeTxt.textContent = 'Refreshing…';
   block.classList.add('reauthing');
   const result = await _reauthServerCredentials(block);
   block.classList.remove('reauthing');
   if (result.ok) {
-    await refreshServerCard(block);
-    await renderServersPage();
-    if (typeof window.toast === 'function') window.toast('Reconnected — credentials refreshed');
+    syncServerCardDisplay(block);
+    renderServersPage();
+    if (typeof window.toast === 'function') window.toast('Login refreshed — saved to your account');
   } else {
-    if (badge) badge.className = 'srv-status down';
-    if (badgeTxt) badgeTxt.textContent = 'Offline';
+    syncServerCardDisplay(block);
     if (typeof window.toast === 'function') window.toast(result.error || 'Re-auth failed — re-enter password');
     openManage(id);
   }
 }
 window.reconnectServer = reconnectServer;
 
-let _addonRegionLabel = null;
-
-async function _ensureAddonRegionLabel() {
-  if (_addonRegionLabel) return _addonRegionLabel;
-  try {
-    const info = await fetch('/api/server-info').then(r => r.json());
-    _addonRegionLabel = info.region
-      ? info.region.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-      : 'Addon server';
-  } catch {
-    _addonRegionLabel = 'Addon server';
-  }
-  return _addonRegionLabel;
-}
-
-function _updateServersHeaderStats(up, total, fastestBridge) {
+function _updateServersHeaderStats(configured, total) {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('srv-count', total);
-  set('srv-up', up);
-  set('srv-fastest', fastestBridge != null ? fastestBridge + 'ms' : '—');
+  const cfgEl = document.getElementById('srv-configured');
+  if (cfgEl) set('srv-configured', configured);
   const sub = document.getElementById('srv-sub');
   if (sub) {
-    const region = _addonRegionLabel ? ` · bridge from ${_addonRegionLabel}` : '';
     sub.textContent = total
-      ? `${up} of ${total} online${region} · click a row to edit`
+      ? `${configured} of ${total} ready · click a row to edit · use Test Connection to verify`
       : 'Add Emby or Jellyfin endpoints to bridge into Stremio.';
-  }
-}
-
-function _srvSetPingEm(em, ms) {
-  if (!em) return;
-  if (ms == null || ms === undefined) {
-    em.textContent = '—';
-    em.className = '';
-  } else {
-    em.textContent = ms + 'ms';
-    em.className = _srvPingClass(ms);
   }
 }
 
@@ -344,25 +305,12 @@ function _srvSetBadge(badge, cls) {
   badge.classList.add('srv-status-pop');
 }
 
-const _srvCheckCache = new Map();
-const SRV_CHECK_TTL_OK_MS = 5 * 60 * 1000;
-const SRV_CHECK_TTL_FAIL_MS = 2 * 60 * 1000;
-
-function _srvCheckCacheKey(block) {
-  const url = block.querySelector('.f-url')?.value.trim().replace(/\/+$/, '') || '';
-  const apiKey = block.querySelector('.f-apikey')?.value.trim() || '';
-  const userId = block.querySelector('.f-userid')?.value.trim() || '';
-  return `${url}|${apiKey}|${userId}`;
-}
-
-async function refreshServerCard(block, opts = {}) {
-  const retry = opts.retry !== false;
-  const force = opts.force === true;
+/** Update row labels from DOM only — never calls Emby. */
+function syncServerCardDisplay(block) {
   const get = sel => block.querySelector(sel)?.value.trim() || '';
   const label = get('.f-label'), url = get('.f-url').replace(/\/+$/, '');
   const type = block.querySelector('.f-type')?.value || 'emby';
-  let apiKey = get('.f-apikey'), userId = get('.f-userid');
-  const username = get('.f-username'), password = get('.f-password');
+  const apiKey = get('.f-apikey'), userId = get('.f-userid');
   const nameEl = block.querySelector('[data-bind=name]');
   const hostEl = block.querySelector('[data-bind=host]');
   const logoEl = block.querySelector('[data-bind=logo]');
@@ -370,7 +318,7 @@ async function refreshServerCard(block, opts = {}) {
   const badgeTxt = block.querySelector('[data-bind=badge-txt]');
   const idxEl = block.querySelector('[data-bind=index]');
   if (logoEl) logoEl.innerHTML = type === 'jellyfin' ? JELLYFIN_LOGO : EMBY_LOGO;
-  block.classList.remove('type-emby', 'type-jellyfin');
+  block.classList.remove('type-emby', 'type-jellyfin', 'ok', 'bad', 'checking', 'ready');
   block.classList.add('type-' + type);
   if (nameEl) nameEl.textContent = label || 'New server';
   if (hostEl) hostEl.textContent = url ? url.replace(/^https?:\/\//, '') : 'not configured';
@@ -382,48 +330,19 @@ async function refreshServerCard(block, opts = {}) {
   const setState = (cls, txt) => {
     _srvSetBadge(badge, cls);
     if (badgeTxt) badgeTxt.textContent = txt;
-    block.classList.toggle('ok', cls === 'up');
-    block.classList.toggle('bad', cls === 'down');
-    block.classList.toggle('checking', cls === 'checking');
+    block.classList.toggle('ready', cls === 'ready');
   };
-  if (!url || !apiKey || !userId) { setState('unknown', 'Not set'); return null; }
-
-  const cacheKey = _srvCheckCacheKey(block);
-  const cached = _srvCheckCache.get(cacheKey);
-  if (!force && cached && (Date.now() - cached.ts) < (cached.up ? SRV_CHECK_TTL_OK_MS : SRV_CHECK_TTL_FAIL_MS)) {
-    setState(cached.up ? 'up' : 'down', cached.up ? 'Online' : 'Offline');
-    return { up: cached.up, cached: true };
+  if (!url || !apiKey || !userId) {
+    setState('unknown', 'Not set');
+    return { configured: false };
   }
+  setState('ready', 'Configured');
+  return { configured: true };
+}
 
-  setState('checking', 'Checking…');
-  try {
-    const r = await fetch('/api/test-connection', {
-      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, type, apiKey, userId, username, password }),
-    });
-    const data = await r.json().catch(() => ({}));
-    if (data.apiKey) {
-      _applyRefreshedApiKey(block, data.apiKey);
-      apiKey = data.apiKey;
-    }
-    if (r.ok && data.ok) {
-      setState('up', 'Online');
-      _srvCheckCache.set(cacheKey, { up: true, ts: Date.now() });
-      return { up: true };
-    }
-    if ((r.status === 401 || r.status === 403) && retry && username && password) {
-      setState('checking', 'Checking…');
-      const refreshed = await _reauthServerCredentials(block);
-      if (refreshed.ok) return refreshServerCard(block, { retry: false });
-    }
-    setState('down', 'Offline');
-    _srvCheckCache.set(cacheKey, { up: false, ts: Date.now() });
-    return { up: false };
-  } catch {
-    setState('down', 'Offline');
-    _srvCheckCache.set(cacheKey, { up: false, ts: Date.now() });
-    return { up: false };
-  }
+/** @deprecated Use syncServerCardDisplay — kept for callers that refresh the row after save. */
+function refreshServerCard(block) {
+  return syncServerCardDisplay(block);
 }
 
 function _isServersPageActive() {
@@ -432,68 +351,18 @@ function _isServersPageActive() {
 }
 
 function _recomputeServersHeaderStats(blocks) {
-  let up = 0, fastestBridge = null;
+  let configured = 0;
   for (const block of blocks) {
-    if (!block.classList.contains('ok')) continue;
-    up++;
-    const pingTxt = block.querySelector('[data-bind=ping-bridge]')?.textContent || '';
-    const ms = parseInt(pingTxt, 10);
-    if (!isNaN(ms) && (fastestBridge === null || ms < fastestBridge)) fastestBridge = ms;
+    if (syncServerCardDisplay(block).configured) configured++;
   }
-  _updateServersHeaderStats(up, blocks.length, fastestBridge);
+  _updateServersHeaderStats(configured, blocks.length);
 }
-
-function _clearServersPingMetrics(blocks) {
-  for (const block of blocks) {
-    _srvSetPingEm(block.querySelector('[data-bind=ping-bridge]'), null);
-    const youEl = block.querySelector('[data-bind=ping-you]');
-    if (youEl) { youEl.textContent = '—'; youEl.className = ''; }
-    const youBtn = block.querySelector('.srv-you-test');
-    if (youBtn) { youBtn.disabled = false; youBtn.textContent = 'Test'; }
-  }
-}
-
-async function testYouPing(id) {
-  const block = document.getElementById('server-' + id);
-  if (!block) return;
-  const url = block.querySelector('.f-url')?.value.trim().replace(/\/+$/, '');
-  const youEl = block.querySelector('[data-bind=ping-you]');
-  const btn = block.querySelector('.srv-you-test');
-  if (!url || !youEl) return;
-  if (!block.classList.contains('ok')) {
-    youEl.textContent = '—';
-    youEl.className = '';
-    return;
-  }
-  if (btn) { btn.disabled = true; btn.textContent = '…'; }
-  youEl.textContent = '…';
-  youEl.className = 'ping-pending';
-  const ms = await browserPing(url);
-  if (btn) { btn.disabled = false; btn.textContent = 'Test'; }
-  if (ms == null) {
-    youEl.textContent = 'N/A';
-    youEl.className = 'ping-na';
-  } else {
-    _srvSetPingEm(youEl, ms);
-  }
-}
-window.testYouPing = testYouPing;
 
 async function renderServersPage(opts = {}) {
   if (!opts.force && !_isServersPageActive()) return;
   await ensureAccountConfigLoaded();
   _updateServersEmptyState();
   const blocks = [...document.querySelectorAll('#servers-container .server-card')];
-  const toRefresh = opts.failedOnly
-    ? blocks.filter(b => b.classList.contains('bad'))
-    : blocks;
-  const failedFirst = [...toRefresh].sort((a, b) => {
-    const aBad = a.classList.contains('bad') ? 0 : 1;
-    const bBad = b.classList.contains('bad') ? 0 : 1;
-    return aBad - bBad;
-  });
-  await Promise.all(failedFirst.map(block => refreshServerCard(block, { force: opts.force })));
-  _clearServersPingMetrics(blocks);
   _recomputeServersHeaderStats(blocks);
 }
 
@@ -585,7 +454,8 @@ function addServer(data = null, opts = {}) {
   renumberBlocks();
   updateCredWarning(id);
   if (!opts.skipRefresh) {
-    refreshServerCard(block).then(() => renderServersPage());
+    syncServerCardDisplay(block);
+    renderServersPage();
   }
   _updateServersEmptyState();
   if (!data) {
@@ -603,3 +473,9 @@ function removeServer(id) {
   renumberBlocks();
   autoSave();
 }
+
+window.syncServerCardDisplay = syncServerCardDisplay;
+window.refreshServerCard = refreshServerCard;
+window.renderServersPage = renderServersPage;
+window._srvPingClass = _srvPingClass;
+window._isServersPageActive = _isServersPageActive;
